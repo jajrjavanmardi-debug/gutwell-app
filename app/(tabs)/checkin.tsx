@@ -30,55 +30,43 @@ export default function CheckinScreen() {
       <Pressable style={styles.button}>
         <Text style={styles.buttonText}>Save Check-in</Text>
       </Pressable>
+
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container:{
+  container: {
     flex:1,
-    padding:20,
-    paddingTop:60
+    padding:20
   },
-
   title:{
-    fontSize:28,
+    fontSize:22,
     fontWeight:"600",
     marginBottom:20
   },
-
   label:{
-    fontSize:18,
     marginBottom:10
   },
-
   row:{
     flexDirection:"row",
-    flexWrap:"wrap",
-    gap:10
+    gap:10,
+    marginBottom:20
   },
-
   box:{
-    width:50,
-    height:50,
-    borderRadius:10,
     borderWidth:1,
-    justifyContent:"center",
-    alignItems:"center"
+    padding:12,
+    borderRadius:10
   },
-
   selected:{
-    backgroundColor:"#2563EB"
+    backgroundColor:"#ddd"
   },
-
   button:{
-    marginTop:40,
-    backgroundColor:"#2563EB",
+    backgroundColor:"#3b6ef5",
     padding:15,
     borderRadius:10,
     alignItems:"center"
   },
-
   buttonText:{
     color:"white",
     fontWeight:"600"
