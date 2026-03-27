@@ -13,22 +13,22 @@ const SLIDES = [
   {
     icon: 'heart' as const,
     title: 'Welcome to GutWell',
-    description: 'Your personal gut health companion. Track your daily habits to understand what works for your body.',
+    description: 'Stop guessing. Start knowing. Track your gut to discover exactly what makes you feel your best.',
   },
   {
     icon: 'body' as const,
-    title: 'Daily Check-ins',
-    description: 'Log your stool type using the Bristol Scale, along with symptoms like bloating and pain levels.',
+    title: 'Quick Daily Check-ins',
+    description: 'Every check-in reveals patterns. Stool type, bloating, pain, energy — it takes less than a minute.',
   },
   {
     icon: 'restaurant' as const,
-    title: 'Food Tracking',
-    description: 'Record what you eat to discover patterns between your diet and gut health.',
+    title: 'Connect Food & Symptoms',
+    description: 'Log your meals and see which foods energize you and which ones trigger discomfort.',
   },
   {
     icon: 'trending-up' as const,
-    title: 'See Your Progress',
-    description: 'View trends, correlations, and your personal gut health score over time.',
+    title: 'Your Personal Gut Score',
+    description: 'Watch your health improve over time. First patterns emerge after just 14 days of tracking.',
   },
 ];
 

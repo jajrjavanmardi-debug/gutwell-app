@@ -43,7 +43,7 @@ export default function HomeScreen() {
       .select('score')
       .eq('user_id', user.id)
       .eq('date', today)
-      .single();
+      .maybeSingle();
     if (scoreData?.score != null) {
       setGutScore(scoreData.score);
     } else {
@@ -164,7 +164,7 @@ export default function HomeScreen() {
         ) : (
         <>
         <Card style={styles.scoreCard} variant="elevated">
-          <Text style={styles.scoreLabel}>Today's Gut Score</Text>
+          <Text style={styles.scoreLabel}>Your Gut Score Today</Text>
           <View style={styles.scoreCircle}>
             <Text style={styles.scoreValue}>{gutScore !== null ? gutScore : '--'}</Text>
           </View>
@@ -195,8 +195,8 @@ export default function HomeScreen() {
           </>
         ) : (
           <Card style={styles.emptyCard}>
-            <Text style={styles.emptyText}>No entries yet today.</Text>
-            <Text style={styles.emptySubtext}>Start by doing a check-in!</Text>
+            <Text style={styles.emptyText}>Your gut story starts here</Text>
+            <Text style={styles.emptySubtext}>Do your first check-in to unlock your gut score.</Text>
           </Card>
         )}
         </>

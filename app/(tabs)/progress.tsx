@@ -163,7 +163,7 @@ export default function ProgressScreen() {
                   <View style={styles.symptomBadge}><Text style={styles.symptomCount}>{count}x</Text></View>
                 </View>
                 <View style={styles.symptomBar}>
-                  <View style={[styles.symptomFill, { width: `${(count / Math.max(...Object.values(symptomCounts))) * 100}%` }]} />
+                  <View style={[styles.symptomFill, { width: `${(count / Math.max(1, ...Object.values(symptomCounts))) * 100}%` }]} />
                 </View>
               </Card>
             ))}
@@ -172,7 +172,7 @@ export default function ProgressScreen() {
 
         {correlations && !correlations.insufficientData && correlations.topTriggers.length > 0 && (
           <>
-            <Text style={styles.sectionTitle}>Potential Food Triggers</Text>
+            <Text style={styles.sectionTitle}>Potential Food Patterns</Text>
             {correlations.topTriggers.slice(0, 5).map((trigger, i) => (
               <Card key={i} style={styles.triggerCard}>
                 <View style={styles.triggerRow}>
@@ -198,7 +198,7 @@ export default function ProgressScreen() {
             ))}
             {correlations.safeFoods.length > 0 && (
               <View style={styles.safeFoodsRow}>
-                <Text style={styles.safeFoodsLabel}>Safe foods:</Text>
+                <Text style={styles.safeFoodsLabel}>Well-tolerated foods:</Text>
                 {correlations.safeFoods.slice(0, 5).map((food, i) => (
                   <View key={i} style={styles.safeFoodChip}>
                     <Text style={styles.safeFoodText}>{food}</Text>
@@ -211,17 +211,17 @@ export default function ProgressScreen() {
 
         {correlations?.insufficientData && (
           <Card style={styles.insufficientCard}>
-            <Text style={styles.insufficientTitle}>Food Insights</Text>
+            <Text style={styles.insufficientTitle}>Food-Symptom Patterns</Text>
             <Text style={styles.insufficientText}>
-              Log more meals with food tags to see patterns between what you eat and how you feel.
+              Log meals with ingredients to unlock insights. Patterns emerge after 5+ logged meals.
             </Text>
           </Card>
         )}
 
         {checkInCount === 0 && foodCount === 0 && topSymptoms.length === 0 && (
           <Card style={styles.emptyCard}>
-            <Text style={styles.emptyText}>No data yet for this period.</Text>
-            <Text style={styles.emptySubtext}>Start logging to see your progress!</Text>
+            <Text style={styles.emptyText}>Nothing here yet</Text>
+            <Text style={styles.emptySubtext}>Log daily for 2 weeks and patterns will emerge.</Text>
           </Card>
         )}
         </>

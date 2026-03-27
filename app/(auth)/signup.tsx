@@ -50,7 +50,7 @@ export default function SignupScreen() {
       >
         <View style={styles.header}>
           <Text style={styles.title}>Create Account</Text>
-          <Text style={styles.subtitle}>Start your gut health journey</Text>
+          <Text style={styles.subtitle}>Take control of your digestive health</Text>
         </View>
 
         <View style={styles.form}>

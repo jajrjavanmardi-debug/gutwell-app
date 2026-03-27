@@ -60,8 +60,8 @@ export default function FoodScreen() {
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <ScrollView contentContainerStyle={styles.scroll}>
-        <Text style={styles.title}>Log a Meal</Text>
-        <Text style={styles.subtitle}>What did you eat?</Text>
+        <Text style={styles.title}>Track Your Plate</Text>
+        <Text style={styles.subtitle}>What nourished you today?</Text>
 
         <View style={styles.mealTypes}>
           {MEAL_TYPES.map(m => (

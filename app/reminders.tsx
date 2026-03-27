@@ -55,7 +55,12 @@ export default function RemindersScreen() {
 
   const toggleReminder = async (id: number, enabled: boolean) => {
     setReminders(rs => rs.map(r => r.id === id ? { ...r, enabled } : r));
-    await supabase.from('reminders').update({ enabled }).eq('id', id);
+    const { error } = await supabase.from('reminders').update({ enabled }).eq('id', id);
+    if (error) {
+      setReminders(rs => rs.map(r => r.id === id ? { ...r, enabled: !enabled } : r));
+      setToast({ visible: true, message: 'Failed to update reminder', type: 'error' });
+      return;
+    }
     if (user) await syncReminders(user.id);
   };
 
@@ -133,7 +138,7 @@ export default function RemindersScreen() {
           <Card style={styles.emptyCard}>
             <Ionicons name="notifications-off" size={40} color={Colors.textTertiary} />
             <Text style={styles.emptyText}>No reminders yet</Text>
-            <Text style={styles.emptySubtext}>Add a reminder to stay on track with your gut health.</Text>
+            <Text style={styles.emptySubtext}>Daily reminders help you spot what affects your gut. Set one now.</Text>
             <Button title="Add Reminder" onPress={() => setShowAdd(true)} variant="secondary" size="md" style={{ marginTop: Spacing.md }} />
           </Card>
         )}
@@ -182,20 +187,20 @@ export default function RemindersScreen() {
 
             <Text style={styles.addLabel}>Time</Text>
             <View style={styles.timeRow}>
-              <TouchableOpacity onPress={() => setNewHour(h => (h + 23) % 24)} style={styles.timeArrow}>
-                <Ionicons name="chevron-up" size={20} color={Colors.textSecondary} />
+              <TouchableOpacity onPress={() => setNewHour(h => (h + 1) % 24)} style={styles.timeArrow} accessibilityLabel="Increase hour">
+                <Ionicons name="chevron-up" size={22} color={Colors.textSecondary} />
               </TouchableOpacity>
               <Text style={styles.timeValue}>{String(newHour % 12 || 12).padStart(2, '0')}</Text>
-              <TouchableOpacity onPress={() => setNewHour(h => (h + 1) % 24)} style={styles.timeArrow}>
-                <Ionicons name="chevron-down" size={20} color={Colors.textSecondary} />
+              <TouchableOpacity onPress={() => setNewHour(h => (h + 23) % 24)} style={styles.timeArrow} accessibilityLabel="Decrease hour">
+                <Ionicons name="chevron-down" size={22} color={Colors.textSecondary} />
               </TouchableOpacity>
               <Text style={styles.timeSep}>:</Text>
-              <TouchableOpacity onPress={() => setNewMinute(m => (m + 45) % 60)} style={styles.timeArrow}>
-                <Ionicons name="chevron-up" size={20} color={Colors.textSecondary} />
+              <TouchableOpacity onPress={() => setNewMinute(m => (m + 5) % 60)} style={styles.timeArrow} accessibilityLabel="Increase minutes">
+                <Ionicons name="chevron-up" size={22} color={Colors.textSecondary} />
               </TouchableOpacity>
               <Text style={styles.timeValue}>{String(newMinute).padStart(2, '0')}</Text>
-              <TouchableOpacity onPress={() => setNewMinute(m => (m + 15) % 60)} style={styles.timeArrow}>
-                <Ionicons name="chevron-down" size={20} color={Colors.textSecondary} />
+              <TouchableOpacity onPress={() => setNewMinute(m => (m + 55) % 60)} style={styles.timeArrow} accessibilityLabel="Decrease minutes">
+                <Ionicons name="chevron-down" size={22} color={Colors.textSecondary} />
               </TouchableOpacity>
               <TouchableOpacity
                 onPress={() => setNewHour(h => h < 12 ? h + 12 : h - 12)}
@@ -256,12 +261,12 @@ const styles = StyleSheet.create({
   typeBtnSelected: { borderColor: Colors.primary, backgroundColor: Colors.primary + '10' },
   typeBtnLabel: { fontSize: FontSize.xs, fontWeight: '600', color: Colors.textTertiary },
   daysRow: { flexDirection: 'row', gap: Spacing.sm },
-  dayBtn: { width: 36, height: 36, borderRadius: 18, justifyContent: 'center', alignItems: 'center', backgroundColor: Colors.surface, borderWidth: 1.5, borderColor: Colors.border },
+  dayBtn: { width: 44, height: 44, borderRadius: 22, justifyContent: 'center', alignItems: 'center', backgroundColor: Colors.surface, borderWidth: 1.5, borderColor: Colors.border },
   dayBtnSelected: { backgroundColor: Colors.primary, borderColor: Colors.primary },
   dayText: { fontSize: FontSize.xs, fontWeight: '600', color: Colors.textTertiary },
   dayTextSelected: { color: Colors.textInverse },
   timeRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: Spacing.sm },
-  timeArrow: { padding: Spacing.xs },
+  timeArrow: { padding: Spacing.sm, minWidth: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center' },
   timeValue: { fontSize: FontSize.xxl, fontWeight: '700', color: Colors.text, minWidth: 40, textAlign: 'center' },
   timeSep: { fontSize: FontSize.xxl, fontWeight: '700', color: Colors.textTertiary },
   ampmBtn: { backgroundColor: Colors.surfaceSecondary, borderRadius: BorderRadius.sm, paddingHorizontal: Spacing.md, paddingVertical: Spacing.xs, marginLeft: Spacing.sm },

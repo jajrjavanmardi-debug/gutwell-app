@@ -1,16 +1,20 @@
 import React, { useEffect, useRef } from 'react';
-import { Animated, Text, StyleSheet } from 'react-native';
+import { Animated, Text, StyleSheet, Platform } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors, BorderRadius, Spacing, FontSize, Shadows } from '../../constants/theme';
+
+type ToastType = 'success' | 'error' | 'info';
 
 type Props = {
   message: string;
-  type?: 'success' | 'error' | 'info';
+  type?: ToastType;
   visible: boolean;
   onDismiss: () => void;
   duration?: number;
 };
 
 export function Toast({ message, type = 'success', visible, onDismiss, duration = 3000 }: Props) {
+  const insets = useSafeAreaInsets();
   const opacity = useRef(new Animated.Value(0)).current;
   const translateY = useRef(new Animated.Value(-20)).current;
 
@@ -32,7 +36,7 @@ export function Toast({ message, type = 'success', visible, onDismiss, duration 
 
   if (!visible) return null;
 
-  const bgColors = {
+  const bgColors: Record<ToastType, string> = {
     success: Colors.secondary,
     error: Colors.error,
     info: Colors.info,
@@ -40,9 +44,17 @@ export function Toast({ message, type = 'success', visible, onDismiss, duration 
 
   return (
     <Animated.View
+      accessible
+      accessibilityRole="alert"
+      accessibilityLiveRegion="polite"
       style={[
         styles.toast,
-        { backgroundColor: bgColors[type], opacity, transform: [{ translateY }] },
+        {
+          top: insets.top + Spacing.sm,
+          backgroundColor: bgColors[type],
+          opacity,
+          transform: [{ translateY }],
+        },
       ]}
     >
       <Text style={styles.text}>{message}</Text>
@@ -53,7 +65,6 @@ export function Toast({ message, type = 'success', visible, onDismiss, duration 
 const styles = StyleSheet.create({
   toast: {
     position: 'absolute',
-    top: 60,
     left: Spacing.md,
     right: Spacing.md,
     padding: Spacing.md,
