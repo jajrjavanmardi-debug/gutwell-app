@@ -6,6 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
 import { Card } from '../../components/ui/Card';
+import { LoadingSkeleton, CardSkeleton } from '../../components/ui/LoadingSkeleton';
 import { Colors, Spacing, FontSize, BorderRadius, Shadows } from '../../constants/theme';
 import { updateTodayScore } from '../../lib/scoring';
 
@@ -21,6 +22,7 @@ export default function HomeScreen() {
   const [gutScore, setGutScore] = useState<number | null>(null);
   const [streak, setStreak] = useState(0);
   const [recentEntries, setRecentEntries] = useState<RecentEntry[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
   const greeting = () => {
@@ -122,6 +124,7 @@ export default function HomeScreen() {
 
     entries.sort((a, b) => b.sortKey.localeCompare(a.sortKey));
     setRecentEntries(entries.slice(0, 5));
+    setIsLoading(false);
   }, [user]);
 
   useEffect(() => { loadData(); }, [loadData]);
@@ -141,6 +144,25 @@ export default function HomeScreen() {
         <Text style={styles.greeting}>{greeting()},</Text>
         <Text style={styles.name}>{displayName}</Text>
 
+        {isLoading ? (
+          <>
+            <Card style={styles.scoreCard} variant="elevated">
+              <LoadingSkeleton width={120} height={14} />
+              <View style={[styles.scoreCircle, { borderColor: Colors.border }]}>
+                <LoadingSkeleton width={40} height={32} borderRadius={8} />
+              </View>
+            </Card>
+            <LoadingSkeleton width={120} height={18} style={{ marginBottom: Spacing.md }} />
+            <View style={styles.actions}>
+              <LoadingSkeleton height={80} borderRadius={BorderRadius.lg} style={{ flex: 1 }} />
+              <LoadingSkeleton height={80} borderRadius={BorderRadius.lg} style={{ flex: 1 }} />
+              <LoadingSkeleton height={80} borderRadius={BorderRadius.lg} style={{ flex: 1 }} />
+            </View>
+            <CardSkeleton />
+            <CardSkeleton />
+          </>
+        ) : (
+        <>
         <Card style={styles.scoreCard} variant="elevated">
           <Text style={styles.scoreLabel}>Today's Gut Score</Text>
           <View style={styles.scoreCircle}>
@@ -176,6 +198,8 @@ export default function HomeScreen() {
             <Text style={styles.emptyText}>No entries yet today.</Text>
             <Text style={styles.emptySubtext}>Start by doing a check-in!</Text>
           </Card>
+        )}
+        </>
         )}
       </ScrollView>
     </SafeAreaView>
