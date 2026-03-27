@@ -56,6 +56,7 @@ function RootLayoutNav() {
         <Stack.Screen name="log-symptom" options={{ presentation: 'modal' }} />
         <Stack.Screen name="privacy-policy" options={{ presentation: 'modal' }} />
         <Stack.Screen name="reminders" options={{ presentation: 'modal' }} />
+        <Stack.Screen name="scan-food" options={{ presentation: 'modal' }} />
       </Stack>
     </>
   );
