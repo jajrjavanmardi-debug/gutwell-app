@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { router } from 'expo-router';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
 import { Button } from '../../components/ui/Button';
@@ -63,6 +64,17 @@ export default function FoodScreen() {
         <Text style={styles.title}>Track Your Plate</Text>
         <Text style={styles.subtitle}>What nourished you today?</Text>
 
+        <TouchableOpacity style={styles.scanButton} onPress={() => router.push('/scan-food')} activeOpacity={0.7}>
+          <View style={styles.scanIcon}>
+            <Ionicons name="camera" size={24} color={Colors.primary} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.scanTitle}>Scan with Camera</Text>
+            <Text style={styles.scanSubtitle}>Get an instant gut health analysis of your meal</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={20} color={Colors.textTertiary} />
+        </TouchableOpacity>
+
         <View style={styles.mealTypes}>
           {MEAL_TYPES.map(m => (
             <TouchableOpacity key={m.key} style={[styles.mealTypeBtn, mealType === m.key && styles.mealTypeSelected]} onPress={() => setMealType(m.key)} activeOpacity={0.7}>
@@ -118,6 +130,18 @@ const styles = StyleSheet.create({
   scroll: { padding: Spacing.lg, paddingBottom: Spacing.xxl },
   title: { fontSize: FontSize.xxl, fontWeight: '700', color: Colors.text },
   subtitle: { fontSize: FontSize.md, color: Colors.textSecondary, marginBottom: Spacing.lg },
+  scanButton: {
+    flexDirection: 'row', alignItems: 'center', gap: Spacing.md,
+    backgroundColor: Colors.primary + '08', borderRadius: BorderRadius.lg,
+    padding: Spacing.md, marginBottom: Spacing.lg,
+    borderWidth: 1.5, borderColor: Colors.primary + '25', borderStyle: 'dashed',
+  },
+  scanIcon: {
+    width: 48, height: 48, borderRadius: BorderRadius.md,
+    backgroundColor: Colors.primary + '15', justifyContent: 'center', alignItems: 'center',
+  },
+  scanTitle: { fontSize: FontSize.md, fontWeight: '600', color: Colors.text },
+  scanSubtitle: { fontSize: FontSize.xs, color: Colors.textTertiary, marginTop: 2 },
   mealTypes: { flexDirection: 'row', gap: Spacing.sm, marginBottom: Spacing.lg },
   mealTypeBtn: { flex: 1, backgroundColor: Colors.surface, borderRadius: BorderRadius.md, padding: Spacing.md, alignItems: 'center', gap: 4, borderWidth: 1.5, borderColor: Colors.border },
   mealTypeSelected: { borderColor: Colors.primary, backgroundColor: Colors.surfaceSecondary },
