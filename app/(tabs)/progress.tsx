@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
 import { Card } from '../../components/ui/Card';
+import { LoadingSkeleton } from '../../components/ui/LoadingSkeleton';
 import { Colors, Spacing, FontSize, BorderRadius } from '../../constants/theme';
 import { analyzeCorrelations, CorrelationSummary } from '../../lib/correlations';
 
@@ -19,6 +20,7 @@ export default function ProgressScreen() {
   const [stoolHistory, setStoolHistory] = useState<{ date: string; type: number }[]>([]);
   const [gutScores, setGutScores] = useState<{ x: number; y: number; label: string }[]>([]);
   const [correlations, setCorrelations] = useState<CorrelationSummary | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
   const loadData = useCallback(async () => {
@@ -69,6 +71,7 @@ export default function ProgressScreen() {
     } catch {
       setCorrelations(null);
     }
+    setIsLoading(false);
   }, [user, period]);
 
   useEffect(() => { loadData(); }, [loadData]);
@@ -92,6 +95,18 @@ export default function ProgressScreen() {
           ))}
         </View>
 
+        {isLoading ? (
+          <>
+            <View style={styles.statsRow}>
+              <Card style={styles.statCard}><LoadingSkeleton width={30} height={22} /><LoadingSkeleton width={60} height={10} style={{ marginTop: 4 }} /></Card>
+              <Card style={styles.statCard}><LoadingSkeleton width={30} height={22} /><LoadingSkeleton width={60} height={10} style={{ marginTop: 4 }} /></Card>
+              <Card style={styles.statCard}><LoadingSkeleton width={30} height={22} /><LoadingSkeleton width={60} height={10} style={{ marginTop: 4 }} /></Card>
+            </View>
+            <LoadingSkeleton width={140} height={18} style={{ marginBottom: Spacing.sm }} />
+            <Card style={styles.chartCard}><LoadingSkeleton height={100} borderRadius={BorderRadius.sm} /></Card>
+          </>
+        ) : (
+        <>
         <View style={styles.statsRow}>
           <Card style={styles.statCard}><Text style={styles.statValue}>{checkInCount}</Text><Text style={styles.statLabel}>Check-ins</Text></Card>
           <Card style={styles.statCard}><Text style={styles.statValue}>{avgStoolType ?? '--'}</Text><Text style={styles.statLabel}>Avg Stool Type</Text></Card>
@@ -208,6 +223,8 @@ export default function ProgressScreen() {
             <Text style={styles.emptyText}>No data yet for this period.</Text>
             <Text style={styles.emptySubtext}>Start logging to see your progress!</Text>
           </Card>
+        )}
+        </>
         )}
       </ScrollView>
     </SafeAreaView>

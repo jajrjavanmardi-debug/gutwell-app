@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useAuth } from '../../contexts/AuthContext';
+import { supabase } from '../../lib/supabase';
 import { exportUserData } from '../../lib/export';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
@@ -13,12 +14,37 @@ import { Colors, Spacing, FontSize, BorderRadius } from '../../constants/theme';
 export default function ProfileScreen() {
   const { user, profile, signOut } = useAuth();
   const [toast, setToast] = useState({ visible: false, message: '', type: 'info' as const });
+  const [deleting, setDeleting] = useState(false);
 
   const handleSignOut = () => {
     Alert.alert('Sign Out', 'Are you sure you want to sign out?', [
       { text: 'Cancel', style: 'cancel' },
       { text: 'Sign Out', style: 'destructive', onPress: signOut },
     ]);
+  };
+
+  const handleDeleteAccount = () => {
+    Alert.alert(
+      'Delete Account',
+      'This will permanently delete your account and all your data. This cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete Forever',
+          style: 'destructive',
+          onPress: async () => {
+            setDeleting(true);
+            const { error } = await supabase.rpc('delete_user_account');
+            setDeleting(false);
+            if (error) {
+              setToast({ visible: true, message: 'Failed to delete account. Please try again.', type: 'error' as any });
+            } else {
+              await signOut();
+            }
+          },
+        },
+      ],
+    );
   };
 
   return (
@@ -35,7 +61,7 @@ export default function ProfileScreen() {
         </Card>
 
         <Text style={styles.sectionTitle}>Settings</Text>
-        <SettingsItem icon="notifications" label="Reminders" subtitle="Set daily check-in reminders" onPress={() => setToast({ visible: true, message: 'Reminders coming soon!', type: 'info' })} />
+        <SettingsItem icon="notifications" label="Reminders" subtitle="Set daily check-in reminders" onPress={() => router.push('/reminders')} />
         <SettingsItem icon="download" label="Export Data" subtitle="Download your data as CSV" onPress={async () => {
           if (!user) return;
           try {
@@ -52,7 +78,7 @@ export default function ProfileScreen() {
 
         <Text style={styles.sectionTitle}>Account</Text>
         <Button title="Sign Out" onPress={handleSignOut} variant="outline" size="lg" style={{ marginBottom: Spacing.md }} />
-        <Button title="Delete Account" onPress={() => Alert.alert('Delete Account', 'Please contact support to delete your account.', [{ text: 'OK' }])} variant="ghost" size="md" style={{ marginBottom: Spacing.xxl }} />
+        <Button title={deleting ? 'Deleting...' : 'Delete Account'} onPress={handleDeleteAccount} variant="ghost" size="md" loading={deleting} style={{ marginBottom: Spacing.xxl }} />
       </ScrollView>
       <Toast message={toast.message} type={toast.type as any} visible={toast.visible} onDismiss={() => setToast(t => ({ ...t, visible: false }))} />
     </SafeAreaView>

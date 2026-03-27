@@ -4,11 +4,19 @@ import { StatusBar } from 'expo-status-bar';
 import { AuthProvider, useAuth } from '../contexts/AuthContext';
 import { View, ActivityIndicator, StyleSheet } from 'react-native';
 import { Colors } from '../constants/theme';
+import { syncReminders } from '../lib/notifications';
 
 function RootLayoutNav() {
   const { session, loading, profile } = useAuth();
   const segments = useSegments();
   const router = useRouter();
+
+  // Sync reminders when user is authenticated
+  useEffect(() => {
+    if (session?.user?.id) {
+      syncReminders(session.user.id).catch(console.warn);
+    }
+  }, [session?.user?.id]);
 
   useEffect(() => {
     if (loading) return;
@@ -47,6 +55,7 @@ function RootLayoutNav() {
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="log-symptom" options={{ presentation: 'modal' }} />
         <Stack.Screen name="privacy-policy" options={{ presentation: 'modal' }} />
+        <Stack.Screen name="reminders" options={{ presentation: 'modal' }} />
       </Stack>
     </>
   );
