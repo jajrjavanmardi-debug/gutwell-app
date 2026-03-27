@@ -66,7 +66,7 @@ export default function CheckinScreen() {
     <SafeAreaView style={styles.container} edges={['top']}>
       <ScrollView contentContainerStyle={styles.scroll}>
         <Text style={styles.title}>Daily Check-in</Text>
-        <Text style={styles.subtitle}>How's your gut today?</Text>
+        <Text style={styles.subtitle}>Check in with your gut</Text>
 
         <Text style={styles.sectionTitle}>Stool Type</Text>
         <View style={styles.bristolGrid}>
@@ -101,11 +101,12 @@ export default function CheckinScreen() {
 
         <Text style={styles.sectionTitle}>Notes (optional)</Text>
         <Input
-          placeholder="Anything else to note..."
+          placeholder="What's on your mind? (optional)"
           value={note}
           onChangeText={setNote}
           multiline
           numberOfLines={3}
+          maxLength={1000}
           style={{ minHeight: 80, textAlignVertical: 'top' }}
         />
 

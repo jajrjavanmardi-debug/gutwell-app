@@ -68,7 +68,7 @@ export default function LogSymptomScreen() {
       </View>
 
       <ScrollView contentContainerStyle={styles.scroll}>
-        <Text style={styles.sectionTitle}>What are you experiencing?</Text>
+        <Text style={styles.sectionTitle}>What's bothering your gut?</Text>
         <View style={styles.grid}>
           {SYMPTOM_TYPES.map(s => (
             <TouchableOpacity

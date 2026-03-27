@@ -38,7 +38,7 @@ export async function calculateGutScore(
     .eq('entry_date', date)
     .order('created_at', { ascending: false })
     .limit(1)
-    .single();
+    .maybeSingle();
 
   if (checkIn) {
     // Stool type score: 4 is ideal (25 pts), 3 and 5 are good (20 pts), etc.

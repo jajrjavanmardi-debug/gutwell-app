@@ -38,7 +38,7 @@ export default function LoginScreen() {
       >
         <View style={styles.header}>
           <Text style={styles.logo}>GutWell</Text>
-          <Text style={styles.subtitle}>Track your gut health journey</Text>
+          <Text style={styles.subtitle}>Understand your gut. Feel your best.</Text>
         </View>
 
         <View style={styles.form}>
