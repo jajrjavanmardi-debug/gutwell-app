@@ -20,7 +20,16 @@ import {
   Inter_700Bold,
   Inter_800ExtraBold,
 } from '@expo-google-fonts/inter';
+import * as Sentry from '@sentry/react-native';
+import { initAnalytics, identifyUser } from '../lib/analytics';
 import * as SplashScreen from 'expo-splash-screen';
+
+// Initialize Sentry for crash reporting
+Sentry.init({
+  dsn: process.env.EXPO_PUBLIC_SENTRY_DSN,
+  tracesSampleRate: 0.2,
+  enabled: !__DEV__,
+});
 
 SplashScreen.preventAutoHideAsync();
 
@@ -39,10 +48,11 @@ function RootLayoutNav() {
     }
   }, [session, profile?.onboarding_completed]);
 
-  // Sync reminders when user is authenticated
+  // Sync reminders + identify user for analytics when authenticated
   useEffect(() => {
     if (session?.user?.id) {
       syncReminders(session.user.id).catch(console.warn);
+      identifyUser(session.user.id);
     }
   }, [session?.user?.id]);
 
@@ -96,7 +106,7 @@ function RootLayoutNav() {
   );
 }
 
-export default function RootLayout() {
+function RootLayout() {
   const [fontsLoaded, fontError] = useFonts({
     EBGaramond_400Regular,
     EBGaramond_500Medium,
@@ -117,6 +127,7 @@ export default function RootLayout() {
 
   useEffect(() => {
     onLayoutRootView();
+    initAnalytics();
   }, [onLayoutRootView]);
 
   if (!fontsLoaded && !fontError) {
@@ -133,6 +144,8 @@ export default function RootLayout() {
     </AuthProvider>
   );
 }
+
+export default Sentry.wrap(RootLayout);
 
 const styles = StyleSheet.create({
   loading: {

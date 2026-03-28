@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -13,6 +13,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors, FontFamily, FontSize, Spacing, BorderRadius } from '../constants/theme';
+import { track, Events } from '../lib/analytics';
 
 const FEATURES = [
   '🔬 Food-symptom correlation analysis',
@@ -25,6 +26,10 @@ const FEATURES = [
 
 export default function PaywallScreen() {
   const [selectedPlan, setSelectedPlan] = useState<'monthly' | 'annual'>('annual');
+
+  useEffect(() => {
+    track(Events.PAYWALL_VIEWED);
+  }, []);
 
   const handleCTA = () => {
     Alert.alert(

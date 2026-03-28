@@ -11,6 +11,7 @@ import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import { FontFamily } from '../../constants/theme';
 import StarFieldBackground from '../../components/StarFieldBackground';
+import { track, Events } from '../../lib/analytics';
 
 const BENEFITS = [
   { icon: 'time-outline' as const, text: 'Daily check-in reminder at your chosen time' },
@@ -61,6 +62,7 @@ export default function NotificationsScreen() {
         .eq('id', user.id);
 
       await refreshProfile();
+      track(Events.ONBOARDING_COMPLETED, { name: name || 'unknown' });
 
       // Show celebration moment before navigating
       setShowCelebration(true);

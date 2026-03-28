@@ -14,6 +14,7 @@ import { WaterTracker } from '../../components/WaterTracker';
 import { BristolStoolChart } from '../../components/BristolStoolChart';
 import { Colors, Spacing, FontSize, BorderRadius, Shadows, FontFamily, Typography } from '../../constants/theme';
 import { updateTodayScore } from '../../lib/scoring';
+import { track, Events } from '../../lib/analytics';
 import { CheckInSuccessOverlay } from '../../components/CheckInSuccessOverlay';
 import { StreakPopup } from '../../components/StreakPopup';
 
@@ -169,7 +170,10 @@ export default function CheckinScreen() {
       const newStreak = streakData?.current_streak || 0;
       setCurrentStreak(newStreak);
 
+      track(Events.CHECKIN_LOGGED, { stool_type: stoolType, score: freshScore });
+
       if (STREAK_MILESTONES.includes(newStreak)) {
+        track(Events.STREAK_MILESTONE, { streak: newStreak });
         // Delay streak popup until after success overlay dismisses
         setTimeout(() => setShowStreakPopup(true), 2500);
       }
