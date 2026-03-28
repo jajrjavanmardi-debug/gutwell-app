@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl, P
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
+import * as Haptics from 'expo-haptics';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
 import { Card } from '../../components/ui/Card';
@@ -11,11 +12,11 @@ import { ContributionCalendar } from '../../components/ContributionCalendar';
 import { Colors, Spacing, FontSize, BorderRadius, Shadows, FontFamily } from '../../constants/theme';
 import { analyzeCorrelations, CorrelationSummary } from '../../lib/correlations';
 
-type Period = '7d' | '30d' | '90d';
+type Period = 'W' | 'M' | '6M';
 
 export default function ProgressScreen() {
   const { user } = useAuth();
-  const [period, setPeriod] = useState<Period>('7d');
+  const [period, setPeriod] = useState<Period>('W');
   const [checkInCount, setCheckInCount] = useState(0);
   const [avgStoolType, setAvgStoolType] = useState<number | null>(null);
   const [symptomCounts, setSymptomCounts] = useState<Record<string, number>>({});
@@ -29,8 +30,8 @@ export default function ProgressScreen() {
 
   const loadData = useCallback(async () => {
     if (!user) return;
-    const days = { '7d': 7, '30d': 30, '90d': 90 }[period];
-    const since = new Date(); since.setDate(since.getDate() - days);
+    const daysBack = period === 'W' ? 7 : period === 'M' ? 30 : 180;
+    const since = new Date(); since.setDate(since.getDate() - daysBack);
     const sinceStr = since.toISOString();
     const sinceDateStr = since.toISOString().split('T')[0];
 
@@ -48,11 +49,33 @@ export default function ProgressScreen() {
     const { data: scores } = await supabase.from('gut_scores').select('score, date')
       .eq('user_id', user.id).gte('date', sinceDateStr).order('date', { ascending: true });
     if (scores && scores.length > 0) {
-      setGutScores(scores.map((s, i) => ({
-        x: i,
-        y: s.score,
-        label: formatShortDate(s.date),
-      })));
+      if (period === '6M') {
+        // Group by ISO week and show weekly averages
+        const weekMap: Record<string, { sum: number; count: number; firstDate: string }> = {};
+        scores.forEach(s => {
+          const d = new Date(s.date + 'T00:00:00');
+          const startOfYear = new Date(d.getFullYear(), 0, 1);
+          const weekNum = Math.ceil(((d.getTime() - startOfYear.getTime()) / 86400000 + startOfYear.getDay() + 1) / 7);
+          const key = `${d.getFullYear()}-W${String(weekNum).padStart(2, '0')}`;
+          if (!weekMap[key]) weekMap[key] = { sum: 0, count: 0, firstDate: s.date };
+          weekMap[key].sum += s.score;
+          weekMap[key].count += 1;
+        });
+        const weeklyScores = Object.entries(weekMap)
+          .sort(([a], [b]) => a.localeCompare(b))
+          .map(([, v], i) => ({
+            x: i,
+            y: Math.round(v.sum / v.count),
+            label: formatShortDate(v.firstDate),
+          }));
+        setGutScores(weeklyScores);
+      } else {
+        setGutScores(scores.map((s, i) => ({
+          x: i,
+          y: s.score,
+          label: formatShortDate(s.date),
+        })));
+      }
     } else {
       setGutScores([]);
     }
@@ -71,7 +94,7 @@ export default function ProgressScreen() {
 
     // Food-symptom correlations
     try {
-      const corr = await analyzeCorrelations(user.id, days);
+      const corr = await analyzeCorrelations(user.id, daysBack);
       setCorrelations(corr);
     } catch {
       setCorrelations(null);
@@ -122,15 +145,18 @@ export default function ProgressScreen() {
 
         {/* Period Selector */}
         <View style={styles.periodContainer}>
-          {(['7d', '30d', '90d'] as Period[]).map(p => (
+          {(['W', 'M', '6M'] as Period[]).map(p => (
             <TouchableOpacity
               key={p}
               style={[styles.periodBtn, period === p && styles.periodSelected]}
-              onPress={() => setPeriod(p)}
+              onPress={() => {
+                setPeriod(p);
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              }}
               activeOpacity={0.7}
             >
               <Text style={[styles.periodText, period === p && styles.periodTextSelected]}>
-                {{ '7d': '7 Days', '30d': '30 Days', '90d': '90 Days' }[p]}
+                {p}
               </Text>
             </TouchableOpacity>
           ))}

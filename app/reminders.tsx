@@ -3,12 +3,21 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Switch, Alert } f
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
+import * as Haptics from 'expo-haptics';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
 import { Toast } from '../components/ui/Toast';
-import { requestNotificationPermissions, syncReminders } from '../lib/notifications';
+import {
+  scheduleDailyCheckInReminder,
+  cancelDailyCheckInReminder,
+  requestPermissions,
+  getPermissionStatus,
+  isInQuietHours,
+  requestNotificationPermissions,
+  syncReminders,
+} from '../lib/notifications';
 import { Colors, Spacing, FontSize, BorderRadius, FontFamily } from '../constants/theme';
 
 type ReminderType = 'checkin' | 'food' | 'symptom';
@@ -28,6 +37,9 @@ const REMINDER_TYPES: { key: ReminderType; label: string; icon: keyof typeof Ion
 
 const DAY_LABELS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
 
+const QUIET_START = '22:00';
+const QUIET_END = '08:00';
+
 export default function RemindersScreen() {
   const { user } = useAuth();
   const [reminders, setReminders] = useState<Reminder[]>([]);
@@ -39,6 +51,8 @@ export default function RemindersScreen() {
   const [newDays, setNewDays] = useState<number[]>([1, 2, 3, 4, 5, 6, 7]);
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState({ visible: false, message: '', type: 'success' as 'success' | 'error' });
+  const [permissionGranted, setPermissionGranted] = useState(true);
+  const [quietHoursEnabled, setQuietHoursEnabled] = useState(true);
 
   const loadReminders = useCallback(async () => {
     if (!user) return;
@@ -51,7 +65,13 @@ export default function RemindersScreen() {
     setLoading(false);
   }, [user]);
 
-  useEffect(() => { loadReminders(); }, [loadReminders]);
+  useEffect(() => {
+    loadReminders();
+    // Check permission status on mount
+    getPermissionStatus().then((status) => {
+      setPermissionGranted(status === 'granted');
+    });
+  }, [loadReminders]);
 
   const toggleReminder = async (id: number, enabled: boolean) => {
     setReminders(rs => rs.map(r => r.id === id ? { ...r, enabled } : r));
@@ -77,14 +97,25 @@ export default function RemindersScreen() {
     ]);
   };
 
+  // Determine if the currently selected time falls in quiet hours
+  const selectedTimeInQuietHours = quietHoursEnabled
+    ? isInQuietHours(
+        `${String(newHour).padStart(2, '0')}:${String(newMinute).padStart(2, '0')}`,
+        QUIET_START,
+        QUIET_END,
+      )
+    : false;
+
   const handleAdd = async () => {
     if (!user) return;
 
-    const granted = await requestNotificationPermissions();
+    const granted = await requestPermissions();
     if (!granted) {
+      setPermissionGranted(false);
       setToast({ visible: true, message: 'Please enable notifications in Settings', type: 'error' });
       return;
     }
+    setPermissionGranted(true);
 
     setSaving(true);
     const timeStr = `${String(newHour).padStart(2, '0')}:${String(newMinute).padStart(2, '0')}`;
@@ -99,12 +130,33 @@ export default function RemindersScreen() {
 
     if (error) {
       setToast({ visible: true, message: 'Failed to save reminder', type: 'error' });
+      setSaving(false);
+      return;
+    }
+
+    // For check-in reminders, also schedule via the new engine (respects quiet hours)
+    if (newType === 'checkin') {
+      const notifId = await scheduleDailyCheckInReminder(
+        newHour,
+        newMinute,
+        quietHoursEnabled ? QUIET_START : '00:00',
+        quietHoursEnabled ? QUIET_END : '00:00',
+      );
+      if (notifId === null && quietHoursEnabled) {
+        // Time was in quiet hours — still saved to DB but notification not scheduled
+        setToast({ visible: true, message: 'Reminder saved (quiet hours — notification paused)', type: 'success' });
+      } else {
+        await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        setToast({ visible: true, message: 'Reminder added!', type: 'success' });
+      }
     } else {
       await syncReminders(user.id);
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       setToast({ visible: true, message: 'Reminder added!', type: 'success' });
-      setShowAdd(false);
-      await loadReminders();
     }
+
+    setShowAdd(false);
+    await loadReminders();
     setSaving(false);
   };
 
@@ -141,6 +193,16 @@ export default function RemindersScreen() {
           <Ionicons name="add" size={22} color={Colors.textInverse} />
         </TouchableOpacity>
       </View>
+
+      {/* Permission Banner */}
+      {!permissionGranted && (
+        <View style={styles.permissionBanner}>
+          <Ionicons name="notifications-off-outline" size={18} color={Colors.textInverse} />
+          <Text style={styles.permissionBannerText}>
+            Notifications are disabled. Enable them in Settings to receive reminders.
+          </Text>
+        </View>
+      )}
 
       <ScrollView
         contentContainerStyle={styles.scroll}
@@ -294,6 +356,16 @@ export default function RemindersScreen() {
               </TouchableOpacity>
             </View>
 
+            {/* Quiet Hours Warning */}
+            {selectedTimeInQuietHours && (
+              <View style={styles.quietWarning}>
+                <Ionicons name="moon-outline" size={15} color={Colors.warning ?? '#F59E0B'} />
+                <Text style={styles.quietWarningText}>
+                  This time falls within quiet hours (10 PM – 8 AM). The notification won't fire unless quiet hours are turned off.
+                </Text>
+              </View>
+            )}
+
             {/* Day Selector */}
             <Text style={styles.addLabel}>Days</Text>
             <View style={styles.daysRow}>
@@ -317,6 +389,25 @@ export default function RemindersScreen() {
                   </TouchableOpacity>
                 );
               })}
+            </View>
+
+            {/* Quiet Hours Toggle */}
+            <View style={styles.quietHoursCard}>
+              <View style={styles.quietHoursLeft}>
+                <View style={styles.quietHoursIconWrap}>
+                  <Ionicons name="moon-outline" size={18} color={Colors.primary} />
+                </View>
+                <View style={styles.quietHoursTextBlock}>
+                  <Text style={styles.quietHoursTitle}>Quiet Hours</Text>
+                  <Text style={styles.quietHoursSubtext}>No notifications 10 PM – 8 AM</Text>
+                </View>
+              </View>
+              <Switch
+                value={quietHoursEnabled}
+                onValueChange={setQuietHoursEnabled}
+                trackColor={{ false: Colors.border, true: Colors.primary }}
+                thumbColor={Colors.surface}
+              />
             </View>
 
             {/* Actions */}
@@ -385,6 +476,24 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
+
+  // Permission Banner
+  permissionBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    backgroundColor: Colors.error,
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.sm,
+  },
+  permissionBannerText: {
+    flex: 1,
+    fontFamily: FontFamily.sansRegular,
+    fontSize: FontSize.xs,
+    color: Colors.textInverse,
+    lineHeight: 18,
+  },
+
   scroll: {
     padding: Spacing.lg,
     paddingBottom: Spacing.xxl + 40,
@@ -573,6 +682,24 @@ const styles = StyleSheet.create({
     color: Colors.primary,
   },
 
+  // Quiet hours warning
+  quietWarning: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: Spacing.xs,
+    backgroundColor: '#FEF3C7',
+    borderRadius: BorderRadius.md,
+    padding: Spacing.sm,
+    marginTop: Spacing.sm,
+  },
+  quietWarningText: {
+    flex: 1,
+    fontFamily: FontFamily.sansRegular,
+    fontSize: FontSize.xs,
+    color: '#92400E',
+    lineHeight: 18,
+  },
+
   // Day Selector
   daysRow: {
     flexDirection: 'row',
@@ -600,6 +727,47 @@ const styles = StyleSheet.create({
   },
   dayTextActive: {
     color: Colors.textInverse,
+  },
+
+  // Quiet Hours Toggle Card
+  quietHoursCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: Colors.surfaceSecondary,
+    borderRadius: BorderRadius.lg,
+    padding: Spacing.md,
+    marginTop: Spacing.lg,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  quietHoursLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    flex: 1,
+  },
+  quietHoursIconWrap: {
+    width: 36,
+    height: 36,
+    borderRadius: BorderRadius.sm,
+    backgroundColor: Colors.primary + '15',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  quietHoursTextBlock: {
+    flex: 1,
+  },
+  quietHoursTitle: {
+    fontFamily: FontFamily.sansSemiBold,
+    fontSize: FontSize.sm,
+    color: Colors.text,
+  },
+  quietHoursSubtext: {
+    fontFamily: FontFamily.sansRegular,
+    fontSize: FontSize.xs,
+    color: Colors.textTertiary,
+    marginTop: 1,
   },
 
   // Add Actions
