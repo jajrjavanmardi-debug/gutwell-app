@@ -10,7 +10,8 @@ import { Card } from '../../components/ui/Card';
 import { LoadingSkeleton } from '../../components/ui/LoadingSkeleton';
 import { ContributionCalendar } from '../../components/ContributionCalendar';
 import { Colors, Spacing, FontSize, BorderRadius, Shadows, FontFamily } from '../../constants/theme';
-import { analyzeCorrelations, CorrelationSummary } from '../../lib/correlations';
+import { analyzeCorrelations, CorrelationSummary, computeCorrelations, FoodCorrelation, SafeFood } from '../../lib/correlations';
+import { ShareCard } from '../../components/ShareCard';
 
 type Period = 'W' | 'M' | '6M';
 
@@ -24,6 +25,9 @@ export default function ProgressScreen() {
   const [stoolHistory, setStoolHistory] = useState<{ date: string; type: number }[]>([]);
   const [gutScores, setGutScores] = useState<{ x: number; y: number; label: string }[]>([]);
   const [correlations, setCorrelations] = useState<CorrelationSummary | null>(null);
+  const [triggerFoods, setTriggerFoods] = useState<FoodCorrelation[]>([]);
+  const [safeFoods, setSafeFoods] = useState<SafeFood[]>([]);
+  const [showShare, setShowShare] = useState(false);
   const [checkInDates, setCheckInDates] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -109,13 +113,24 @@ export default function ProgressScreen() {
       .eq('user_id', user.id).gte('logged_at', sinceStr);
     setFoodCount(count || 0);
 
-    // Food-symptom correlations
+    // Food-symptom correlations (legacy engine)
     try {
       const corr = await analyzeCorrelations(user.id, daysBack);
       setCorrelations(corr);
     } catch {
       setCorrelations(null);
     }
+
+    // New meal-level correlation engine
+    try {
+      const corr = await computeCorrelations(user.id, 90);
+      setTriggerFoods(corr.triggerFoods);
+      setSafeFoods(corr.safeFoods);
+    } catch {
+      setTriggerFoods([]);
+      setSafeFoods([]);
+    }
+
     setIsLoading(false);
   }, [user, period]);
 
@@ -150,15 +165,34 @@ export default function ProgressScreen() {
         {/* Header */}
         <View style={styles.headerRow}>
           <Text style={styles.title}>Progress</Text>
-          <TouchableOpacity
-            style={styles.digestButton}
-            onPress={() => router.push('/weekly-digest')}
-            activeOpacity={0.7}
-          >
-            <Ionicons name="document-text-outline" size={16} color={Colors.primary} />
-            <Text style={styles.digestButtonText}>Weekly Digest</Text>
-          </TouchableOpacity>
+          <View style={styles.headerActions}>
+            <TouchableOpacity
+              style={styles.iconButton}
+              onPress={() => setShowShare(true)}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="share-outline" size={20} color={Colors.primary} />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.digestButton}
+              onPress={() => router.push('/weekly-digest')}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="document-text-outline" size={16} color={Colors.primary} />
+              <Text style={styles.digestButtonText}>Weekly Digest</Text>
+            </TouchableOpacity>
+          </View>
         </View>
+
+        {/* Share Card Modal */}
+        <ShareCard
+          visible={showShare}
+          score={weekInsights?.avgScore ?? null}
+          streak={checkInCount}
+          level="Tracker"
+          weekTrend={weekInsights?.trend}
+          onClose={() => setShowShare(false)}
+        />
 
         {/* Period Selector */}
         <View style={styles.periodContainer}>
@@ -319,56 +353,61 @@ export default function ProgressScreen() {
           </>
         )}
 
-        {/* Correlations */}
-        {correlations && !correlations.insufficientData && correlations.topTriggers.length > 0 && (
+        {/* Trigger Foods — new engine */}
+        <Text style={styles.sectionTitle}>Trigger Foods</Text>
+        {triggerFoods.length > 0 ? (
           <>
-            <Text style={styles.sectionTitle}>Potential Food Patterns</Text>
-            {correlations.topTriggers.slice(0, 5).map((trigger, i) => (
-              <View key={i} style={styles.triggerCard}>
-                <View style={styles.triggerRow}>
-                  <Text style={styles.triggerFood}>{trigger.food}</Text>
-                  <Ionicons name="arrow-forward" size={14} color={Colors.textTertiary} style={{ marginHorizontal: 4 }} />
-                  <Text style={styles.triggerSymptom}>{trigger.symptom.replace('_', ' ')}</Text>
-                  <View style={[styles.riskBadge, {
-                    backgroundColor: trigger.riskMultiplier >= 2 ? Colors.severity[4] + '15' :
-                      trigger.riskMultiplier >= 1.5 ? Colors.severity[3] + '15' : Colors.severity[2] + '15',
-                    borderWidth: 1,
-                    borderColor: trigger.riskMultiplier >= 2 ? Colors.severity[4] + '30' :
-                      trigger.riskMultiplier >= 1.5 ? Colors.severity[3] + '30' : Colors.severity[2] + '30',
-                  }]}>
-                    <Text style={[styles.riskText, {
-                      color: trigger.riskMultiplier >= 2 ? Colors.severity[4] :
-                        trigger.riskMultiplier >= 1.5 ? Colors.severity[3] : Colors.severity[2],
-                    }]}>
-                      {trigger.riskMultiplier.toFixed(1)}x
-                    </Text>
+            {triggerFoods.map((item, i) => {
+              const riskColor = item.riskLevel === 'high' ? '#E07070' : item.riskLevel === 'medium' ? Colors.accent : Colors.secondary;
+              return (
+                <View key={i} style={styles.triggerCard}>
+                  <View style={styles.triggerRow}>
+                    <Text style={[styles.triggerFood, { fontFamily: FontFamily.displayMedium, fontSize: 15 }]}>{item.foodName}</Text>
+                    <View style={[styles.riskBadge, { backgroundColor: riskColor + '18', borderWidth: 1, borderColor: riskColor + '40' }]}>
+                      <Text style={[styles.riskText, { color: riskColor }]}>
+                        {item.riskLevel.toUpperCase()}
+                      </Text>
+                    </View>
                   </View>
+                  <View style={styles.correlationBarRow}>
+                    <View style={styles.correlationBarTrack}>
+                      <View style={[styles.correlationBarFill, { width: `${item.correlationPct}%` as any, backgroundColor: riskColor }]} />
+                    </View>
+                    <Text style={styles.correlationPctText}>{item.correlationPct}% correlation</Text>
+                  </View>
+                  {item.topSymptom && (
+                    <Text style={styles.topSymptomText}>→ {item.topSymptom.replace(/_/g, ' ')}</Text>
+                  )}
                 </View>
-                <Text style={styles.triggerDetail}>
-                  {trigger.occurrences} of {trigger.totalMeals} meals · {trigger.confidence} confidence
-                </Text>
-              </View>
-            ))}
-            {correlations.safeFoods.length > 0 && (
-              <View style={styles.safeFoodsRow}>
-                <Text style={styles.safeFoodsLabel}>Well-tolerated foods:</Text>
-                {correlations.safeFoods.slice(0, 5).map((food, i) => (
-                  <View key={i} style={styles.safeFoodChip}>
-                    <Text style={styles.safeFoodText}>{food}</Text>
-                  </View>
-                ))}
-              </View>
-            )}
+              );
+            })}
+          </>
+        ) : (
+          <View style={styles.insufficientCard}>
+            <Ionicons name="analytics-outline" size={28} color={Colors.textTertiary} />
+            <Text style={styles.insufficientTitle}>No Trigger Foods Yet</Text>
+            <Text style={styles.insufficientText}>Log 2+ weeks of meals to detect trigger foods.</Text>
+          </View>
+        )}
+
+        {/* Safe Foods — new engine */}
+        {safeFoods.length > 0 && (
+          <>
+            <Text style={styles.sectionTitle}>Safe Foods</Text>
+            <View style={styles.safeFoodsRow}>
+              {safeFoods.map((item, i) => (
+                <View key={i} style={styles.safeFoodChip}>
+                  <Text style={styles.safeFoodText}>✓ {item.foodName} · {item.symptomFreeRate}% symptom-free</Text>
+                </View>
+              ))}
+            </View>
           </>
         )}
 
-        {correlations?.insufficientData && (
+        {safeFoods.length === 0 && triggerFoods.length === 0 && !correlations && (
           <View style={styles.insufficientCard}>
-            <Ionicons name="analytics-outline" size={28} color={Colors.textTertiary} />
-            <Text style={styles.insufficientTitle}>Food-Symptom Patterns</Text>
-            <Text style={styles.insufficientText}>
-              Log meals with ingredients to unlock insights. Patterns emerge after 5+ logged meals.
-            </Text>
+            <Ionicons name="leaf-outline" size={24} color={Colors.textTertiary} />
+            <Text style={styles.insufficientText}>Safe foods appear after consistent tracking.</Text>
           </View>
         )}
 
@@ -408,6 +447,21 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: Spacing.md,
+  },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+  },
+  iconButton: {
+    width: 36,
+    height: 36,
+    borderRadius: BorderRadius.full,
+    backgroundColor: Colors.primary + '10',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: Colors.primary + '20',
   },
   title: {
     fontFamily: FontFamily.displayMedium,
@@ -625,6 +679,38 @@ const styles = StyleSheet.create({
     height: '100%',
     backgroundColor: Colors.primary,
     borderRadius: 3,
+  },
+
+  // Correlation bar
+  correlationBarRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    marginTop: Spacing.xs,
+  },
+  correlationBarTrack: {
+    flex: 1,
+    height: 6,
+    backgroundColor: Colors.surfaceSecondary,
+    borderRadius: 3,
+    overflow: 'hidden',
+  },
+  correlationBarFill: {
+    height: '100%',
+    borderRadius: 3,
+  },
+  correlationPctText: {
+    fontFamily: FontFamily.sansMedium,
+    fontSize: FontSize.xs,
+    color: Colors.textSecondary,
+    minWidth: 100,
+  },
+  topSymptomText: {
+    fontFamily: FontFamily.sansRegular,
+    fontSize: FontSize.xs,
+    color: Colors.textTertiary,
+    marginTop: Spacing.xs,
+    textTransform: 'capitalize',
   },
 
   // Correlations

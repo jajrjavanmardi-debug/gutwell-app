@@ -13,6 +13,18 @@ import { Card } from '../../components/ui/Card';
 import { SwipeableCard } from '../../components/SwipeableCard';
 import { Colors, Spacing, FontSize, BorderRadius, Shadows, FontFamily } from '../../constants/theme';
 
+function formatMealTime(iso: string): string {
+  const date = new Date(iso);
+  const now = new Date();
+  const isToday = date.toDateString() === now.toDateString();
+  const yesterday = new Date(now); yesterday.setDate(now.getDate() - 1);
+  const isYesterday = date.toDateString() === yesterday.toDateString();
+  const time = date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+  if (isToday) return `Today ${time}`;
+  if (isYesterday) return `Yesterday ${time}`;
+  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + ` ${time}`;
+}
+
 const MEAL_TYPES = [
   { key: 'breakfast', label: 'Breakfast', icon: 'sunny' as const },
   { key: 'lunch', label: 'Lunch', icon: 'partly-sunny' as const },
@@ -38,10 +50,12 @@ export default function FoodScreen() {
   const [favorites, setFavorites] = useState<Favorite[]>([]);
   const [recentMeals, setRecentMeals] = useState<{ id: number; meal_name: string; meal_type: string; logged_at: string }[]>([]);
   const [toast, setToast] = useState({ visible: false, message: '', type: 'success' as 'success' | 'error' });
+  const [sensitiveFoods, setSensitiveFoods] = useState<string[]>([]);
 
   useEffect(() => {
     loadRecentMeals();
     loadFavorites();
+    loadSensitiveFoods();
   }, [user]);
 
   const loadFavorites = async () => {
@@ -61,6 +75,28 @@ export default function FoodScreen() {
       .from('food_logs').select('id, meal_name, meal_type, logged_at')
       .eq('user_id', user.id).order('logged_at', { ascending: false }).limit(5);
     setRecentMeals(data || []);
+  };
+
+  const loadSensitiveFoods = async () => {
+    if (!user) return;
+    const thirtyDaysAgo = new Date(); thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    const [{ data: recentSymptoms }, { data: recentFoodLogs }] = await Promise.all([
+      supabase.from('symptom_logs').select('logged_at').eq('user_id', user.id).gte('logged_at', thirtyDaysAgo.toISOString()),
+      supabase.from('food_logs').select('meal_name, logged_at').eq('user_id', user.id).gte('logged_at', thirtyDaysAgo.toISOString()),
+    ]);
+    if (recentSymptoms && recentFoodLogs) {
+      const triggered = new Set<string>();
+      recentSymptoms.forEach(s => {
+        const symTime = new Date(s.logged_at).getTime();
+        recentFoodLogs.forEach(f => {
+          const foodTime = new Date(f.logged_at).getTime();
+          if (foodTime < symTime && symTime - foodTime < 6 * 3600 * 1000) {
+            triggered.add(f.meal_name.toLowerCase());
+          }
+        });
+      });
+      setSensitiveFoods(Array.from(triggered));
+    }
   };
 
   const addFood = () => {
@@ -261,8 +297,14 @@ export default function FoodScreen() {
                   <View style={styles.recentInfo}>
                     <Text style={styles.recentName} numberOfLines={1}>{meal.meal_name}</Text>
                     <Text style={styles.recentMeta}>
-                      {meal.meal_type.charAt(0).toUpperCase() + meal.meal_type.slice(1)} · {new Date(meal.logged_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
+                      {meal.meal_type.charAt(0).toUpperCase() + meal.meal_type.slice(1)} · {formatMealTime(meal.logged_at)}
                     </Text>
+                    {sensitiveFoods.includes(meal.meal_name?.toLowerCase()) && (
+                      <View style={styles.sensitivityBadge}>
+                        <Ionicons name="warning-outline" size={11} color="#D4A373" />
+                        <Text style={styles.sensitivityText}>May trigger</Text>
+                      </View>
+                    )}
                   </View>
                 </View>
               </SwipeableCard>
@@ -504,5 +546,21 @@ const styles = StyleSheet.create({
     fontSize: FontSize.xs,
     color: Colors.textTertiary,
     marginTop: 2,
+  },
+  sensitivityBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    backgroundColor: '#D4A37320',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 10,
+    marginTop: 4,
+    alignSelf: 'flex-start',
+  },
+  sensitivityText: {
+    fontFamily: FontFamily.sansRegular,
+    fontSize: 11,
+    color: '#D4A373',
   },
 });
