@@ -8,13 +8,15 @@ import {
   ScrollView,
   TouchableOpacity,
 } from 'react-native';
-import { Link, router } from 'expo-router';
+import { Link } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../../contexts/AuthContext';
 import { Input } from '../../components/ui/Input';
 import { Button } from '../../components/ui/Button';
 import { Toast } from '../../components/ui/Toast';
-import { Colors, Spacing, FontSize, FontFamily, BorderRadius } from '../../constants/theme';
+import { Colors, Spacing, FontSize, FontFamily } from '../../constants/theme';
 
 export default function LoginScreen() {
   const { signIn } = useAuth();
@@ -37,80 +39,93 @@ export default function LoginScreen() {
   };
 
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-    >
-      <ScrollView
-        contentContainerStyle={styles.scroll}
-        keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}
+    <View style={styles.container}>
+      {/* Dark gradient header */}
+      <LinearGradient
+        colors={['#0B1F14', '#1B4332']}
+        style={styles.header}
       >
-        {/* ── Logo / Header ── */}
-        <View style={styles.header}>
-          <View style={styles.logoIcon}>
-            <Ionicons name="leaf" size={32} color={Colors.primary} />
+        <SafeAreaView edges={['top']}>
+          <View style={styles.logoSection}>
+            <View style={styles.logoCircle}>
+              <Ionicons name="leaf" size={40} color="white" />
+            </View>
+            <Text style={styles.appName}>GutWell</Text>
+            <Text style={styles.tagline}>Understand your gut. Feel your best.</Text>
           </View>
-          <Text style={styles.logo}>GutWell</Text>
-          <Text style={styles.tagline}>Understand your gut. Feel your best.</Text>
-        </View>
+        </SafeAreaView>
+      </LinearGradient>
 
-        {/* ── Form ── */}
-        <View style={styles.form}>
-          <Input
-            label="Email"
-            placeholder="you@example.com"
-            value={email}
-            onChangeText={setEmail}
-            keyboardType="email-address"
-            autoCapitalize="none"
-            autoComplete="email"
-          />
-          <Input
-            label="Password"
-            placeholder="Your password"
-            value={password}
-            onChangeText={setPassword}
-            secureTextEntry
-            autoComplete="password"
-          />
-          <Button
-            title="Sign In"
-            onPress={handleLogin}
-            loading={loading}
-            size="lg"
-          />
-        </View>
+      {/* White form card — rises over gradient with rounded top corners */}
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      >
+        <ScrollView
+          style={styles.formCard}
+          contentContainerStyle={styles.formScroll}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          <Text style={styles.formTitle}>Welcome back</Text>
 
-        {/* ── Links ── */}
-        <View style={styles.footer}>
-          <Link href="/(auth)/forgot-password" asChild>
-            <TouchableOpacity activeOpacity={0.7}>
-              <Text style={styles.forgotText}>Forgot password?</Text>
-            </TouchableOpacity>
-          </Link>
+          {/* ── Form ── */}
+          <View style={styles.form}>
+            <Input
+              label="Email"
+              placeholder="you@example.com"
+              value={email}
+              onChangeText={setEmail}
+              keyboardType="email-address"
+              autoCapitalize="none"
+              autoComplete="email"
+            />
+            <Input
+              label="Password"
+              placeholder="Your password"
+              value={password}
+              onChangeText={setPassword}
+              secureTextEntry
+              autoComplete="password"
+            />
+            <Button
+              title="Sign In"
+              onPress={handleLogin}
+              loading={loading}
+              size="lg"
+            />
+          </View>
 
-          <View style={styles.signupRow}>
-            <Text style={styles.footerText}>Don't have an account? </Text>
-            <Link href="/(auth)/signup" asChild>
+          {/* ── Links ── */}
+          <View style={styles.footer}>
+            <Link href="/(auth)/forgot-password" asChild>
               <TouchableOpacity activeOpacity={0.7}>
-                <Text style={styles.signupLink}>Sign Up</Text>
+                <Text style={styles.forgotText}>Forgot password?</Text>
               </TouchableOpacity>
             </Link>
-          </View>
-        </View>
 
-        {/* ── Dev login ── */}
-        {__DEV__ && (
-          <Button
-            title="Dev Login"
-            onPress={() => signIn('dev@gutwell.app', 'devpass123')}
-            variant="ghost"
-            size="sm"
-            style={{ marginTop: Spacing.lg }}
-          />
-        )}
-      </ScrollView>
+            <View style={styles.signupRow}>
+              <Text style={styles.footerText}>Don't have an account? </Text>
+              <Link href="/(auth)/signup" asChild>
+                <TouchableOpacity activeOpacity={0.7}>
+                  <Text style={styles.signupLink}>Sign Up</Text>
+                </TouchableOpacity>
+              </Link>
+            </View>
+          </View>
+
+          {/* ── Dev login ── */}
+          {__DEV__ && (
+            <Button
+              title="Dev Login"
+              onPress={() => signIn('dev@gutwell.app', 'devpass123')}
+              variant="ghost"
+              size="sm"
+              style={{ marginTop: Spacing.lg }}
+            />
+          )}
+        </ScrollView>
+      </KeyboardAvoidingView>
 
       <Toast
         message={toast.message}
@@ -118,7 +133,7 @@ export default function LoginScreen() {
         visible={toast.visible}
         onDismiss={() => setToast((t) => ({ ...t, visible: false }))}
       />
-    </KeyboardAvoidingView>
+    </View>
   );
 }
 
@@ -127,37 +142,57 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: Colors.background,
   },
-  scroll: {
-    flexGrow: 1,
-    justifyContent: 'center',
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.xxl,
-  },
 
-  // ── Header ──
+  // ── Gradient header ──
   header: {
-    alignItems: 'center',
-    marginBottom: Spacing.xxl,
+    paddingBottom: 32,
   },
-  logoIcon: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: Colors.surfaceSecondary,
+  logoSection: {
+    alignItems: 'center',
+    paddingHorizontal: Spacing.lg,
+    paddingTop: 20,
+    paddingBottom: 8,
+    gap: 8,
+  },
+  logoCircle: {
+    width: 68,
+    height: 68,
+    borderRadius: 34,
+    backgroundColor: 'rgba(255,255,255,0.12)',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: Spacing.md,
+    marginBottom: 4,
   },
-  logo: {
+  appName: {
     fontFamily: FontFamily.displayBold,
-    fontSize: 40,
-    color: Colors.primary,
-    marginBottom: Spacing.xs,
+    fontSize: 42,
+    color: 'white',
   },
   tagline: {
+    color: 'rgba(255,255,255,0.65)',
     fontFamily: FontFamily.sansRegular,
-    fontSize: FontSize.md,
-    color: Colors.textSecondary,
+    fontSize: 14,
+    textAlign: 'center',
+  },
+
+  // ── White form card ──
+  formCard: {
+    backgroundColor: Colors.surface,
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    marginTop: -20,
+    flex: 1,
+  },
+  formScroll: {
+    padding: 28,
+    paddingTop: 24,
+    paddingBottom: 40,
+  },
+  formTitle: {
+    fontFamily: FontFamily.displayBold,
+    fontSize: 28,
+    color: Colors.primary,
+    marginBottom: 20,
   },
 
   // ── Form ──

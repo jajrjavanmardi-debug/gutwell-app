@@ -10,6 +10,8 @@ import {
 } from 'react-native';
 import { Link } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../../contexts/AuthContext';
 import { Input } from '../../components/ui/Input';
 import { Button } from '../../components/ui/Button';
@@ -53,77 +55,90 @@ export default function SignupScreen() {
   };
 
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-    >
-      <ScrollView
-        contentContainerStyle={styles.scroll}
-        keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}
+    <View style={styles.container}>
+      {/* Dark gradient header */}
+      <LinearGradient
+        colors={['#0B1F14', '#1B4332']}
+        style={styles.header}
       >
-        {/* ── Header ── */}
-        <View style={styles.header}>
-          <View style={styles.logoIcon}>
-            <Ionicons name="leaf" size={32} color={Colors.primary} />
+        <SafeAreaView edges={['top']}>
+          <View style={styles.logoSection}>
+            <View style={styles.logoCircle}>
+              <Ionicons name="leaf" size={40} color="white" />
+            </View>
+            <Text style={styles.appName}>GutWell</Text>
+            <Text style={styles.tagline}>Create Account</Text>
           </View>
-          <Text style={styles.title}>Create Account</Text>
-          <Text style={styles.subtitle}>Take control of your digestive health</Text>
-        </View>
+        </SafeAreaView>
+      </LinearGradient>
 
-        {/* ── Form ── */}
-        <View style={styles.form}>
-          <Input
-            label="Name"
-            placeholder="Your name"
-            value={name}
-            onChangeText={setName}
-            autoCapitalize="words"
-            autoComplete="name"
-          />
-          <Input
-            label="Email"
-            placeholder="you@example.com"
-            value={email}
-            onChangeText={setEmail}
-            keyboardType="email-address"
-            autoCapitalize="none"
-            autoComplete="email"
-          />
-          <Input
-            label="Password"
-            placeholder="At least 6 characters"
-            value={password}
-            onChangeText={setPassword}
-            secureTextEntry
-          />
-          <Input
-            label="Confirm Password"
-            placeholder="Repeat your password"
-            value={confirmPassword}
-            onChangeText={setConfirmPassword}
-            secureTextEntry
-          />
-          <Button
-            title="Create Account"
-            onPress={handleSignup}
-            loading={loading}
-            size="lg"
-          />
-        </View>
+      {/* White form card — rises over gradient with rounded top corners */}
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      >
+        <ScrollView
+          style={styles.formCard}
+          contentContainerStyle={styles.formScroll}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          <Text style={styles.formTitle}>Join GutWell</Text>
 
-        {/* ── Footer ── */}
-        <View style={styles.footer}>
-          <View style={styles.row}>
-            <Text style={styles.footerText}>Already have an account? </Text>
-            <Link href="/(auth)/login" asChild>
-              <TouchableOpacity activeOpacity={0.7}>
-                <Text style={styles.signinLink}>Sign in</Text>
-              </TouchableOpacity>
-            </Link>
+          {/* ── Form ── */}
+          <View style={styles.form}>
+            <Input
+              label="Name"
+              placeholder="Your name"
+              value={name}
+              onChangeText={setName}
+              autoCapitalize="words"
+              autoComplete="name"
+            />
+            <Input
+              label="Email"
+              placeholder="you@example.com"
+              value={email}
+              onChangeText={setEmail}
+              keyboardType="email-address"
+              autoCapitalize="none"
+              autoComplete="email"
+            />
+            <Input
+              label="Password"
+              placeholder="At least 6 characters"
+              value={password}
+              onChangeText={setPassword}
+              secureTextEntry
+            />
+            <Input
+              label="Confirm Password"
+              placeholder="Repeat your password"
+              value={confirmPassword}
+              onChangeText={setConfirmPassword}
+              secureTextEntry
+            />
+            <Button
+              title="Create Account"
+              onPress={handleSignup}
+              loading={loading}
+              size="lg"
+            />
           </View>
-        </View>
-      </ScrollView>
+
+          {/* ── Footer ── */}
+          <View style={styles.footer}>
+            <View style={styles.row}>
+              <Text style={styles.footerText}>Already have an account? </Text>
+              <Link href="/(auth)/login" asChild>
+                <TouchableOpacity activeOpacity={0.7}>
+                  <Text style={styles.signinLink}>Sign In</Text>
+                </TouchableOpacity>
+              </Link>
+            </View>
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
 
       <Toast
         message={toast.message}
@@ -131,7 +146,7 @@ export default function SignupScreen() {
         visible={toast.visible}
         onDismiss={() => setToast((t) => ({ ...t, visible: false }))}
       />
-    </KeyboardAvoidingView>
+    </View>
   );
 }
 
@@ -140,37 +155,57 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: Colors.background,
   },
-  scroll: {
-    flexGrow: 1,
-    justifyContent: 'center',
+
+  // ── Gradient header ──
+  header: {
+    paddingBottom: 32,
+  },
+  logoSection: {
+    alignItems: 'center',
     paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.xxl,
+    paddingTop: 20,
+    paddingBottom: 8,
+    gap: 8,
+  },
+  logoCircle: {
+    width: 68,
+    height: 68,
+    borderRadius: 34,
+    backgroundColor: 'rgba(255,255,255,0.12)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  appName: {
+    fontFamily: FontFamily.displayBold,
+    fontSize: 42,
+    color: 'white',
+  },
+  tagline: {
+    color: 'rgba(255,255,255,0.65)',
+    fontFamily: FontFamily.sansRegular,
+    fontSize: 14,
+    textAlign: 'center',
   },
 
-  // ── Header ──
-  header: {
-    alignItems: 'center',
-    marginBottom: Spacing.xl,
+  // ── White form card ──
+  formCard: {
+    backgroundColor: Colors.surface,
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    marginTop: -20,
+    flex: 1,
   },
-  logoIcon: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: Colors.surfaceSecondary,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: Spacing.md,
+  formScroll: {
+    padding: 28,
+    paddingTop: 24,
+    paddingBottom: 40,
   },
-  title: {
+  formTitle: {
     fontFamily: FontFamily.displayBold,
-    fontSize: FontSize.hero,
-    color: Colors.text,
-    marginBottom: Spacing.xs,
-  },
-  subtitle: {
-    fontFamily: FontFamily.sansRegular,
-    fontSize: FontSize.md,
-    color: Colors.textSecondary,
+    fontSize: 28,
+    color: Colors.primary,
+    marginBottom: 20,
   },
 
   // ── Form ──

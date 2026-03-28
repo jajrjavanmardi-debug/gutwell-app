@@ -1,12 +1,21 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, KeyboardAvoidingView, Platform } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+} from 'react-native';
 import { Link } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../../contexts/AuthContext';
 import { Input } from '../../components/ui/Input';
 import { Button } from '../../components/ui/Button';
 import { Toast } from '../../components/ui/Toast';
-import { Colors, Spacing, FontSize, FontFamily, BorderRadius } from '../../constants/theme';
+import { Colors, Spacing, FontSize, FontFamily } from '../../constants/theme';
 
 export default function ForgotPasswordScreen() {
   const { resetPassword } = useAuth();
@@ -30,78 +39,155 @@ export default function ForgotPasswordScreen() {
   };
 
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-    >
-      <View style={styles.content}>
-        <View style={styles.iconWrap}>
-          <Ionicons name="lock-closed" size={32} color={Colors.secondary} />
-        </View>
+    <View style={styles.container}>
+      {/* Dark gradient header */}
+      <LinearGradient
+        colors={['#0B1F14', '#1B4332']}
+        style={styles.header}
+      >
+        <SafeAreaView edges={['top']}>
+          <View style={styles.logoSection}>
+            <View style={styles.logoCircle}>
+              <Ionicons name="lock-closed" size={36} color="white" />
+            </View>
+            <Text style={styles.appName}>GutWell</Text>
+            <Text style={styles.tagline}>Reset Password</Text>
+          </View>
+        </SafeAreaView>
+      </LinearGradient>
 
-        <Text style={styles.title}>Reset Password</Text>
-        <Text style={styles.subtitle}>
-          Enter your email and we'll send you a link to reset your password.
-        </Text>
+      {/* White form card — rises over gradient with rounded top corners */}
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      >
+        <ScrollView
+          style={styles.formCard}
+          contentContainerStyle={styles.formScroll}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          <Text style={styles.formTitle}>Forgot your password?</Text>
+          <Text style={styles.subtitle}>
+            Enter your email and we'll send you a link to reset your password.
+          </Text>
 
-        <View style={styles.form}>
-          <Input
-            label="Email"
-            placeholder="you@example.com"
-            value={email}
-            onChangeText={setEmail}
-            keyboardType="email-address"
-            autoCapitalize="none"
-          />
-          <Button title="Send Reset Link" onPress={handleReset} loading={loading} size="lg" />
-        </View>
+          {/* ── Form ── */}
+          <View style={styles.form}>
+            <Input
+              label="Email"
+              placeholder="you@example.com"
+              value={email}
+              onChangeText={setEmail}
+              keyboardType="email-address"
+              autoCapitalize="none"
+            />
+            <Button
+              title="Send Reset Link"
+              onPress={handleReset}
+              loading={loading}
+              size="lg"
+            />
+          </View>
 
-        <Link href="/(auth)/login" style={styles.link}>
-          Back to Sign In
-        </Link>
-      </View>
+          {/* ── Footer ── */}
+          <View style={styles.footer}>
+            <Link href="/(auth)/login" style={styles.backLink}>
+              Back to Sign In
+            </Link>
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
+
       <Toast
         message={toast.message}
         type={toast.type as any}
         visible={toast.visible}
-        onDismiss={() => setToast(t => ({ ...t, visible: false }))}
+        onDismiss={() => setToast((t) => ({ ...t, visible: false }))}
       />
-    </KeyboardAvoidingView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.background, justifyContent: 'center' },
-  content: { padding: Spacing.lg, gap: Spacing.md },
-  iconWrap: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
-    backgroundColor: Colors.secondary + '15',
+  container: {
+    flex: 1,
+    backgroundColor: Colors.background,
+  },
+
+  // ── Gradient header ──
+  header: {
+    paddingBottom: 32,
+  },
+  logoSection: {
+    alignItems: 'center',
+    paddingHorizontal: Spacing.lg,
+    paddingTop: 20,
+    paddingBottom: 8,
+    gap: 8,
+  },
+  logoCircle: {
+    width: 68,
+    height: 68,
+    borderRadius: 34,
+    backgroundColor: 'rgba(255,255,255,0.12)',
     justifyContent: 'center',
     alignItems: 'center',
-    alignSelf: 'center',
-    marginBottom: Spacing.sm,
+    marginBottom: 4,
   },
-  title: {
+  appName: {
     fontFamily: FontFamily.displayBold,
-    fontSize: FontSize.xxl,
-    color: Colors.text,
+    fontSize: 42,
+    color: 'white',
+  },
+  tagline: {
+    color: 'rgba(255,255,255,0.65)',
+    fontFamily: FontFamily.sansRegular,
+    fontSize: 14,
     textAlign: 'center',
+  },
+
+  // ── White form card ──
+  formCard: {
+    backgroundColor: Colors.surface,
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    marginTop: -20,
+    flex: 1,
+  },
+  formScroll: {
+    padding: 28,
+    paddingTop: 24,
+    paddingBottom: 40,
+  },
+  formTitle: {
+    fontFamily: FontFamily.displayBold,
+    fontSize: 28,
+    color: Colors.primary,
+    marginBottom: 8,
   },
   subtitle: {
     fontFamily: FontFamily.sansRegular,
     fontSize: FontSize.md,
     color: Colors.textSecondary,
     lineHeight: 22,
-    textAlign: 'center',
+    marginBottom: 20,
   },
-  form: { gap: Spacing.md, marginTop: Spacing.md },
-  link: {
+
+  // ── Form ──
+  form: {
+    gap: Spacing.md,
+  },
+
+  // ── Footer ──
+  footer: {
+    alignItems: 'center',
+    marginTop: Spacing.xl,
+  },
+  backLink: {
     fontFamily: FontFamily.sansSemiBold,
     fontSize: FontSize.sm,
     color: Colors.secondary,
     textAlign: 'center',
-    marginTop: Spacing.lg,
   },
 });
