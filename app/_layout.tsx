@@ -72,6 +72,7 @@ function RootLayoutNav() {
         <Stack.Screen name="reminders" options={{ presentation: 'modal' }} />
         <Stack.Screen name="scan-food" options={{ presentation: 'modal' }} />
         <Stack.Screen name="weekly-digest" options={{ presentation: 'modal' }} />
+        <Stack.Screen name="settings" options={{ title: 'Settings', presentation: 'modal' }} />
       </Stack>
     </>
   );

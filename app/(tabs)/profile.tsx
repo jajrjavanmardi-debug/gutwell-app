@@ -178,6 +178,13 @@ export default function ProfileScreen() {
         <Text style={styles.sectionTitle}>Settings</Text>
         <Card style={styles.sectionCard} variant="elevated">
           <SettingsItem
+            icon="settings-outline"
+            label="Settings"
+            subtitle="Preferences, notifications, diet type"
+            onPress={() => router.push('/settings')}
+          />
+          <View style={styles.itemDivider} />
+          <SettingsItem
             icon="notifications-outline"
             label="Reminders"
             subtitle="Set daily check-in reminders"

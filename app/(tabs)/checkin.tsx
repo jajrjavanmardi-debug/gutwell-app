@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
+import { router } from 'expo-router';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
 import { Button } from '../../components/ui/Button';
@@ -12,6 +13,7 @@ import { MoodSelector } from '../../components/MoodSelector';
 import { WaterTracker } from '../../components/WaterTracker';
 import { Colors, Spacing, FontSize, BorderRadius, Shadows, FontFamily, Typography } from '../../constants/theme';
 import { updateTodayScore } from '../../lib/scoring';
+import { CheckInSuccessOverlay } from '../../components/CheckInSuccessOverlay';
 
 const BRISTOL_TYPES = [
   { type: 1, desc: 'Hard lumps' },
@@ -115,6 +117,21 @@ export default function CheckinScreen() {
   const [note, setNote] = useState('');
   const [loading, setLoading] = useState(false);
   const [toast, setToast] = useState({ visible: false, message: '', type: 'success' as 'success' | 'error' });
+  const [showSuccess, setShowSuccess] = useState(false);
+  const [savedScore, setSavedScore] = useState<number | null>(null);
+  const [currentStreak, setCurrentStreak] = useState(0);
+
+  useEffect(() => {
+    if (!user) return;
+    supabase
+      .from('streaks')
+      .select('current_streak')
+      .eq('user_id', user.id)
+      .maybeSingle()
+      .then(({ data: sd }) => {
+        setCurrentStreak(sd?.current_streak || 0);
+      });
+  }, [user]);
 
   const handleSave = async () => {
     if (!stoolType) {
@@ -138,9 +155,10 @@ export default function CheckinScreen() {
     if (error) {
       setToast({ visible: true, message: 'Failed to save check-in', type: 'error' });
     } else {
-      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      const freshScore = await updateTodayScore(user.id).catch(() => null);
+      setSavedScore(freshScore);
+      setShowSuccess(true);
       setToast({ visible: true, message: 'Check-in saved!', type: 'success' });
-      updateTodayScore(user.id).catch(console.warn);
       setStoolType(null);
       setBloating(1);
       setPain(1);
@@ -296,6 +314,15 @@ export default function CheckinScreen() {
         type={toast.type}
         visible={toast.visible}
         onDismiss={() => setToast(t => ({ ...t, visible: false }))}
+      />
+      <CheckInSuccessOverlay
+        visible={showSuccess}
+        score={savedScore}
+        streak={currentStreak}
+        onDone={() => {
+          setShowSuccess(false);
+          router.push('/(tabs)/');
+        }}
       />
     </SafeAreaView>
   );

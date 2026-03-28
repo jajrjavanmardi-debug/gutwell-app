@@ -10,6 +10,7 @@ import { PressableFeedback } from '../../components/ui/PressableFeedback';
 import { DailyTip } from '../../components/DailyTip';
 import { GutLevelBadge } from '../../components/GutLevelBadge';
 import { StreakPopup } from '../../components/StreakPopup';
+import { SparklineChart } from '../../components/SparklineChart';
 import { Colors, Spacing, FontSize, BorderRadius, Shadows, FontFamily, Typography } from '../../constants/theme';
 import { updateTodayScore } from '../../lib/scoring';
 import { calculatePoints } from '../../lib/levels';
@@ -45,6 +46,7 @@ export default function HomeScreen() {
   const { user, profile } = useAuth();
   const [gutScore, setGutScore] = useState<number | null>(null);
   const [yesterdayScore, setYesterdayScore] = useState<number | null>(null);
+  const [weekScores, setWeekScores] = useState<number[]>([]);
   const [streak, setStreak] = useState(0);
   const [bestStreak, setBestStreak] = useState(0);
   const [weeklyCompletions, setWeeklyCompletions] = useState<boolean[]>(Array(7).fill(false));
@@ -110,6 +112,19 @@ export default function HomeScreen() {
       .eq('date', yesterdayStr)
       .maybeSingle();
     setYesterdayScore(yData?.score ?? null);
+
+    // ── Last 7 days of gut scores for sparkline ──────────────────────────────
+    const sevenDaysAgoSparkline = new Date();
+    sevenDaysAgoSparkline.setDate(sevenDaysAgoSparkline.getDate() - 6);
+    const { data: weekData } = await supabase
+      .from('gut_scores')
+      .select('score, date')
+      .eq('user_id', user.id)
+      .gte('date', sevenDaysAgoSparkline.toISOString().split('T')[0])
+      .order('date', { ascending: true });
+    if (weekData && weekData.length >= 2) {
+      setWeekScores(weekData.map(d => d.score));
+    }
 
     // ── Streak data from streaks table ──────────────────────────────────────
     const { data: streakData } = await supabase
@@ -346,6 +361,12 @@ export default function HomeScreen() {
                 </Text>
               </View>
             )}
+            {/* 7-day sparkline */}
+            {weekScores.length >= 2 && (
+              <View style={styles.sparklineWrap}>
+                <SparklineChart data={weekScores} width={220} height={44} color={Colors.secondary} />
+              </View>
+            )}
           </View>
 
           {/* Insight Banner */}
@@ -414,12 +435,35 @@ export default function HomeScreen() {
               </View>
             </>
           ) : (
-            <View style={styles.emptyCard}>
-              <Ionicons name="leaf-outline" size={40} color={Colors.textTertiary} />
-              <Text style={styles.emptyText}>Your gut story starts here</Text>
-              <Text style={styles.emptySubtext}>
-                Do your first check-in to unlock your gut score.
+            <View style={styles.firstActionCard}>
+              <View style={styles.firstActionIconWrap}>
+                <Ionicons name="leaf" size={32} color={Colors.secondary} />
+              </View>
+              <Text style={styles.firstActionTitle}>Welcome to GutWell</Text>
+              <Text style={styles.firstActionBody}>
+                Your gut health journey starts with a single check-in. It takes about 2 minutes.
               </Text>
+              <View style={styles.firstActionSteps}>
+                {[
+                  { icon: 'body-outline', text: 'Log your stool type' },
+                  { icon: 'fitness-outline', text: 'Rate your symptoms' },
+                  { icon: 'happy-outline', text: 'Track your mood' },
+                ].map((step, i) => (
+                  <View key={i} style={styles.firstActionStep}>
+                    <View style={styles.firstActionStepNum}>
+                      <Text style={styles.firstActionStepNumText}>{i + 1}</Text>
+                    </View>
+                    <Ionicons name={step.icon as any} size={18} color={Colors.textSecondary} style={{ marginHorizontal: 8 }} />
+                    <Text style={styles.firstActionStepText}>{step.text}</Text>
+                  </View>
+                ))}
+              </View>
+              <PressableFeedback onPress={() => router.push('/(tabs)/checkin')} style={styles.firstActionBtn}>
+                <View style={styles.firstActionBtnInner}>
+                  <Text style={styles.firstActionBtnText}>Start First Check-in</Text>
+                  <Ionicons name="arrow-forward" size={16} color="#fff" />
+                </View>
+              </PressableFeedback>
             </View>
           )}
 
@@ -616,6 +660,11 @@ const styles = StyleSheet.create({
     fontFamily: FontFamily.sansRegular,
     fontSize: FontSize.xs,
   },
+  sparklineWrap: {
+    marginTop: 16,
+    alignItems: 'center',
+    opacity: 0.85,
+  },
 
   // ── Insight Banner ───────────────────────────
   insightBanner: {
@@ -744,29 +793,83 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
 
-  // ── Empty State ─────────────────────────────
-  emptyCard: {
-    alignItems: 'center',
+  // ── First Action (Onboarding) Card ──────────
+  firstActionCard: {
     backgroundColor: Colors.surface,
     borderRadius: BorderRadius.xl,
-    padding: Spacing.xl + Spacing.md,
-    marginBottom: Spacing.xl,
+    padding: 24,
+    ...Shadows.md,
     borderWidth: 1,
     borderColor: Colors.border,
+    marginBottom: Spacing.xl,
   },
-  emptyText: {
-    fontFamily: FontFamily.displayMedium,
-    fontSize: FontSize.lg,
+  firstActionIconWrap: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: Colors.secondary + '15',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  firstActionTitle: {
+    fontFamily: FontFamily.displayBold,
+    fontSize: FontSize.xxl,
+    color: Colors.text,
+    marginBottom: 8,
+  },
+  firstActionBody: {
+    fontFamily: FontFamily.sansRegular,
+    fontSize: FontSize.md,
     color: Colors.textSecondary,
-    marginTop: Spacing.md,
+    lineHeight: 22,
+    marginBottom: 20,
   },
-  emptySubtext: {
+  firstActionSteps: {
+    gap: 12,
+    marginBottom: 24,
+    width: '100%' as const,
+  },
+  firstActionStep: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+  },
+  firstActionStepNum: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: Colors.primary + '15',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  firstActionStepNumText: {
+    fontFamily: FontFamily.sansBold,
+    fontSize: 12,
+    color: Colors.primary,
+  },
+  firstActionStepText: {
     fontFamily: FontFamily.sansRegular,
     fontSize: FontSize.sm,
-    color: Colors.textTertiary,
-    marginTop: Spacing.xs,
-    textAlign: 'center',
-    lineHeight: 20,
+    color: Colors.textSecondary,
+    flex: 1,
+  },
+  firstActionBtn: {
+    width: '100%' as const,
+  },
+  firstActionBtnInner: {
+    backgroundColor: Colors.primary,
+    borderRadius: BorderRadius.lg,
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    flexDirection: 'row' as const,
+    justifyContent: 'center' as const,
+    alignItems: 'center' as const,
+    gap: 8,
+  },
+  firstActionBtnText: {
+    fontFamily: FontFamily.sansSemiBold,
+    fontSize: FontSize.md,
+    color: '#FFFFFF',
   },
 
   // ── Daily Tip ───────────────────────────────
