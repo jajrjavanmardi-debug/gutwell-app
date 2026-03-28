@@ -34,6 +34,8 @@ export default function ProgressScreen() {
   const [isLoading, setIsLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [weekInsights, setWeekInsights] = useState<{ avgScore: number | null, bestDay: string | null, trend: 'up' | 'down' | 'flat' } | null>(null);
+  const [moodHistory, setMoodHistory] = useState<{ date: string; mood: number }[]>([]);
+  const [avgMood, setAvgMood] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const loadData = useCallback(async () => {
@@ -44,7 +46,7 @@ export default function ProgressScreen() {
     const sinceStr = since.toISOString();
     const sinceDateStr = since.toISOString().split('T')[0];
 
-    const { data: checkIns } = await supabase.from('check_ins').select('stool_type, entry_date')
+    const { data: checkIns } = await supabase.from('check_ins').select('stool_type, entry_date, mood')
       .eq('user_id', user.id).gte('created_at', sinceStr).order('entry_date', { ascending: true });
     if (checkIns) {
       setCheckInCount(checkIns.length);
@@ -52,6 +54,14 @@ export default function ProgressScreen() {
       setAvgStoolType(checkIns.length > 0 ? Math.round(avg * 10) / 10 : null);
       setStoolHistory(checkIns.map(c => ({ date: c.entry_date, type: c.stool_type })));
       setCheckInDates(checkIns.map(c => c.entry_date));
+      const moodEntries = checkIns.filter(c => c.mood != null).map(c => ({ date: c.entry_date, mood: c.mood as number }));
+      setMoodHistory(moodEntries);
+      if (moodEntries.length > 0) {
+        const moodAvg = moodEntries.reduce((s, c) => s + c.mood, 0) / moodEntries.length;
+        setAvgMood(Math.round(moodAvg * 10) / 10);
+      } else {
+        setAvgMood(null);
+      }
     }
 
     // Gut score trend
@@ -318,6 +328,55 @@ export default function ProgressScreen() {
             </View>
           </>
         )}
+
+        {/* Mood Trends */}
+        <>
+          <Text style={styles.sectionTitle}>Mood Trends</Text>
+          <View style={styles.chartCard}>
+            {moodHistory.length === 0 ? (
+              <View style={styles.moodEmpty}>
+                <Text style={styles.moodEmptyEmoji}>🙂</Text>
+                <Text style={styles.moodEmptyText}>Log your mood during check-ins to see trends</Text>
+              </View>
+            ) : (
+              <>
+                {avgMood !== null && (() => {
+                  const avgRounded = Math.round(avgMood);
+                  const clampedAvg = Math.min(5, Math.max(1, avgRounded)) as 1 | 2 | 3 | 4 | 5;
+                  const MOOD_COLORS: Record<1 | 2 | 3 | 4 | 5, string> = { 1: '#C1444B', 2: '#E07A5F', 3: '#D4A373', 4: '#52B788', 5: '#2D6A4F' };
+                  const MOOD_EMOJIS: Record<1 | 2 | 3 | 4 | 5, string> = { 1: '😣', 2: '😕', 3: '😐', 4: '🙂', 5: '😊' };
+                  const MOOD_LABELS: Record<1 | 2 | 3 | 4 | 5, string> = { 1: 'Bad', 2: 'Low', 3: 'Okay', 4: 'Good', 5: 'Great' };
+                  return (
+                    <View style={styles.moodAvgRow}>
+                      <View style={[styles.moodAvgCircle, { backgroundColor: MOOD_COLORS[clampedAvg] + '20', borderColor: MOOD_COLORS[clampedAvg] + '50', borderWidth: 2 }]}>
+                        <Text style={styles.moodAvgEmoji}>{MOOD_EMOJIS[clampedAvg]}</Text>
+                      </View>
+                      <View style={styles.moodAvgInfo}>
+                        <Text style={[styles.moodAvgValue, { color: MOOD_COLORS[clampedAvg] }]}>{avgMood.toFixed(1)} / 5</Text>
+                        <Text style={styles.moodAvgLabel}>{MOOD_LABELS[clampedAvg]}</Text>
+                        <Text style={styles.moodAvgSub}>avg mood this period</Text>
+                      </View>
+                    </View>
+                  );
+                })()}
+                <View style={styles.moodDotsRow}>
+                  {moodHistory.slice(-14).reverse().map((entry, i) => {
+                    const moodKey = Math.min(5, Math.max(1, entry.mood)) as 1 | 2 | 3 | 4 | 5;
+                    const MOOD_COLORS: Record<1 | 2 | 3 | 4 | 5, string> = { 1: '#C1444B', 2: '#E07A5F', 3: '#D4A373', 4: '#52B788', 5: '#2D6A4F' };
+                    const DAY_LETTERS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
+                    const dayLetter = DAY_LETTERS[new Date(entry.date + 'T00:00:00').getDay()];
+                    return (
+                      <View key={i} style={styles.moodDotWrap}>
+                        <View style={[styles.moodDot, { backgroundColor: MOOD_COLORS[moodKey] }]} />
+                        <Text style={styles.moodDotLabel}>{dayLetter}</Text>
+                      </View>
+                    );
+                  })}
+                </View>
+              </>
+            )}
+          </View>
+        </>
 
         {/* Stool Type Trend */}
         {stoolHistory.length > 0 && (
@@ -898,6 +957,77 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: Colors.textSecondary,
     marginTop: 2,
+  },
+
+  // Mood Trends
+  moodEmpty: {
+    alignItems: 'center',
+    paddingVertical: Spacing.lg,
+    gap: Spacing.sm,
+  },
+  moodEmptyEmoji: {
+    fontSize: 32,
+  },
+  moodEmptyText: {
+    fontFamily: FontFamily.sansRegular,
+    fontSize: FontSize.sm,
+    color: Colors.textTertiary,
+    textAlign: 'center',
+  },
+  moodAvgRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.md,
+    marginBottom: Spacing.md,
+  },
+  moodAvgCircle: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  moodAvgEmoji: {
+    fontSize: 28,
+  },
+  moodAvgInfo: {
+    flex: 1,
+    gap: 2,
+  },
+  moodAvgValue: {
+    fontFamily: FontFamily.sansBold,
+    fontSize: FontSize.xl,
+    lineHeight: 26,
+  },
+  moodAvgLabel: {
+    fontFamily: FontFamily.sansSemiBold,
+    fontSize: FontSize.sm,
+    color: Colors.text,
+  },
+  moodAvgSub: {
+    fontFamily: FontFamily.sansRegular,
+    fontSize: FontSize.xs,
+    color: Colors.textTertiary,
+  },
+  moodDotsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Spacing.sm,
+    marginTop: Spacing.xs,
+  },
+  moodDotWrap: {
+    alignItems: 'center',
+    gap: 4,
+  },
+  moodDot: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+  },
+  moodDotLabel: {
+    fontFamily: FontFamily.sansRegular,
+    fontSize: 10,
+    color: Colors.textTertiary,
   },
 
   // Premium Banner
