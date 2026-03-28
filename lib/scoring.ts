@@ -5,6 +5,7 @@ export type ScoreFactors = {
   bloating_score: number;
   pain_score: number;
   energy_score: number;
+  mood_score: number;
   symptom_penalty: number;
   regularity_bonus: number;
   calculated_at: string;
@@ -17,6 +18,7 @@ export type ScoreFactors = {
  * - Stool consistency (type 3-4 = ideal, further away = worse)
  * - Low bloating & pain
  * - High energy
+ * - Mood (gut-brain axis factor)
  * - Symptom count (fewer = better)
  * - Check-in regularity bonus
  */
@@ -24,16 +26,17 @@ export async function calculateGutScore(
   userId: string,
   date: string,
 ): Promise<{ score: number; factors: ScoreFactors }> {
-  let score = 50; // Start at neutral
+  let score = 50;
   let stoolComponent = 0;
   let bloatingComponent = 0;
   let painComponent = 0;
   let energyComponent = 0;
+  let moodComponent = 0;
 
   // 1. Check-in data for the day
   const { data: checkIn } = await supabase
     .from('check_ins')
-    .select('stool_type, bloating, pain, energy')
+    .select('stool_type, bloating, pain, energy, mood')
     .eq('user_id', userId)
     .eq('entry_date', date)
     .order('created_at', { ascending: false })
@@ -63,6 +66,12 @@ export async function calculateGutScore(
     if (checkIn.energy) {
       energyComponent = (checkIn.energy - 3) * 4;
       score += energyComponent;
+    }
+
+    // Mood: 5 = best (+5), 1 = worst (-5) — gut-brain axis factor
+    if (checkIn.mood) {
+      moodComponent = (checkIn.mood - 3) * 2.5;
+      score += moodComponent;
     }
   }
 
@@ -99,6 +108,7 @@ export async function calculateGutScore(
       bloating_score: bloatingComponent,
       pain_score: painComponent,
       energy_score: energyComponent,
+      mood_score: moodComponent,
       symptom_penalty: symptomPenalty,
       regularity_bonus: regularityBonus,
       calculated_at: new Date().toISOString(),

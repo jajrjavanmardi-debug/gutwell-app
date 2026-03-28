@@ -7,6 +7,11 @@ type Profile = {
   display_name: string | null;
   avatar_url: string | null;
   onboarding_completed: boolean;
+  total_points: number;
+  level: string;
+  gut_concern: string | null;
+  symptom_frequency: string | null;
+  goal: string | null;
 };
 
 type AuthContextType = {
@@ -34,7 +39,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       .select('*')
       .eq('id', userId)
       .single();
-    setProfile(data);
+    if (data) {
+      setProfile({
+        id: data.id,
+        display_name: data.display_name,
+        avatar_url: data.avatar_url,
+        onboarding_completed: data.onboarding_completed ?? false,
+        total_points: data.total_points ?? 0,
+        level: data.level ?? 'beginner',
+        gut_concern: data.gut_concern ?? null,
+        symptom_frequency: data.symptom_frequency ?? null,
+        goal: data.goal ?? null,
+      });
+    }
   };
 
   useEffect(() => {

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import {
   TouchableOpacity,
   Text,
@@ -6,10 +6,11 @@ import {
   ActivityIndicator,
   ViewStyle,
   TextStyle,
+  Animated,
 } from 'react-native';
-import { Colors, BorderRadius, FontSize, Spacing, Shadows } from '../../constants/theme';
+import { Colors, BorderRadius, FontSize, Spacing, Shadows, FontFamily } from '../../constants/theme';
 
-type ButtonVariant = 'primary' | 'secondary' | 'outline' | 'ghost';
+type ButtonVariant = 'primary' | 'secondary' | 'outline' | 'ghost' | 'accent';
 type ButtonSize = 'sm' | 'md' | 'lg';
 
 type Props = {
@@ -33,6 +34,24 @@ export function Button({
   icon,
   style,
 }: Props) {
+  const scaleAnim = useRef(new Animated.Value(1)).current;
+
+  const handlePressIn = () => {
+    Animated.timing(scaleAnim, {
+      toValue: 0.97,
+      duration: 100,
+      useNativeDriver: true,
+    }).start();
+  };
+
+  const handlePressOut = () => {
+    Animated.timing(scaleAnim, {
+      toValue: 1,
+      duration: 150,
+      useNativeDriver: true,
+    }).start();
+  };
+
   const buttonStyle: ViewStyle[] = [
     styles.base,
     styles[`size_${size}`],
@@ -49,24 +68,28 @@ export function Button({
   ].filter(Boolean) as TextStyle[];
 
   return (
-    <TouchableOpacity
-      style={buttonStyle}
-      onPress={onPress}
-      disabled={disabled || loading}
-      activeOpacity={0.7}
-    >
-      {loading ? (
-        <ActivityIndicator
-          color={variant === 'primary' ? Colors.textInverse : Colors.primary}
-          size="small"
-        />
-      ) : (
-        <>
-          {icon}
-          <Text style={textStyle}>{title}</Text>
-        </>
-      )}
-    </TouchableOpacity>
+    <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
+      <TouchableOpacity
+        style={buttonStyle}
+        onPress={onPress}
+        onPressIn={handlePressIn}
+        onPressOut={handlePressOut}
+        disabled={disabled || loading}
+        activeOpacity={0.85}
+      >
+        {loading ? (
+          <ActivityIndicator
+            color={variant === 'primary' || variant === 'accent' ? Colors.textInverse : Colors.primary}
+            size="small"
+          />
+        ) : (
+          <>
+            {icon}
+            <Text style={textStyle}>{title}</Text>
+          </>
+        )}
+      </TouchableOpacity>
+    </Animated.View>
   );
 }
 
@@ -75,12 +98,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: BorderRadius.lg,
+    borderRadius: BorderRadius.md,
     gap: Spacing.sm,
   },
   // Sizes
-  size_sm: { paddingVertical: Spacing.sm, paddingHorizontal: Spacing.md },
-  size_md: { paddingVertical: Spacing.md, paddingHorizontal: Spacing.lg },
+  size_sm: { paddingVertical: 10, paddingHorizontal: Spacing.md },
+  size_md: { paddingVertical: 14, paddingHorizontal: Spacing.lg },
   size_lg: { paddingVertical: 18, paddingHorizontal: Spacing.xl },
   // Variants
   variant_primary: {
@@ -98,9 +121,16 @@ const styles = StyleSheet.create({
   variant_ghost: {
     backgroundColor: 'transparent',
   },
+  variant_accent: {
+    backgroundColor: Colors.accent,
+    ...Shadows.sm,
+  },
   disabled: { opacity: 0.5 },
   // Text
-  text: { fontWeight: '600' },
+  text: {
+    fontFamily: FontFamily.sansSemiBold,
+    letterSpacing: 0.3,
+  },
   text_sm: { fontSize: FontSize.sm },
   text_md: { fontSize: FontSize.md },
   text_lg: { fontSize: FontSize.lg },
@@ -108,5 +138,6 @@ const styles = StyleSheet.create({
   textVariant_secondary: { color: Colors.primary },
   textVariant_outline: { color: Colors.primary },
   textVariant_ghost: { color: Colors.primary },
+  textVariant_accent: { color: Colors.textInverse },
   textDisabled: { opacity: 0.7 },
 });

@@ -1,7 +1,7 @@
 import React, { useEffect, useRef } from 'react';
-import { Animated, Text, StyleSheet, Platform } from 'react-native';
+import { Animated, Text, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Colors, BorderRadius, Spacing, FontSize, Shadows } from '../../constants/theme';
+import { Colors, BorderRadius, Spacing, FontSize, Shadows, FontFamily } from '../../constants/theme';
 
 type ToastType = 'success' | 'error' | 'info';
 
@@ -37,9 +37,9 @@ export function Toast({ message, type = 'success', visible, onDismiss, duration 
   if (!visible) return null;
 
   const bgColors: Record<ToastType, string> = {
-    success: Colors.secondary,
+    success: Colors.primary,
     error: Colors.error,
-    info: Colors.info,
+    info: Colors.primaryLight,
   };
 
   return (
@@ -70,12 +70,12 @@ const styles = StyleSheet.create({
     padding: Spacing.md,
     borderRadius: BorderRadius.md,
     zIndex: 1000,
-    ...Shadows.md,
+    ...Shadows.lg,
   },
   text: {
     color: Colors.textInverse,
+    fontFamily: FontFamily.sansSemiBold,
     fontSize: FontSize.sm,
-    fontWeight: '600',
     textAlign: 'center',
   },
 });

@@ -1,11 +1,20 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  TouchableOpacity,
+} from 'react-native';
 import { Link, router } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../contexts/AuthContext';
 import { Input } from '../../components/ui/Input';
 import { Button } from '../../components/ui/Button';
 import { Toast } from '../../components/ui/Toast';
-import { Colors, Spacing, FontSize, BorderRadius } from '../../constants/theme';
+import { Colors, Spacing, FontSize, FontFamily, BorderRadius } from '../../constants/theme';
 
 export default function LoginScreen() {
   const { signIn } = useAuth();
@@ -35,12 +44,18 @@ export default function LoginScreen() {
       <ScrollView
         contentContainerStyle={styles.scroll}
         keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
       >
+        {/* ── Logo / Header ── */}
         <View style={styles.header}>
+          <View style={styles.logoIcon}>
+            <Ionicons name="leaf" size={32} color={Colors.primary} />
+          </View>
           <Text style={styles.logo}>GutWell</Text>
-          <Text style={styles.subtitle}>Understand your gut. Feel your best.</Text>
+          <Text style={styles.tagline}>Understand your gut. Feel your best.</Text>
         </View>
 
+        {/* ── Form ── */}
         <View style={styles.form}>
           <Input
             label="Email"
@@ -67,18 +82,25 @@ export default function LoginScreen() {
           />
         </View>
 
+        {/* ── Links ── */}
         <View style={styles.footer}>
-          <Link href="/(auth)/forgot-password" style={styles.link}>
-            Forgot password?
+          <Link href="/(auth)/forgot-password" asChild>
+            <TouchableOpacity activeOpacity={0.7}>
+              <Text style={styles.forgotText}>Forgot password?</Text>
+            </TouchableOpacity>
           </Link>
+
           <View style={styles.signupRow}>
             <Text style={styles.footerText}>Don't have an account? </Text>
-            <Link href="/(auth)/signup" style={styles.link}>
-              Sign up
+            <Link href="/(auth)/signup" asChild>
+              <TouchableOpacity activeOpacity={0.7}>
+                <Text style={styles.signupLink}>Sign Up</Text>
+              </TouchableOpacity>
             </Link>
           </View>
         </View>
 
+        {/* ── Dev login ── */}
         {__DEV__ && (
           <Button
             title="Dev Login"
@@ -89,33 +111,83 @@ export default function LoginScreen() {
           />
         )}
       </ScrollView>
+
       <Toast
         message={toast.message}
         type={toast.type}
         visible={toast.visible}
-        onDismiss={() => setToast(t => ({ ...t, visible: false }))}
+        onDismiss={() => setToast((t) => ({ ...t, visible: false }))}
       />
     </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.background },
-  scroll: { flexGrow: 1, justifyContent: 'center', padding: Spacing.lg },
-  header: { alignItems: 'center', marginBottom: Spacing.xxl },
+  container: {
+    flex: 1,
+    backgroundColor: Colors.background,
+  },
+  scroll: {
+    flexGrow: 1,
+    justifyContent: 'center',
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.xxl,
+  },
+
+  // ── Header ──
+  header: {
+    alignItems: 'center',
+    marginBottom: Spacing.xxl,
+  },
+  logoIcon: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: Colors.surfaceSecondary,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: Spacing.md,
+  },
   logo: {
-    fontSize: FontSize.hero,
-    fontWeight: '700',
+    fontFamily: FontFamily.displayBold,
+    fontSize: 40,
     color: Colors.primary,
     marginBottom: Spacing.xs,
   },
-  subtitle: {
+  tagline: {
+    fontFamily: FontFamily.sansRegular,
     fontSize: FontSize.md,
     color: Colors.textSecondary,
   },
-  form: { gap: Spacing.md },
-  footer: { alignItems: 'center', marginTop: Spacing.xl, gap: Spacing.md },
-  signupRow: { flexDirection: 'row', alignItems: 'center' },
-  footerText: { fontSize: FontSize.sm, color: Colors.textSecondary },
-  link: { fontSize: FontSize.sm, color: Colors.primary, fontWeight: '600' },
+
+  // ── Form ──
+  form: {
+    gap: Spacing.md,
+  },
+
+  // ── Footer ──
+  footer: {
+    alignItems: 'center',
+    marginTop: Spacing.xl,
+    gap: Spacing.md,
+  },
+  forgotText: {
+    fontFamily: FontFamily.sansMedium,
+    fontSize: FontSize.sm,
+    color: Colors.textSecondary,
+  },
+  signupRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  footerText: {
+    fontFamily: FontFamily.sansRegular,
+    fontSize: FontSize.sm,
+    color: Colors.textSecondary,
+  },
+  signupLink: {
+    fontFamily: FontFamily.sansSemiBold,
+    fontSize: FontSize.sm,
+    color: Colors.secondary,
+  },
 });
