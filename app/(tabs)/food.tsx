@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
@@ -12,6 +12,7 @@ import { Toast } from '../../components/ui/Toast';
 import { Card } from '../../components/ui/Card';
 import { SwipeableCard } from '../../components/SwipeableCard';
 import { Colors, Spacing, FontSize, BorderRadius, Shadows, FontFamily } from '../../constants/theme';
+import { ErrorState } from '../../components/ui/ErrorState';
 
 function formatMealTime(iso: string): string {
   const date = new Date(iso);
@@ -51,11 +52,21 @@ export default function FoodScreen() {
   const [recentMeals, setRecentMeals] = useState<{ id: number; meal_name: string; meal_type: string; logged_at: string }[]>([]);
   const [toast, setToast] = useState({ visible: false, message: '', type: 'success' as 'success' | 'error' });
   const [sensitiveFoods, setSensitiveFoods] = useState<string[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const loadData = async () => {
+    try {
+      await Promise.all([loadRecentMeals(), loadFavorites(), loadSensitiveFoods()]);
+    } catch {
+      setError('offline');
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   useEffect(() => {
-    loadRecentMeals();
-    loadFavorites();
-    loadSensitiveFoods();
+    loadData();
   }, [user]);
 
   const loadFavorites = async () => {
@@ -153,6 +164,35 @@ export default function FoodScreen() {
     }
   };
 
+  const handleDeleteFavorite = (fav: Favorite) => {
+    Alert.alert(
+      'Remove from Favorites',
+      `Remove "${fav.meal_name}" from favorites?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Remove',
+          style: 'destructive',
+          onPress: async () => {
+            if (!user) return;
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+            const { error } = await supabase
+              .from('favorites')
+              .delete()
+              .eq('id', fav.id)
+              .eq('user_id', user.id);
+            if (error) {
+              setToast({ visible: true, message: 'Failed to remove favorite', type: 'error' });
+            } else {
+              setToast({ visible: true, message: 'Removed from favorites', type: 'success' });
+              loadFavorites();
+            }
+          },
+        },
+      ]
+    );
+  };
+
   const handleDeleteMeal = async (id: number) => {
     if (!user) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -185,6 +225,10 @@ export default function FoodScreen() {
         <Text style={styles.title}>Track Your Plate</Text>
         <Text style={styles.subtitle}>What nourished you today?</Text>
 
+        {!isLoading && error && (
+          <ErrorState type="offline" onRetry={() => { setError(null); loadData(); }} />
+        )}
+
         {/* Scan Button - Premium solid card */}
         <TouchableOpacity style={styles.scanButton} onPress={() => router.push('/scan-food')} activeOpacity={0.7}>
           <View style={styles.scanIcon}>
@@ -210,6 +254,8 @@ export default function FoodScreen() {
                   key={fav.id}
                   style={styles.favoriteChip}
                   onPress={() => quickLogFavorite(fav)}
+                  onLongPress={() => handleDeleteFavorite(fav)}
+                  delayLongPress={400}
                   activeOpacity={0.7}
                 >
                   <Ionicons name="add-circle" size={16} color={Colors.primary} />

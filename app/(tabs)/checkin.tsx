@@ -11,19 +11,10 @@ import { Input } from '../../components/ui/Input';
 import { Toast } from '../../components/ui/Toast';
 import { MoodSelector } from '../../components/MoodSelector';
 import { WaterTracker } from '../../components/WaterTracker';
+import { BristolStoolChart } from '../../components/BristolStoolChart';
 import { Colors, Spacing, FontSize, BorderRadius, Shadows, FontFamily, Typography } from '../../constants/theme';
 import { updateTodayScore } from '../../lib/scoring';
 import { CheckInSuccessOverlay } from '../../components/CheckInSuccessOverlay';
-
-const BRISTOL_TYPES = [
-  { type: 1, desc: 'Hard lumps' },
-  { type: 2, desc: 'Lumpy sausage' },
-  { type: 3, desc: 'Cracked sausage' },
-  { type: 4, desc: 'Smooth sausage' },
-  { type: 5, desc: 'Soft blobs' },
-  { type: 6, desc: 'Mushy' },
-  { type: 7, desc: 'Liquid' },
-];
 
 const SEVERITY_LABELS = ['None', 'Mild', 'Moderate', 'Strong', 'Severe'];
 const ENERGY_LABELS = ['Low', 'Below avg', 'Normal', 'Good', 'High'];
@@ -187,53 +178,13 @@ export default function CheckinScreen() {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Stool Type</Text>
           <Text style={styles.sectionHint}>Select the closest match</Text>
-          <View style={styles.bristolGrid}>
-            {BRISTOL_TYPES.map(b => {
-              const isSelected = stoolType === b.type;
-              const color = Colors.bristol[b.type];
-              return (
-                <TouchableOpacity
-                  key={b.type}
-                  style={[
-                    styles.bristolItem,
-                    isSelected && {
-                      backgroundColor: color + '26',
-                      borderColor: color,
-                    },
-                  ]}
-                  onPress={() => {
-                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                    setStoolType(b.type);
-                  }}
-                  activeOpacity={0.7}
-                >
-                  {isSelected && (
-                    <View style={[styles.bristolCheck, { backgroundColor: color }]}>
-                      <Ionicons name="checkmark" size={12} color={Colors.textInverse} />
-                    </View>
-                  )}
-                  <Text style={[
-                    styles.bristolType,
-                    isSelected && { color, fontFamily: FontFamily.sansBold },
-                  ]}>
-                    {b.type}
-                  </Text>
-                  <Text style={[
-                    styles.bristolDesc,
-                    isSelected && { color: Colors.text },
-                  ]}>
-                    {b.desc}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-          {stoolType === 4 && (
-            <View style={styles.idealBadge}>
-              <Ionicons name="leaf" size={14} color={Colors.secondary} />
-              <Text style={styles.idealBadgeText}>Ideal range</Text>
-            </View>
-          )}
+          <BristolStoolChart
+            selected={stoolType}
+            onSelect={(t) => {
+              setStoolType(t);
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            }}
+          />
         </View>
 
         {/* Symptoms */}
@@ -421,61 +372,6 @@ const styles = StyleSheet.create({
     fontSize: FontSize.sm,
     color: Colors.textTertiary,
     marginBottom: Spacing.md,
-  },
-
-  // Bristol Chart
-  bristolGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: Spacing.sm,
-  },
-  bristolItem: {
-    width: '30%',
-    flexGrow: 1,
-    backgroundColor: Colors.surface,
-    borderRadius: BorderRadius.md,
-    paddingVertical: Spacing.md,
-    paddingHorizontal: Spacing.sm,
-    alignItems: 'center',
-    borderWidth: 2,
-    borderColor: Colors.border,
-    gap: 4,
-    minHeight: 80,
-    justifyContent: 'center',
-    position: 'relative',
-  },
-  bristolCheck: {
-    position: 'absolute',
-    top: 6,
-    right: 6,
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  bristolType: {
-    fontFamily: FontFamily.sansSemiBold,
-    fontSize: FontSize.xl,
-    color: Colors.textSecondary,
-  },
-  bristolDesc: {
-    fontFamily: FontFamily.sansRegular,
-    fontSize: FontSize.xs,
-    color: Colors.textTertiary,
-    textAlign: 'center',
-  },
-  idealBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: Spacing.xs,
-    marginTop: Spacing.sm,
-  },
-  idealBadgeText: {
-    fontFamily: FontFamily.sansSemiBold,
-    fontSize: FontSize.xs,
-    color: Colors.secondary,
   },
 
   // Symptom Cards

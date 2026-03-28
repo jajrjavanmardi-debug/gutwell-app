@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "GutWell",
-    "slug": "gutwell-app",
+    "slug": "gutwell",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
@@ -10,7 +10,7 @@
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "app.gutwell.ios",
+      "bundleIdentifier": "com.parallellabs.gutwell",
       "buildNumber": "1",
       "infoPlist": {
         "NSPhotoLibraryUsageDescription": "GutWell uses your photo library to let you attach photos to your food logs.",
@@ -20,11 +20,12 @@
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
         "backgroundImage": "./assets/images/android-icon-background.png",
-        "monochromeImage": "./assets/images/android-icon-monochrome.png"
+        "monochromeImage": "./assets/images/android-icon-monochrome.png",
+        "backgroundColor": "#1B4332"
       },
+      "package": "com.parallellabs.gutwell",
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false
     },
@@ -38,7 +39,7 @@
         "expo-notifications",
         {
           "icon": "./assets/images/icon.png",
-          "color": "#4A9D6E",
+          "color": "#1B4332",
           "sounds": []
         }
       ],
@@ -55,9 +56,9 @@
           "image": "./assets/images/splash-icon.png",
           "imageWidth": 200,
           "resizeMode": "contain",
-          "backgroundColor": "#F5FAF7",
+          "backgroundColor": "#FAFDF7",
           "dark": {
-            "backgroundColor": "#000000"
+            "backgroundColor": "#0D2218"
           }
         }
       ]
