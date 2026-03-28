@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-nati
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
+import * as Haptics from 'expo-haptics';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
 import { Button } from '../components/ui/Button';
@@ -53,6 +54,7 @@ export default function LogSymptomScreen() {
     if (error) {
       setToast({ visible: true, message: 'Failed to log symptom', type: 'error' });
     } else {
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       setToast({ visible: true, message: 'Symptom logged!', type: 'success' });
       updateTodayScore(user.id).catch(console.warn);
       setTimeout(() => router.back(), 1500);
@@ -87,7 +89,10 @@ export default function LogSymptomScreen() {
               <TouchableOpacity
                 key={s.key}
                 style={[styles.symptomCard, isSelected && styles.symptomCardSelected]}
-                onPress={() => setSelected(s.key)}
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  setSelected(s.key);
+                }}
                 activeOpacity={0.7}
               >
                 <View
@@ -135,7 +140,10 @@ export default function LogSymptomScreen() {
                         : Colors.border,
                     },
                   ]}
-                  onPress={() => setSeverity(v)}
+                  onPress={() => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    setSeverity(v);
+                  }}
                   activeOpacity={0.7}
                 >
                   <Text

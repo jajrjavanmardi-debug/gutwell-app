@@ -3,12 +3,14 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-nati
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
+import * as Haptics from 'expo-haptics';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { Toast } from '../../components/ui/Toast';
 import { Card } from '../../components/ui/Card';
+import { SwipeableCard } from '../../components/SwipeableCard';
 import { Colors, Spacing, FontSize, BorderRadius, Shadows, FontFamily } from '../../constants/theme';
 
 const MEAL_TYPES = [
@@ -96,6 +98,39 @@ export default function FoodScreen() {
     setLoading(false);
     if (error) { setToast({ visible: true, message: 'Failed to save food log', type: 'error' }); }
     else { setToast({ visible: true, message: 'Meal logged!', type: 'success' }); setMealName(''); setFoods([]); setNote(''); loadRecentMeals(); }
+  };
+
+  const handleFavoriteFromRecent = async (meal: { id: number; meal_name: string; meal_type: string; logged_at: string }) => {
+    if (!user) return;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    const { error } = await supabase
+      .from('favorites')
+      .upsert(
+        { user_id: user.id, meal_name: meal.meal_name, meal_type: meal.meal_type },
+        { onConflict: 'user_id,meal_name' }
+      );
+    if (error) {
+      setToast({ visible: true, message: 'Failed to add favorite', type: 'error' });
+    } else {
+      setToast({ visible: true, message: 'Added to favorites ⭐', type: 'success' });
+      loadFavorites();
+    }
+  };
+
+  const handleDeleteMeal = async (id: number) => {
+    if (!user) return;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    const { error } = await supabase
+      .from('food_logs')
+      .delete()
+      .eq('id', id)
+      .eq('user_id', user.id);
+    if (error) {
+      setToast({ visible: true, message: 'Failed to remove meal', type: 'error' });
+    } else {
+      setToast({ visible: true, message: 'Meal removed', type: 'success' });
+      loadRecentMeals();
+    }
   };
 
   const getMealIcon = (type: string): string => {
@@ -212,17 +247,25 @@ export default function FoodScreen() {
           <View style={styles.recentSection}>
             <Text style={styles.sectionTitle}>Recent Meals</Text>
             {recentMeals.map(meal => (
-              <View key={meal.id} style={styles.recentCard}>
-                <View style={styles.recentIconWrap}>
-                  <Ionicons name={getMealIcon(meal.meal_type) as any} size={18} color={Colors.primary} />
+              <SwipeableCard
+                key={meal.id}
+                onFavorite={() => handleFavoriteFromRecent(meal)}
+                onDelete={() => handleDeleteMeal(meal.id)}
+                favoriteLabel="Favorite"
+                deleteLabel="Delete"
+              >
+                <View style={styles.recentCard}>
+                  <View style={styles.recentIconWrap}>
+                    <Ionicons name={getMealIcon(meal.meal_type) as any} size={18} color={Colors.primary} />
+                  </View>
+                  <View style={styles.recentInfo}>
+                    <Text style={styles.recentName} numberOfLines={1}>{meal.meal_name}</Text>
+                    <Text style={styles.recentMeta}>
+                      {meal.meal_type.charAt(0).toUpperCase() + meal.meal_type.slice(1)} · {new Date(meal.logged_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
+                    </Text>
+                  </View>
                 </View>
-                <View style={styles.recentInfo}>
-                  <Text style={styles.recentName} numberOfLines={1}>{meal.meal_name}</Text>
-                  <Text style={styles.recentMeta}>
-                    {meal.meal_type.charAt(0).toUpperCase() + meal.meal_type.slice(1)} · {new Date(meal.logged_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
-                  </Text>
-                </View>
-              </View>
+              </SwipeableCard>
             ))}
           </View>
         )}
@@ -435,7 +478,6 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.surface,
     borderRadius: BorderRadius.md,
     padding: Spacing.md,
-    marginBottom: Spacing.sm,
     borderWidth: 1,
     borderColor: Colors.border,
     ...Shadows.sm,

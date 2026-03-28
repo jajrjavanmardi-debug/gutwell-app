@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
 import { Button } from '../../components/ui/Button';
@@ -80,7 +81,10 @@ function PillSlider({ value, onChange, labels }: {
                 styles.pill,
                 isSelected && { backgroundColor: color },
               ]}
-              onPress={() => onChange(v)}
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                onChange(v);
+              }}
               activeOpacity={0.7}
             >
               <Text style={[
@@ -134,6 +138,7 @@ export default function CheckinScreen() {
     if (error) {
       setToast({ visible: true, message: 'Failed to save check-in', type: 'error' });
     } else {
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       setToast({ visible: true, message: 'Check-in saved!', type: 'success' });
       updateTodayScore(user.id).catch(console.warn);
       setStoolType(null);
@@ -178,7 +183,10 @@ export default function CheckinScreen() {
                       borderColor: color,
                     },
                   ]}
-                  onPress={() => setStoolType(b.type)}
+                  onPress={() => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    setStoolType(b.type);
+                  }}
                   activeOpacity={0.7}
                 >
                   {isSelected && (

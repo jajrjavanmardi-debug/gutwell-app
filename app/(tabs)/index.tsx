@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, RefreshControl } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, RefreshControl, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -9,6 +9,7 @@ import { LoadingSkeleton, CardSkeleton } from '../../components/ui/LoadingSkelet
 import { PressableFeedback } from '../../components/ui/PressableFeedback';
 import { DailyTip } from '../../components/DailyTip';
 import { GutLevelBadge } from '../../components/GutLevelBadge';
+import { StreakPopup } from '../../components/StreakPopup';
 import { Colors, Spacing, FontSize, BorderRadius, Shadows, FontFamily, Typography } from '../../constants/theme';
 import { updateTodayScore } from '../../lib/scoring';
 import { calculatePoints } from '../../lib/levels';
@@ -24,6 +25,10 @@ export default function HomeScreen() {
   const { user, profile } = useAuth();
   const [gutScore, setGutScore] = useState<number | null>(null);
   const [streak, setStreak] = useState(0);
+  const [bestStreak, setBestStreak] = useState(0);
+  const [weeklyCompletions, setWeeklyCompletions] = useState<boolean[]>(Array(7).fill(false));
+  const [completionRate, setCompletionRate] = useState(0);
+  const [streakPopupVisible, setStreakPopupVisible] = useState(false);
   const [recentEntries, setRecentEntries] = useState<RecentEntry[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -68,6 +73,45 @@ export default function HomeScreen() {
       }
     }
 
+    // ── Streak data from streaks table ──────────────────────────────────────
+    const { data: streakData } = await supabase
+      .from('streaks')
+      .select('current_streak, best_streak')
+      .eq('user_id', user.id)
+      .maybeSingle();
+
+    const currentStreak = streakData?.current_streak ?? 0;
+    const fetchedBestStreak = streakData?.best_streak ?? 0;
+    setStreak(currentStreak);
+    setBestStreak(fetchedBestStreak);
+
+    // ── Last 7 days of check-ins for weekly completions ──────────────────────
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6);
+    const sevenDaysAgoStr = sevenDaysAgo.toISOString().split('T')[0];
+
+    const { data: recentCheckInDates } = await supabase
+      .from('check_ins')
+      .select('check_date')
+      .eq('user_id', user.id)
+      .gte('check_date', sevenDaysAgoStr)
+      .order('check_date', { ascending: true });
+
+    const checkedDates = new Set((recentCheckInDates ?? []).map((r: { check_date: string }) => r.check_date));
+
+    const todayDate = new Date();
+    const weekly = Array.from({ length: 7 }, (_, i) => {
+      const d = new Date(todayDate);
+      d.setDate(todayDate.getDate() - (6 - i));
+      return checkedDates.has(d.toISOString().split('T')[0]);
+    });
+    setWeeklyCompletions(weekly);
+
+    // Completion rate = days checked in over last 7
+    const checkedCount = weekly.filter(Boolean).length;
+    setCompletionRate(checkedCount / 7);
+
+    // Fallback streak calculation from check_ins table if streaks table missing
     const { data: checkIns } = await supabase
       .from('check_ins')
       .select('entry_date')
@@ -75,20 +119,20 @@ export default function HomeScreen() {
       .order('entry_date', { ascending: false })
       .limit(30);
 
-    let currentStreak = 0;
-    if (checkIns && checkIns.length > 0) {
+    if (!streakData && checkIns && checkIns.length > 0) {
       const todayDate = new Date();
+      let fallbackStreak = 0;
       for (let i = 0; i < checkIns.length; i++) {
         const expected = new Date(todayDate);
         expected.setDate(expected.getDate() - i);
         const expectedStr = expected.toISOString().split('T')[0];
         if (checkIns[i].entry_date === expectedStr) {
-          currentStreak++;
+          fallbackStreak++;
         } else {
           break;
         }
       }
-      setStreak(currentStreak);
+      setStreak(fallbackStreak);
     }
 
     // Fetch counts for level points calculation
@@ -162,6 +206,18 @@ export default function HomeScreen() {
     setRefreshing(false);
   };
 
+  // Derive streak state for popup
+  const checkedInToday = weeklyCompletions[6];
+  const streakState: 'new' | 'active' | 'at_risk' | 'broken' =
+    streak === 0 && bestStreak === 0
+      ? 'new'
+      : streak === 0 && bestStreak > 0
+      ? 'broken'
+      : checkedInToday
+      ? 'active'
+      : 'at_risk';
+
+
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <ScrollView
@@ -208,10 +264,25 @@ export default function HomeScreen() {
               <Text style={styles.scoreOutOf}>/100</Text>
             </View>
             {streak > 0 && (
-              <View style={styles.streakRow}>
+              <TouchableOpacity
+                style={styles.streakRow}
+                onPress={() => setStreakPopupVisible(true)}
+                activeOpacity={0.75}
+              >
                 <Ionicons name="flame" size={16} color={Colors.accent} />
                 <Text style={styles.streakText}>{streak} day streak</Text>
-              </View>
+                <Ionicons name="chevron-forward" size={12} color={Colors.accent} style={{ marginLeft: 2, opacity: 0.7 }} />
+              </TouchableOpacity>
+            )}
+            {streak === 0 && (
+              <TouchableOpacity
+                style={[styles.streakRow, styles.streakRowNew]}
+                onPress={() => setStreakPopupVisible(true)}
+                activeOpacity={0.75}
+              >
+                <Ionicons name="flame-outline" size={16} color={Colors.textTertiary} />
+                <Text style={[styles.streakText, styles.streakTextNew]}>Start your streak</Text>
+              </TouchableOpacity>
             )}
           </View>
 
@@ -285,6 +356,17 @@ export default function HomeScreen() {
         </>
         )}
       </ScrollView>
+
+      {/* Streak Popup Modal */}
+      <StreakPopup
+        visible={streakPopupVisible}
+        currentStreak={streak}
+        bestStreak={bestStreak}
+        streakState={streakState}
+        completionRate={completionRate}
+        weeklyCompletions={weeklyCompletions}
+        onClose={() => setStreakPopupVisible(false)}
+      />
     </SafeAreaView>
   );
 }
@@ -420,6 +502,13 @@ const styles = StyleSheet.create({
     fontFamily: FontFamily.sansSemiBold,
     fontSize: FontSize.sm,
     color: Colors.accent,
+  },
+  streakRowNew: {
+    backgroundColor: Colors.border + '40',
+    borderColor: Colors.border,
+  },
+  streakTextNew: {
+    color: Colors.textTertiary,
   },
 
   // ── Section Title ───────────────────────────

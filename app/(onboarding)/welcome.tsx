@@ -13,6 +13,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
 import { Colors, Spacing, FontSize, FontFamily, BorderRadius } from '../../constants/theme';
+import StarFieldBackground from '../../components/StarFieldBackground';
 
 const { width } = Dimensions.get('window');
 
@@ -174,6 +175,7 @@ export default function WelcomeScreen() {
       colors={[Colors.onboardingGradientStart, Colors.onboardingGradientEnd]}
       style={styles.container}
     >
+      <StarFieldBackground count={150} opacityVariation={0.2} seed={77} />
       {/* Slide area */}
       <ScrollView
         contentContainerStyle={styles.scrollContent}
