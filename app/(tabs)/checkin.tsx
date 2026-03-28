@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import React, { useState, useEffect, useRef } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Animated } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
@@ -112,6 +112,12 @@ export default function CheckinScreen() {
   const [savedScore, setSavedScore] = useState<number | null>(null);
   const [currentStreak, setCurrentStreak] = useState(0);
 
+  // Section entrance animation
+  const sectionFade = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    Animated.timing(sectionFade, { toValue: 1, duration: 500, delay: 100, useNativeDriver: true }).start();
+  }, []);
+
   useEffect(() => {
     if (!user) return;
     supabase
@@ -163,6 +169,7 @@ export default function CheckinScreen() {
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+        <Animated.View style={{ opacity: sectionFade }}>
         {/* Header */}
         <Text style={styles.title}>Daily Check-in</Text>
         <Text style={styles.subtitle}>How is your gut feeling today?</Text>
@@ -258,6 +265,7 @@ export default function CheckinScreen() {
           size="lg"
           style={styles.saveButton}
         />
+        </Animated.View>
       </ScrollView>
 
       <Toast

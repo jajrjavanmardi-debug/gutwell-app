@@ -19,52 +19,94 @@ import StarFieldBackground from '../../components/StarFieldBackground';
 
 const { width } = Dimensions.get('window');
 
-const QUESTIONS = [
+type Option = {
+  label: string;
+  emoji: string;
+};
+
+type Question = {
+  key: string;
+  question: string;
+  subtitle: string | null;
+  options: Option[];
+};
+
+const QUESTIONS: Question[] = [
   {
-    key: 'frequency',
-    question: 'How often do you experience digestive symptoms?',
-    options: ['Almost every day', 'A few times a week', 'Once a week or less', 'Rarely'],
-  },
-  {
-    key: 'main_symptom',
-    question: 'Which symptom bothers you most?',
+    key: 'meal_feeling',
+    question: 'How do you feel after most meals?',
+    subtitle: 'Be honest — think about your last 7 days.',
     options: [
-      'Bloating & gas',
-      'Stomach pain or cramps',
-      'Irregular bowel habits',
-      'Food sensitivities',
-      'Low energy after eating',
+      { label: 'Bloated or uncomfortable', emoji: '😩' },
+      { label: 'Unpredictable — sometimes fine, sometimes not', emoji: '😕' },
+      { label: 'Mostly okay, occasionally off', emoji: '😐' },
+      { label: 'Generally comfortable', emoji: '😊' },
     ],
   },
   {
-    key: 'diet',
-    question: 'How would you describe your current diet?',
+    key: 'bloating_frequency',
+    question: 'How often do you deal with bloating or gas?',
+    subtitle: null,
     options: [
-      'Very clean & consistent',
-      'Mostly healthy',
-      'Mixed — some good, some bad',
-      'I eat whatever I want',
+      { label: 'Every single day', emoji: '😮‍💨' },
+      { label: 'A few times a week', emoji: '😤' },
+      { label: 'Occasionally', emoji: '🤷' },
+      { label: 'Rarely or never', emoji: '✅' },
     ],
   },
   {
-    key: 'stress',
-    question: 'How stressed are you in day-to-day life?',
+    key: 'social_impact',
+    question: 'Has your gut ever held you back from enjoying something?',
+    subtitle: 'A meal out, travel, a social event — anything.',
     options: [
-      'Highly stressed',
-      'Moderately stressed',
-      'Occasionally stressed',
-      'Rarely stressed',
+      { label: 'Yes, it affects my life regularly', emoji: '😔' },
+      { label: 'Sometimes I plan around it', emoji: '🗓️' },
+      { label: 'Once or twice', emoji: '🤔' },
+      { label: 'Not really', emoji: '👋' },
+    ],
+  },
+  {
+    key: 'energy_after_lunch',
+    question: 'How do you feel 1–2 hours after eating?',
+    subtitle: 'Your digestion directly impacts your energy levels.',
+    options: [
+      { label: 'I crash — need caffeine or a rest', emoji: '😴' },
+      { label: 'Noticeable slump but I push through', emoji: '😪' },
+      { label: 'Slight dip, nothing major', emoji: '😑' },
+      { label: 'I feel energised and clear', emoji: '⚡' },
+    ],
+  },
+  {
+    key: 'sleep_quality',
+    question: 'How well do you sleep most nights?',
+    subtitle: 'Poor gut health is one of the leading causes of disrupted sleep.',
+    options: [
+      { label: 'Poorly — I wake up or feel unrested', emoji: '🌙' },
+      { label: 'Light or broken sleep', emoji: '😶' },
+      { label: 'Decent, with some off nights', emoji: '🙂' },
+      { label: 'I sleep well consistently', emoji: '💤' },
+    ],
+  },
+  {
+    key: 'food_knowledge',
+    question: 'Do you know which specific foods trigger your symptoms?',
+    subtitle: "Most people with gut issues have no idea — yet.",
+    options: [
+      { label: 'I have no idea', emoji: '❓' },
+      { label: "I suspect a few but can't be sure", emoji: '🔍' },
+      { label: "I've narrowed it down somewhat", emoji: '📋' },
+      { label: 'I know my triggers well', emoji: '✅' },
     ],
   },
   {
     key: 'goal',
-    question: "What's your main goal with GutWell?",
+    question: 'What matters most to you right now?',
+    subtitle: "We'll personalise your plan around this.",
     options: [
-      'Identify food triggers',
-      'Reduce bloating & pain',
-      'Build consistent habits',
-      'Improve energy & mood',
-      'Overall gut wellness',
+      { label: 'Eat freely without fear or consequences', emoji: '🍽️' },
+      { label: 'Finally identify my food triggers', emoji: '🎯' },
+      { label: 'Have consistent energy all day', emoji: '⚡' },
+      { label: 'Build better gut health habits', emoji: '🌿' },
     ],
   },
 ];
@@ -121,7 +163,7 @@ export default function QuestionsScreen() {
       useNativeDriver: true,
     }).start(() => {
       if (isLast) {
-        router.push('/(onboarding)/results');
+        router.push('/(onboarding)/analysing');
         return;
       }
 
@@ -200,7 +242,7 @@ export default function QuestionsScreen() {
           <Text style={styles.questionCount}>
             Question {currentQuestion + 1} of {QUESTIONS.length}
           </Text>
-          {/* Spacer to center count label */}
+          {/* Spacer to centre count label */}
           <View style={styles.backButton} />
         </View>
       </SafeAreaView>
@@ -215,13 +257,17 @@ export default function QuestionsScreen() {
         <Animated.View style={[styles.questionWrapper, { opacity: contentOpacity }]}>
           <Text style={styles.questionText}>{question.question}</Text>
 
+          {question.subtitle !== null ? (
+            <Text style={styles.subtitleText}>{question.subtitle}</Text>
+          ) : null}
+
           {/* Options */}
-          <View style={styles.optionsContainer}>
+          <View style={[styles.optionsContainer, question.subtitle === null && styles.optionsNoSubtitle]}>
             {question.options.map((option, index) => {
               const anim = optionAnims.current[index] ?? new Animated.Value(1);
               return (
                 <Animated.View
-                  key={`${currentQuestion}-${option}`}
+                  key={`${currentQuestion}-${option.label}`}
                   style={{
                     opacity: anim,
                     transform: [
@@ -236,10 +282,13 @@ export default function QuestionsScreen() {
                 >
                   <TouchableOpacity
                     style={styles.optionButton}
-                    onPress={() => handleOptionPress(option)}
+                    onPress={() => handleOptionPress(option.label)}
                     activeOpacity={0.75}
                   >
-                    <Text style={styles.optionText}>{option}</Text>
+                    <View style={styles.emojiCircle}>
+                      <Text style={styles.emojiText}>{option.emoji}</Text>
+                    </View>
+                    <Text style={styles.optionText}>{option.label}</Text>
                   </TouchableOpacity>
                 </Animated.View>
               );
@@ -307,9 +356,19 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     lineHeight: 38,
   },
+  subtitleText: {
+    fontFamily: FontFamily.sansRegular,
+    fontSize: 14,
+    color: 'rgba(255,255,255,0.55)',
+    marginTop: 8,
+    marginBottom: 20,
+  },
   optionsContainer: {
     marginTop: 28,
     gap: 10,
+  },
+  optionsNoSubtitle: {
+    marginTop: 28,
   },
   optionButton: {
     height: 58,
@@ -318,12 +377,26 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.15)',
     paddingHorizontal: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  emojiCircle: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(255,255,255,0.08)',
     justifyContent: 'center',
+    alignItems: 'center',
+  },
+  emojiText: {
+    fontSize: 18,
   },
   optionText: {
+    flex: 1,
     fontFamily: FontFamily.sansMedium,
-    fontSize: 16,
+    fontSize: 15,
     color: '#FFFFFF',
     letterSpacing: -0.3,
+    marginLeft: 14,
   },
 });

@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics';
 import { Colors, Spacing, FontSize, BorderRadius, FontFamily, Shadows } from '../constants/theme';
 
 type Props = {
@@ -12,6 +13,20 @@ type Props = {
 
 export function WaterTracker({ glasses, onAdd, onRemove, goal = 8 }: Props) {
   const progress = Math.min(glasses / goal, 1);
+
+  const handleAdd = () => {
+    if (glasses + 1 >= goal) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } else {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
+    onAdd();
+  };
+
+  const handleRemove = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    onRemove();
+  };
 
   return (
     <View style={styles.container}>
@@ -25,14 +40,14 @@ export function WaterTracker({ glasses, onAdd, onRemove, goal = 8 }: Props) {
         </View>
         <View style={styles.controls}>
           <TouchableOpacity
-            onPress={onRemove}
+            onPress={handleRemove}
             style={[styles.controlBtn, glasses === 0 && styles.controlDisabled]}
             disabled={glasses === 0}
             activeOpacity={0.7}
           >
             <Ionicons name="remove" size={18} color={glasses === 0 ? Colors.textTertiary : Colors.primary} />
           </TouchableOpacity>
-          <TouchableOpacity onPress={onAdd} style={styles.controlBtn} activeOpacity={0.7}>
+          <TouchableOpacity onPress={handleAdd} style={styles.controlBtn} activeOpacity={0.7}>
             <Ionicons name="add" size={18} color={Colors.primary} />
           </TouchableOpacity>
         </View>

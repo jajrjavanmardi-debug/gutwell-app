@@ -1,5 +1,5 @@
-import React, { useEffect, useState, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, RefreshControl, TouchableOpacity, Alert } from 'react-native';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
+import { View, Text, StyleSheet, ScrollView, RefreshControl, TouchableOpacity, Alert, Animated, Easing } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -59,6 +59,24 @@ export default function HomeScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [totalPoints, setTotalPoints] = useState(0);
   const [error, setError] = useState<string | null>(null);
+
+  // Entrance animations
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(20)).current;
+  const scorePulse = useRef(new Animated.Value(0.92)).current;
+
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(fadeAnim, { toValue: 1, duration: 600, useNativeDriver: true, easing: Easing.out(Easing.cubic) }),
+      Animated.timing(slideAnim, { toValue: 0, duration: 600, useNativeDriver: true, easing: Easing.out(Easing.cubic) }),
+    ]).start();
+  }, []);
+
+  useEffect(() => {
+    if (gutScore !== null) {
+      Animated.spring(scorePulse, { toValue: 1, friction: 6, tension: 40, useNativeDriver: true }).start();
+    }
+  }, [gutScore]);
 
   const greeting = () => {
     const hour = new Date().getHours();
@@ -326,6 +344,7 @@ export default function HomeScreen() {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.secondary} />}
         showsVerticalScrollIndicator={false}
       >
+        <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}>
         {/* Header: 3-column — Greeting | Date | Level Badge */}
         <View style={styles.headerRow}>
           {/* LEFT: greeting + name */}
@@ -371,12 +390,14 @@ export default function HomeScreen() {
           {/* Gut Score Card */}
           <View style={styles.scoreCard}>
             <Text style={styles.scoreLabel}>YOUR GUT SCORE TODAY</Text>
-            <View style={[styles.scoreCircle, { borderColor: scoreCircleBorderColor(gutScore) }]}>
-              <Text style={styles.scoreValue}>
-                {gutScore !== null ? gutScore : '--'}
-              </Text>
-              <Text style={styles.scoreOutOf}>/100</Text>
-            </View>
+            <Animated.View style={{ transform: [{ scale: scorePulse }] }}>
+              <View style={[styles.scoreCircle, { borderColor: scoreCircleBorderColor(gutScore) }]}>
+                <Text style={styles.scoreValue}>
+                  {gutScore !== null ? gutScore : '--'}
+                </Text>
+                <Text style={styles.scoreOutOf}>/100</Text>
+              </View>
+            </Animated.View>
             {streak > 0 && (
               <TouchableOpacity
                 style={styles.streakRow}
@@ -533,6 +554,7 @@ export default function HomeScreen() {
           </View>
         </>
         )}
+        </Animated.View>
       </ScrollView>
 
       {/* Streak Popup Modal */}
