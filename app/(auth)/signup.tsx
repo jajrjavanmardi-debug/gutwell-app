@@ -1,11 +1,20 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, KeyboardAvoidingView, Platform, ScrollView } from 'react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  TouchableOpacity,
+} from 'react-native';
 import { Link } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../contexts/AuthContext';
 import { Input } from '../../components/ui/Input';
 import { Button } from '../../components/ui/Button';
 import { Toast } from '../../components/ui/Toast';
-import { Colors, Spacing, FontSize } from '../../constants/theme';
+import { Colors, Spacing, FontSize, FontFamily } from '../../constants/theme';
 
 export default function SignupScreen() {
   const { signUp } = useAuth();
@@ -14,7 +23,7 @@ export default function SignupScreen() {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
-  const [toast, setToast] = useState({ visible: false, message: '', type: 'error' as const });
+  const [toast, setToast] = useState({ visible: false, message: '', type: 'error' as 'success' | 'error' });
 
   const handleSignup = async () => {
     if (!name || !email || !password) {
@@ -35,7 +44,11 @@ export default function SignupScreen() {
     if (error) {
       setToast({ visible: true, message: error.message, type: 'error' });
     } else {
-      setToast({ visible: true, message: 'Account created! Please check your email to verify.', type: 'success' });
+      setToast({
+        visible: true,
+        message: 'Account created! Please check your email to verify.',
+        type: 'success',
+      });
     }
   };
 
@@ -47,12 +60,18 @@ export default function SignupScreen() {
       <ScrollView
         contentContainerStyle={styles.scroll}
         keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
       >
+        {/* ── Header ── */}
         <View style={styles.header}>
+          <View style={styles.logoIcon}>
+            <Ionicons name="leaf" size={32} color={Colors.primary} />
+          </View>
           <Text style={styles.title}>Create Account</Text>
           <Text style={styles.subtitle}>Take control of your digestive health</Text>
         </View>
 
+        {/* ── Form ── */}
         <View style={styles.form}>
           <Input
             label="Name"
@@ -93,34 +112,89 @@ export default function SignupScreen() {
           />
         </View>
 
+        {/* ── Footer ── */}
         <View style={styles.footer}>
           <View style={styles.row}>
             <Text style={styles.footerText}>Already have an account? </Text>
-            <Link href="/(auth)/login" style={styles.link}>
-              Sign in
+            <Link href="/(auth)/login" asChild>
+              <TouchableOpacity activeOpacity={0.7}>
+                <Text style={styles.signinLink}>Sign in</Text>
+              </TouchableOpacity>
             </Link>
           </View>
         </View>
       </ScrollView>
+
       <Toast
         message={toast.message}
         type={toast.type}
         visible={toast.visible}
-        onDismiss={() => setToast(t => ({ ...t, visible: false }))}
+        onDismiss={() => setToast((t) => ({ ...t, visible: false }))}
       />
     </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.background },
-  scroll: { flexGrow: 1, justifyContent: 'center', padding: Spacing.lg },
-  header: { alignItems: 'center', marginBottom: Spacing.xl },
-  title: { fontSize: FontSize.xxl, fontWeight: '700', color: Colors.text },
-  subtitle: { fontSize: FontSize.md, color: Colors.textSecondary, marginTop: Spacing.xs },
-  form: { gap: Spacing.md },
-  footer: { alignItems: 'center', marginTop: Spacing.xl },
-  row: { flexDirection: 'row' },
-  footerText: { fontSize: FontSize.sm, color: Colors.textSecondary },
-  link: { fontSize: FontSize.sm, color: Colors.primary, fontWeight: '600' },
+  container: {
+    flex: 1,
+    backgroundColor: Colors.background,
+  },
+  scroll: {
+    flexGrow: 1,
+    justifyContent: 'center',
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.xxl,
+  },
+
+  // ── Header ──
+  header: {
+    alignItems: 'center',
+    marginBottom: Spacing.xl,
+  },
+  logoIcon: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: Colors.surfaceSecondary,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: Spacing.md,
+  },
+  title: {
+    fontFamily: FontFamily.displayBold,
+    fontSize: FontSize.hero,
+    color: Colors.text,
+    marginBottom: Spacing.xs,
+  },
+  subtitle: {
+    fontFamily: FontFamily.sansRegular,
+    fontSize: FontSize.md,
+    color: Colors.textSecondary,
+  },
+
+  // ── Form ──
+  form: {
+    gap: Spacing.md,
+  },
+
+  // ── Footer ──
+  footer: {
+    alignItems: 'center',
+    marginTop: Spacing.xl,
+  },
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  footerText: {
+    fontFamily: FontFamily.sansRegular,
+    fontSize: FontSize.sm,
+    color: Colors.textSecondary,
+  },
+  signinLink: {
+    fontFamily: FontFamily.sansSemiBold,
+    fontSize: FontSize.sm,
+    color: Colors.secondary,
+  },
 });

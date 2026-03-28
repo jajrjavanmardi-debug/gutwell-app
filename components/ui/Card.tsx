@@ -5,7 +5,7 @@ import { Colors, BorderRadius, Spacing, Shadows } from '../../constants/theme';
 type Props = {
   children: React.ReactNode;
   style?: ViewStyle;
-  variant?: 'default' | 'outlined' | 'elevated';
+  variant?: 'default' | 'outlined' | 'elevated' | 'premium';
 };
 
 export function Card({ children, style, variant = 'default' }: Props) {
@@ -31,5 +31,10 @@ const styles = StyleSheet.create({
   },
   elevated: {
     ...Shadows.md,
+  },
+  premium: {
+    ...Shadows.md,
+    borderWidth: 1,
+    borderColor: Colors.border,
   },
 });

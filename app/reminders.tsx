@@ -9,7 +9,7 @@ import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
 import { Toast } from '../components/ui/Toast';
 import { requestNotificationPermissions, syncReminders } from '../lib/notifications';
-import { Colors, Spacing, FontSize, BorderRadius } from '../constants/theme';
+import { Colors, Spacing, FontSize, BorderRadius, FontFamily } from '../constants/theme';
 
 type ReminderType = 'checkin' | 'food' | 'symptom';
 type Reminder = {
@@ -123,35 +123,67 @@ export default function RemindersScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
+      {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()}>
-          <Ionicons name="close" size={28} color={Colors.text} />
+        <TouchableOpacity
+          onPress={() => router.back()}
+          style={styles.backBtn}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+        >
+          <Ionicons name="arrow-back" size={22} color={Colors.text} />
         </TouchableOpacity>
-        <Text style={styles.title}>Reminders</Text>
-        <TouchableOpacity onPress={() => setShowAdd(true)}>
-          <Ionicons name="add-circle" size={28} color={Colors.primary} />
+        <Text style={styles.headerTitle}>Reminders</Text>
+        <TouchableOpacity
+          onPress={() => setShowAdd(true)}
+          style={styles.addBtn}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+        >
+          <Ionicons name="add" size={22} color={Colors.textInverse} />
         </TouchableOpacity>
       </View>
 
-      <ScrollView contentContainerStyle={styles.scroll}>
+      <ScrollView
+        contentContainerStyle={styles.scroll}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Empty State */}
         {reminders.length === 0 && !loading && (
-          <Card style={styles.emptyCard}>
-            <Ionicons name="notifications-off" size={40} color={Colors.textTertiary} />
-            <Text style={styles.emptyText}>No reminders yet</Text>
-            <Text style={styles.emptySubtext}>Daily reminders help you spot what affects your gut. Set one now.</Text>
-            <Button title="Add Reminder" onPress={() => setShowAdd(true)} variant="secondary" size="md" style={{ marginTop: Spacing.md }} />
-          </Card>
+          <View style={styles.emptyContainer}>
+            <View style={styles.emptyIconWrap}>
+              <Ionicons name="notifications-outline" size={48} color={Colors.textTertiary} />
+            </View>
+            <Text style={styles.emptyTitle}>No reminders yet</Text>
+            <Text style={styles.emptySubtext}>
+              Daily reminders help you spot what affects your gut. Set one now.
+            </Text>
+            <Button
+              title="Add Your First Reminder"
+              onPress={() => setShowAdd(true)}
+              variant="secondary"
+              size="md"
+              style={styles.emptyBtn}
+            />
+          </View>
         )}
 
-        {reminders.map(r => (
-          <Card key={r.id} style={styles.reminderCard}>
+        {/* Reminder Cards */}
+        {reminders.map((r) => (
+          <View key={r.id} style={styles.reminderCard}>
             <View style={styles.reminderRow}>
-              <View style={[styles.reminderIcon, { backgroundColor: Colors.primary + '15' }]}>
-                <Ionicons name={typeInfo(r.reminder_type).icon} size={20} color={Colors.primary} />
+              <View style={styles.reminderIconWrap}>
+                <Ionicons
+                  name={typeInfo(r.reminder_type).icon}
+                  size={20}
+                  color={Colors.primary}
+                />
               </View>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.reminderLabel}>{typeInfo(r.reminder_type).label}</Text>
-                <Text style={styles.reminderTime}>{formatTime(r.time)}</Text>
+              <View style={styles.reminderInfo}>
+                <Text style={styles.reminderType}>
+                  {typeInfo(r.reminder_type).label}
+                </Text>
+                <Text style={styles.reminderTime}>
+                  {formatTime(r.time)}
+                </Text>
               </View>
               <Switch
                 value={r.enabled}
@@ -160,116 +192,423 @@ export default function RemindersScreen() {
                 thumbColor={Colors.surface}
               />
             </View>
-            <TouchableOpacity onPress={() => deleteReminder(r.id)} style={styles.deleteBtn}>
-              <Ionicons name="trash-outline" size={16} color={Colors.severity[4]} />
+            <View style={styles.reminderDivider} />
+            <TouchableOpacity
+              onPress={() => deleteReminder(r.id)}
+              style={styles.deleteRow}
+              hitSlop={{ top: 8, bottom: 8 }}
+            >
+              <Ionicons name="trash-outline" size={15} color={Colors.error} />
               <Text style={styles.deleteText}>Remove</Text>
             </TouchableOpacity>
-          </Card>
+          </View>
         ))}
 
+        {/* Add Form */}
         {showAdd && (
           <Card style={styles.addCard} variant="elevated">
             <Text style={styles.addTitle}>New Reminder</Text>
 
+            {/* Type Selector */}
             <Text style={styles.addLabel}>Type</Text>
             <View style={styles.typeRow}>
-              {REMINDER_TYPES.map(t => (
-                <TouchableOpacity
-                  key={t.key}
-                  style={[styles.typeBtn, newType === t.key && styles.typeBtnSelected]}
-                  onPress={() => setNewType(t.key)}
-                >
-                  <Ionicons name={t.icon} size={18} color={newType === t.key ? Colors.primary : Colors.textTertiary} />
-                  <Text style={[styles.typeBtnLabel, newType === t.key && { color: Colors.primary }]}>{t.label}</Text>
-                </TouchableOpacity>
-              ))}
+              {REMINDER_TYPES.map((t) => {
+                const isActive = newType === t.key;
+                return (
+                  <TouchableOpacity
+                    key={t.key}
+                    style={[styles.typePill, isActive && styles.typePillActive]}
+                    onPress={() => setNewType(t.key)}
+                    activeOpacity={0.7}
+                  >
+                    <Ionicons
+                      name={t.icon}
+                      size={16}
+                      color={isActive ? Colors.primary : Colors.textTertiary}
+                    />
+                    <Text
+                      style={[
+                        styles.typePillLabel,
+                        isActive && styles.typePillLabelActive,
+                      ]}
+                    >
+                      {t.label}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
             </View>
 
+            {/* Time Picker */}
             <Text style={styles.addLabel}>Time</Text>
             <View style={styles.timeRow}>
-              <TouchableOpacity onPress={() => setNewHour(h => (h + 1) % 24)} style={styles.timeArrow} accessibilityLabel="Increase hour">
-                <Ionicons name="chevron-up" size={22} color={Colors.textSecondary} />
-              </TouchableOpacity>
-              <Text style={styles.timeValue}>{String(newHour % 12 || 12).padStart(2, '0')}</Text>
-              <TouchableOpacity onPress={() => setNewHour(h => (h + 23) % 24)} style={styles.timeArrow} accessibilityLabel="Decrease hour">
-                <Ionicons name="chevron-down" size={22} color={Colors.textSecondary} />
-              </TouchableOpacity>
+              <View style={styles.timeColumn}>
+                <TouchableOpacity
+                  onPress={() => setNewHour((h) => (h + 1) % 24)}
+                  style={styles.timeArrow}
+                  accessibilityLabel="Increase hour"
+                >
+                  <Ionicons name="chevron-up" size={22} color={Colors.textSecondary} />
+                </TouchableOpacity>
+                <Text style={styles.timeValue}>
+                  {String(newHour % 12 || 12).padStart(2, '0')}
+                </Text>
+                <TouchableOpacity
+                  onPress={() => setNewHour((h) => (h + 23) % 24)}
+                  style={styles.timeArrow}
+                  accessibilityLabel="Decrease hour"
+                >
+                  <Ionicons name="chevron-down" size={22} color={Colors.textSecondary} />
+                </TouchableOpacity>
+              </View>
+
               <Text style={styles.timeSep}>:</Text>
-              <TouchableOpacity onPress={() => setNewMinute(m => (m + 5) % 60)} style={styles.timeArrow} accessibilityLabel="Increase minutes">
-                <Ionicons name="chevron-up" size={22} color={Colors.textSecondary} />
-              </TouchableOpacity>
-              <Text style={styles.timeValue}>{String(newMinute).padStart(2, '0')}</Text>
-              <TouchableOpacity onPress={() => setNewMinute(m => (m + 55) % 60)} style={styles.timeArrow} accessibilityLabel="Decrease minutes">
-                <Ionicons name="chevron-down" size={22} color={Colors.textSecondary} />
-              </TouchableOpacity>
+
+              <View style={styles.timeColumn}>
+                <TouchableOpacity
+                  onPress={() => setNewMinute((m) => (m + 5) % 60)}
+                  style={styles.timeArrow}
+                  accessibilityLabel="Increase minutes"
+                >
+                  <Ionicons name="chevron-up" size={22} color={Colors.textSecondary} />
+                </TouchableOpacity>
+                <Text style={styles.timeValue}>
+                  {String(newMinute).padStart(2, '0')}
+                </Text>
+                <TouchableOpacity
+                  onPress={() => setNewMinute((m) => (m + 55) % 60)}
+                  style={styles.timeArrow}
+                  accessibilityLabel="Decrease minutes"
+                >
+                  <Ionicons name="chevron-down" size={22} color={Colors.textSecondary} />
+                </TouchableOpacity>
+              </View>
+
               <TouchableOpacity
-                onPress={() => setNewHour(h => h < 12 ? h + 12 : h - 12)}
+                onPress={() => setNewHour((h) => (h < 12 ? h + 12 : h - 12))}
                 style={styles.ampmBtn}
               >
-                <Text style={styles.ampmText}>{newHour >= 12 ? 'PM' : 'AM'}</Text>
+                <Text style={styles.ampmText}>
+                  {newHour >= 12 ? 'PM' : 'AM'}
+                </Text>
               </TouchableOpacity>
             </View>
 
+            {/* Day Selector */}
             <Text style={styles.addLabel}>Days</Text>
             <View style={styles.daysRow}>
-              {[1, 2, 3, 4, 5, 6, 7].map((day, i) => (
-                <TouchableOpacity
-                  key={day}
-                  style={[styles.dayBtn, newDays.includes(day) && styles.dayBtnSelected]}
-                  onPress={() => toggleDay(day)}
-                >
-                  <Text style={[styles.dayText, newDays.includes(day) && styles.dayTextSelected]}>
-                    {DAY_LABELS[i]}
-                  </Text>
-                </TouchableOpacity>
-              ))}
+              {[1, 2, 3, 4, 5, 6, 7].map((day, i) => {
+                const isActive = newDays.includes(day);
+                return (
+                  <TouchableOpacity
+                    key={day}
+                    style={[styles.dayCircle, isActive && styles.dayCircleActive]}
+                    onPress={() => toggleDay(day)}
+                    activeOpacity={0.7}
+                  >
+                    <Text
+                      style={[
+                        styles.dayText,
+                        isActive && styles.dayTextActive,
+                      ]}
+                    >
+                      {DAY_LABELS[i]}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
             </View>
 
+            {/* Actions */}
             <View style={styles.addActions}>
-              <Button title="Cancel" onPress={() => setShowAdd(false)} variant="outline" size="md" style={{ flex: 1 }} />
-              <Button title="Save" onPress={handleAdd} loading={saving} size="md" style={{ flex: 1 }} />
+              <Button
+                title="Cancel"
+                onPress={() => setShowAdd(false)}
+                variant="outline"
+                size="md"
+                style={styles.addActionBtn}
+              />
+              <Button
+                title="Save"
+                onPress={handleAdd}
+                loading={saving}
+                size="md"
+                style={styles.addActionBtn}
+              />
             </View>
           </Card>
         )}
       </ScrollView>
 
-      <Toast message={toast.message} type={toast.type} visible={toast.visible} onDismiss={() => setToast(t => ({ ...t, visible: false }))} />
+      <Toast
+        message={toast.message}
+        type={toast.type}
+        visible={toast.visible}
+        onDismiss={() => setToast((t) => ({ ...t, visible: false }))}
+      />
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.background },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: Spacing.md, paddingTop: Spacing.sm },
-  title: { fontSize: FontSize.xl, fontWeight: '700', color: Colors.text },
-  scroll: { padding: Spacing.lg, paddingBottom: Spacing.xxl },
-  emptyCard: { alignItems: 'center', padding: Spacing.xl },
-  emptyText: { fontSize: FontSize.md, fontWeight: '600', color: Colors.textSecondary, marginTop: Spacing.md },
-  emptySubtext: { fontSize: FontSize.sm, color: Colors.textTertiary, textAlign: 'center', marginTop: Spacing.xs },
-  reminderCard: { marginBottom: Spacing.sm },
-  reminderRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md },
-  reminderIcon: { width: 40, height: 40, borderRadius: BorderRadius.sm, justifyContent: 'center', alignItems: 'center' },
-  reminderLabel: { fontSize: FontSize.md, fontWeight: '600', color: Colors.text },
-  reminderTime: { fontSize: FontSize.sm, color: Colors.textSecondary },
-  deleteBtn: { flexDirection: 'row', alignItems: 'center', gap: Spacing.xs, marginTop: Spacing.sm, paddingTop: Spacing.sm, borderTopWidth: 1, borderTopColor: Colors.border },
-  deleteText: { fontSize: FontSize.xs, color: Colors.severity[4] },
-  addCard: { padding: Spacing.lg, marginTop: Spacing.md },
-  addTitle: { fontSize: FontSize.lg, fontWeight: '700', color: Colors.text, marginBottom: Spacing.md },
-  addLabel: { fontSize: FontSize.sm, fontWeight: '600', color: Colors.textSecondary, marginTop: Spacing.md, marginBottom: Spacing.sm },
-  typeRow: { flexDirection: 'row', gap: Spacing.sm },
-  typeBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: Spacing.xs, padding: Spacing.sm, borderRadius: BorderRadius.md, backgroundColor: Colors.surface, borderWidth: 1.5, borderColor: Colors.border },
-  typeBtnSelected: { borderColor: Colors.primary, backgroundColor: Colors.primary + '10' },
-  typeBtnLabel: { fontSize: FontSize.xs, fontWeight: '600', color: Colors.textTertiary },
-  daysRow: { flexDirection: 'row', gap: Spacing.sm },
-  dayBtn: { width: 44, height: 44, borderRadius: 22, justifyContent: 'center', alignItems: 'center', backgroundColor: Colors.surface, borderWidth: 1.5, borderColor: Colors.border },
-  dayBtnSelected: { backgroundColor: Colors.primary, borderColor: Colors.primary },
-  dayText: { fontSize: FontSize.xs, fontWeight: '600', color: Colors.textTertiary },
-  dayTextSelected: { color: Colors.textInverse },
-  timeRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: Spacing.sm },
-  timeArrow: { padding: Spacing.sm, minWidth: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center' },
-  timeValue: { fontSize: FontSize.xxl, fontWeight: '700', color: Colors.text, minWidth: 40, textAlign: 'center' },
-  timeSep: { fontSize: FontSize.xxl, fontWeight: '700', color: Colors.textTertiary },
-  ampmBtn: { backgroundColor: Colors.surfaceSecondary, borderRadius: BorderRadius.sm, paddingHorizontal: Spacing.md, paddingVertical: Spacing.xs, marginLeft: Spacing.sm },
-  ampmText: { fontSize: FontSize.sm, fontWeight: '700', color: Colors.primary },
-  addActions: { flexDirection: 'row', gap: Spacing.md, marginTop: Spacing.lg },
+  container: {
+    flex: 1,
+    backgroundColor: Colors.background,
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.divider,
+  },
+  backBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: Colors.surfaceSecondary,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  headerTitle: {
+    fontFamily: FontFamily.sansSemiBold,
+    fontSize: FontSize.lg,
+    color: Colors.text,
+  },
+  addBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: Colors.secondary,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  scroll: {
+    padding: Spacing.lg,
+    paddingBottom: Spacing.xxl + 40,
+  },
+
+  // Empty State
+  emptyContainer: {
+    alignItems: 'center',
+    paddingVertical: Spacing.xxl,
+    paddingHorizontal: Spacing.lg,
+  },
+  emptyIconWrap: {
+    width: 88,
+    height: 88,
+    borderRadius: 44,
+    backgroundColor: Colors.surfaceSecondary,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: Spacing.lg,
+  },
+  emptyTitle: {
+    fontFamily: FontFamily.sansSemiBold,
+    fontSize: FontSize.lg,
+    color: Colors.text,
+    marginBottom: Spacing.xs,
+  },
+  emptySubtext: {
+    fontFamily: FontFamily.sansRegular,
+    fontSize: FontSize.sm,
+    color: Colors.textTertiary,
+    textAlign: 'center',
+    lineHeight: 20,
+    maxWidth: 280,
+  },
+  emptyBtn: {
+    marginTop: Spacing.lg,
+  },
+
+  // Reminder Cards
+  reminderCard: {
+    backgroundColor: Colors.surface,
+    borderRadius: BorderRadius.lg,
+    padding: Spacing.lg,
+    marginBottom: Spacing.sm,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  reminderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.md,
+  },
+  reminderIconWrap: {
+    width: 44,
+    height: 44,
+    borderRadius: BorderRadius.md,
+    backgroundColor: Colors.primary + '12',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  reminderInfo: {
+    flex: 1,
+  },
+  reminderType: {
+    fontFamily: FontFamily.sansSemiBold,
+    fontSize: FontSize.md,
+    color: Colors.text,
+  },
+  reminderTime: {
+    fontFamily: FontFamily.sansRegular,
+    fontSize: FontSize.sm,
+    color: Colors.textSecondary,
+    marginTop: 2,
+  },
+  reminderDivider: {
+    height: 1,
+    backgroundColor: Colors.divider,
+    marginTop: Spacing.md,
+    marginBottom: Spacing.sm,
+  },
+  deleteRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
+  },
+  deleteText: {
+    fontFamily: FontFamily.sansMedium,
+    fontSize: FontSize.xs,
+    color: Colors.error,
+  },
+
+  // Add Form
+  addCard: {
+    padding: Spacing.lg,
+    marginTop: Spacing.md,
+  },
+  addTitle: {
+    fontFamily: FontFamily.sansBold,
+    fontSize: FontSize.lg,
+    color: Colors.text,
+    marginBottom: Spacing.md,
+  },
+  addLabel: {
+    fontFamily: FontFamily.sansSemiBold,
+    fontSize: FontSize.sm,
+    color: Colors.textSecondary,
+    marginTop: Spacing.lg,
+    marginBottom: Spacing.sm,
+  },
+
+  // Type Pills
+  typeRow: {
+    flexDirection: 'row',
+    gap: Spacing.sm,
+  },
+  typePill: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.sm,
+    borderRadius: BorderRadius.full,
+    backgroundColor: Colors.surfaceSecondary,
+    borderWidth: 1.5,
+    borderColor: Colors.border,
+  },
+  typePillActive: {
+    borderColor: Colors.primary,
+    backgroundColor: Colors.primary + '12',
+  },
+  typePillLabel: {
+    fontFamily: FontFamily.sansMedium,
+    fontSize: FontSize.xs,
+    color: Colors.textTertiary,
+  },
+  typePillLabelActive: {
+    color: Colors.primary,
+    fontFamily: FontFamily.sansSemiBold,
+  },
+
+  // Time Picker
+  timeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.md,
+    backgroundColor: Colors.surfaceSecondary,
+    borderRadius: BorderRadius.lg,
+    paddingVertical: Spacing.md,
+  },
+  timeColumn: {
+    alignItems: 'center',
+  },
+  timeArrow: {
+    padding: Spacing.xs,
+    minWidth: 44,
+    minHeight: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  timeValue: {
+    fontFamily: FontFamily.sansBold,
+    fontSize: 32,
+    color: Colors.text,
+    minWidth: 50,
+    textAlign: 'center',
+  },
+  timeSep: {
+    fontFamily: FontFamily.sansBold,
+    fontSize: 28,
+    color: Colors.textTertiary,
+    marginTop: -2,
+  },
+  ampmBtn: {
+    backgroundColor: Colors.primary + '15',
+    borderRadius: BorderRadius.md,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    marginLeft: Spacing.sm,
+  },
+  ampmText: {
+    fontFamily: FontFamily.sansBold,
+    fontSize: FontSize.sm,
+    color: Colors.primary,
+  },
+
+  // Day Selector
+  daysRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: Spacing.xs,
+  },
+  dayCircle: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: Colors.surfaceSecondary,
+    borderWidth: 1.5,
+    borderColor: Colors.border,
+  },
+  dayCircleActive: {
+    backgroundColor: Colors.primary,
+    borderColor: Colors.primary,
+  },
+  dayText: {
+    fontFamily: FontFamily.sansSemiBold,
+    fontSize: FontSize.xs,
+    color: Colors.textTertiary,
+  },
+  dayTextActive: {
+    color: Colors.textInverse,
+  },
+
+  // Add Actions
+  addActions: {
+    flexDirection: 'row',
+    gap: Spacing.md,
+    marginTop: Spacing.xl,
+  },
+  addActionBtn: {
+    flex: 1,
+  },
 });

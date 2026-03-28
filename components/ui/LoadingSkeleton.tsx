@@ -15,8 +15,8 @@ export function LoadingSkeleton({ width = '100%', height = 16, borderRadius = Bo
   useEffect(() => {
     const animation = Animated.loop(
       Animated.sequence([
-        Animated.timing(opacity, { toValue: 0.7, duration: 800, useNativeDriver: true }),
-        Animated.timing(opacity, { toValue: 0.3, duration: 800, useNativeDriver: true }),
+        Animated.timing(opacity, { toValue: 0.6, duration: 900, useNativeDriver: true }),
+        Animated.timing(opacity, { toValue: 0.3, duration: 900, useNativeDriver: true }),
       ])
     );
     animation.start();
@@ -26,7 +26,7 @@ export function LoadingSkeleton({ width = '100%', height = 16, borderRadius = Bo
   return (
     <Animated.View
       style={[
-        { width: width as any, height, borderRadius, backgroundColor: Colors.border, opacity },
+        { width: width as any, height, borderRadius, backgroundColor: Colors.surfaceSecondary, opacity },
         style,
       ]}
     />

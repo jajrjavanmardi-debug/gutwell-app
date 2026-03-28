@@ -2,23 +2,28 @@ import { Ionicons } from '@expo/vector-icons';
 import { Tabs } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { Platform } from 'react-native';
-import { Colors, FontSize } from '../../constants/theme';
+import { Colors, FontSize, FontFamily, Shadows } from '../../constants/theme';
 
 export default function TabLayout() {
   return (
     <Tabs
       screenOptions={{
         tabBarActiveTintColor: Colors.primary,
-        tabBarInactiveTintColor: Colors.tabInactive,
+        tabBarInactiveTintColor: Colors.textTertiary,
         headerShown: false,
         tabBarStyle: {
           backgroundColor: Colors.surface,
           borderTopColor: Colors.divider,
-          paddingTop: 4,
+          borderTopWidth: 0.5,
+          paddingTop: 6,
+          paddingBottom: Platform.OS === 'ios' ? 0 : 8,
+          height: Platform.OS === 'ios' ? 88 : 64,
+          ...Shadows.sm,
         },
         tabBarLabelStyle: {
-          fontSize: FontSize.xs,
-          fontWeight: '500',
+          fontFamily: FontFamily.sansMedium,
+          fontSize: 11,
+          marginTop: 2,
         },
       }}
       screenListeners={{
@@ -33,8 +38,8 @@ export default function TabLayout() {
         name="index"
         options={{
           title: 'Home',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="home" size={size} color={color} />
+          tabBarIcon: ({ color, focused }) => (
+            <Ionicons name={focused ? 'home' : 'home-outline'} size={24} color={color} />
           ),
         }}
       />
@@ -42,8 +47,8 @@ export default function TabLayout() {
         name="checkin"
         options={{
           title: 'Check-in',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="body" size={size} color={color} />
+          tabBarIcon: ({ color, focused }) => (
+            <Ionicons name={focused ? 'body' : 'body-outline'} size={24} color={color} />
           ),
         }}
       />
@@ -51,8 +56,8 @@ export default function TabLayout() {
         name="food"
         options={{
           title: 'Food',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="restaurant" size={size} color={color} />
+          tabBarIcon: ({ color, focused }) => (
+            <Ionicons name={focused ? 'restaurant' : 'restaurant-outline'} size={24} color={color} />
           ),
         }}
       />
@@ -60,8 +65,8 @@ export default function TabLayout() {
         name="progress"
         options={{
           title: 'Progress',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="trending-up" size={size} color={color} />
+          tabBarIcon: ({ color, focused }) => (
+            <Ionicons name={focused ? 'trending-up' : 'trending-up-outline'} size={24} color={color} />
           ),
         }}
       />
@@ -69,8 +74,8 @@ export default function TabLayout() {
         name="profile"
         options={{
           title: 'Profile',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="person" size={size} color={color} />
+          tabBarIcon: ({ color, focused }) => (
+            <Ionicons name={focused ? 'person' : 'person-outline'} size={24} color={color} />
           ),
         }}
       />

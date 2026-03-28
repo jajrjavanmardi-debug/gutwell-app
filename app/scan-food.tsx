@@ -13,7 +13,7 @@ import { supabase } from '../lib/supabase';
 import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
 import { Toast } from '../components/ui/Toast';
-import { Colors, Spacing, FontSize, BorderRadius, Shadows } from '../constants/theme';
+import { Colors, Spacing, FontSize, BorderRadius, FontFamily } from '../constants/theme';
 
 type FoodItem = {
   name: string;
@@ -115,9 +115,9 @@ export default function ScanFoodScreen() {
   };
 
   const scoreColor = (score: number) => {
-    if (score >= 8) return Colors.primary;
+    if (score >= 8) return Colors.secondary;
     if (score >= 5) return Colors.accent;
-    return Colors.severity[4];
+    return Colors.error;
   };
 
   const scoreLabel = (score: number) => {
@@ -129,12 +129,12 @@ export default function ScanFoodScreen() {
   const fodmapColor = (level: string) => {
     if (level === 'low') return Colors.primary;
     if (level === 'medium') return Colors.accent;
-    return Colors.severity[4];
+    return Colors.error;
   };
 
   const flagColor = (flag: string) => {
     const good = ['probiotic', 'prebiotic', 'high-fiber', 'anti-inflammatory'];
-    return good.includes(flag) ? Colors.primary : Colors.severity[4];
+    return good.includes(flag) ? Colors.primary : Colors.error;
   };
 
   const handleLogMeal = async () => {
@@ -172,18 +172,26 @@ export default function ScanFoodScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
+      {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()}>
-          <Ionicons name="close" size={28} color={Colors.text} />
+        <TouchableOpacity
+          onPress={() => router.back()}
+          style={styles.closeBtn}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+        >
+          <Ionicons name="close" size={24} color={Colors.text} />
         </TouchableOpacity>
-        <Text style={styles.title}>Scan Food</Text>
-        <View style={{ width: 28 }} />
+        <Text style={styles.headerTitle}>Scan Food</Text>
+        <View style={styles.headerSpacer} />
       </View>
 
+      {/* Camera State */}
       {state === 'camera' && (
         <View style={styles.cameraState}>
           <View style={styles.cameraPlaceholder}>
-            <Ionicons name="camera" size={64} color={Colors.textTertiary} />
+            <View style={styles.cameraIconCircle}>
+              <Ionicons name="camera-outline" size={48} color={Colors.primary} />
+            </View>
             <Text style={styles.cameraTitle}>Scan your meal</Text>
             <Text style={styles.cameraSubtitle}>
               Take a photo and get an instant gut health analysis
@@ -195,75 +203,135 @@ export default function ScanFoodScreen() {
               onPress={takePhoto}
               size="lg"
               icon={<Ionicons name="camera" size={20} color={Colors.textInverse} />}
-              style={{ flex: 1 }}
+              style={styles.cameraActionBtn}
             />
             <Button
               title="Gallery"
               onPress={pickFromGallery}
               variant="outline"
               size="lg"
-              icon={<Ionicons name="images" size={20} color={Colors.primary} />}
-              style={{ flex: 1 }}
+              icon={<Ionicons name="images-outline" size={20} color={Colors.primary} />}
+              style={styles.cameraActionBtn}
             />
           </View>
         </View>
       )}
 
+      {/* Analyzing State */}
       {state === 'analyzing' && (
         <View style={styles.analyzingState}>
           {imageUri && (
             <Image source={{ uri: imageUri }} style={styles.previewImage} />
           )}
           <View style={styles.analyzingOverlay}>
-            <ActivityIndicator size="large" color={Colors.primary} />
-            <Text style={styles.analyzingText}>Analyzing your meal...</Text>
-            <Text style={styles.analyzingSubtext}>Identifying foods and gut impact</Text>
+            <View style={styles.analyzingCard}>
+              <ActivityIndicator size="large" color={Colors.primary} />
+              <Text style={styles.analyzingText}>Analyzing your meal...</Text>
+              <Text style={styles.analyzingSubtext}>
+                Identifying foods and gut impact
+              </Text>
+            </View>
           </View>
         </View>
       )}
 
+      {/* Results State */}
       {state === 'results' && analysis && (
-        <ScrollView contentContainerStyle={styles.resultsScroll}>
+        <ScrollView
+          contentContainerStyle={styles.resultsScroll}
+          showsVerticalScrollIndicator={false}
+        >
+          {/* Image Preview */}
           {imageUri && (
             <Image source={{ uri: imageUri }} style={styles.resultImage} />
           )}
 
-          {/* Overall Score */}
-          <Card style={styles.overallCard} variant="elevated">
-            <View style={[styles.overallBadge, { backgroundColor: scoreColor(analysis.overall_score) + '15', borderColor: scoreColor(analysis.overall_score) }]}>
-              <Text style={[styles.overallScore, { color: scoreColor(analysis.overall_score) }]}>
+          {/* Overall Score Card */}
+          <View style={styles.overallCard}>
+            <View
+              style={[
+                styles.overallScoreCircle,
+                { borderColor: scoreColor(analysis.overall_score) },
+              ]}
+            >
+              <Text
+                style={[
+                  styles.overallScoreNum,
+                  { color: scoreColor(analysis.overall_score) },
+                ]}
+              >
                 {analysis.overall_score}
               </Text>
-              <Text style={[styles.overallOutOf, { color: scoreColor(analysis.overall_score) }]}>/10</Text>
+              <Text
+                style={[
+                  styles.overallScoreOutOf,
+                  { color: scoreColor(analysis.overall_score) },
+                ]}
+              >
+                /10
+              </Text>
             </View>
-            <Text style={[styles.overallLabel, { color: scoreColor(analysis.overall_score) }]}>
+            <Text
+              style={[
+                styles.overallLabel,
+                { color: scoreColor(analysis.overall_score) },
+              ]}
+            >
               {scoreLabel(analysis.overall_score)}
             </Text>
             <Text style={styles.overallSummary}>{analysis.summary}</Text>
-          </Card>
+          </View>
 
-          {/* Food Items */}
+          {/* Food Breakdown */}
           <Text style={styles.sectionTitle}>Food Breakdown</Text>
           {analysis.foods.map((food, i) => (
-            <Card key={i} style={styles.foodCard}>
+            <View key={i} style={styles.foodCard}>
               <View style={styles.foodHeader}>
                 <Text style={styles.foodName}>{food.name}</Text>
-                <View style={[styles.foodScoreBadge, { backgroundColor: scoreColor(food.gut_score) + '15' }]}>
-                  <Text style={[styles.foodScoreText, { color: scoreColor(food.gut_score) }]}>
+                <View
+                  style={[
+                    styles.foodScoreBadge,
+                    { backgroundColor: scoreColor(food.gut_score) + '15' },
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.foodScoreText,
+                      { color: scoreColor(food.gut_score) },
+                    ]}
+                  >
                     {food.gut_score}/10
                   </Text>
                 </View>
               </View>
 
               <View style={styles.foodTags}>
-                <View style={[styles.fodmapChip, { backgroundColor: fodmapColor(food.fodmap_level) + '15' }]}>
-                  <Text style={[styles.fodmapText, { color: fodmapColor(food.fodmap_level) }]}>
+                <View
+                  style={[
+                    styles.fodmapChip,
+                    { backgroundColor: fodmapColor(food.fodmap_level) + '15' },
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.fodmapText,
+                      { color: fodmapColor(food.fodmap_level) },
+                    ]}
+                  >
                     {food.fodmap_level.toUpperCase()} FODMAP
                   </Text>
                 </View>
                 {food.flags.map((flag, j) => (
-                  <View key={j} style={[styles.flagPill, { backgroundColor: flagColor(flag) + '12' }]}>
-                    <Text style={[styles.flagText, { color: flagColor(flag) }]}>
+                  <View
+                    key={j}
+                    style={[
+                      styles.flagPill,
+                      { backgroundColor: flagColor(flag) + '12' },
+                    ]}
+                  >
+                    <Text
+                      style={[styles.flagText, { color: flagColor(flag) }]}
+                    >
                       {flag.replace('-', ' ')}
                     </Text>
                   </View>
@@ -271,17 +339,23 @@ export default function ScanFoodScreen() {
               </View>
 
               <Text style={styles.foodReasoning}>{food.reasoning}</Text>
-            </Card>
+            </View>
           ))}
 
-          {/* Actions */}
+          {/* Action Buttons */}
           <View style={styles.resultActions}>
             <Button
               title="Log This Meal"
               onPress={handleLogMeal}
               loading={saving}
               size="lg"
-              icon={<Ionicons name="checkmark-circle" size={20} color={Colors.textInverse} />}
+              icon={
+                <Ionicons
+                  name="checkmark-circle"
+                  size={20}
+                  color={Colors.textInverse}
+                />
+              }
               style={{ flex: 2 }}
             />
             <Button
@@ -299,68 +373,262 @@ export default function ScanFoodScreen() {
         message={toast.message}
         type={toast.type}
         visible={toast.visible}
-        onDismiss={() => setToast(t => ({ ...t, visible: false }))}
+        onDismiss={() => setToast((t) => ({ ...t, visible: false }))}
       />
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.background },
+  container: {
+    flex: 1,
+    backgroundColor: Colors.background,
+  },
   header: {
-    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    padding: Spacing.md, paddingTop: Spacing.sm,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.divider,
   },
-  title: { fontSize: FontSize.xl, fontWeight: '700', color: Colors.text },
+  closeBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: Colors.surfaceSecondary,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  headerTitle: {
+    fontFamily: FontFamily.sansSemiBold,
+    fontSize: FontSize.lg,
+    color: Colors.text,
+  },
+  headerSpacer: {
+    width: 36,
+  },
 
-  // Camera state
-  cameraState: { flex: 1, justifyContent: 'space-between', padding: Spacing.lg },
+  // Camera State
+  cameraState: {
+    flex: 1,
+    justifyContent: 'space-between',
+    padding: Spacing.lg,
+  },
   cameraPlaceholder: {
-    flex: 1, justifyContent: 'center', alignItems: 'center',
-    backgroundColor: Colors.surfaceSecondary, borderRadius: BorderRadius.xl,
-    margin: Spacing.lg, gap: Spacing.md,
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: Colors.surfaceSecondary,
+    borderRadius: BorderRadius.xl,
+    marginVertical: Spacing.lg,
+    gap: Spacing.md,
   },
-  cameraTitle: { fontSize: FontSize.xl, fontWeight: '700', color: Colors.text },
-  cameraSubtitle: { fontSize: FontSize.sm, color: Colors.textTertiary, textAlign: 'center', maxWidth: 250 },
-  cameraActions: { flexDirection: 'row', gap: Spacing.md, paddingBottom: Spacing.lg },
+  cameraIconCircle: {
+    width: 96,
+    height: 96,
+    borderRadius: 48,
+    backgroundColor: Colors.primary + '10',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: Spacing.sm,
+  },
+  cameraTitle: {
+    fontFamily: FontFamily.sansBold,
+    fontSize: FontSize.xl,
+    color: Colors.text,
+  },
+  cameraSubtitle: {
+    fontFamily: FontFamily.sansRegular,
+    fontSize: FontSize.sm,
+    color: Colors.textTertiary,
+    textAlign: 'center',
+    maxWidth: 260,
+    lineHeight: 20,
+  },
+  cameraActions: {
+    flexDirection: 'row',
+    gap: Spacing.md,
+    paddingBottom: Spacing.lg,
+  },
+  cameraActionBtn: {
+    flex: 1,
+  },
 
-  // Analyzing state
-  analyzingState: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  previewImage: { width: '100%', height: '60%', resizeMode: 'cover', borderRadius: BorderRadius.lg, opacity: 0.4 },
+  // Analyzing State
+  analyzingState: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  previewImage: {
+    width: '100%',
+    height: '100%',
+    resizeMode: 'cover',
+    opacity: 0.35,
+  },
   analyzingOverlay: {
-    position: 'absolute', alignItems: 'center', gap: Spacing.md,
+    position: 'absolute',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  analyzingText: { fontSize: FontSize.lg, fontWeight: '600', color: Colors.text },
-  analyzingSubtext: { fontSize: FontSize.sm, color: Colors.textTertiary },
-
-  // Results state
-  resultsScroll: { padding: Spacing.lg, paddingBottom: Spacing.xxl },
-  resultImage: { width: '100%', height: 200, borderRadius: BorderRadius.lg, resizeMode: 'cover', marginBottom: Spacing.lg },
-  overallCard: { alignItems: 'center', padding: Spacing.xl, marginBottom: Spacing.lg },
-  overallBadge: {
-    width: 80, height: 80, borderRadius: 40,
-    justifyContent: 'center', alignItems: 'center',
-    flexDirection: 'row', borderWidth: 3,
+  analyzingCard: {
+    backgroundColor: Colors.surface,
+    borderRadius: BorderRadius.xl,
+    paddingVertical: Spacing.xl,
+    paddingHorizontal: Spacing.xxl,
+    alignItems: 'center',
+    gap: Spacing.md,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 6,
   },
-  overallScore: { fontSize: FontSize.hero, fontWeight: '800' },
-  overallOutOf: { fontSize: FontSize.md, fontWeight: '600', marginTop: 8 },
-  overallLabel: { fontSize: FontSize.md, fontWeight: '700', marginTop: Spacing.sm },
-  overallSummary: { fontSize: FontSize.sm, color: Colors.textSecondary, textAlign: 'center', marginTop: Spacing.xs, lineHeight: 20 },
-  sectionTitle: { fontSize: FontSize.lg, fontWeight: '600', color: Colors.text, marginBottom: Spacing.sm },
+  analyzingText: {
+    fontFamily: FontFamily.sansSemiBold,
+    fontSize: FontSize.lg,
+    color: Colors.text,
+  },
+  analyzingSubtext: {
+    fontFamily: FontFamily.sansRegular,
+    fontSize: FontSize.sm,
+    color: Colors.textTertiary,
+  },
 
-  // Food cards
-  foodCard: { marginBottom: Spacing.sm },
-  foodHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  foodName: { fontSize: FontSize.md, fontWeight: '600', color: Colors.text, textTransform: 'capitalize', flex: 1 },
-  foodScoreBadge: { borderRadius: BorderRadius.full, paddingHorizontal: Spacing.sm, paddingVertical: 2 },
-  foodScoreText: { fontSize: FontSize.xs, fontWeight: '700' },
-  foodTags: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.xs, marginTop: Spacing.sm },
-  fodmapChip: { borderRadius: BorderRadius.full, paddingHorizontal: Spacing.sm, paddingVertical: 3 },
-  fodmapText: { fontSize: 10, fontWeight: '700', letterSpacing: 0.5 },
-  flagPill: { borderRadius: BorderRadius.full, paddingHorizontal: Spacing.sm, paddingVertical: 3 },
-  flagText: { fontSize: 10, fontWeight: '600', textTransform: 'capitalize' },
-  foodReasoning: { fontSize: FontSize.xs, color: Colors.textTertiary, marginTop: Spacing.sm, lineHeight: 18 },
+  // Results State
+  resultsScroll: {
+    padding: Spacing.lg,
+    paddingBottom: Spacing.xxl + 40,
+  },
+  resultImage: {
+    width: '100%',
+    height: 200,
+    borderRadius: BorderRadius.xl,
+    resizeMode: 'cover',
+    marginBottom: Spacing.lg,
+  },
 
-  // Result actions
-  resultActions: { flexDirection: 'row', gap: Spacing.md, marginTop: Spacing.lg },
+  // Overall Score
+  overallCard: {
+    backgroundColor: Colors.surface,
+    borderRadius: BorderRadius.xl,
+    padding: Spacing.xl,
+    alignItems: 'center',
+    marginBottom: Spacing.xl,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  overallScoreCircle: {
+    width: 88,
+    height: 88,
+    borderRadius: 44,
+    borderWidth: 3.5,
+    justifyContent: 'center',
+    alignItems: 'center',
+    flexDirection: 'row',
+    backgroundColor: Colors.surface,
+  },
+  overallScoreNum: {
+    fontFamily: FontFamily.sansExtraBold,
+    fontSize: 36,
+  },
+  overallScoreOutOf: {
+    fontFamily: FontFamily.sansSemiBold,
+    fontSize: FontSize.md,
+    marginTop: 10,
+  },
+  overallLabel: {
+    fontFamily: FontFamily.sansBold,
+    fontSize: FontSize.md,
+    marginTop: Spacing.sm,
+  },
+  overallSummary: {
+    fontFamily: FontFamily.sansRegular,
+    fontSize: FontSize.sm,
+    color: Colors.textSecondary,
+    textAlign: 'center',
+    marginTop: Spacing.xs,
+    lineHeight: 20,
+  },
+
+  // Section
+  sectionTitle: {
+    fontFamily: FontFamily.sansSemiBold,
+    fontSize: FontSize.lg,
+    color: Colors.text,
+    marginBottom: Spacing.md,
+  },
+
+  // Food Cards
+  foodCard: {
+    backgroundColor: Colors.surface,
+    borderRadius: BorderRadius.lg,
+    padding: Spacing.lg,
+    marginBottom: Spacing.sm,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  foodHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  foodName: {
+    fontFamily: FontFamily.sansSemiBold,
+    fontSize: FontSize.md,
+    color: Colors.text,
+    textTransform: 'capitalize',
+    flex: 1,
+  },
+  foodScoreBadge: {
+    borderRadius: BorderRadius.full,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 3,
+  },
+  foodScoreText: {
+    fontFamily: FontFamily.sansBold,
+    fontSize: FontSize.xs,
+  },
+  foodTags: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Spacing.xs,
+    marginTop: Spacing.sm,
+  },
+  fodmapChip: {
+    borderRadius: BorderRadius.full,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 3,
+  },
+  fodmapText: {
+    fontFamily: FontFamily.sansBold,
+    fontSize: 10,
+    letterSpacing: 0.5,
+  },
+  flagPill: {
+    borderRadius: BorderRadius.full,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 3,
+  },
+  flagText: {
+    fontFamily: FontFamily.sansMedium,
+    fontSize: 10,
+    textTransform: 'capitalize',
+  },
+  foodReasoning: {
+    fontFamily: FontFamily.sansRegular,
+    fontSize: FontSize.xs,
+    color: Colors.textTertiary,
+    marginTop: Spacing.sm,
+    lineHeight: 18,
+  },
+
+  // Result Actions
+  resultActions: {
+    flexDirection: 'row',
+    gap: Spacing.md,
+    marginTop: Spacing.xl,
+  },
 });

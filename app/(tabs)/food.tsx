@@ -9,7 +9,7 @@ import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { Toast } from '../../components/ui/Toast';
 import { Card } from '../../components/ui/Card';
-import { Colors, Spacing, FontSize, BorderRadius } from '../../constants/theme';
+import { Colors, Spacing, FontSize, BorderRadius, Shadows, FontFamily } from '../../constants/theme';
 
 const MEAL_TYPES = [
   { key: 'breakfast', label: 'Breakfast', icon: 'sunny' as const },
@@ -17,6 +17,13 @@ const MEAL_TYPES = [
   { key: 'dinner', label: 'Dinner', icon: 'moon' as const },
   { key: 'snack', label: 'Snack', icon: 'cafe' as const },
 ];
+
+type Favorite = {
+  id: number;
+  meal_name: string;
+  meal_type: string;
+  foods: string[] | null;
+};
 
 export default function FoodScreen() {
   const { user } = useAuth();
@@ -26,10 +33,25 @@ export default function FoodScreen() {
   const [currentFood, setCurrentFood] = useState('');
   const [note, setNote] = useState('');
   const [loading, setLoading] = useState(false);
+  const [favorites, setFavorites] = useState<Favorite[]>([]);
   const [recentMeals, setRecentMeals] = useState<{ id: number; meal_name: string; meal_type: string; logged_at: string }[]>([]);
-  const [toast, setToast] = useState({ visible: false, message: '', type: 'success' as const });
+  const [toast, setToast] = useState({ visible: false, message: '', type: 'success' as 'success' | 'error' });
 
-  useEffect(() => { loadRecentMeals(); }, [user]);
+  useEffect(() => {
+    loadRecentMeals();
+    loadFavorites();
+  }, [user]);
+
+  const loadFavorites = async () => {
+    if (!user) return;
+    const { data } = await supabase
+      .from('favorites')
+      .select('id, meal_name, meal_type, foods')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false })
+      .limit(10);
+    setFavorites(data || []);
+  };
 
   const loadRecentMeals = async () => {
     if (!user) return;
@@ -41,6 +63,24 @@ export default function FoodScreen() {
 
   const addFood = () => {
     if (currentFood.trim()) { setFoods([...foods, currentFood.trim()]); setCurrentFood(''); }
+  };
+
+  const quickLogFavorite = async (fav: Favorite) => {
+    if (!user) return;
+    setLoading(true);
+    const { error } = await supabase.from('food_logs').insert({
+      user_id: user.id,
+      meal_name: fav.meal_name,
+      meal_type: fav.meal_type,
+      foods: fav.foods || null,
+    });
+    setLoading(false);
+    if (error) {
+      setToast({ visible: true, message: 'Failed to log favorite', type: 'error' });
+    } else {
+      setToast({ visible: true, message: `${fav.meal_name} logged!`, type: 'success' });
+      loadRecentMeals();
+    }
   };
 
   const handleSave = async () => {
@@ -58,37 +98,86 @@ export default function FoodScreen() {
     else { setToast({ visible: true, message: 'Meal logged!', type: 'success' }); setMealName(''); setFoods([]); setNote(''); loadRecentMeals(); }
   };
 
+  const getMealIcon = (type: string): string => {
+    switch (type) {
+      case 'breakfast': return 'sunny';
+      case 'lunch': return 'partly-sunny';
+      case 'dinner': return 'moon';
+      case 'snack': return 'cafe';
+      default: return 'restaurant';
+    }
+  };
+
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <ScrollView contentContainerStyle={styles.scroll}>
+      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
         <Text style={styles.title}>Track Your Plate</Text>
         <Text style={styles.subtitle}>What nourished you today?</Text>
 
+        {/* Scan Button - Premium solid card */}
         <TouchableOpacity style={styles.scanButton} onPress={() => router.push('/scan-food')} activeOpacity={0.7}>
           <View style={styles.scanIcon}>
-            <Ionicons name="camera" size={24} color={Colors.primary} />
+            <Ionicons name="camera" size={22} color={Colors.primary} />
           </View>
-          <View style={{ flex: 1 }}>
+          <View style={styles.scanContent}>
             <Text style={styles.scanTitle}>Scan with Camera</Text>
-            <Text style={styles.scanSubtitle}>Get an instant gut health analysis of your meal</Text>
+            <Text style={styles.scanSubtitle}>Instant gut health analysis of your meal</Text>
           </View>
-          <Ionicons name="chevron-forward" size={20} color={Colors.textTertiary} />
+          <Ionicons name="chevron-forward" size={18} color={Colors.textTertiary} />
         </TouchableOpacity>
 
+        {/* Favorites Section */}
+        {favorites.length > 0 && (
+          <View style={styles.favoritesSection}>
+            <View style={styles.sectionHeaderRow}>
+              <Ionicons name="star" size={16} color={Colors.accent} />
+              <Text style={styles.sectionTitle}>Favorites</Text>
+            </View>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.favoritesScroll}>
+              {favorites.map(fav => (
+                <TouchableOpacity
+                  key={fav.id}
+                  style={styles.favoriteChip}
+                  onPress={() => quickLogFavorite(fav)}
+                  activeOpacity={0.7}
+                >
+                  <Ionicons name="add-circle" size={16} color={Colors.primary} />
+                  <Text style={styles.favoriteText} numberOfLines={1}>{fav.meal_name}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        )}
+
+        {/* Meal Type Selector - Pill segments */}
+        <Text style={styles.sectionTitle}>Meal Type</Text>
         <View style={styles.mealTypes}>
           {MEAL_TYPES.map(m => (
-            <TouchableOpacity key={m.key} style={[styles.mealTypeBtn, mealType === m.key && styles.mealTypeSelected]} onPress={() => setMealType(m.key)} activeOpacity={0.7}>
-              <Ionicons name={m.icon} size={24} color={mealType === m.key ? Colors.primary : Colors.textTertiary} />
-              <Text style={[styles.mealTypeLabel, mealType === m.key && styles.mealTypeLabelSelected]}>{m.label}</Text>
+            <TouchableOpacity
+              key={m.key}
+              style={[styles.mealTypeBtn, mealType === m.key && styles.mealTypeSelected]}
+              onPress={() => setMealType(m.key)}
+              activeOpacity={0.7}
+            >
+              <Ionicons
+                name={m.icon}
+                size={16}
+                color={mealType === m.key ? Colors.textInverse : Colors.textTertiary}
+              />
+              <Text style={[styles.mealTypeLabel, mealType === m.key && styles.mealTypeLabelSelected]}>
+                {m.label}
+              </Text>
             </TouchableOpacity>
           ))}
         </View>
 
+        {/* Meal Name Input */}
         <Input label="Meal Name" placeholder="e.g., Chicken salad" value={mealName} onChangeText={setMealName} />
 
+        {/* Food Tags */}
         <Text style={styles.sectionLabel}>Foods (optional tags)</Text>
         <View style={styles.foodInputRow}>
-          <View style={{ flex: 1 }}>
+          <View style={styles.foodInputWrap}>
             <Input placeholder="Add a food item..." value={currentFood} onChangeText={setCurrentFood} onSubmitEditing={addFood} returnKeyType="done" />
           </View>
           <Button title="Add" onPress={addFood} variant="secondary" size="sm" />
@@ -96,28 +185,46 @@ export default function FoodScreen() {
         {foods.length > 0 && (
           <View style={styles.foodTags}>
             {foods.map((food, i) => (
-              <TouchableOpacity key={i} style={styles.foodTag} onPress={() => setFoods(foods.filter((_, idx) => idx !== i))}>
+              <TouchableOpacity key={i} style={styles.foodTag} onPress={() => setFoods(foods.filter((_, idx) => idx !== i))} activeOpacity={0.7}>
                 <Text style={styles.foodTagText}>{food}</Text>
-                <Ionicons name="close-circle" size={16} color={Colors.textTertiary} />
+                <Ionicons name="close" size={14} color={Colors.primary} />
               </TouchableOpacity>
             ))}
           </View>
         )}
 
+        {/* Notes */}
         <Input label="Notes (optional)" placeholder="How did it make you feel?" value={note} onChangeText={setNote} multiline numberOfLines={2} style={{ minHeight: 60, textAlignVertical: 'top' }} />
 
-        <Button title="Log Meal" onPress={handleSave} loading={loading} size="lg" style={{ marginTop: Spacing.lg }} />
+        {/* Log Meal Button */}
+        <TouchableOpacity
+          style={[styles.logButton, loading && styles.logButtonDisabled]}
+          onPress={handleSave}
+          activeOpacity={0.8}
+          disabled={loading}
+        >
+          <Ionicons name="checkmark-circle" size={20} color={Colors.textInverse} />
+          <Text style={styles.logButtonText}>{loading ? 'Saving...' : 'Log Meal'}</Text>
+        </TouchableOpacity>
 
+        {/* Recent Meals */}
         {recentMeals.length > 0 && (
-          <>
+          <View style={styles.recentSection}>
             <Text style={styles.sectionTitle}>Recent Meals</Text>
             {recentMeals.map(meal => (
-              <Card key={meal.id} style={styles.recentCard}>
-                <Text style={styles.recentName}>{meal.meal_name}</Text>
-                <Text style={styles.recentMeta}>{meal.meal_type} · {new Date(meal.logged_at).toLocaleDateString()}</Text>
-              </Card>
+              <View key={meal.id} style={styles.recentCard}>
+                <View style={styles.recentIconWrap}>
+                  <Ionicons name={getMealIcon(meal.meal_type) as any} size={18} color={Colors.primary} />
+                </View>
+                <View style={styles.recentInfo}>
+                  <Text style={styles.recentName} numberOfLines={1}>{meal.meal_name}</Text>
+                  <Text style={styles.recentMeta}>
+                    {meal.meal_type.charAt(0).toUpperCase() + meal.meal_type.slice(1)} · {new Date(meal.logged_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
+                  </Text>
+                </View>
+              </View>
             ))}
-          </>
+          </View>
         )}
       </ScrollView>
       <Toast message={toast.message} type={toast.type} visible={toast.visible} onDismiss={() => setToast(t => ({ ...t, visible: false }))} />
@@ -126,34 +233,234 @@ export default function FoodScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.background },
-  scroll: { padding: Spacing.lg, paddingBottom: Spacing.xxl },
-  title: { fontSize: FontSize.xxl, fontWeight: '700', color: Colors.text },
-  subtitle: { fontSize: FontSize.md, color: Colors.textSecondary, marginBottom: Spacing.lg },
+  container: {
+    flex: 1,
+    backgroundColor: Colors.background,
+  },
+  scroll: {
+    padding: Spacing.lg,
+    paddingBottom: Spacing.xxl + 20,
+  },
+  title: {
+    fontFamily: FontFamily.displayMedium,
+    fontSize: FontSize.xxl,
+    color: Colors.text,
+    letterSpacing: -0.3,
+  },
+  subtitle: {
+    fontFamily: FontFamily.sansRegular,
+    fontSize: FontSize.md,
+    color: Colors.textSecondary,
+    marginTop: Spacing.xs,
+    marginBottom: Spacing.lg,
+  },
+
+  // Scan Button
   scanButton: {
-    flexDirection: 'row', alignItems: 'center', gap: Spacing.md,
-    backgroundColor: Colors.primary + '08', borderRadius: BorderRadius.lg,
-    padding: Spacing.md, marginBottom: Spacing.lg,
-    borderWidth: 1.5, borderColor: Colors.primary + '25', borderStyle: 'dashed',
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.primary + '08',
+    borderRadius: BorderRadius.lg,
+    padding: Spacing.md,
+    marginBottom: Spacing.lg,
+    borderWidth: 1,
+    borderColor: Colors.secondary,
+    ...Shadows.sm,
   },
   scanIcon: {
-    width: 48, height: 48, borderRadius: BorderRadius.md,
-    backgroundColor: Colors.primary + '15', justifyContent: 'center', alignItems: 'center',
+    width: 44,
+    height: 44,
+    borderRadius: BorderRadius.md,
+    backgroundColor: Colors.primary + '12',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: Spacing.md,
   },
-  scanTitle: { fontSize: FontSize.md, fontWeight: '600', color: Colors.text },
-  scanSubtitle: { fontSize: FontSize.xs, color: Colors.textTertiary, marginTop: 2 },
-  mealTypes: { flexDirection: 'row', gap: Spacing.sm, marginBottom: Spacing.lg },
-  mealTypeBtn: { flex: 1, backgroundColor: Colors.surface, borderRadius: BorderRadius.md, padding: Spacing.md, alignItems: 'center', gap: 4, borderWidth: 1.5, borderColor: Colors.border },
-  mealTypeSelected: { borderColor: Colors.primary, backgroundColor: Colors.surfaceSecondary },
-  mealTypeLabel: { fontSize: FontSize.xs, color: Colors.textTertiary, fontWeight: '500' },
-  mealTypeLabelSelected: { color: Colors.primary },
-  sectionLabel: { fontSize: FontSize.sm, fontWeight: '500', color: Colors.textSecondary, marginTop: Spacing.md, marginBottom: Spacing.xs, marginLeft: Spacing.xs },
-  foodInputRow: { flexDirection: 'row', gap: Spacing.sm, alignItems: 'flex-end' },
-  foodTags: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm, marginTop: Spacing.sm },
-  foodTag: { flexDirection: 'row', alignItems: 'center', backgroundColor: Colors.surfaceSecondary, borderRadius: BorderRadius.full, paddingHorizontal: Spacing.md, paddingVertical: Spacing.xs, gap: 4 },
-  foodTagText: { fontSize: FontSize.sm, color: Colors.text },
-  sectionTitle: { fontSize: FontSize.lg, fontWeight: '600', color: Colors.text, marginTop: Spacing.xl, marginBottom: Spacing.sm },
-  recentCard: { marginBottom: Spacing.sm },
-  recentName: { fontSize: FontSize.md, fontWeight: '500', color: Colors.text },
-  recentMeta: { fontSize: FontSize.xs, color: Colors.textTertiary, marginTop: 2 },
+  scanContent: {
+    flex: 1,
+  },
+  scanTitle: {
+    fontFamily: FontFamily.sansSemiBold,
+    fontSize: FontSize.md,
+    color: Colors.text,
+  },
+  scanSubtitle: {
+    fontFamily: FontFamily.sansRegular,
+    fontSize: FontSize.xs,
+    color: Colors.textTertiary,
+    marginTop: 2,
+  },
+
+  // Favorites
+  favoritesSection: {
+    marginBottom: Spacing.lg,
+  },
+  sectionHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
+    marginBottom: Spacing.sm,
+  },
+  favoritesScroll: {
+    gap: Spacing.sm,
+  },
+  favoriteChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: Colors.surface,
+    borderRadius: BorderRadius.full,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    ...Shadows.sm,
+  },
+  favoriteText: {
+    fontFamily: FontFamily.sansMedium,
+    fontSize: FontSize.sm,
+    color: Colors.text,
+    maxWidth: 120,
+  },
+
+  // Meal Types
+  mealTypes: {
+    flexDirection: 'row',
+    gap: Spacing.sm,
+    marginBottom: Spacing.lg,
+    backgroundColor: Colors.surfaceSecondary,
+    borderRadius: BorderRadius.full,
+    padding: 4,
+  },
+  mealTypeBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+    paddingVertical: Spacing.sm + 2,
+    borderRadius: BorderRadius.full,
+    backgroundColor: 'transparent',
+  },
+  mealTypeSelected: {
+    backgroundColor: Colors.primary,
+    ...Shadows.sm,
+  },
+  mealTypeLabel: {
+    fontFamily: FontFamily.sansMedium,
+    fontSize: FontSize.xs,
+    color: Colors.textTertiary,
+  },
+  mealTypeLabelSelected: {
+    color: Colors.textInverse,
+  },
+
+  // Section label
+  sectionLabel: {
+    fontFamily: FontFamily.sansMedium,
+    fontSize: FontSize.sm,
+    color: Colors.textSecondary,
+    marginTop: Spacing.md,
+    marginBottom: Spacing.xs,
+    marginLeft: Spacing.xs,
+  },
+  sectionTitle: {
+    fontFamily: FontFamily.sansSemiBold,
+    fontSize: FontSize.lg,
+    color: Colors.text,
+    marginBottom: Spacing.sm,
+  },
+
+  // Food input
+  foodInputRow: {
+    flexDirection: 'row',
+    gap: Spacing.sm,
+    alignItems: 'flex-end',
+  },
+  foodInputWrap: {
+    flex: 1,
+  },
+  foodTags: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Spacing.sm,
+    marginTop: Spacing.sm,
+  },
+  foodTag: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.primary + '10',
+    borderRadius: BorderRadius.full,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.xs + 2,
+    gap: 6,
+    borderWidth: 1,
+    borderColor: Colors.primary + '20',
+  },
+  foodTagText: {
+    fontFamily: FontFamily.sansMedium,
+    fontSize: FontSize.sm,
+    color: Colors.primary,
+  },
+
+  // Log Button
+  logButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.sm,
+    backgroundColor: Colors.primary,
+    borderRadius: BorderRadius.lg,
+    paddingVertical: Spacing.md,
+    marginTop: Spacing.lg,
+    ...Shadows.md,
+  },
+  logButtonDisabled: {
+    opacity: 0.6,
+  },
+  logButtonText: {
+    fontFamily: FontFamily.sansBold,
+    fontSize: FontSize.md,
+    color: Colors.textInverse,
+    letterSpacing: 0.3,
+  },
+
+  // Recent Meals
+  recentSection: {
+    marginTop: Spacing.xl,
+  },
+  recentCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.surface,
+    borderRadius: BorderRadius.md,
+    padding: Spacing.md,
+    marginBottom: Spacing.sm,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    ...Shadows.sm,
+  },
+  recentIconWrap: {
+    width: 40,
+    height: 40,
+    borderRadius: BorderRadius.sm,
+    backgroundColor: Colors.primary + '10',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: Spacing.md,
+  },
+  recentInfo: {
+    flex: 1,
+  },
+  recentName: {
+    fontFamily: FontFamily.sansSemiBold,
+    fontSize: FontSize.md,
+    color: Colors.text,
+  },
+  recentMeta: {
+    fontFamily: FontFamily.sansRegular,
+    fontSize: FontSize.xs,
+    color: Colors.textTertiary,
+    marginTop: 2,
+  },
 });

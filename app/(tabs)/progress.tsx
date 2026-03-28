@@ -1,11 +1,14 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
+import { router } from 'expo-router';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
 import { Card } from '../../components/ui/Card';
 import { LoadingSkeleton } from '../../components/ui/LoadingSkeleton';
-import { Colors, Spacing, FontSize, BorderRadius } from '../../constants/theme';
+import { ContributionCalendar } from '../../components/ContributionCalendar';
+import { Colors, Spacing, FontSize, BorderRadius, Shadows, FontFamily } from '../../constants/theme';
 import { analyzeCorrelations, CorrelationSummary } from '../../lib/correlations';
 
 type Period = '7d' | '30d' | '90d';
@@ -20,6 +23,7 @@ export default function ProgressScreen() {
   const [stoolHistory, setStoolHistory] = useState<{ date: string; type: number }[]>([]);
   const [gutScores, setGutScores] = useState<{ x: number; y: number; label: string }[]>([]);
   const [correlations, setCorrelations] = useState<CorrelationSummary | null>(null);
+  const [checkInDates, setCheckInDates] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -37,6 +41,7 @@ export default function ProgressScreen() {
       const avg = checkIns.reduce((s, c) => s + c.stool_type, 0) / checkIns.length;
       setAvgStoolType(checkIns.length > 0 ? Math.round(avg * 10) / 10 : null);
       setStoolHistory(checkIns.map(c => ({ date: c.entry_date, type: c.stool_type })));
+      setCheckInDates(checkIns.map(c => c.entry_date));
     }
 
     // Gut score trend
@@ -80,14 +85,50 @@ export default function ProgressScreen() {
 
   const topSymptoms = Object.entries(symptomCounts).sort((a, b) => b[1] - a[1]).slice(0, 5);
 
+  // Build heatmap data from check-in dates
+  const buildHeatmapData = () => {
+    const dateCounts: Record<string, number> = {};
+    checkInDates.forEach(d => {
+      dateCounts[d] = (dateCounts[d] || 0) + 1;
+    });
+    return dateCounts;
+  };
+
+  const getBarColor = (score: number) => {
+    if (score >= 70) return Colors.secondary;
+    if (score >= 40) return Colors.accent;
+    return Colors.severity[4];
+  };
+
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <ScrollView contentContainerStyle={styles.scroll} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.primary} />}>
-        <Text style={styles.title}>Progress</Text>
+      <ScrollView
+        contentContainerStyle={styles.scroll}
+        showsVerticalScrollIndicator={false}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.primary} />}
+      >
+        {/* Header */}
+        <View style={styles.headerRow}>
+          <Text style={styles.title}>Progress</Text>
+          <TouchableOpacity
+            style={styles.digestButton}
+            onPress={() => router.push('/weekly-digest')}
+            activeOpacity={0.7}
+          >
+            <Ionicons name="document-text-outline" size={16} color={Colors.primary} />
+            <Text style={styles.digestButtonText}>Weekly Digest</Text>
+          </TouchableOpacity>
+        </View>
 
-        <View style={styles.periods}>
+        {/* Period Selector */}
+        <View style={styles.periodContainer}>
           {(['7d', '30d', '90d'] as Period[]).map(p => (
-            <TouchableOpacity key={p} style={[styles.periodBtn, period === p && styles.periodSelected]} onPress={() => setPeriod(p)}>
+            <TouchableOpacity
+              key={p}
+              style={[styles.periodBtn, period === p && styles.periodSelected]}
+              onPress={() => setPeriod(p)}
+              activeOpacity={0.7}
+            >
               <Text style={[styles.periodText, period === p && styles.periodTextSelected]}>
                 {{ '7d': '7 Days', '30d': '30 Days', '90d': '90 Days' }[p]}
               </Text>
@@ -107,81 +148,123 @@ export default function ProgressScreen() {
           </>
         ) : (
         <>
+        {/* Stats Cards */}
         <View style={styles.statsRow}>
-          <Card style={styles.statCard}><Text style={styles.statValue}>{checkInCount}</Text><Text style={styles.statLabel}>Check-ins</Text></Card>
-          <Card style={styles.statCard}><Text style={styles.statValue}>{avgStoolType ?? '--'}</Text><Text style={styles.statLabel}>Avg Stool Type</Text></Card>
-          <Card style={styles.statCard}><Text style={styles.statValue}>{foodCount}</Text><Text style={styles.statLabel}>Meals Logged</Text></Card>
+          <View style={styles.statCard}>
+            <View style={styles.statIconWrap}>
+              <Ionicons name="checkmark-circle" size={22} color={Colors.primary} />
+            </View>
+            <Text style={styles.statValue}>{checkInCount}</Text>
+            <Text style={styles.statLabel}>Check-ins</Text>
+          </View>
+          <View style={styles.statCard}>
+            <View style={styles.statIconWrap}>
+              <Ionicons name="nutrition" size={22} color={Colors.accent} />
+            </View>
+            <Text style={styles.statValue}>{avgStoolType ?? '--'}</Text>
+            <Text style={styles.statLabel}>Avg Stool</Text>
+          </View>
+          <View style={styles.statCard}>
+            <View style={styles.statIconWrap}>
+              <Ionicons name="restaurant" size={22} color={Colors.secondary} />
+            </View>
+            <Text style={styles.statValue}>{foodCount}</Text>
+            <Text style={styles.statLabel}>Meals</Text>
+          </View>
         </View>
 
+        {/* Gut Score Trend */}
         {gutScores.length >= 2 && (
           <>
             <Text style={styles.sectionTitle}>Gut Score Trend</Text>
-            <Card style={styles.chartCard}>
+            <View style={styles.chartCard}>
               <View style={styles.scoreTrendChart}>
                 {gutScores.map((point, i) => (
                   <View key={i} style={styles.scoreTrendCol}>
                     <View style={[styles.scoreTrendBar, {
-                      height: `${point.y}%`,
-                      backgroundColor: point.y >= 70 ? Colors.primary : point.y >= 40 ? Colors.accent : Colors.severity[4],
+                      height: `${Math.max(point.y, 4)}%`,
+                      backgroundColor: getBarColor(point.y),
+                      borderRadius: 6,
                     }]} />
                     <Text style={styles.scoreTrendValue}>{point.y}</Text>
                     <Text style={styles.scoreTrendLabel}>{point.label}</Text>
                   </View>
                 ))}
               </View>
-            </Card>
+            </View>
           </>
         )}
 
+        {/* Contribution Calendar */}
+        {checkInDates.length > 0 && (
+          <>
+            <Text style={styles.sectionTitle}>Check-in Consistency</Text>
+            <View style={styles.calendarCard}>
+              <ContributionCalendar data={buildHeatmapData()} />
+            </View>
+          </>
+        )}
+
+        {/* Stool Type Trend */}
         {stoolHistory.length > 0 && (
           <>
             <Text style={styles.sectionTitle}>Stool Type Trend</Text>
-            <Card style={styles.chartCard}>
+            <View style={styles.chartCard}>
               <View style={styles.stoolChart}>
                 {stoolHistory.slice(-14).map((entry, i) => (
                   <View key={i} style={styles.stoolCol}>
                     <View style={[styles.stoolBar, {
                       height: `${(entry.type / 7) * 100}%`,
                       backgroundColor: Colors.bristol[entry.type],
+                      borderRadius: 4,
                     }]} />
                     <Text style={styles.stoolBarLabel}>{new Date(entry.date).getDate()}</Text>
                   </View>
                 ))}
               </View>
-              <View style={styles.chartLegend}><Text style={styles.legendText}>Ideal: Type 3-4</Text></View>
-            </Card>
+              <View style={styles.chartLegend}>
+                <Text style={styles.legendText}>Ideal: Type 3-4</Text>
+              </View>
+            </View>
           </>
         )}
 
+        {/* Top Symptoms */}
         {topSymptoms.length > 0 && (
           <>
             <Text style={styles.sectionTitle}>Top Symptoms</Text>
             {topSymptoms.map(([symptom, count]) => (
-              <Card key={symptom} style={styles.symptomCard}>
+              <View key={symptom} style={styles.symptomCard}>
                 <View style={styles.symptomRow}>
                   <Text style={styles.symptomName}>{symptom.charAt(0).toUpperCase() + symptom.slice(1).replace('_', ' ')}</Text>
-                  <View style={styles.symptomBadge}><Text style={styles.symptomCount}>{count}x</Text></View>
+                  <View style={styles.symptomBadge}>
+                    <Text style={styles.symptomCount}>{count}x</Text>
+                  </View>
                 </View>
                 <View style={styles.symptomBar}>
                   <View style={[styles.symptomFill, { width: `${(count / Math.max(1, ...Object.values(symptomCounts))) * 100}%` }]} />
                 </View>
-              </Card>
+              </View>
             ))}
           </>
         )}
 
+        {/* Correlations */}
         {correlations && !correlations.insufficientData && correlations.topTriggers.length > 0 && (
           <>
             <Text style={styles.sectionTitle}>Potential Food Patterns</Text>
             {correlations.topTriggers.slice(0, 5).map((trigger, i) => (
-              <Card key={i} style={styles.triggerCard}>
+              <View key={i} style={styles.triggerCard}>
                 <View style={styles.triggerRow}>
                   <Text style={styles.triggerFood}>{trigger.food}</Text>
-                  <Text style={styles.triggerArrow}>→</Text>
+                  <Ionicons name="arrow-forward" size={14} color={Colors.textTertiary} style={{ marginHorizontal: 4 }} />
                   <Text style={styles.triggerSymptom}>{trigger.symptom.replace('_', ' ')}</Text>
                   <View style={[styles.riskBadge, {
-                    backgroundColor: trigger.riskMultiplier >= 2 ? Colors.severity[4] + '20' :
-                      trigger.riskMultiplier >= 1.5 ? Colors.severity[3] + '20' : Colors.severity[2] + '20',
+                    backgroundColor: trigger.riskMultiplier >= 2 ? Colors.severity[4] + '15' :
+                      trigger.riskMultiplier >= 1.5 ? Colors.severity[3] + '15' : Colors.severity[2] + '15',
+                    borderWidth: 1,
+                    borderColor: trigger.riskMultiplier >= 2 ? Colors.severity[4] + '30' :
+                      trigger.riskMultiplier >= 1.5 ? Colors.severity[3] + '30' : Colors.severity[2] + '30',
                   }]}>
                     <Text style={[styles.riskText, {
                       color: trigger.riskMultiplier >= 2 ? Colors.severity[4] :
@@ -194,7 +277,7 @@ export default function ProgressScreen() {
                 <Text style={styles.triggerDetail}>
                   {trigger.occurrences} of {trigger.totalMeals} meals · {trigger.confidence} confidence
                 </Text>
-              </Card>
+              </View>
             ))}
             {correlations.safeFoods.length > 0 && (
               <View style={styles.safeFoodsRow}>
@@ -210,19 +293,21 @@ export default function ProgressScreen() {
         )}
 
         {correlations?.insufficientData && (
-          <Card style={styles.insufficientCard}>
+          <View style={styles.insufficientCard}>
+            <Ionicons name="analytics-outline" size={28} color={Colors.textTertiary} />
             <Text style={styles.insufficientTitle}>Food-Symptom Patterns</Text>
             <Text style={styles.insufficientText}>
               Log meals with ingredients to unlock insights. Patterns emerge after 5+ logged meals.
             </Text>
-          </Card>
+          </View>
         )}
 
         {checkInCount === 0 && foodCount === 0 && topSymptoms.length === 0 && (
-          <Card style={styles.emptyCard}>
+          <View style={styles.emptyCard}>
+            <Ionicons name="leaf-outline" size={32} color={Colors.textTertiary} />
             <Text style={styles.emptyText}>Nothing here yet</Text>
             <Text style={styles.emptySubtext}>Log daily for 2 weeks and patterns will emerge.</Text>
-          </Card>
+          </View>
         )}
         </>
         )}
@@ -238,54 +323,351 @@ function formatShortDate(dateStr: string): string {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.background },
-  scroll: { padding: Spacing.lg, paddingBottom: Spacing.xxl },
-  title: { fontSize: FontSize.xxl, fontWeight: '700', color: Colors.text, marginBottom: Spacing.md },
-  periods: { flexDirection: 'row', gap: Spacing.sm, marginBottom: Spacing.lg },
-  periodBtn: { flex: 1, paddingVertical: Spacing.sm, borderRadius: BorderRadius.full, backgroundColor: Colors.surface, alignItems: 'center', borderWidth: 1, borderColor: Colors.border },
-  periodSelected: { backgroundColor: Colors.primary, borderColor: Colors.primary },
-  periodText: { fontSize: FontSize.sm, fontWeight: '600', color: Colors.textSecondary },
-  periodTextSelected: { color: Colors.textInverse },
-  statsRow: { flexDirection: 'row', gap: Spacing.sm, marginBottom: Spacing.lg },
-  statCard: { flex: 1, alignItems: 'center', padding: Spacing.md },
-  statValue: { fontSize: FontSize.xl, fontWeight: '700', color: Colors.primary },
-  statLabel: { fontSize: FontSize.xs, color: Colors.textTertiary, marginTop: 2 },
-  sectionTitle: { fontSize: FontSize.lg, fontWeight: '600', color: Colors.text, marginBottom: Spacing.sm },
-  chartCard: { padding: Spacing.md, marginBottom: Spacing.lg },
-  scoreTrendChart: { flexDirection: 'row', alignItems: 'flex-end', height: 140, gap: 2 },
-  scoreTrendCol: { flex: 1, alignItems: 'center', height: '100%', justifyContent: 'flex-end' },
-  scoreTrendBar: { width: '70%', borderRadius: 4, minHeight: 4 },
-  scoreTrendValue: { fontSize: 10, fontWeight: '600', color: Colors.text, marginTop: 2 },
-  scoreTrendLabel: { fontSize: 9, color: Colors.textTertiary, marginTop: 1 },
-  stoolChart: { flexDirection: 'row', alignItems: 'flex-end', height: 100, gap: 2 },
-  stoolCol: { flex: 1, alignItems: 'center', height: '100%', justifyContent: 'flex-end' },
-  stoolBar: { width: '80%', borderRadius: 3, minHeight: 4 },
-  stoolBarLabel: { fontSize: 10, color: Colors.textTertiary, marginTop: 4 },
-  chartLegend: { alignItems: 'center', marginTop: Spacing.sm },
-  legendText: { fontSize: FontSize.xs, color: Colors.secondary },
-  symptomCard: { marginBottom: Spacing.sm },
-  symptomRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  symptomName: { fontSize: FontSize.md, fontWeight: '500', color: Colors.text },
-  symptomBadge: { backgroundColor: Colors.surfaceSecondary, borderRadius: BorderRadius.full, paddingHorizontal: Spacing.sm, paddingVertical: 2 },
-  symptomCount: { fontSize: FontSize.xs, fontWeight: '600', color: Colors.primary },
-  symptomBar: { height: 6, backgroundColor: Colors.surfaceSecondary, borderRadius: 3, marginTop: Spacing.sm, overflow: 'hidden' },
-  symptomFill: { height: '100%', backgroundColor: Colors.primary, borderRadius: 3 },
-  triggerCard: { marginBottom: Spacing.sm },
-  triggerRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
-  triggerFood: { fontSize: FontSize.md, fontWeight: '600', color: Colors.text, textTransform: 'capitalize' },
-  triggerArrow: { fontSize: FontSize.md, color: Colors.textTertiary },
-  triggerSymptom: { fontSize: FontSize.md, color: Colors.textSecondary, flex: 1, textTransform: 'capitalize' },
-  riskBadge: { borderRadius: BorderRadius.full, paddingHorizontal: Spacing.sm, paddingVertical: 2 },
-  riskText: { fontSize: FontSize.xs, fontWeight: '700' },
-  triggerDetail: { fontSize: FontSize.xs, color: Colors.textTertiary, marginTop: Spacing.xs },
-  safeFoodsRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: Spacing.sm, marginTop: Spacing.sm, marginBottom: Spacing.lg },
-  safeFoodsLabel: { fontSize: FontSize.sm, color: Colors.textSecondary, fontWeight: '500' },
-  safeFoodChip: { backgroundColor: Colors.primary + '15', borderRadius: BorderRadius.full, paddingHorizontal: Spacing.md, paddingVertical: Spacing.xs },
-  safeFoodText: { fontSize: FontSize.xs, color: Colors.primary, fontWeight: '600', textTransform: 'capitalize' },
-  insufficientCard: { alignItems: 'center', padding: Spacing.lg, marginBottom: Spacing.lg },
-  insufficientTitle: { fontSize: FontSize.md, fontWeight: '600', color: Colors.text, marginBottom: Spacing.xs },
-  insufficientText: { fontSize: FontSize.sm, color: Colors.textTertiary, textAlign: 'center' },
-  emptyCard: { alignItems: 'center', padding: Spacing.xl },
-  emptyText: { fontSize: FontSize.md, color: Colors.textSecondary, fontWeight: '600' },
-  emptySubtext: { fontSize: FontSize.sm, color: Colors.textTertiary, marginTop: Spacing.xs },
+  container: {
+    flex: 1,
+    backgroundColor: Colors.background,
+  },
+  scroll: {
+    padding: Spacing.lg,
+    paddingBottom: Spacing.xxl + 20,
+  },
+
+  // Header
+  headerRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: Spacing.md,
+  },
+  title: {
+    fontFamily: FontFamily.displayMedium,
+    fontSize: FontSize.xxl,
+    color: Colors.text,
+    letterSpacing: -0.3,
+  },
+  digestButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: Colors.primary + '10',
+    borderRadius: BorderRadius.full,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    borderWidth: 1,
+    borderColor: Colors.primary + '20',
+  },
+  digestButtonText: {
+    fontFamily: FontFamily.sansSemiBold,
+    fontSize: FontSize.xs,
+    color: Colors.primary,
+  },
+
+  // Period Selector
+  periodContainer: {
+    flexDirection: 'row',
+    backgroundColor: Colors.surfaceSecondary,
+    borderRadius: BorderRadius.full,
+    padding: 4,
+    marginBottom: Spacing.lg,
+  },
+  periodBtn: {
+    flex: 1,
+    paddingVertical: Spacing.sm + 2,
+    borderRadius: BorderRadius.full,
+    alignItems: 'center',
+  },
+  periodSelected: {
+    backgroundColor: Colors.primary,
+    ...Shadows.sm,
+  },
+  periodText: {
+    fontFamily: FontFamily.sansSemiBold,
+    fontSize: FontSize.sm,
+    color: Colors.textTertiary,
+  },
+  periodTextSelected: {
+    color: Colors.textInverse,
+  },
+
+  // Stats
+  statsRow: {
+    flexDirection: 'row',
+    gap: Spacing.sm,
+    marginBottom: Spacing.lg,
+  },
+  statCard: {
+    flex: 1,
+    alignItems: 'center',
+    backgroundColor: Colors.surface,
+    borderRadius: BorderRadius.lg,
+    padding: Spacing.md,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    ...Shadows.sm,
+  },
+  statIconWrap: {
+    width: 40,
+    height: 40,
+    borderRadius: BorderRadius.full,
+    backgroundColor: Colors.surfaceSecondary,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: Spacing.sm,
+  },
+  statValue: {
+    fontFamily: FontFamily.sansBold,
+    fontSize: FontSize.xl,
+    color: Colors.text,
+  },
+  statLabel: {
+    fontFamily: FontFamily.sansRegular,
+    fontSize: FontSize.xs,
+    color: Colors.textTertiary,
+    marginTop: 2,
+  },
+
+  // Section
+  sectionTitle: {
+    fontFamily: FontFamily.sansSemiBold,
+    fontSize: FontSize.lg,
+    color: Colors.text,
+    marginBottom: Spacing.sm,
+    marginTop: Spacing.xs,
+  },
+
+  // Charts
+  chartCard: {
+    backgroundColor: Colors.surface,
+    borderRadius: BorderRadius.lg,
+    padding: Spacing.md,
+    marginBottom: Spacing.lg,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    ...Shadows.sm,
+  },
+  calendarCard: {
+    backgroundColor: Colors.surface,
+    borderRadius: BorderRadius.lg,
+    padding: Spacing.md,
+    marginBottom: Spacing.lg,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    ...Shadows.sm,
+  },
+  scoreTrendChart: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    height: 150,
+    gap: 3,
+  },
+  scoreTrendCol: {
+    flex: 1,
+    alignItems: 'center',
+    height: '100%',
+    justifyContent: 'flex-end',
+  },
+  scoreTrendBar: {
+    width: '65%',
+    minHeight: 4,
+  },
+  scoreTrendValue: {
+    fontFamily: FontFamily.sansSemiBold,
+    fontSize: 10,
+    color: Colors.text,
+    marginTop: 3,
+  },
+  scoreTrendLabel: {
+    fontFamily: FontFamily.sansRegular,
+    fontSize: 9,
+    color: Colors.textTertiary,
+    marginTop: 1,
+  },
+  stoolChart: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    height: 100,
+    gap: 2,
+  },
+  stoolCol: {
+    flex: 1,
+    alignItems: 'center',
+    height: '100%',
+    justifyContent: 'flex-end',
+  },
+  stoolBar: {
+    width: '75%',
+    minHeight: 4,
+  },
+  stoolBarLabel: {
+    fontFamily: FontFamily.sansRegular,
+    fontSize: 10,
+    color: Colors.textTertiary,
+    marginTop: 4,
+  },
+  chartLegend: {
+    alignItems: 'center',
+    marginTop: Spacing.sm,
+  },
+  legendText: {
+    fontFamily: FontFamily.sansMedium,
+    fontSize: FontSize.xs,
+    color: Colors.secondary,
+  },
+
+  // Symptoms
+  symptomCard: {
+    backgroundColor: Colors.surface,
+    borderRadius: BorderRadius.md,
+    padding: Spacing.md,
+    marginBottom: Spacing.sm,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  symptomRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  symptomName: {
+    fontFamily: FontFamily.sansMedium,
+    fontSize: FontSize.md,
+    color: Colors.text,
+  },
+  symptomBadge: {
+    backgroundColor: Colors.primary + '12',
+    borderRadius: BorderRadius.full,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 2,
+  },
+  symptomCount: {
+    fontFamily: FontFamily.sansBold,
+    fontSize: FontSize.xs,
+    color: Colors.primary,
+  },
+  symptomBar: {
+    height: 6,
+    backgroundColor: Colors.surfaceSecondary,
+    borderRadius: 3,
+    marginTop: Spacing.sm,
+    overflow: 'hidden',
+  },
+  symptomFill: {
+    height: '100%',
+    backgroundColor: Colors.primary,
+    borderRadius: 3,
+  },
+
+  // Correlations
+  triggerCard: {
+    backgroundColor: Colors.surface,
+    borderRadius: BorderRadius.md,
+    padding: Spacing.md,
+    marginBottom: Spacing.sm,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    ...Shadows.sm,
+  },
+  triggerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  triggerFood: {
+    fontFamily: FontFamily.sansSemiBold,
+    fontSize: FontSize.md,
+    color: Colors.text,
+    textTransform: 'capitalize',
+  },
+  triggerSymptom: {
+    fontFamily: FontFamily.sansRegular,
+    fontSize: FontSize.md,
+    color: Colors.textSecondary,
+    flex: 1,
+    textTransform: 'capitalize',
+  },
+  riskBadge: {
+    borderRadius: BorderRadius.full,
+    paddingHorizontal: Spacing.sm + 2,
+    paddingVertical: 3,
+  },
+  riskText: {
+    fontFamily: FontFamily.sansBold,
+    fontSize: FontSize.xs,
+  },
+  triggerDetail: {
+    fontFamily: FontFamily.sansRegular,
+    fontSize: FontSize.xs,
+    color: Colors.textTertiary,
+    marginTop: Spacing.xs,
+  },
+  safeFoodsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    marginTop: Spacing.sm,
+    marginBottom: Spacing.lg,
+  },
+  safeFoodsLabel: {
+    fontFamily: FontFamily.sansMedium,
+    fontSize: FontSize.sm,
+    color: Colors.textSecondary,
+  },
+  safeFoodChip: {
+    backgroundColor: Colors.primary + '12',
+    borderRadius: BorderRadius.full,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.xs + 1,
+    borderWidth: 1,
+    borderColor: Colors.primary + '20',
+  },
+  safeFoodText: {
+    fontFamily: FontFamily.sansSemiBold,
+    fontSize: FontSize.xs,
+    color: Colors.primary,
+    textTransform: 'capitalize',
+  },
+
+  // Empty / Insufficient
+  insufficientCard: {
+    alignItems: 'center',
+    backgroundColor: Colors.surface,
+    borderRadius: BorderRadius.lg,
+    padding: Spacing.xl,
+    marginBottom: Spacing.lg,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  insufficientTitle: {
+    fontFamily: FontFamily.sansSemiBold,
+    fontSize: FontSize.md,
+    color: Colors.text,
+    marginTop: Spacing.sm,
+    marginBottom: Spacing.xs,
+  },
+  insufficientText: {
+    fontFamily: FontFamily.sansRegular,
+    fontSize: FontSize.sm,
+    color: Colors.textTertiary,
+    textAlign: 'center',
+  },
+  emptyCard: {
+    alignItems: 'center',
+    backgroundColor: Colors.surface,
+    borderRadius: BorderRadius.lg,
+    padding: Spacing.xl,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  emptyText: {
+    fontFamily: FontFamily.sansSemiBold,
+    fontSize: FontSize.md,
+    color: Colors.textSecondary,
+    marginTop: Spacing.sm,
+  },
+  emptySubtext: {
+    fontFamily: FontFamily.sansRegular,
+    fontSize: FontSize.sm,
+    color: Colors.textTertiary,
+    marginTop: Spacing.xs,
+  },
 });
