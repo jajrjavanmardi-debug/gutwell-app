@@ -1,10 +1,11 @@
-import { useEffect, useCallback } from 'react';
+import { useEffect, useCallback, useState } from 'react';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { AuthProvider, useAuth } from '../contexts/AuthContext';
 import { View, ActivityIndicator, StyleSheet, Text } from 'react-native';
 import { Colors, FontFamily } from '../constants/theme';
 import { syncReminders } from '../lib/notifications';
+import { HealthDisclaimerModal, hasAcceptedDisclaimer } from '../components/HealthDisclaimerModal';
 import { useFonts } from 'expo-font';
 import {
   EBGaramond_400Regular,
@@ -27,6 +28,16 @@ function RootLayoutNav() {
   const { session, loading, profile } = useAuth();
   const segments = useSegments();
   const router = useRouter();
+  const [showDisclaimer, setShowDisclaimer] = useState(false);
+
+  // Check health disclaimer after entering tabs
+  useEffect(() => {
+    if (session && profile?.onboarding_completed) {
+      hasAcceptedDisclaimer().then((accepted) => {
+        if (!accepted) setShowDisclaimer(true);
+      });
+    }
+  }, [session, profile?.onboarding_completed]);
 
   // Sync reminders when user is authenticated
   useEffect(() => {
@@ -69,6 +80,7 @@ function RootLayoutNav() {
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="log-symptom" options={{ presentation: 'modal' }} />
         <Stack.Screen name="privacy-policy" options={{ presentation: 'modal' }} />
+        <Stack.Screen name="terms-of-service" options={{ presentation: 'modal' }} />
         <Stack.Screen name="reminders" options={{ presentation: 'modal' }} />
         <Stack.Screen name="scan-food" options={{ presentation: 'modal' }} />
         <Stack.Screen name="weekly-digest" options={{ presentation: 'modal' }} />
@@ -76,6 +88,10 @@ function RootLayoutNav() {
         <Stack.Screen name="edit-checkin" options={{ title: 'Edit Check-in', presentation: 'modal' }} />
         <Stack.Screen name="paywall" options={{ title: 'GutWell Premium', presentation: 'modal', headerShown: false }} />
       </Stack>
+      <HealthDisclaimerModal
+        visible={showDisclaimer}
+        onAccept={() => setShowDisclaimer(false)}
+      />
     </>
   );
 }

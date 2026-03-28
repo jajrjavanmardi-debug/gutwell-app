@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   Alert,
   ActivityIndicator,
+  Linking,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -264,6 +265,12 @@ export default function ProfileScreen() {
             icon="download-outline"
             label="Export Data"
             onPress={handleExport}
+          />
+          <View style={styles.listDivider} />
+          <ListRow
+            icon="mail-outline"
+            label="Contact Support"
+            onPress={() => Linking.openURL('mailto:support@theparallellab.com?subject=GutWell%20Support')}
             isLast
           />
         </View>
@@ -275,6 +282,12 @@ export default function ProfileScreen() {
             icon="shield-checkmark-outline"
             label="Privacy Policy"
             onPress={() => router.push('/privacy-policy')}
+          />
+          <View style={styles.listDivider} />
+          <ListRow
+            icon="document-text-outline"
+            label="Terms of Service"
+            onPress={() => router.push('/terms-of-service')}
           />
           <View style={styles.listDivider} />
           <ListRow

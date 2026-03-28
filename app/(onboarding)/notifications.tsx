@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Animated, Easing, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -20,7 +20,10 @@ const BENEFITS = [
 
 export default function NotificationsScreen() {
   const { user, refreshProfile } = useAuth();
+  const [showCelebration, setShowCelebration] = useState(false);
 
+  const celebrationFade = useRef(new Animated.Value(0)).current;
+  const celebrationScale = useRef(new Animated.Value(0.8)).current;
   const buttonAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -58,9 +61,15 @@ export default function NotificationsScreen() {
         .eq('id', user.id);
 
       await refreshProfile();
-      router.replace('/(tabs)');
+
+      // Show celebration moment before navigating
+      setShowCelebration(true);
+      Animated.parallel([
+        Animated.spring(celebrationScale, { toValue: 1, friction: 6, tension: 40, useNativeDriver: true }),
+        Animated.timing(celebrationFade, { toValue: 1, duration: 400, useNativeDriver: true }),
+      ]).start();
+      setTimeout(() => router.replace('/(tabs)'), 1800);
     } catch {
-      // Still navigate even on error
       router.replace('/(tabs)');
     }
   };
@@ -135,6 +144,26 @@ export default function NotificationsScreen() {
           </TouchableOpacity>
         </Animated.View>
       </SafeAreaView>
+
+      {/* Celebration overlay */}
+      {showCelebration && (
+        <Animated.View
+          style={[
+            styles.celebrationOverlay,
+            { opacity: celebrationFade },
+          ]}
+        >
+          <Animated.View style={{ transform: [{ scale: celebrationScale }], alignItems: 'center' }}>
+            <View style={styles.celebrationIcon}>
+              <Ionicons name="leaf" size={48} color="#52B788" />
+            </View>
+            <Text style={styles.celebrationTitle}>You're all set!</Text>
+            <Text style={styles.celebrationSubtitle}>
+              Your gut health journey starts now
+            </Text>
+          </Animated.View>
+        </Animated.View>
+      )}
     </View>
   );
 }
@@ -226,5 +255,36 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: 'rgba(255,255,255,0.45)',
     textAlign: 'center',
+  },
+
+  // ── Celebration overlay ──
+  celebrationOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: '#0B1F14',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 10,
+  },
+  celebrationIcon: {
+    width: 96,
+    height: 96,
+    borderRadius: 48,
+    backgroundColor: 'rgba(82,183,136,0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(82,183,136,0.3)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  celebrationTitle: {
+    fontFamily: FontFamily.displayBold,
+    fontSize: 32,
+    color: '#FFFFFF',
+    marginBottom: 8,
+  },
+  celebrationSubtitle: {
+    fontFamily: FontFamily.sansRegular,
+    fontSize: 16,
+    color: 'rgba(255,255,255,0.6)',
   },
 });
