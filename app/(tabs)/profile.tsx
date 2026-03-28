@@ -13,12 +13,25 @@ import { Colors, Spacing, FontSize, BorderRadius, Shadows, FontFamily, Typograph
 import { GutLevelBadge } from '../../components/GutLevelBadge';
 import { calculatePoints } from '../../lib/levels';
 
+const AVATAR_COLORS = ['#1B4332', '#2D6A4F', '#40916C', '#52B788', '#74C69D'];
+
 export default function ProfileScreen() {
   const { user, profile, signOut } = useAuth();
   const [toast, setToast] = useState({ visible: false, message: '', type: 'info' as 'success' | 'error' | 'info' });
   const [deleting, setDeleting] = useState(false);
   const [totalPoints, setTotalPoints] = useState(0);
   const [loadingStats, setLoadingStats] = useState(true);
+  const [accountStats, setAccountStats] = useState({ checkIns: 0, meals: 0, symptoms: 0 });
+
+  // Compute initials from displayName
+  const initials = (profile?.display_name || 'GU')
+    .split(' ')
+    .map((w: string) => w[0])
+    .join('')
+    .toUpperCase()
+    .slice(0, 2);
+
+  const avatarColor = AVATAR_COLORS[initials.charCodeAt(0) % AVATAR_COLORS.length];
 
   useEffect(() => {
     if (!user) return;
@@ -35,6 +48,9 @@ export default function ProfileScreen() {
         supabase.from('symptom_logs').select('id', { count: 'exact', head: true }).eq('user_id', user.id),
         supabase.from('streaks').select('current_streak').eq('user_id', user.id).maybeSingle(),
       ]);
+
+      const [ci, fl, sl] = [checkInsRes, foodLogsRes, symptomLogsRes];
+      setAccountStats({ checkIns: ci.count || 0, meals: fl.count || 0, symptoms: sl.count || 0 });
 
       const points = calculatePoints({
         checkIns: checkInsRes.count ?? 0,
@@ -91,6 +107,13 @@ export default function ProfileScreen() {
     }
   };
 
+  const badges = [
+    { id: 'first_checkin', icon: 'body', label: 'First Step', desc: 'Completed first check-in', unlocked: accountStats.checkIns >= 1 },
+    { id: 'week_streak', icon: 'flame', label: '7-Day Streak', desc: '7 consecutive days logged', unlocked: (profile as any)?.total_points >= 50 },
+    { id: 'meals_10', icon: 'restaurant', label: 'Mindful Eater', desc: 'Logged 10 meals', unlocked: accountStats.meals >= 10 },
+    { id: 'points_100', icon: 'trophy', label: 'Gut Champion', desc: 'Reached 100 points', unlocked: ((profile as any)?.total_points || 0) >= 100 },
+  ];
+
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
@@ -99,13 +122,31 @@ export default function ProfileScreen() {
 
         {/* User Card */}
         <Card style={styles.userCard} variant="elevated">
-          <View style={styles.avatarOuter}>
-            <View style={styles.avatarInner}>
-              <Ionicons name="person" size={36} color={Colors.surface} />
+          <View style={styles.avatarRing}>
+            <View style={[styles.avatar, { backgroundColor: avatarColor }]}>
+              <Text style={styles.avatarInitials}>{initials}</Text>
             </View>
           </View>
           <Text style={styles.userName}>{profile?.display_name || 'User'}</Text>
           <Text style={styles.userEmail}>{user?.email}</Text>
+
+          {/* Stats Row */}
+          <View style={styles.statsRow}>
+            <View style={styles.statItem}>
+              <Text style={styles.statNumber}>{accountStats.checkIns}</Text>
+              <Text style={styles.statLabel}>Check-ins</Text>
+            </View>
+            <View style={styles.statDivider} />
+            <View style={styles.statItem}>
+              <Text style={styles.statNumber}>{accountStats.meals}</Text>
+              <Text style={styles.statLabel}>Meals</Text>
+            </View>
+            <View style={styles.statDivider} />
+            <View style={styles.statItem}>
+              <Text style={styles.statNumber}>{accountStats.symptoms}</Text>
+              <Text style={styles.statLabel}>Symptoms</Text>
+            </View>
+          </View>
         </Card>
 
         {/* Gut Level Badge */}
@@ -116,6 +157,22 @@ export default function ProfileScreen() {
             <GutLevelBadge totalPoints={totalPoints} />
           )}
         </Card>
+
+        {/* Achievements Section */}
+        <View style={styles.section}>
+          <Text style={styles.sectionHeader}>ACHIEVEMENTS</Text>
+          <View style={styles.badgesRow}>
+            {badges.map(b => (
+              <View key={b.id} style={[styles.badgeCard, !b.unlocked && styles.badgeCardLocked]}>
+                <View style={[styles.badgeIcon, { backgroundColor: b.unlocked ? Colors.primary + '15' : Colors.surfaceSecondary }]}>
+                  <Ionicons name={b.icon as any} size={22} color={b.unlocked ? Colors.primary : Colors.textTertiary} />
+                </View>
+                <Text style={[styles.badgeLabel, !b.unlocked && styles.badgeLabelLocked]}>{b.label}</Text>
+                <Text style={styles.badgeDesc} numberOfLines={2}>{b.unlocked ? b.desc : '🔒 Locked'}</Text>
+              </View>
+            ))}
+          </View>
+        </View>
 
         {/* Settings Section */}
         <Text style={styles.sectionTitle}>Settings</Text>
@@ -258,7 +315,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.lg,
     marginBottom: Spacing.md,
   },
-  avatarOuter: {
+  avatarRing: {
     width: 84,
     height: 84,
     borderRadius: 42,
@@ -268,13 +325,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: Spacing.md,
   },
-  avatarInner: {
+  avatar: {
     width: 72,
     height: 72,
     borderRadius: 36,
-    backgroundColor: Colors.primaryLight,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  avatarInitials: {
+    fontFamily: FontFamily.displayBold,
+    fontSize: 28,
+    color: '#FFFFFF',
   },
   userName: {
     fontFamily: FontFamily.sansBold,
@@ -288,6 +349,40 @@ const styles = StyleSheet.create({
     color: Colors.textTertiary,
   },
 
+  // Stats Row
+  statsRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 0,
+    marginVertical: 20,
+    backgroundColor: Colors.surfaceSecondary,
+    borderRadius: BorderRadius.lg,
+    paddingVertical: 16,
+    paddingHorizontal: 24,
+    alignSelf: 'stretch',
+  },
+  statItem: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  statNumber: {
+    fontFamily: FontFamily.displayBold,
+    fontSize: 26,
+    color: Colors.text,
+  },
+  statLabel: {
+    fontFamily: FontFamily.sansRegular,
+    fontSize: 12,
+    color: Colors.textSecondary,
+    marginTop: 2,
+  },
+  statDivider: {
+    width: 1,
+    height: 36,
+    backgroundColor: Colors.divider,
+  },
+
   // Level Card
   levelCard: {
     alignItems: 'center',
@@ -296,6 +391,62 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.lg,
     minHeight: 120,
     justifyContent: 'center',
+  },
+
+  // Achievements Section
+  section: {
+    marginBottom: Spacing.md,
+  },
+  sectionHeader: {
+    fontFamily: FontFamily.sansSemiBold,
+    fontSize: FontSize.md,
+    color: Colors.textSecondary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+    marginBottom: Spacing.sm,
+    marginTop: Spacing.md,
+    paddingLeft: Spacing.xs,
+  },
+  badgesRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+  },
+  badgeCard: {
+    width: '48%',
+    backgroundColor: Colors.surface,
+    borderRadius: BorderRadius.lg,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    alignItems: 'center',
+    gap: 6,
+  },
+  badgeCardLocked: {
+    opacity: 0.5,
+  },
+  badgeIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  badgeLabel: {
+    fontFamily: FontFamily.sansSemiBold,
+    fontSize: 13,
+    color: Colors.text,
+    textAlign: 'center',
+  },
+  badgeLabelLocked: {
+    color: Colors.textSecondary,
+  },
+  badgeDesc: {
+    fontFamily: FontFamily.sansRegular,
+    fontSize: 11,
+    color: Colors.textSecondary,
+    textAlign: 'center',
+    lineHeight: 15,
   },
 
   // Section

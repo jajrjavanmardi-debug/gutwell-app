@@ -21,9 +21,30 @@ type RecentEntry = {
   sortKey: string;
 };
 
+// ─── Insight Helper ──────────────────────────────────────────────────────────
+
+function getInsight(streak: number, score: number | null, checkedInToday: boolean): string {
+  if (streak >= 7) return `🔥 ${streak}-day streak — your gut loves consistency.`;
+  if (streak >= 3) return `Keep going — ${streak} days in a row builds lasting habits.`;
+  if (score !== null && score >= 75) return '✨ Excellent gut score — keep up the great work!';
+  if (score !== null && score >= 50) return '📈 Good progress. Log meals to refine your score.';
+  if (!checkedInToday) return '🌿 No check-in yet today. Just 2 minutes to log.';
+  return '🌱 Early days — log daily for 2 weeks to unlock patterns.';
+}
+
+// ─── Score Circle Border Color ───────────────────────────────────────────────
+
+function scoreCircleBorderColor(score: number | null): string {
+  if (score === null) return Colors.border;
+  if (score >= 70) return Colors.secondary;
+  if (score >= 40) return '#D4A373';
+  return '#E07070';
+}
+
 export default function HomeScreen() {
   const { user, profile } = useAuth();
   const [gutScore, setGutScore] = useState<number | null>(null);
+  const [yesterdayScore, setYesterdayScore] = useState<number | null>(null);
   const [streak, setStreak] = useState(0);
   const [bestStreak, setBestStreak] = useState(0);
   const [weeklyCompletions, setWeeklyCompletions] = useState<boolean[]>(Array(7).fill(false));
@@ -42,6 +63,11 @@ export default function HomeScreen() {
   };
 
   const displayName = profile?.display_name || 'there';
+
+  // Date display values for center header block
+  const now = new Date();
+  const dayName = now.toLocaleDateString('en-US', { weekday: 'long' });
+  const dateStr = now.toLocaleDateString('en-US', { day: 'numeric', month: 'short' });
 
   const loadData = useCallback(async () => {
     if (!user) return;
@@ -72,6 +98,18 @@ export default function HomeScreen() {
         setGutScore(null);
       }
     }
+
+    // ── Yesterday's score for trend display ─────────────────────────────────
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    const yesterdayStr = yesterday.toISOString().split('T')[0];
+    const { data: yData } = await supabase
+      .from('gut_scores')
+      .select('score')
+      .eq('user_id', user.id)
+      .eq('date', yesterdayStr)
+      .maybeSingle();
+    setYesterdayScore(yData?.score ?? null);
 
     // ── Streak data from streaks table ──────────────────────────────────────
     const { data: streakData } = await supabase
@@ -225,13 +263,24 @@ export default function HomeScreen() {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.secondary} />}
         showsVerticalScrollIndicator={false}
       >
-        {/* Header: Greeting + Level Badge */}
+        {/* Header: 3-column — Greeting | Date | Level Badge */}
         <View style={styles.headerRow}>
+          {/* LEFT: greeting + name */}
           <View style={styles.greetingBlock}>
             <Text style={styles.greeting}>{greeting()},</Text>
             <Text style={styles.name}>{displayName}</Text>
           </View>
-          {!isLoading && <GutLevelBadge totalPoints={totalPoints} compact />}
+
+          {/* CENTER: day name + date */}
+          <View style={styles.dateBlock}>
+            <Text style={styles.dateDayText}>{dayName}</Text>
+            <Text style={styles.dateDateText}>{dateStr}</Text>
+          </View>
+
+          {/* RIGHT: level badge */}
+          <View style={styles.badgeBlock}>
+            {!isLoading && <GutLevelBadge totalPoints={totalPoints} compact />}
+          </View>
         </View>
 
         {isLoading ? (
@@ -256,8 +305,8 @@ export default function HomeScreen() {
         <>
           {/* Gut Score Card */}
           <View style={styles.scoreCard}>
-            <Text style={styles.scoreLabel}>Your Gut Score Today</Text>
-            <View style={styles.scoreCircle}>
+            <Text style={styles.scoreLabel}>YOUR GUT SCORE TODAY</Text>
+            <View style={[styles.scoreCircle, { borderColor: scoreCircleBorderColor(gutScore) }]}>
               <Text style={styles.scoreValue}>
                 {gutScore !== null ? gutScore : '--'}
               </Text>
@@ -284,10 +333,30 @@ export default function HomeScreen() {
                 <Text style={[styles.streakText, styles.streakTextNew]}>Start your streak</Text>
               </TouchableOpacity>
             )}
+            {/* Trend vs yesterday */}
+            {gutScore !== null && yesterdayScore !== null && (
+              <View style={styles.trendRow}>
+                <Ionicons
+                  name={gutScore >= yesterdayScore ? 'trending-up' : 'trending-down'}
+                  size={13}
+                  color={gutScore >= yesterdayScore ? Colors.secondary : '#E07070'}
+                />
+                <Text style={[styles.trendText, { color: gutScore >= yesterdayScore ? Colors.secondary : '#E07070' }]}>
+                  {gutScore > yesterdayScore ? `+${gutScore - yesterdayScore}` : `${gutScore - yesterdayScore}`} vs yesterday
+                </Text>
+              </View>
+            )}
+          </View>
+
+          {/* Insight Banner */}
+          <View style={styles.insightBanner}>
+            <Text style={styles.insightText}>{getInsight(streak, gutScore, checkedInToday)}</Text>
           </View>
 
           {/* Quick Actions */}
-          <Text style={styles.sectionTitle}>Quick Actions</Text>
+          <View style={styles.sectionRow}>
+            <Text style={styles.sectionTitle}>Quick Actions</Text>
+          </View>
           <View style={styles.actions}>
             <QuickAction
               icon="body"
@@ -315,7 +384,12 @@ export default function HomeScreen() {
           {/* Recent Activity */}
           {recentEntries.length > 0 ? (
             <>
-              <Text style={styles.sectionTitle}>Recent Activity</Text>
+              <View style={styles.sectionRow}>
+                <Text style={styles.sectionTitle}>Recent Activity</Text>
+                <TouchableOpacity onPress={() => router.push('/(tabs)/progress')}>
+                  <Text style={styles.seeAllLink}>See all</Text>
+                </TouchableOpacity>
+              </View>
               <View style={styles.timelineContainer}>
                 {/* Vertical connecting line */}
                 <View style={styles.timelineLine} />
@@ -424,11 +498,10 @@ const styles = StyleSheet.create({
     paddingBottom: Spacing.xxl + Spacing.lg,
   },
 
-  // ── Header ──────────────────────────────────
+  // ── Header (3-column) ────────────────────────────────
   headerRow: {
     flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    alignItems: 'flex-start',
     marginBottom: Spacing.xl,
   },
   greetingBlock: {
@@ -446,6 +519,29 @@ const styles = StyleSheet.create({
     color: Colors.text,
     lineHeight: 42,
     marginTop: 2,
+  },
+  dateBlock: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    paddingTop: 4,
+  },
+  dateDayText: {
+    fontFamily: FontFamily.displayMedium,
+    fontSize: FontSize.md,
+    color: Colors.text,
+    textAlign: 'center',
+  },
+  dateDateText: {
+    fontFamily: FontFamily.sansRegular,
+    fontSize: FontSize.sm,
+    color: Colors.textSecondary,
+    textAlign: 'center',
+    marginTop: 2,
+  },
+  badgeBlock: {
+    flex: 1,
+    alignItems: 'flex-end',
   },
 
   // ── Gut Score Card ──────────────────────────
@@ -510,14 +606,51 @@ const styles = StyleSheet.create({
   streakTextNew: {
     color: Colors.textTertiary,
   },
+  trendRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 4,
+  },
+  trendText: {
+    fontFamily: FontFamily.sansRegular,
+    fontSize: FontSize.xs,
+  },
 
-  // ── Section Title ───────────────────────────
+  // ── Insight Banner ───────────────────────────
+  insightBanner: {
+    backgroundColor: Colors.primary + '0D',
+    borderRadius: BorderRadius.lg,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    marginBottom: Spacing.xl,
+    borderLeftWidth: 3,
+    borderLeftColor: Colors.primary + '60',
+  },
+  insightText: {
+    fontFamily: FontFamily.sansRegular,
+    fontSize: FontSize.sm,
+    color: Colors.text,
+    lineHeight: 20,
+  },
+
+  // ── Section Row (title + "See all") ─────────
+  sectionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: Spacing.md,
+    marginTop: Spacing.sm,
+  },
   sectionTitle: {
     fontFamily: FontFamily.displayMedium,
     fontSize: FontSize.xl,
     color: Colors.text,
-    marginBottom: Spacing.md,
-    marginTop: Spacing.sm,
+  },
+  seeAllLink: {
+    fontFamily: FontFamily.sansMedium,
+    fontSize: FontSize.sm,
+    color: Colors.secondary,
   },
 
   // ── Quick Actions ───────────────────────────

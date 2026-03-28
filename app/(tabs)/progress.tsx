@@ -27,6 +27,7 @@ export default function ProgressScreen() {
   const [checkInDates, setCheckInDates] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [weekInsights, setWeekInsights] = useState<{ avgScore: number | null, bestDay: string | null, trend: 'up' | 'down' | 'flat' } | null>(null);
 
   const loadData = useCallback(async () => {
     if (!user) return;
@@ -78,6 +79,22 @@ export default function ProgressScreen() {
       }
     } else {
       setGutScores([]);
+    }
+
+    // Compute weekly insights from last 7 days of scores
+    if (scores && scores.length >= 3) {
+      const last7 = scores.slice(-7);
+      if (last7.length >= 3) {
+        const avg = Math.round(last7.reduce((s: number, d: { score: number; date: string }) => s + d.score, 0) / last7.length);
+        const bestDay = last7.reduce((b: { score: number; date: string }, d: { score: number; date: string }) => d.score > b.score ? d : b, last7[0]);
+        const firstHalf = last7.slice(0, 3).reduce((s: number, d: { score: number; date: string }) => s + d.score, 0) / 3;
+        const secondHalf = last7.slice(-3).reduce((s: number, d: { score: number; date: string }) => s + d.score, 0) / 3;
+        const trend = secondHalf > firstHalf + 3 ? 'up' : secondHalf < firstHalf - 3 ? 'down' : 'flat';
+        const dayLabel = new Date(bestDay.date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+        setWeekInsights({ avgScore: avg, bestDay: dayLabel, trend });
+      }
+    } else {
+      setWeekInsights(null);
     }
 
     const { data: symptoms } = await supabase.from('symptoms').select('symptom_type')
@@ -161,6 +178,33 @@ export default function ProgressScreen() {
             </TouchableOpacity>
           ))}
         </View>
+
+        {/* Weekly Insights Card */}
+        {weekInsights && (
+          <View style={styles.insightsCard}>
+            <View style={styles.insightsHeader}>
+              <Text style={styles.insightsTitle}>This Week</Text>
+              <View style={[styles.trendBadge, { backgroundColor: weekInsights.trend === 'up' ? Colors.secondary + '20' : weekInsights.trend === 'down' ? '#E0707020' : Colors.border + '40' }]}>
+                <Ionicons name={weekInsights.trend === 'up' ? 'trending-up' : weekInsights.trend === 'down' ? 'trending-down' : 'remove'} size={14} color={weekInsights.trend === 'up' ? Colors.secondary : weekInsights.trend === 'down' ? '#E07070' : Colors.textTertiary} />
+                <Text style={[styles.trendBadgeText, { color: weekInsights.trend === 'up' ? Colors.secondary : weekInsights.trend === 'down' ? '#E07070' : Colors.textTertiary }]}>
+                  {weekInsights.trend === 'up' ? 'Improving' : weekInsights.trend === 'down' ? 'Declining' : 'Steady'}
+                </Text>
+              </View>
+            </View>
+            <View style={styles.insightsRow}>
+              <View style={styles.insightsStat}>
+                <Text style={styles.insightsStatValue}>{weekInsights.avgScore}</Text>
+                <Text style={styles.insightsStatLabel}>Avg Score</Text>
+              </View>
+              {weekInsights.bestDay && (
+                <View style={[styles.insightsStat, { borderLeftWidth: 1, borderLeftColor: Colors.divider, paddingLeft: 20 }]}>
+                  <Text style={[styles.insightsStatValue, { fontSize: 16 }]}>{weekInsights.bestDay}</Text>
+                  <Text style={styles.insightsStatLabel}>Best Day</Text>
+                </View>
+              )}
+            </View>
+          </View>
+        )}
 
         {isLoading ? (
           <>
@@ -695,5 +739,59 @@ const styles = StyleSheet.create({
     fontSize: FontSize.sm,
     color: Colors.textTertiary,
     marginTop: Spacing.xs,
+  },
+
+  // Weekly Insights Card
+  insightsCard: {
+    backgroundColor: Colors.surface,
+    borderRadius: BorderRadius.xl,
+    padding: 20,
+    marginBottom: Spacing.lg,
+    ...Shadows.sm,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  insightsHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 16,
+  },
+  insightsTitle: {
+    fontFamily: FontFamily.displayMedium,
+    fontSize: FontSize.xl,
+    color: Colors.text,
+  },
+  trendBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: BorderRadius.full,
+  },
+  trendBadgeText: {
+    fontFamily: FontFamily.sansMedium,
+    fontSize: 12,
+  },
+  insightsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 20,
+  },
+  insightsStat: {
+    flex: 1,
+  },
+  insightsStatValue: {
+    fontFamily: FontFamily.displayBold,
+    fontSize: 28,
+    color: Colors.text,
+    lineHeight: 34,
+  },
+  insightsStatLabel: {
+    fontFamily: FontFamily.sansRegular,
+    fontSize: 12,
+    color: Colors.textSecondary,
+    marginTop: 2,
   },
 });
