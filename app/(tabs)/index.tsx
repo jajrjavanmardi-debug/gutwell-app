@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, RefreshControl, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, RefreshControl, TouchableOpacity, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -14,8 +14,10 @@ import { SparklineChart } from '../../components/SparklineChart';
 import { Colors, Spacing, FontSize, BorderRadius, Shadows, FontFamily, Typography } from '../../constants/theme';
 import { updateTodayScore } from '../../lib/scoring';
 import { calculatePoints } from '../../lib/levels';
+import { ErrorState } from '../../components/ui/ErrorState';
 
 type RecentEntry = {
+  id: string | number;
   type: 'checkin' | 'food' | 'symptom';
   label: string;
   time: string;
@@ -56,6 +58,7 @@ export default function HomeScreen() {
   const [isLoading, setIsLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [totalPoints, setTotalPoints] = useState(0);
+  const [error, setError] = useState<string | null>(null);
 
   const greeting = () => {
     const hour = new Date().getHours();
@@ -73,6 +76,7 @@ export default function HomeScreen() {
 
   const loadData = useCallback(async () => {
     if (!user) return;
+    try {
 
     const today = new Date().toISOString().split('T')[0];
     const { data: scoreData } = await supabase
@@ -216,13 +220,14 @@ export default function HomeScreen() {
 
     const { data: recentCheckins } = await supabase
       .from('check_ins')
-      .select('stool_type, created_at')
+      .select('id, stool_type, created_at')
       .eq('user_id', user.id)
       .order('created_at', { ascending: false })
       .limit(3);
 
     recentCheckins?.forEach(c => {
       entries.push({
+        id: c.id,
         type: 'checkin',
         label: `Stool type ${c.stool_type}`,
         time: formatTime(c.created_at),
@@ -232,13 +237,14 @@ export default function HomeScreen() {
 
     const { data: recentFood } = await supabase
       .from('food_logs')
-      .select('meal_name, logged_at')
+      .select('id, meal_name, logged_at')
       .eq('user_id', user.id)
       .order('logged_at', { ascending: false })
       .limit(3);
 
     recentFood?.forEach(f => {
       entries.push({
+        id: f.id,
         type: 'food',
         label: f.meal_name,
         time: formatTime(f.logged_at),
@@ -248,10 +254,52 @@ export default function HomeScreen() {
 
     entries.sort((a, b) => b.sortKey.localeCompare(a.sortKey));
     setRecentEntries(entries.slice(0, 5));
-    setIsLoading(false);
+    } catch {
+      setError('offline');
+    } finally {
+      setIsLoading(false);
+    }
   }, [user]);
 
   useEffect(() => { loadData(); }, [loadData]);
+
+  const handleEntryPress = useCallback((entry: RecentEntry) => {
+    if (entry.type === 'checkin') {
+      router.push({ pathname: '/edit-checkin', params: { id: String(entry.id) } });
+    } else if (entry.type === 'food') {
+      Alert.alert(
+        'Remove Food Log',
+        `Delete "${entry.label}"?`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Delete',
+            style: 'destructive',
+            onPress: async () => {
+              await supabase.from('food_logs').delete().eq('id', entry.id);
+              loadData();
+            },
+          },
+        ]
+      );
+    } else if (entry.type === 'symptom') {
+      Alert.alert(
+        'Remove Symptom Log',
+        `Delete "${entry.label}"?`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Delete',
+            style: 'destructive',
+            onPress: async () => {
+              await supabase.from('symptom_logs').delete().eq('id', entry.id);
+              loadData();
+            },
+          },
+        ]
+      );
+    }
+  }, [loadData]);
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -298,7 +346,9 @@ export default function HomeScreen() {
           </View>
         </View>
 
-        {isLoading ? (
+        {!isLoading && error ? (
+          <ErrorState type="offline" onRetry={() => { setError(null); loadData(); }} />
+        ) : isLoading ? (
           <>
             <View style={styles.scoreCard}>
               <LoadingSkeleton width={140} height={14} />
@@ -415,7 +465,12 @@ export default function HomeScreen() {
                 {/* Vertical connecting line */}
                 <View style={styles.timelineLine} />
                 {recentEntries.map((entry, i) => (
-                  <View key={i} style={styles.timelineItem}>
+                  <TouchableOpacity
+                    key={i}
+                    style={styles.timelineItem}
+                    onPress={() => handleEntryPress(entry)}
+                    activeOpacity={0.72}
+                  >
                     <View style={styles.timelineDotWrap}>
                       <View style={[styles.timelineDot, { backgroundColor: entryColor(entry.type) }]} />
                     </View>
@@ -429,8 +484,13 @@ export default function HomeScreen() {
                         size={14}
                         color={entryColor(entry.type)}
                       />
+                      <Ionicons
+                        name={entry.type === 'checkin' ? 'pencil' : 'trash-outline'}
+                        size={10}
+                        color={Colors.textTertiary}
+                      />
                     </View>
-                  </View>
+                  </TouchableOpacity>
                 ))}
               </View>
             </>
@@ -787,10 +847,11 @@ const styles = StyleSheet.create({
   },
   activityTypeBadge: {
     width: 32,
-    height: 32,
+    height: 36,
     borderRadius: BorderRadius.sm,
     justifyContent: 'center',
     alignItems: 'center',
+    gap: 2,
   },
 
   // ── First Action (Onboarding) Card ──────────

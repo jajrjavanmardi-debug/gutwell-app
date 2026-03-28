@@ -12,6 +12,8 @@ import { ContributionCalendar } from '../../components/ContributionCalendar';
 import { Colors, Spacing, FontSize, BorderRadius, Shadows, FontFamily } from '../../constants/theme';
 import { analyzeCorrelations, CorrelationSummary, computeCorrelations, FoodCorrelation, SafeFood } from '../../lib/correlations';
 import { ShareCard } from '../../components/ShareCard';
+import { ErrorState } from '../../components/ui/ErrorState';
+import { isPremiumFeature } from '../../lib/subscription';
 
 type Period = 'W' | 'M' | '6M';
 
@@ -32,9 +34,11 @@ export default function ProgressScreen() {
   const [isLoading, setIsLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [weekInsights, setWeekInsights] = useState<{ avgScore: number | null, bestDay: string | null, trend: 'up' | 'down' | 'flat' } | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   const loadData = useCallback(async () => {
     if (!user) return;
+    try {
     const daysBack = period === 'W' ? 7 : period === 'M' ? 30 : 180;
     const since = new Date(); since.setDate(since.getDate() - daysBack);
     const sinceStr = since.toISOString();
@@ -131,7 +135,11 @@ export default function ProgressScreen() {
       setSafeFoods([]);
     }
 
-    setIsLoading(false);
+    } catch {
+      setError('offline');
+    } finally {
+      setIsLoading(false);
+    }
   }, [user, period]);
 
   useEffect(() => { loadData(); }, [loadData]);
@@ -240,7 +248,9 @@ export default function ProgressScreen() {
           </View>
         )}
 
-        {isLoading ? (
+        {!isLoading && error ? (
+          <ErrorState type="offline" onRetry={() => { setError(null); loadData(); }} />
+        ) : isLoading ? (
           <>
             <View style={styles.statsRow}>
               <Card style={styles.statCard}><LoadingSkeleton width={30} height={22} /><LoadingSkeleton width={60} height={10} style={{ marginTop: 4 }} /></Card>
@@ -351,6 +361,15 @@ export default function ProgressScreen() {
               </View>
             ))}
           </>
+        )}
+
+        {/* Premium Banner (future-proofing) */}
+        {!isPremiumFeature('correlations') && (
+          <TouchableOpacity style={styles.premiumBanner} onPress={() => router.push('/paywall')}>
+            <Ionicons name="lock-closed" size={16} color={Colors.accent} />
+            <Text style={styles.premiumBannerText}>Unlock food-symptom insights with Premium</Text>
+            <Ionicons name="chevron-forward" size={14} color={Colors.accent} />
+          </TouchableOpacity>
         )}
 
         {/* Trigger Foods — new engine */}
@@ -879,5 +898,24 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: Colors.textSecondary,
     marginTop: 2,
+  },
+
+  // Premium Banner
+  premiumBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: Colors.accent + '15',
+    borderRadius: BorderRadius.lg,
+    padding: 14,
+    marginBottom: Spacing.md,
+    borderWidth: 1,
+    borderColor: Colors.accent + '30',
+  },
+  premiumBannerText: {
+    flex: 1,
+    fontFamily: FontFamily.sansMedium,
+    fontSize: FontSize.sm,
+    color: Colors.accent,
   },
 });
