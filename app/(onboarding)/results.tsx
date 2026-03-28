@@ -1,6 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
 import {
-  ActivityIndicator,
   Animated,
   Easing,
   ScrollView,
@@ -15,8 +14,6 @@ import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { supabase } from '../../lib/supabase';
-import { useAuth } from '../../contexts/AuthContext';
 import { FontFamily } from '../../constants/theme';
 import StarFieldBackground from '../../components/StarFieldBackground';
 
@@ -28,44 +25,57 @@ type GutProfile = {
 };
 
 function computeProfile(answers: Record<string, string>): GutProfile {
-  const freq = answers.frequency;
-  const stress = answers.stress;
+  const meal = answers.meal_feeling ?? '';
+  const bloating = answers.bloating_frequency ?? '';
+  const energy = answers.energy_after_lunch ?? '';
+  const knowledge = answers.food_knowledge ?? '';
 
-  if (freq === 'Almost every day' || freq === 'A few times a week') {
-    if (stress === 'Highly stressed' || stress === 'Moderately stressed') {
-      return {
-        type: 'Reactive Gut',
-        emoji: '⚡',
-        color: '#E07A5F',
-        description:
-          'Your gut is highly reactive to both food and stress. The good news: it responds quickly to positive changes too.',
-      };
-    }
+  const hasSevereSymptoms =
+    meal === 'Bloated or uncomfortable' ||
+    bloating === 'Every single day' ||
+    bloating === 'A few times a week';
+
+  const hasEnergyIssues =
+    energy === 'I crash — need caffeine or a rest' ||
+    energy === 'Noticeable slump but I push through';
+
+  const lacksKnowledge =
+    knowledge === 'I have no idea' ||
+    knowledge === "I suspect a few but can't be sure";
+
+  if (hasSevereSymptoms && hasEnergyIssues) {
+    return {
+      type: 'Reactive Gut',
+      emoji: '⚡',
+      color: '#E07A5F',
+      description:
+        "Your gut reacts strongly to food and stress — often leaving you drained. The good news: reactive guts respond fast to the right changes.",
+    };
+  }
+  if (hasSevereSymptoms && lacksKnowledge) {
     return {
       type: 'Sensitive Gut',
       emoji: '🌿',
       color: '#52B788',
       description:
-        'Your digestive system is sensitive but manageable. Consistent tracking will reveal your exact triggers fast.',
+        "Your gut is sensitive, but without knowing your triggers you're flying blind. Just 14 days of tracking will change everything.",
     };
   }
-
-  if (stress === 'Highly stressed' || stress === 'Moderately stressed') {
+  if (hasEnergyIssues) {
     return {
-      type: 'Stress-Driven',
-      emoji: '🧠',
+      type: 'Energy-Depleted',
+      emoji: '🔋',
       color: '#D4A373',
       description:
-        "Your gut symptoms are likely connected to your stress levels. The gut-brain connection is real — and trackable.",
+        "Your gut-energy connection is disrupted. What you eat is directly affecting how you feel and perform. GutWell will show you exactly how.",
     };
   }
-
   return {
     type: 'Optimisation Mode',
     emoji: '🎯',
     color: '#74C69D',
     description:
-      "Your gut is in decent shape. You're here to fine-tune, identify subtle triggers, and perform at your best.",
+      "Your gut is in decent shape — you're here to fine-tune, eliminate subtle triggers, and operate at your peak. Smart move.",
   };
 }
 
@@ -76,9 +86,8 @@ const NEXT_STEPS = [
 ];
 
 export default function ResultsScreen() {
-  const { user, refreshProfile } = useAuth();
   const [profile, setProfile] = useState<GutProfile | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [answers, setAnswers] = useState<Record<string, string>>({});
 
   // Entrance animation
   const contentAnim = useRef(new Animated.Value(0)).current;
@@ -90,8 +99,9 @@ export default function ResultsScreen() {
   useEffect(() => {
     // Load answers and compute profile
     AsyncStorage.getItem('onboarding_answers').then((raw) => {
-      const answers: Record<string, string> = raw ? JSON.parse(raw) : {};
-      setProfile(computeProfile(answers));
+      const parsed: Record<string, string> = raw ? JSON.parse(raw) : {};
+      setAnswers(parsed);
+      setProfile(computeProfile(parsed));
     });
 
     // Fade in content
@@ -121,41 +131,10 @@ export default function ResultsScreen() {
     return () => clearTimeout(buttonTimer);
   }, [contentAnim, buttonOpacity, buttonTranslateY]);
 
-  const completeOnboarding = async () => {
-    if (!user || loading) return;
-    setLoading(true);
-    try {
-      const [rawName, rawAnswers] = await Promise.all([
-        AsyncStorage.getItem('onboarding_name'),
-        AsyncStorage.getItem('onboarding_answers'),
-      ]);
-
-      const name = rawName ?? '';
-      const answers: Record<string, string> = rawAnswers ? JSON.parse(rawAnswers) : {};
-
-      await supabase
-        .from('profiles')
-        .update({
-          onboarding_completed: true,
-          gut_concern: answers.main_symptom ?? null,
-          symptom_frequency: answers.frequency ?? null,
-          goal: answers.goal ?? null,
-          display_name: name || undefined,
-        })
-        .eq('id', user.id);
-
-      await refreshProfile();
-      router.replace('/(tabs)');
-    } finally {
-      setLoading(false);
-    }
-  };
-
   if (!profile) {
     return (
       <View style={styles.loadingContainer}>
         <LinearGradient colors={['#0B1F14', '#1B4332']} style={StyleSheet.absoluteFill} />
-        <ActivityIndicator color="#52B788" size="large" />
       </View>
     );
   }
@@ -198,6 +177,14 @@ export default function ResultsScreen() {
                   <Text style={styles.nextText}>{step}</Text>
                 </View>
               ))}
+              {answers.goal ? (
+                <View style={styles.nextRow}>
+                  <View style={styles.checkCircle}>
+                    <Ionicons name="checkmark" size={14} color="#52B788" />
+                  </View>
+                  <Text style={styles.nextTextGoal}>{'Your goal: ' + answers.goal}</Text>
+                </View>
+              ) : null}
             </View>
 
             {/* Spacer so button doesn't overlap content */}
@@ -217,15 +204,10 @@ export default function ResultsScreen() {
         >
           <TouchableOpacity
             style={styles.ctaButton}
-            onPress={completeOnboarding}
-            disabled={loading}
+            onPress={() => router.push('/(onboarding)/notifications')}
             activeOpacity={0.88}
           >
-            {loading ? (
-              <ActivityIndicator color="#0B1F14" size="small" />
-            ) : (
-              <Text style={styles.ctaText}>I'm Ready to Start</Text>
-            )}
+            <Text style={styles.ctaText}>I'm Ready to Start</Text>
           </TouchableOpacity>
         </Animated.View>
       </SafeAreaView>
@@ -336,6 +318,13 @@ const styles = StyleSheet.create({
     fontFamily: FontFamily.sansRegular,
     fontSize: 14,
     color: 'rgba(255,255,255,0.75)',
+    flex: 1,
+    lineHeight: 20,
+  },
+  nextTextGoal: {
+    fontFamily: FontFamily.sansMedium,
+    fontSize: 14,
+    color: '#52B788',
     flex: 1,
     lineHeight: 20,
   },

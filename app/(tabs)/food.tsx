@@ -279,7 +279,7 @@ export default function FoodScreen() {
               <Ionicons
                 name={m.icon}
                 size={16}
-                color={mealType === m.key ? Colors.textInverse : Colors.textTertiary}
+                color={mealType === m.key ? Colors.textInverse : Colors.primary}
               />
               <Text style={[styles.mealTypeLabel, mealType === m.key && styles.mealTypeLabelSelected]}>
                 {m.label}
@@ -325,6 +325,17 @@ export default function FoodScreen() {
         </TouchableOpacity>
 
         {/* Recent Meals */}
+        {recentMeals.length === 0 && !isLoading && (
+          <View style={styles.emptyMeals}>
+            <View style={styles.emptyIconCircle}>
+              <Ionicons name="restaurant-outline" size={32} color={Colors.secondary} />
+            </View>
+            <Text style={styles.emptyTitle}>No meals logged yet</Text>
+            <Text style={styles.emptySubtitle}>
+              Start tracking your meals to discover{'\n'}what foods make you feel your best.
+            </Text>
+          </View>
+        )}
         {recentMeals.length > 0 && (
           <View style={styles.recentSection}>
             <Text style={styles.sectionTitle}>Recent Meals</Text>
@@ -609,4 +620,10 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: '#D4A373',
   },
+
+  // Empty state
+  emptyMeals: { alignItems: 'center', paddingVertical: 32, paddingHorizontal: 24, marginTop: Spacing.xl },
+  emptyIconCircle: { width: 64, height: 64, borderRadius: 32, backgroundColor: Colors.secondary + '15', justifyContent: 'center', alignItems: 'center', marginBottom: 14 },
+  emptyTitle: { fontFamily: FontFamily.displayRegular, fontSize: 20, color: Colors.text, marginBottom: 6, textAlign: 'center' },
+  emptySubtitle: { fontFamily: FontFamily.sansRegular, fontSize: 14, color: Colors.textSecondary, textAlign: 'center', lineHeight: 21 },
 });
