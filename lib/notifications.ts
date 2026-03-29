@@ -52,6 +52,7 @@ export async function scheduleDailyCheckInReminder(
   await cancelDailyCheckInReminder();
 
   const id = await Notifications.scheduleNotificationAsync({
+    identifier: CHECKIN_REMINDER_ID_KEY,
     content: {
       title: "Time for your gut check-in 🌿",
       body: "Log how you're feeling and track your progress.",
@@ -70,11 +71,10 @@ const CHECKIN_REMINDER_ID_KEY = 'gut-checkin-reminder';
 const STREAK_ALERT_ID_KEY = 'gut-streak-alert';
 
 export async function cancelDailyCheckInReminder(): Promise<void> {
-  const scheduled = await Notifications.getAllScheduledNotificationsAsync();
-  for (const n of scheduled) {
-    if (n.identifier.startsWith(CHECKIN_REMINDER_ID_KEY)) {
-      await Notifications.cancelScheduledNotificationAsync(n.identifier);
-    }
+  try {
+    await Notifications.cancelScheduledNotificationAsync(CHECKIN_REMINDER_ID_KEY);
+  } catch {
+    // ignore if not found
   }
 }
 

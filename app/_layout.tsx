@@ -20,8 +20,10 @@ import {
   Inter_700Bold,
   Inter_800ExtraBold,
 } from '@expo-google-fonts/inter';
+import NetInfo from '@react-native-community/netinfo';
 import * as Sentry from '@sentry/react-native';
 import { initAnalytics, identifyUser } from '../lib/analytics';
+import { flush } from '../lib/offline-queue';
 import * as SplashScreen from 'expo-splash-screen';
 
 // Initialize Sentry for crash reporting
@@ -55,6 +57,16 @@ function RootLayoutNav() {
       identifyUser(session.user.id);
     }
   }, [session?.user?.id]);
+
+  // Flush offline queue when connectivity is restored
+  useEffect(() => {
+    const unsubscribe = NetInfo.addEventListener((state) => {
+      if (state.isConnected) {
+        flush().catch(console.warn);
+      }
+    });
+    return () => unsubscribe();
+  }, []);
 
   useEffect(() => {
     if (loading) return;

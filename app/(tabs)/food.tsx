@@ -12,7 +12,9 @@ import { Toast } from '../../components/ui/Toast';
 import { Card } from '../../components/ui/Card';
 import { SwipeableCard } from '../../components/SwipeableCard';
 import { Colors, Spacing, FontSize, BorderRadius, Shadows, FontFamily } from '../../constants/theme';
+import { EmptyState } from '../../components/ui/EmptyState';
 import { ErrorState } from '../../components/ui/ErrorState';
+import { enqueue } from '../../lib/offline-queue';
 
 function formatMealTime(iso: string): string {
   const date = new Date(iso);
@@ -50,7 +52,7 @@ export default function FoodScreen() {
   const [loading, setLoading] = useState(false);
   const [favorites, setFavorites] = useState<Favorite[]>([]);
   const [recentMeals, setRecentMeals] = useState<{ id: number; meal_name: string; meal_type: string; logged_at: string }[]>([]);
-  const [toast, setToast] = useState({ visible: false, message: '', type: 'success' as 'success' | 'error' });
+  const [toast, setToast] = useState({ visible: false, message: '', type: 'success' as 'success' | 'error' | 'info' });
   const [sensitiveFoods, setSensitiveFoods] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -143,8 +145,19 @@ export default function FoodScreen() {
       meal_type: mealType, foods: foods.length > 0 ? foods : null, note: note.trim() || null,
     });
     setLoading(false);
-    if (error) { setToast({ visible: true, message: 'Failed to save food log', type: 'error' }); }
-    else { setToast({ visible: true, message: 'Meal logged!', type: 'success' }); setMealName(''); setFoods([]); setNote(''); loadRecentMeals(); }
+    if (error) {
+      // Network error — queue offline
+      if (error.message?.includes('network') || error.message?.includes('Network') || error.code === 'PGRST301' || !error.code) {
+        await enqueue('food_logs', {
+          user_id: user.id, meal_name: mealName.trim() || foods.join(', '),
+          meal_type: mealType, foods: foods.length > 0 ? foods : null, note: note.trim() || null,
+        });
+        setToast({ visible: true, message: 'Saved offline — will sync when connected', type: 'info' });
+        setMealName(''); setFoods([]); setNote('');
+      } else {
+        setToast({ visible: true, message: 'Failed to save food log', type: 'error' });
+      }
+    } else { setToast({ visible: true, message: 'Meal logged!', type: 'success' }); setMealName(''); setFoods([]); setNote(''); loadRecentMeals(); }
   };
 
   const handleFavoriteFromRecent = async (meal: { id: number; meal_name: string; meal_type: string; logged_at: string }) => {
@@ -326,15 +339,11 @@ export default function FoodScreen() {
 
         {/* Recent Meals */}
         {recentMeals.length === 0 && !isLoading && (
-          <View style={styles.emptyMeals}>
-            <View style={styles.emptyIconCircle}>
-              <Ionicons name="restaurant-outline" size={32} color={Colors.secondary} />
-            </View>
-            <Text style={styles.emptyTitle}>No meals logged yet</Text>
-            <Text style={styles.emptySubtitle}>
-              Start tracking your meals to discover{'\n'}what foods make you feel your best.
-            </Text>
-          </View>
+          <EmptyState
+            icon="restaurant-outline"
+            title="No meals logged yet"
+            message="Start tracking your meals to discover what foods make you feel your best."
+          />
         )}
         {recentMeals.length > 0 && (
           <View style={styles.recentSection}>
@@ -621,9 +630,4 @@ const styles = StyleSheet.create({
     color: '#D4A373',
   },
 
-  // Empty state
-  emptyMeals: { alignItems: 'center', paddingVertical: 32, paddingHorizontal: 24, marginTop: Spacing.xl },
-  emptyIconCircle: { width: 64, height: 64, borderRadius: 32, backgroundColor: Colors.secondary + '15', justifyContent: 'center', alignItems: 'center', marginBottom: 14 },
-  emptyTitle: { fontFamily: FontFamily.displayRegular, fontSize: 20, color: Colors.text, marginBottom: 6, textAlign: 'center' },
-  emptySubtitle: { fontFamily: FontFamily.sansRegular, fontSize: 14, color: Colors.textSecondary, textAlign: 'center', lineHeight: 21 },
 });

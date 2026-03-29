@@ -12,6 +12,7 @@ import { ContributionCalendar } from '../../components/ContributionCalendar';
 import { Colors, Spacing, FontSize, BorderRadius, Shadows, FontFamily } from '../../constants/theme';
 import { analyzeCorrelations, CorrelationSummary, computeCorrelations, FoodCorrelation, SafeFood } from '../../lib/correlations';
 import { ShareCard } from '../../components/ShareCard';
+import { EmptyState } from '../../components/ui/EmptyState';
 import { ErrorState } from '../../components/ui/ErrorState';
 import { isPremiumFeature } from '../../lib/subscription';
 
@@ -214,23 +215,13 @@ export default function ProgressScreen() {
 
         {/* Empty state for new users */}
         {!isLoading && checkInCount < 3 && (
-          <View style={styles.emptyState}>
-            <View style={styles.emptyIcon}>
-              <Ionicons name="leaf-outline" size={36} color={Colors.secondary} />
-            </View>
-            <Text style={styles.emptyTitle}>Patterns take shape with data</Text>
-            <Text style={styles.emptySubtitle}>
-              Keep checking in — trends and correlations appear after about 7 days of daily logging.
-            </Text>
-            <TouchableOpacity
-              style={styles.emptyButton}
-              onPress={() => router.push('/(tabs)/checkin')}
-              activeOpacity={0.7}
-            >
-              <Ionicons name="body-outline" size={18} color="#FFFFFF" />
-              <Text style={styles.emptyButtonText}>Log Today's Check-in</Text>
-            </TouchableOpacity>
-          </View>
+          <EmptyState
+            icon="leaf-outline"
+            title="Patterns take shape with data"
+            message="Keep checking in — trends and correlations appear after about 7 days of daily logging."
+            actionLabel="Log Today's Check-in"
+            onAction={() => router.push('/(tabs)/checkin')}
+          />
         )}
 
         {/* Period Selector */}
@@ -511,11 +502,11 @@ export default function ProgressScreen() {
         )}
 
         {checkInCount === 0 && foodCount === 0 && topSymptoms.length === 0 && (
-          <View style={styles.emptyCard}>
-            <Ionicons name="leaf-outline" size={32} color={Colors.textTertiary} />
-            <Text style={styles.emptyText}>Nothing here yet</Text>
-            <Text style={styles.emptySubtext}>Log daily for 2 weeks and patterns will emerge.</Text>
-          </View>
+          <EmptyState
+            icon="leaf-outline"
+            title="Nothing here yet"
+            message="Log daily for 2 weeks and patterns will emerge."
+          />
         )}
         </>
         )}
@@ -905,27 +896,6 @@ const styles = StyleSheet.create({
     color: Colors.textTertiary,
     textAlign: 'center',
   },
-  emptyCard: {
-    alignItems: 'center',
-    backgroundColor: Colors.surface,
-    borderRadius: BorderRadius.lg,
-    padding: Spacing.xl,
-    borderWidth: 1,
-    borderColor: Colors.border,
-  },
-  emptyText: {
-    fontFamily: FontFamily.sansSemiBold,
-    fontSize: FontSize.md,
-    color: Colors.textSecondary,
-    marginTop: Spacing.sm,
-  },
-  emptySubtext: {
-    fontFamily: FontFamily.sansRegular,
-    fontSize: FontSize.sm,
-    color: Colors.textTertiary,
-    marginTop: Spacing.xs,
-  },
-
   // Weekly Insights Card
   insightsCard: {
     backgroundColor: Colors.surface,
@@ -1070,52 +1040,4 @@ const styles = StyleSheet.create({
     color: Colors.accent,
   },
 
-  // ── Empty state ──
-  emptyState: {
-    alignItems: 'center',
-    paddingVertical: Spacing.xxl,
-    paddingHorizontal: Spacing.xl,
-    backgroundColor: Colors.surface,
-    borderRadius: BorderRadius.lg,
-    marginBottom: Spacing.lg,
-    ...Shadows.sm,
-  },
-  emptyIcon: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: Colors.secondary + '12',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: Spacing.md,
-  },
-  emptyTitle: {
-    fontFamily: FontFamily.displayBold,
-    fontSize: FontSize.xl,
-    color: Colors.text,
-    textAlign: 'center',
-    marginBottom: Spacing.sm,
-  },
-  emptySubtitle: {
-    fontFamily: FontFamily.sansRegular,
-    fontSize: FontSize.sm,
-    color: Colors.textSecondary,
-    textAlign: 'center',
-    lineHeight: 20,
-    marginBottom: Spacing.lg,
-  },
-  emptyButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.sm,
-    backgroundColor: Colors.primary,
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: 14,
-    borderRadius: 16,
-  },
-  emptyButtonText: {
-    fontFamily: FontFamily.sansSemiBold,
-    fontSize: FontSize.md,
-    color: '#FFFFFF',
-  },
 });

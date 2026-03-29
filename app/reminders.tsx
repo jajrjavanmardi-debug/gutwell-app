@@ -18,6 +18,7 @@ import {
   requestNotificationPermissions,
   syncReminders,
 } from '../lib/notifications';
+import { EmptyState } from '../components/ui/EmptyState';
 import { Colors, Spacing, FontSize, BorderRadius, FontFamily } from '../constants/theme';
 
 type ReminderType = 'checkin' | 'food' | 'symptom';
@@ -210,22 +211,13 @@ export default function RemindersScreen() {
       >
         {/* Empty State */}
         {reminders.length === 0 && !loading && (
-          <View style={styles.emptyContainer}>
-            <View style={styles.emptyIconWrap}>
-              <Ionicons name="notifications-outline" size={48} color={Colors.textTertiary} />
-            </View>
-            <Text style={styles.emptyTitle}>No reminders yet</Text>
-            <Text style={styles.emptySubtext}>
-              Daily reminders help you spot what affects your gut. Set one now.
-            </Text>
-            <Button
-              title="Add Your First Reminder"
-              onPress={() => setShowAdd(true)}
-              variant="secondary"
-              size="md"
-              style={styles.emptyBtn}
-            />
-          </View>
+          <EmptyState
+            icon="notifications-outline"
+            title="No reminders yet"
+            message="Daily reminders help you spot what affects your gut. Set one now."
+            actionLabel="Add Your First Reminder"
+            onAction={() => setShowAdd(true)}
+          />
         )}
 
         {/* Reminder Cards */}
@@ -499,38 +491,6 @@ const styles = StyleSheet.create({
     paddingBottom: Spacing.xxl + 40,
   },
 
-  // Empty State
-  emptyContainer: {
-    alignItems: 'center',
-    paddingVertical: Spacing.xxl,
-    paddingHorizontal: Spacing.lg,
-  },
-  emptyIconWrap: {
-    width: 88,
-    height: 88,
-    borderRadius: 44,
-    backgroundColor: Colors.surfaceSecondary,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: Spacing.lg,
-  },
-  emptyTitle: {
-    fontFamily: FontFamily.sansSemiBold,
-    fontSize: FontSize.lg,
-    color: Colors.text,
-    marginBottom: Spacing.xs,
-  },
-  emptySubtext: {
-    fontFamily: FontFamily.sansRegular,
-    fontSize: FontSize.sm,
-    color: Colors.textTertiary,
-    textAlign: 'center',
-    lineHeight: 20,
-    maxWidth: 280,
-  },
-  emptyBtn: {
-    marginTop: Spacing.lg,
-  },
 
   // Reminder Cards
   reminderCard: {

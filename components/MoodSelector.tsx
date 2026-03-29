@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import * as Haptics from 'expo-haptics';
 import { Colors, Spacing, FontSize, BorderRadius, FontFamily } from '../constants/theme';
 
 const MOODS = [
@@ -30,8 +31,11 @@ export function MoodSelector({ value, onChange }: Props) {
                 borderColor: Colors.mood[mood.value],
               },
             ]}
-            onPress={() => onChange(mood.value)}
+            onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); onChange(mood.value); }}
             activeOpacity={0.7}
+            accessibilityRole="button"
+            accessibilityLabel={`${mood.label} mood`}
+            accessibilityState={{ selected: isSelected }}
           >
             <Text style={styles.emoji}>{mood.emoji}</Text>
             <Text style={[

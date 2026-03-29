@@ -2,10 +2,17 @@ import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors, Spacing, FontSize, BorderRadius, FontFamily, Shadows } from '../constants/theme';
-import { getTodaysTip } from '../lib/tips';
+import { getTodaysTip, getPersonalizedTip } from '../lib/tips';
 
-export function DailyTip() {
-  const tip = getTodaysTip();
+type DailyTipProps = {
+  gutConcern?: string | null;
+  goal?: string | null;
+};
+
+export function DailyTip({ gutConcern, goal }: DailyTipProps = {}) {
+  const tip = gutConcern || goal
+    ? getPersonalizedTip(gutConcern, goal)
+    : getTodaysTip();
 
   const categoryColors: Record<string, string> = {
     nutrition: Colors.secondary,
