@@ -22,6 +22,7 @@ type Props = {
   loading?: boolean;
   icon?: React.ReactNode;
   style?: ViewStyle;
+  textStyle?: TextStyle;
 };
 
 export function Button({
@@ -33,6 +34,7 @@ export function Button({
   loading = false,
   icon,
   style,
+  textStyle: textStyleOverride,
 }: Props) {
   const scaleAnim = useRef(new Animated.Value(1)).current;
 
@@ -65,6 +67,7 @@ export function Button({
     styles[`text_${size}`],
     styles[`textVariant_${variant}`],
     (disabled || loading) && styles.textDisabled,
+    textStyleOverride!,
   ].filter(Boolean) as TextStyle[];
 
   return (
