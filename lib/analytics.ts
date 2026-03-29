@@ -1,34 +1,8 @@
-import PostHog from 'posthog-react-native';
-
-const POSTHOG_API_KEY = process.env.EXPO_PUBLIC_POSTHOG_KEY || '';
-const POSTHOG_HOST = 'https://us.i.posthog.com';
-
-let posthog: PostHog | null = null;
-
-/** Initialize PostHog analytics. Call once at app startup. */
-export async function initAnalytics(): Promise<void> {
-  if (!POSTHOG_API_KEY || __DEV__) return;
-  try {
-    posthog = new PostHog(POSTHOG_API_KEY, { host: POSTHOG_HOST });
-  } catch (err) {
-    console.warn('PostHog init failed:', err);
-  }
-}
-
-/** Identify a user after auth. */
-export function identifyUser(userId: string, properties?: Record<string, unknown>): void {
-  posthog?.identify(userId, properties);
-}
-
-/** Track an event. */
-export function track(event: string, properties?: Record<string, unknown>): void {
-  posthog?.capture(event, properties);
-}
-
-/** Reset identity on sign out. */
-export function resetAnalytics(): void {
-  posthog?.reset();
-}
+/** Track an event (no-op stub — analytics provider removed). */
+export function initAnalytics(): void {}
+export function identifyUser(_userId: string, _properties?: Record<string, unknown>): void {}
+export function track(_event: string, _properties?: Record<string, unknown>): void {}
+export function resetAnalytics(): void {}
 
 // ─── Event names (use these constants for consistency) ──────────────────────
 
