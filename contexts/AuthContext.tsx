@@ -23,6 +23,7 @@ type AuthContextType = {
   signIn: (email: string, password: string) => Promise<{ error: any }>;
   signOut: () => Promise<void>;
   resetPassword: (email: string) => Promise<{ error: any }>;
+  updatePassword: (newPassword: string) => Promise<{ error: any }>;
   refreshProfile: () => Promise<void>;
 };
 
@@ -105,6 +106,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return { error };
   };
 
+  const updatePassword = async (newPassword: string) => {
+    try {
+      const { error } = await supabase.auth.updateUser({ password: newPassword });
+      return { error };
+    } catch (e: any) {
+      return { error: { message: e?.message ?? 'Failed to update password' } };
+    }
+  };
+
   const refreshProfile = async () => {
     if (session?.user) {
       await fetchProfile(session.user.id);
@@ -122,6 +132,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         signIn,
         signOut,
         resetPassword,
+        updatePassword,
         refreshProfile,
       }}
     >

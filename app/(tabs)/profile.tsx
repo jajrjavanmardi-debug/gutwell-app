@@ -13,6 +13,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
+import * as Haptics from 'expo-haptics';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
 import { exportUserData } from '../../lib/export';
@@ -126,6 +127,7 @@ export default function ProfileScreen() {
     if (!user) return;
     try {
       await exportUserData(user.id);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       setToast({ visible: true, message: 'Data exported successfully', type: 'info' });
     } catch {
       setToast({ visible: true, message: 'Failed to export data', type: 'error' });
@@ -250,6 +252,12 @@ export default function ProfileScreen() {
         <Text style={styles.sectionTitle}>Settings</Text>
         <View style={styles.listCard}>
           <ListRow
+            icon="person-outline"
+            label="Edit Profile"
+            onPress={() => router.push('/edit-profile')}
+          />
+          <View style={styles.listDivider} />
+          <ListRow
             icon="notifications-outline"
             label="Reminders"
             onPress={() => router.push('/reminders')}
@@ -324,6 +332,8 @@ export default function ProfileScreen() {
             onPress={handleDeleteAccount}
             style={styles.deleteButton}
             disabled={deleting}
+            accessibilityRole="button"
+            accessibilityLabel="Delete account"
           >
             <Text style={styles.deleteButtonText}>
               {deleting ? 'Deleting...' : 'Delete Account'}
@@ -373,9 +383,11 @@ function ListRow({
   return (
     <TouchableOpacity
       style={[styles.listRow, isLast && styles.listRowLast]}
-      onPress={onPress}
+      onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); onPress?.(); }}
       activeOpacity={onPress ? 0.6 : 1}
       disabled={!onPress}
+      accessibilityRole="button"
+      accessibilityLabel={label}
     >
       <Ionicons name={icon} size={20} color={Colors.secondary} style={styles.listRowIcon} />
       <Text style={styles.listRowLabel}>{label}</Text>

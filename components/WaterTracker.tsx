@@ -44,10 +44,12 @@ export function WaterTracker({ glasses, onAdd, onRemove, goal = 8 }: Props) {
             style={[styles.controlBtn, glasses === 0 && styles.controlDisabled]}
             disabled={glasses === 0}
             activeOpacity={0.7}
+            accessibilityRole="button"
+            accessibilityLabel="Remove water glass"
           >
             <Ionicons name="remove" size={18} color={glasses === 0 ? Colors.textTertiary : Colors.primary} />
           </TouchableOpacity>
-          <TouchableOpacity onPress={handleAdd} style={styles.controlBtn} activeOpacity={0.7}>
+          <TouchableOpacity onPress={handleAdd} style={styles.controlBtn} activeOpacity={0.7} accessibilityRole="button" accessibilityLabel="Add water glass">
             <Ionicons name="add" size={18} color={Colors.primary} />
           </TouchableOpacity>
         </View>

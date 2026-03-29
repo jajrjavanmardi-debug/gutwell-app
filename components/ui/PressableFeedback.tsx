@@ -1,5 +1,5 @@
 import React, { useRef } from 'react';
-import { Animated, TouchableWithoutFeedback, ViewStyle } from 'react-native';
+import { AccessibilityRole, Animated, TouchableWithoutFeedback, ViewStyle } from 'react-native';
 
 type Props = {
   children: React.ReactNode;
@@ -8,6 +8,8 @@ type Props = {
   disabled?: boolean;
   style?: ViewStyle;
   scaleValue?: number;
+  accessibilityRole?: AccessibilityRole;
+  accessibilityLabel?: string;
 };
 
 export function PressableFeedback({
@@ -17,6 +19,8 @@ export function PressableFeedback({
   disabled = false,
   style,
   scaleValue = 0.97,
+  accessibilityRole,
+  accessibilityLabel,
 }: Props) {
   const scale = useRef(new Animated.Value(1)).current;
   const opacity = useRef(new Animated.Value(1)).current;
@@ -42,6 +46,8 @@ export function PressableFeedback({
       onPressIn={handlePressIn}
       onPressOut={handlePressOut}
       disabled={disabled}
+      accessibilityRole={accessibilityRole}
+      accessibilityLabel={accessibilityLabel}
     >
       <Animated.View style={[{ transform: [{ scale }], opacity }, style]}>
         {children}

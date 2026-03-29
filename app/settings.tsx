@@ -17,9 +17,14 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as Haptics from 'expo-haptics';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
 import { Colors, Spacing, FontSize, BorderRadius, Shadows, FontFamily } from '../constants/theme';
+import {
+  scheduleDailyCheckInReminder,
+  cancelDailyCheckInReminder,
+} from '../lib/notifications';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -96,6 +101,8 @@ function SettingsRow({
       onPress={onPress}
       activeOpacity={onPress ? 0.6 : 1}
       disabled={!onPress}
+      accessibilityRole="button"
+      accessibilityLabel={subtitle ? `${label}, ${subtitle}` : label}
     >
       <View style={[styles.rowIcon, destructive && styles.rowIconDestructive]}>
         <Ionicons
@@ -250,7 +257,7 @@ function TimePickerModal({
               ))}
             </View>
           </View>
-          <TouchableOpacity style={styles.timeConfirmBtn} onPress={handleDone}>
+          <TouchableOpacity style={styles.timeConfirmBtn} onPress={handleDone} accessibilityRole="button" accessibilityLabel="Confirm reminder time">
             <Text style={styles.timeConfirmText}>Confirm</Text>
           </TouchableOpacity>
         </View>
@@ -286,12 +293,23 @@ export default function SettingsScreen() {
     setSettings((prev) => {
       const next = { ...prev, ...partial };
       AsyncStorage.setItem(SETTINGS_KEY, JSON.stringify(next)).catch(console.warn);
+
+      // Sync notification scheduling when reminder settings change
+      if ('dailyReminderEnabled' in partial || 'reminderHour' in partial || 'reminderMinute' in partial) {
+        if (next.dailyReminderEnabled) {
+          scheduleDailyCheckInReminder(next.reminderHour, next.reminderMinute).catch(console.warn);
+        } else if ('dailyReminderEnabled' in partial && !partial.dailyReminderEnabled) {
+          cancelDailyCheckInReminder().catch(console.warn);
+        }
+      }
+
       return next;
     });
   }, []);
 
   // Diet picker
   const openDietPicker = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     if (Platform.OS === 'ios') {
       ActionSheetIOS.showActionSheetWithOptions(
         {
@@ -312,6 +330,7 @@ export default function SettingsScreen() {
 
   // Goal picker
   const openGoalPicker = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     if (Platform.OS === 'ios') {
       ActionSheetIOS.showActionSheetWithOptions(
         {
@@ -358,6 +377,7 @@ export default function SettingsScreen() {
   };
 
   const handleClearData = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     Alert.alert(
       'Clear All Data',
       'This will permanently delete all your check-ins, food logs, and symptom records. This cannot be undone.',
@@ -393,7 +413,7 @@ export default function SettingsScreen() {
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+        <TouchableOpacity style={styles.backButton} onPress={() => router.back()} accessibilityRole="button" accessibilityLabel="Go back">
           <Ionicons name="chevron-back" size={24} color={Colors.textInverse} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Settings</Text>
@@ -432,9 +452,10 @@ export default function SettingsScreen() {
                 </Text>
                 <Switch
                   value={settings.metricUnits}
-                  onValueChange={(v) => save({ metricUnits: v })}
+                  onValueChange={(v) => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); save({ metricUnits: v }); }}
                   trackColor={{ false: Colors.border, true: Colors.secondary }}
                   thumbColor={Colors.surface}
+                  accessibilityLabel="Toggle metric or imperial units"
                 />
                 <Text style={[styles.unitLabel, settings.metricUnits && styles.unitLabelActive]}>
                   Metric
@@ -454,9 +475,10 @@ export default function SettingsScreen() {
             right={
               <Switch
                 value={settings.dailyReminderEnabled}
-                onValueChange={(v) => save({ dailyReminderEnabled: v })}
+                onValueChange={(v) => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); save({ dailyReminderEnabled: v }); }}
                 trackColor={{ false: Colors.border, true: Colors.secondary }}
                 thumbColor={Colors.surface}
+                accessibilityLabel="Toggle daily check-in reminder"
               />
             }
             isFirst
@@ -469,9 +491,10 @@ export default function SettingsScreen() {
             right={
               <Switch
                 value={settings.streakAlertsEnabled}
-                onValueChange={(v) => save({ streakAlertsEnabled: v })}
+                onValueChange={(v) => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); save({ streakAlertsEnabled: v }); }}
                 trackColor={{ false: Colors.border, true: Colors.secondary }}
                 thumbColor={Colors.surface}
+                accessibilityLabel="Toggle streak alerts"
               />
             }
             isLast={!settings.dailyReminderEnabled}
@@ -506,6 +529,18 @@ export default function SettingsScreen() {
             label="Clear All Data"
             onPress={handleClearData}
             destructive
+            isLast
+          />
+        </View>
+
+        {/* ACCOUNT */}
+        <SectionHeader title="ACCOUNT" />
+        <View style={styles.card}>
+          <SettingsRow
+            icon="lock-closed-outline"
+            label="Change Password"
+            onPress={() => router.push('/change-password')}
+            isFirst
             isLast
           />
         </View>

@@ -14,6 +14,7 @@ import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as Haptics from 'expo-haptics';
 import { FontFamily } from '../../constants/theme';
 import StarFieldBackground from '../../components/StarFieldBackground';
 
@@ -148,6 +149,7 @@ export default function QuestionsScreen() {
   }, [currentQuestion]);
 
   const handleOptionPress = async (option: string) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     const newAnswers = { ...answers, [question.key]: option };
     setAnswers(newAnswers);
 

@@ -15,8 +15,11 @@ import { BristolStoolChart } from '../../components/BristolStoolChart';
 import { Colors, Spacing, FontSize, BorderRadius, Shadows, FontFamily, Typography } from '../../constants/theme';
 import { updateTodayScore } from '../../lib/scoring';
 import { track, Events } from '../../lib/analytics';
+import { enqueue } from '../../lib/offline-queue';
 import { CheckInSuccessOverlay } from '../../components/CheckInSuccessOverlay';
 import { StreakPopup } from '../../components/StreakPopup';
+import * as StoreReview from 'expo-store-review';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const STREAK_MILESTONES = [7, 14, 30, 100, 180, 366];
 
@@ -83,6 +86,9 @@ function PillSlider({ value, onChange, labels }: {
                 onChange(v);
               }}
               activeOpacity={0.7}
+              accessibilityRole="button"
+              accessibilityLabel={`${labels[v - 1]}, level ${v} of 5`}
+              accessibilityState={{ selected: isSelected }}
             >
               <Text style={[
                 styles.pillText,
@@ -111,7 +117,7 @@ export default function CheckinScreen() {
   const [waterGlasses, setWaterGlasses] = useState(0);
   const [note, setNote] = useState('');
   const [loading, setLoading] = useState(false);
-  const [toast, setToast] = useState({ visible: false, message: '', type: 'success' as 'success' | 'error' });
+  const [toast, setToast] = useState({ visible: false, message: '', type: 'success' as 'success' | 'error' | 'info' });
   const [showSuccess, setShowSuccess] = useState(false);
   const [savedScore, setSavedScore] = useState<number | null>(null);
   const [currentStreak, setCurrentStreak] = useState(0);
@@ -156,6 +162,29 @@ export default function CheckinScreen() {
     setLoading(false);
 
     if (error) {
+      // Network error — queue offline and let the user continue
+      if (error.message?.includes('network') || error.message?.includes('Network') || error.code === 'PGRST301' || !error.code) {
+        await enqueue('check_ins', {
+          user_id: user.id,
+          stool_type: stoolType,
+          bloating,
+          pain,
+          energy,
+          mood,
+          water_intake: waterGlasses,
+          note: note.trim() || null,
+        });
+        setToast({ visible: true, message: 'Saved offline — will sync when connected', type: 'info' });
+        setShowSuccess(true);
+        setStoolType(null);
+        setBloating(1);
+        setPain(1);
+        setEnergy(3);
+        setMood(null);
+        setWaterGlasses(0);
+        setNote('');
+        return;
+      }
       setToast({ visible: true, message: 'Failed to save check-in', type: 'error' });
     } else {
       const freshScore = await updateTodayScore(user.id).catch(() => null);
@@ -176,6 +205,24 @@ export default function CheckinScreen() {
         track(Events.STREAK_MILESTONE, { streak: newStreak });
         // Delay streak popup until after success overlay dismisses
         setTimeout(() => setShowStreakPopup(true), 2500);
+
+        // Prompt for App Store review once after a meaningful milestone (7 or 30 days)
+        if (newStreak === 7 || newStreak === 30) {
+          setTimeout(async () => {
+            try {
+              const alreadyPrompted = await AsyncStorage.getItem('rate_app_prompted');
+              if (!alreadyPrompted) {
+                const isAvailable = await StoreReview.isAvailableAsync();
+                if (isAvailable) {
+                  await StoreReview.requestReview();
+                }
+                await AsyncStorage.setItem('rate_app_prompted', 'true');
+              }
+            } catch {
+              // Silently fail — review prompt is non-critical
+            }
+          }, 4500); // 2s after streak popup shows (2500 + 2000)
+        }
       }
 
       setShowSuccess(true);

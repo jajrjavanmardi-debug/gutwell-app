@@ -7,6 +7,7 @@ import { StatusBar } from 'expo-status-bar';
 import { router } from 'expo-router';
 import * as Notifications from 'expo-notifications';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as Sentry from '@sentry/react-native';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import { FontFamily } from '../../constants/theme';
@@ -71,7 +72,9 @@ export default function NotificationsScreen() {
         Animated.timing(celebrationFade, { toValue: 1, duration: 400, useNativeDriver: true }),
       ]).start();
       setTimeout(() => router.replace('/(tabs)'), 1800);
-    } catch {
+    } catch (error) {
+      console.warn('Onboarding profile save failed:', error);
+      Sentry.captureException(error, { tags: { context: 'onboarding_complete' } });
       router.replace('/(tabs)');
     }
   };

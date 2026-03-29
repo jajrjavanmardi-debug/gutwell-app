@@ -2,6 +2,7 @@ import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { View, Text, StyleSheet, ScrollView, RefreshControl, TouchableOpacity, Alert, Animated, Easing } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
+import * as Haptics from 'expo-haptics';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
@@ -85,7 +86,7 @@ export default function HomeScreen() {
     return 'Good evening';
   };
 
-  const displayName = profile?.display_name || 'there';
+  const displayName = profile?.display_name?.split(' ')[0] || 'there';
 
   // Date display values for center header block
   const now = new Date();
@@ -349,8 +350,9 @@ export default function HomeScreen() {
         <View style={styles.headerRow}>
           {/* LEFT: greeting + name */}
           <View style={styles.greetingBlock}>
-            <Text style={styles.greeting}>{greeting()},</Text>
-            <Text style={styles.name}>{displayName}</Text>
+            <Text style={styles.greeting}>
+              {greeting()}, <Text style={styles.nameInline}>{displayName}</Text>
+            </Text>
           </View>
 
           {/* CENTER: day name + date */}
@@ -403,6 +405,8 @@ export default function HomeScreen() {
                 style={styles.streakRow}
                 onPress={() => setStreakPopupVisible(true)}
                 activeOpacity={0.75}
+                accessibilityRole="button"
+                accessibilityLabel={`${streak} day streak, view details`}
               >
                 <Ionicons name="flame" size={16} color={Colors.accent} />
                 <Text style={styles.streakText}>{streak} day streak</Text>
@@ -414,6 +418,8 @@ export default function HomeScreen() {
                 style={[styles.streakRow, styles.streakRowNew]}
                 onPress={() => setStreakPopupVisible(true)}
                 activeOpacity={0.75}
+                accessibilityRole="button"
+                accessibilityLabel="Start your streak"
               >
                 <Ionicons name="flame-outline" size={16} color={Colors.textTertiary} />
                 <Text style={[styles.streakText, styles.streakTextNew]}>Start your streak</Text>
@@ -478,7 +484,7 @@ export default function HomeScreen() {
             <>
               <View style={styles.sectionRow}>
                 <Text style={styles.sectionTitle}>Recent Activity</Text>
-                <TouchableOpacity onPress={() => router.push('/(tabs)/progress')}>
+                <TouchableOpacity onPress={() => router.push('/(tabs)/progress')} accessibilityRole="button" accessibilityLabel="See all recent activity">
                   <Text style={styles.seeAllLink}>See all</Text>
                 </TouchableOpacity>
               </View>
@@ -491,6 +497,8 @@ export default function HomeScreen() {
                     style={styles.timelineItem}
                     onPress={() => handleEntryPress(entry)}
                     activeOpacity={0.72}
+                    accessibilityRole="button"
+                    accessibilityLabel={`${entry.label}, ${entry.time}`}
                   >
                     <View style={styles.timelineDotWrap}>
                       <View style={[styles.timelineDot, { backgroundColor: entryColor(entry.type) }]} />
@@ -550,7 +558,7 @@ export default function HomeScreen() {
 
           {/* Daily Tip */}
           <View style={styles.dailyTipWrap}>
-            <DailyTip />
+            <DailyTip gutConcern={profile?.gut_concern} goal={profile?.goal} />
           </View>
         </>
         )}
@@ -581,7 +589,7 @@ function QuickAction({ icon, label, color, bgTint, onPress }: {
   onPress: () => void;
 }) {
   return (
-    <PressableFeedback onPress={onPress} style={styles.actionCardWrapper}>
+    <PressableFeedback onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); onPress(); }} style={styles.actionCardWrapper} accessibilityRole="button" accessibilityLabel={label}>
       <View style={[styles.actionCard, { backgroundColor: bgTint }]}>
         <View style={[styles.actionIcon, { backgroundColor: color + '18' }]}>
           <Ionicons name={icon} size={26} color={color} />
@@ -627,7 +635,7 @@ const styles = StyleSheet.create({
   // ── Header (3-column) ────────────────────────────────
   headerRow: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
+    alignItems: 'center',
     marginBottom: Spacing.xl,
   },
   greetingBlock: {
@@ -635,22 +643,17 @@ const styles = StyleSheet.create({
   },
   greeting: {
     fontFamily: FontFamily.displayRegular,
-    fontSize: FontSize.xl,
+    fontSize: FontSize.lg,
     color: Colors.textSecondary,
-    lineHeight: 28,
+    lineHeight: 24,
   },
-  name: {
+  nameInline: {
     fontFamily: FontFamily.displayBold,
-    fontSize: FontSize.hero,
     color: Colors.text,
-    lineHeight: 42,
-    marginTop: 2,
   },
   dateBlock: {
     flex: 1,
     alignItems: 'center',
-    justifyContent: 'flex-end',
-    paddingTop: 4,
   },
   dateDayText: {
     fontFamily: FontFamily.displayMedium,

@@ -178,6 +178,9 @@ function BristolCell({
       ]}
       onPress={onPress}
       activeOpacity={0.72}
+      accessibilityRole="button"
+      accessibilityLabel={`Select stool type ${type}, ${desc}${ideal ? ', ideal' : ''}`}
+      accessibilityState={{ selected: isSelected }}
     >
       {/* SVG visual centered */}
       <View style={styles.svgWrapper}>{VISUAL_MAP[type]}</View>

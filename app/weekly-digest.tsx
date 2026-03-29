@@ -5,6 +5,7 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
+  RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -13,6 +14,9 @@ import { router } from 'expo-router';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
 import { LoadingSkeleton } from '../components/ui/LoadingSkeleton';
+import { ShareCard, ShareCardProps } from '../components/ShareCard';
+import { calculateLevel } from '../lib/levels';
+import { EmptyState } from '../components/ui/EmptyState';
 import { Colors, Spacing, FontSize, BorderRadius, Shadows, FontFamily } from '../constants/theme';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -63,6 +67,8 @@ export default function WeeklyDigestScreen() {
   const { user } = useAuth();
   const [data, setData] = useState<DigestData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [showShareCard, setShowShareCard] = useState(false);
 
   const loadDigest = useCallback(async () => {
     if (!user) return;
@@ -210,6 +216,12 @@ export default function WeeklyDigestScreen() {
 
   useEffect(() => { loadDigest(); }, [loadDigest]);
 
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await loadDigest();
+    setRefreshing(false);
+  };
+
   const getScoreColor = (score: number | null) => {
     if (score == null) return Colors.textTertiary;
     if (score >= 70) return Colors.secondary;
@@ -233,10 +245,22 @@ export default function WeeklyDigestScreen() {
           <Ionicons name="chevron-back" size={22} color={Colors.text} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Weekly Digest</Text>
-        <View style={{ width: 40 }} />
+        <TouchableOpacity
+          style={styles.closeBtn}
+          onPress={() => setShowShareCard(true)}
+          disabled={!data}
+        >
+          <Ionicons name="share-outline" size={20} color={data ? Colors.text : Colors.textTertiary} />
+        </TouchableOpacity>
       </View>
 
-      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={styles.scroll}
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.secondary} />
+        }
+      >
         {isLoading ? (
           <>
             <LoadingSkeleton height={200} borderRadius={BorderRadius.xl} style={{ marginBottom: Spacing.md }} />
@@ -393,15 +417,29 @@ export default function WeeklyDigestScreen() {
 
             {/* No Data State */}
             {data.checkInCount === 0 && data.mealsLogged === 0 && (
-              <View style={styles.emptyCard}>
-                <Ionicons name="calendar-outline" size={40} color={Colors.textTertiary} />
-                <Text style={styles.emptyTitle}>Check back after your first full week of tracking</Text>
-                <Text style={styles.emptySubtext}>Start checking in daily to see your weekly digest here.</Text>
-              </View>
+              <EmptyState
+                icon="calendar-outline"
+                title="Check back after your first full week of tracking"
+                message="Start checking in daily to see your weekly digest here."
+              />
             )}
           </>
         ) : null}
       </ScrollView>
+
+      {/* Share Card Modal */}
+      <ShareCard
+        visible={showShareCard}
+        score={data?.avgScore ?? null}
+        streak={data?.streak ?? 0}
+        level={calculateLevel(0).name}
+        weekTrend={
+          data?.scoreDiff != null
+            ? data.scoreDiff > 0 ? 'up' : data.scoreDiff < 0 ? 'down' : 'flat'
+            : undefined
+        }
+        onClose={() => setShowShareCard(false)}
+      />
     </SafeAreaView>
   );
 }
@@ -677,27 +715,4 @@ const styles = StyleSheet.create({
     color: Colors.textTertiary,
   },
 
-  // ── Empty ──
-  emptyCard: {
-    alignItems: 'center',
-    backgroundColor: Colors.surface,
-    borderRadius: BorderRadius.lg,
-    padding: Spacing.xl,
-    gap: Spacing.sm,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    marginBottom: Spacing.lg,
-  },
-  emptyTitle: {
-    fontFamily: FontFamily.sansSemiBold,
-    fontSize: FontSize.md,
-    color: Colors.textSecondary,
-    textAlign: 'center',
-  },
-  emptySubtext: {
-    fontFamily: FontFamily.sansRegular,
-    fontSize: FontSize.sm,
-    color: Colors.textTertiary,
-    textAlign: 'center',
-  },
 });
