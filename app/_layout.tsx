@@ -1,10 +1,11 @@
-import { useEffect, useCallback } from 'react';
+import { useEffect, useCallback, useState } from 'react';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { AuthProvider, useAuth } from '../contexts/AuthContext';
 import { View, ActivityIndicator, StyleSheet, Text } from 'react-native';
 import { Colors, FontFamily } from '../constants/theme';
 import { syncReminders } from '../lib/notifications';
+import { HealthDisclaimerModal, hasAcceptedDisclaimer } from '../components/HealthDisclaimerModal';
 import { useFonts } from 'expo-font';
 import {
   EBGaramond_400Regular,
@@ -19,7 +20,16 @@ import {
   Inter_700Bold,
   Inter_800ExtraBold,
 } from '@expo-google-fonts/inter';
+import * as Sentry from '@sentry/react-native';
+import { initAnalytics, identifyUser } from '../lib/analytics';
 import * as SplashScreen from 'expo-splash-screen';
+
+// Initialize Sentry for crash reporting
+Sentry.init({
+  dsn: process.env.EXPO_PUBLIC_SENTRY_DSN,
+  tracesSampleRate: 0.2,
+  enabled: !__DEV__,
+});
 
 SplashScreen.preventAutoHideAsync();
 
@@ -27,11 +37,22 @@ function RootLayoutNav() {
   const { session, loading, profile } = useAuth();
   const segments = useSegments();
   const router = useRouter();
+  const [showDisclaimer, setShowDisclaimer] = useState(false);
 
-  // Sync reminders when user is authenticated
+  // Check health disclaimer after entering tabs
+  useEffect(() => {
+    if (session && profile?.onboarding_completed) {
+      hasAcceptedDisclaimer().then((accepted) => {
+        if (!accepted) setShowDisclaimer(true);
+      });
+    }
+  }, [session, profile?.onboarding_completed]);
+
+  // Sync reminders + identify user for analytics when authenticated
   useEffect(() => {
     if (session?.user?.id) {
       syncReminders(session.user.id).catch(console.warn);
+      identifyUser(session.user.id);
     }
   }, [session?.user?.id]);
 
@@ -69,6 +90,7 @@ function RootLayoutNav() {
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="log-symptom" options={{ presentation: 'modal' }} />
         <Stack.Screen name="privacy-policy" options={{ presentation: 'modal' }} />
+        <Stack.Screen name="terms-of-service" options={{ presentation: 'modal' }} />
         <Stack.Screen name="reminders" options={{ presentation: 'modal' }} />
         <Stack.Screen name="scan-food" options={{ presentation: 'modal' }} />
         <Stack.Screen name="weekly-digest" options={{ presentation: 'modal' }} />
@@ -76,11 +98,15 @@ function RootLayoutNav() {
         <Stack.Screen name="edit-checkin" options={{ title: 'Edit Check-in', presentation: 'modal' }} />
         <Stack.Screen name="paywall" options={{ title: 'GutWell Premium', presentation: 'modal', headerShown: false }} />
       </Stack>
+      <HealthDisclaimerModal
+        visible={showDisclaimer}
+        onAccept={() => setShowDisclaimer(false)}
+      />
     </>
   );
 }
 
-export default function RootLayout() {
+function RootLayout() {
   const [fontsLoaded, fontError] = useFonts({
     EBGaramond_400Regular,
     EBGaramond_500Medium,
@@ -101,6 +127,7 @@ export default function RootLayout() {
 
   useEffect(() => {
     onLayoutRootView();
+    initAnalytics();
   }, [onLayoutRootView]);
 
   if (!fontsLoaded && !fontError) {
@@ -117,6 +144,8 @@ export default function RootLayout() {
     </AuthProvider>
   );
 }
+
+export default Sentry.wrap(RootLayout);
 
 const styles = StyleSheet.create({
   loading: {

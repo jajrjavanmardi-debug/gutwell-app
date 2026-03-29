@@ -8,7 +8,7 @@ import {
   ScrollView,
   TouchableOpacity,
 } from 'react-native';
-import { Link } from 'expo-router';
+import { Link, router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -25,6 +25,7 @@ export default function SignupScreen() {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [termsAccepted, setTermsAccepted] = useState(false);
   const [toast, setToast] = useState({ visible: false, message: '', type: 'error' as 'success' | 'error' });
 
   const handleSignup = async () => {
@@ -38,6 +39,10 @@ export default function SignupScreen() {
     }
     if (password.length < 6) {
       setToast({ visible: true, message: 'Password must be at least 6 characters', type: 'error' });
+      return;
+    }
+    if (!termsAccepted) {
+      setToast({ visible: true, message: 'Please accept the Terms of Service', type: 'error' });
       return;
     }
     setLoading(true);
@@ -118,6 +123,33 @@ export default function SignupScreen() {
               onChangeText={setConfirmPassword}
               secureTextEntry
             />
+            {/* Terms checkbox */}
+            <TouchableOpacity
+              style={styles.termsRow}
+              onPress={() => setTermsAccepted(!termsAccepted)}
+              activeOpacity={0.7}
+            >
+              <View style={[styles.checkbox, termsAccepted && styles.checkboxChecked]}>
+                {termsAccepted && <Ionicons name="checkmark" size={14} color="#FFFFFF" />}
+              </View>
+              <Text style={styles.termsText}>
+                I agree to the{' '}
+                <Text
+                  style={styles.termsLink}
+                  onPress={() => router.push('/terms-of-service')}
+                >
+                  Terms of Service
+                </Text>
+                {' '}and{' '}
+                <Text
+                  style={styles.termsLink}
+                  onPress={() => router.push('/privacy-policy')}
+                >
+                  Privacy Policy
+                </Text>
+              </Text>
+            </TouchableOpacity>
+
             <Button
               title="Create Account"
               onPress={handleSignup}
@@ -230,6 +262,39 @@ const styles = StyleSheet.create({
   signinLink: {
     fontFamily: FontFamily.sansSemiBold,
     fontSize: FontSize.sm,
+    color: Colors.secondary,
+  },
+
+  // ── Terms checkbox ──
+  termsRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+    paddingVertical: 4,
+  },
+  checkbox: {
+    width: 22,
+    height: 22,
+    borderRadius: 6,
+    borderWidth: 2,
+    borderColor: Colors.border,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 1,
+  },
+  checkboxChecked: {
+    backgroundColor: Colors.secondary,
+    borderColor: Colors.secondary,
+  },
+  termsText: {
+    flex: 1,
+    fontFamily: FontFamily.sansRegular,
+    fontSize: FontSize.sm,
+    color: Colors.textSecondary,
+    lineHeight: 20,
+  },
+  termsLink: {
+    fontFamily: FontFamily.sansSemiBold,
     color: Colors.secondary,
   },
 });

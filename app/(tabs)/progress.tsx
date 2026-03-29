@@ -212,6 +212,27 @@ export default function ProgressScreen() {
           onClose={() => setShowShare(false)}
         />
 
+        {/* Empty state for new users */}
+        {!isLoading && checkInCount < 3 && (
+          <View style={styles.emptyState}>
+            <View style={styles.emptyIcon}>
+              <Ionicons name="leaf-outline" size={36} color={Colors.secondary} />
+            </View>
+            <Text style={styles.emptyTitle}>Patterns take shape with data</Text>
+            <Text style={styles.emptySubtitle}>
+              Keep checking in — trends and correlations appear after about 7 days of daily logging.
+            </Text>
+            <TouchableOpacity
+              style={styles.emptyButton}
+              onPress={() => router.push('/(tabs)/checkin')}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="body-outline" size={18} color="#FFFFFF" />
+              <Text style={styles.emptyButtonText}>Log Today's Check-in</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
         {/* Period Selector */}
         <View style={styles.periodContainer}>
           {(['W', 'M', '6M'] as Period[]).map(p => (
@@ -1047,5 +1068,54 @@ const styles = StyleSheet.create({
     fontFamily: FontFamily.sansMedium,
     fontSize: FontSize.sm,
     color: Colors.accent,
+  },
+
+  // ── Empty state ──
+  emptyState: {
+    alignItems: 'center',
+    paddingVertical: Spacing.xxl,
+    paddingHorizontal: Spacing.xl,
+    backgroundColor: Colors.surface,
+    borderRadius: BorderRadius.lg,
+    marginBottom: Spacing.lg,
+    ...Shadows.sm,
+  },
+  emptyIcon: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: Colors.secondary + '12',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: Spacing.md,
+  },
+  emptyTitle: {
+    fontFamily: FontFamily.displayBold,
+    fontSize: FontSize.xl,
+    color: Colors.text,
+    textAlign: 'center',
+    marginBottom: Spacing.sm,
+  },
+  emptySubtitle: {
+    fontFamily: FontFamily.sansRegular,
+    fontSize: FontSize.sm,
+    color: Colors.textSecondary,
+    textAlign: 'center',
+    lineHeight: 20,
+    marginBottom: Spacing.lg,
+  },
+  emptyButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    backgroundColor: Colors.primary,
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: 14,
+    borderRadius: 16,
+  },
+  emptyButtonText: {
+    fontFamily: FontFamily.sansSemiBold,
+    fontSize: FontSize.md,
+    color: '#FFFFFF',
   },
 });

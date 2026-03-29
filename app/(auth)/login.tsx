@@ -117,10 +117,25 @@ export default function LoginScreen() {
           {/* ── Dev login ── */}
           {__DEV__ && (
             <Button
-              title="Dev Login"
-              onPress={() => signIn('dev@gutwell.app', 'devpass123')}
+              title={loading ? 'Signing in…' : 'Dev Login'}
+              onPress={async () => {
+                setLoading(true);
+                const { error } = await signIn('dev@gutwell.app', 'devpass123');
+                setLoading(false);
+                if (error) {
+                  const isNetwork = /network|fetch|ECONNREFUSED/i.test(error.message);
+                  setToast({
+                    visible: true,
+                    type: 'error',
+                    message: isNetwork
+                      ? `${error.message}\n\nChecklist:\n• Set EXPO_PUBLIC_SUPABASE_URL in .env (no quotes)\n• npx expo start -c\n• Add dev@gutwell.app user in Supabase`
+                      : error.message,
+                  });
+                }
+              }}
               variant="ghost"
               size="sm"
+              loading={loading}
               style={{ marginTop: Spacing.lg }}
             />
           )}

@@ -2,8 +2,25 @@ import { createClient } from '@supabase/supabase-js';
 import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
 
-const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL!;
-const supabaseKey = process.env.EXPO_PUBLIC_SUPABASE_KEY!;
+function normalizeUrl(raw: string | undefined): string {
+  let url = (raw ?? '').trim().replace(/^['"]|['"]$/g, '');
+  if (url && !/^https?:\/\//i.test(url)) url = `https://${url}`;
+  url = url.replace(/\/+$/, '');
+  // Validate early so we get a clear error instead of "Network request failed"
+  try {
+    new URL(url);
+  } catch {
+    console.error(`[supabase] Invalid EXPO_PUBLIC_SUPABASE_URL: "${raw}"`);
+  }
+  return url;
+}
+
+function normalizeKey(raw: string | undefined): string {
+  return (raw ?? '').trim().replace(/^['"]|['"]$/g, '');
+}
+
+const supabaseUrl = normalizeUrl(process.env.EXPO_PUBLIC_SUPABASE_URL);
+const supabaseKey = normalizeKey(process.env.EXPO_PUBLIC_SUPABASE_KEY);
 
 // Secure storage adapter for auth tokens
 const SecureStoreAdapter = {

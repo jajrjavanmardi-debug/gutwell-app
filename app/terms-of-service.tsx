@@ -12,28 +12,40 @@ type SectionData = {
 
 const SECTIONS: SectionData[] = [
   {
-    title: '1. Data We Collect',
-    body: 'GutWell collects the data you voluntarily enter: check-in logs (stool type, bloating, pain, energy), food logs (meal names, meal types), symptom logs (type, severity), and basic account information (email, display name).',
+    title: '1. Usage Terms',
+    body: 'By creating an account and using GutWell, you agree to these Terms of Service. GutWell is intended for personal wellness tracking only. You must be at least 13 years old to use this app. You are responsible for maintaining the confidentiality of your account credentials.',
   },
   {
-    title: '2. How We Use Your Data',
-    body: 'Your data is used solely to provide the GutWell service \u2014 displaying your health trends, calculating your gut health score, and sending reminders you configure. We do not sell or share your personal health data with third parties.',
+    title: '2. Health Disclaimer',
+    body: 'GutWell is a wellness tracking application, not a medical device. The information, scores, correlations, and insights provided are for personal tracking purposes only and do not constitute medical advice, diagnosis, or treatment. Always seek the advice of a qualified healthcare professional with any questions regarding a medical condition. Never disregard professional medical advice or delay seeking it because of information provided by GutWell.',
   },
   {
-    title: '3. Data Storage & Security',
-    body: 'Your data is stored securely using Supabase (hosted on AWS) with encryption at rest and in transit. Row-level security ensures only you can access your data. Authentication tokens are stored in your device\u2019s secure storage.',
+    title: '3. Subscription Terms',
+    body: 'GutWell offers both free and premium subscription tiers. Premium subscriptions are billed through Apple\'s App Store. Payment is charged to your Apple ID account at confirmation of purchase. Subscriptions automatically renew unless cancelled at least 24 hours before the end of the current billing period. Your account will be charged for renewal within 24 hours prior to the end of the current period at the same rate.',
   },
   {
-    title: '4. Data Retention',
-    body: 'Your data is retained as long as your account is active. You can export your data at any time from the Profile screen. To delete your account and all associated data, contact support.',
+    title: '4. Cancellation Policy',
+    body: 'You may cancel your subscription at any time through your Apple ID account settings. Cancellation takes effect at the end of the current billing period. No refunds are provided for partial billing periods. Free features remain accessible after cancellation.',
   },
   {
-    title: '5. Your Rights',
-    body: 'You have the right to access, export, correct, or delete your personal data. You can exercise these rights through the app settings or by contacting us.',
+    title: '5. Limitation of Liability',
+    body: 'To the maximum extent permitted by law, Parallel Labs Pte. Ltd. shall not be liable for any indirect, incidental, special, consequential, or punitive damages, including but not limited to loss of data, health outcomes, or any reliance on information provided by the app. GutWell is provided "as is" without warranties of any kind.',
   },
   {
-    title: '6. Contact',
-    body: 'For privacy-related questions, contact us at support@theparallellab.com.',
+    title: '6. User Content',
+    body: 'You retain ownership of all data you enter into GutWell. By using the service, you grant us a limited license to process your data solely for the purpose of providing the GutWell service. We do not sell your personal health data to third parties. You may export or delete your data at any time.',
+  },
+  {
+    title: '7. Acceptable Use',
+    body: 'You agree not to misuse the service, including but not limited to: attempting to access other users\' data, reverse-engineering the app, using automated tools to interact with the service, or using GutWell for any unlawful purpose.',
+  },
+  {
+    title: '8. Changes to Terms',
+    body: 'We may update these terms from time to time. Continued use of the app after changes constitutes acceptance of the new terms. We will notify users of material changes through the app or via email.',
+  },
+  {
+    title: '9. Governing Law',
+    body: 'These Terms of Service are governed by the laws of the Republic of Singapore. Any disputes arising from or relating to these terms shall be subject to the exclusive jurisdiction of the courts of Singapore.',
   },
 ];
 
@@ -54,14 +66,12 @@ function CollapsibleSection({ section }: { section: SectionData }) {
           color={Colors.textSecondary}
         />
       </View>
-      {expanded && (
-        <Text style={styles.sectionBody}>{section.body}</Text>
-      )}
+      {expanded && <Text style={styles.sectionBody}>{section.body}</Text>}
     </TouchableOpacity>
   );
 }
 
-export default function PrivacyPolicyScreen() {
+export default function TermsOfServiceScreen() {
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       {/* Header */}
@@ -73,7 +83,7 @@ export default function PrivacyPolicyScreen() {
         >
           <Ionicons name="arrow-back" size={22} color={Colors.text} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Privacy Policy</Text>
+        <Text style={styles.headerTitle}>Terms of Service</Text>
         <View style={styles.headerSpacer} />
       </View>
 
@@ -81,22 +91,24 @@ export default function PrivacyPolicyScreen() {
         contentContainerStyle={styles.scroll}
         showsVerticalScrollIndicator={false}
       >
-        <Text style={styles.pageTitle}>Privacy Policy</Text>
+        <Text style={styles.pageTitle}>Terms of Service</Text>
         <Text style={styles.updated}>Last updated: March 2026</Text>
         <Text style={styles.intro}>
-          Your privacy matters to us. Tap each section below to learn how we handle your data.
+          Please review our terms below. Tap each section for details.
         </Text>
 
         {SECTIONS.map((section, i) => (
           <CollapsibleSection key={i} section={section} />
         ))}
 
-        {/* Contact Footer */}
-        <View style={styles.contactFooter}>
-          <Ionicons name="mail-outline" size={20} color={Colors.textSecondary} />
+        {/* Company Footer */}
+        <View style={styles.companyFooter}>
+          <Text style={styles.companyText}>
+            Parallel Labs Pte. Ltd.{'\n'}
+            Singapore
+          </Text>
           <Text style={styles.contactText}>
-            Questions? Reach us at{' '}
-            <Text style={styles.contactEmail}>support@theparallellab.com</Text>
+            support@theparallellab.com
           </Text>
         </View>
       </ScrollView>
@@ -157,8 +169,6 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     marginBottom: Spacing.lg,
   },
-
-  // Collapsible Sections
   sectionCard: {
     backgroundColor: Colors.surface,
     borderRadius: BorderRadius.lg,
@@ -186,26 +196,24 @@ const styles = StyleSheet.create({
     lineHeight: 22,
     marginTop: Spacing.md,
   },
-
-  // Contact Footer
-  contactFooter: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.sm,
+  companyFooter: {
     marginTop: Spacing.xl,
     paddingTop: Spacing.lg,
     borderTopWidth: 1,
     borderTopColor: Colors.divider,
+    alignItems: 'center',
+    gap: Spacing.xs,
   },
-  contactText: {
+  companyText: {
     fontFamily: FontFamily.sansRegular,
     fontSize: FontSize.sm,
-    color: Colors.textSecondary,
-    flex: 1,
+    color: Colors.textTertiary,
+    textAlign: 'center',
     lineHeight: 20,
   },
-  contactEmail: {
+  contactText: {
     fontFamily: FontFamily.sansSemiBold,
+    fontSize: FontSize.sm,
     color: Colors.primary,
   },
 });

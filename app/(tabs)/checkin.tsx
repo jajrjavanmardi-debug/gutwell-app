@@ -14,7 +14,11 @@ import { WaterTracker } from '../../components/WaterTracker';
 import { BristolStoolChart } from '../../components/BristolStoolChart';
 import { Colors, Spacing, FontSize, BorderRadius, Shadows, FontFamily, Typography } from '../../constants/theme';
 import { updateTodayScore } from '../../lib/scoring';
+import { track, Events } from '../../lib/analytics';
 import { CheckInSuccessOverlay } from '../../components/CheckInSuccessOverlay';
+import { StreakPopup } from '../../components/StreakPopup';
+
+const STREAK_MILESTONES = [7, 14, 30, 100, 180, 366];
 
 const SEVERITY_LABELS = ['None', 'Mild', 'Moderate', 'Strong', 'Severe'];
 const ENERGY_LABELS = ['Low', 'Below avg', 'Normal', 'Good', 'High'];
@@ -111,6 +115,7 @@ export default function CheckinScreen() {
   const [showSuccess, setShowSuccess] = useState(false);
   const [savedScore, setSavedScore] = useState<number | null>(null);
   const [currentStreak, setCurrentStreak] = useState(0);
+  const [showStreakPopup, setShowStreakPopup] = useState(false);
 
   // Section entrance animation
   const sectionFade = useRef(new Animated.Value(0)).current;
@@ -145,6 +150,7 @@ export default function CheckinScreen() {
       pain,
       energy,
       mood,
+      water_intake: waterGlasses,
       note: note.trim() || null,
     });
     setLoading(false);
@@ -154,6 +160,24 @@ export default function CheckinScreen() {
     } else {
       const freshScore = await updateTodayScore(user.id).catch(() => null);
       setSavedScore(freshScore);
+
+      // Check for streak milestones
+      const { data: streakData } = await supabase
+        .from('streaks')
+        .select('current_streak')
+        .eq('user_id', user.id)
+        .maybeSingle();
+      const newStreak = streakData?.current_streak || 0;
+      setCurrentStreak(newStreak);
+
+      track(Events.CHECKIN_LOGGED, { stool_type: stoolType, score: freshScore });
+
+      if (STREAK_MILESTONES.includes(newStreak)) {
+        track(Events.STREAK_MILESTONE, { streak: newStreak });
+        // Delay streak popup until after success overlay dismisses
+        setTimeout(() => setShowStreakPopup(true), 2500);
+      }
+
       setShowSuccess(true);
       setToast({ visible: true, message: 'Check-in saved!', type: 'success' });
       setStoolType(null);
@@ -282,6 +306,12 @@ export default function CheckinScreen() {
           setShowSuccess(false);
           router.push('/(tabs)/');
         }}
+      />
+      <StreakPopup
+        visible={showStreakPopup}
+        currentStreak={currentStreak}
+        streakState="milestone"
+        onClose={() => setShowStreakPopup(false)}
       />
     </SafeAreaView>
   );
