@@ -1,4 +1,4 @@
-import * as FileSystem from 'expo-file-system';
+import { cacheDirectory, writeAsStringAsync } from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 import { supabase } from './supabase';
 
@@ -38,8 +38,8 @@ export async function exportUserData(userId: string) {
 
   // Write to temp file
   const fileName = `gutwell-export-${new Date().toISOString().split('T')[0]}.csv`;
-  const filePath = `${FileSystem.cacheDirectory}${fileName}`;
-  await FileSystem.writeAsStringAsync(filePath, csv, { encoding: FileSystem.EncodingType.UTF8 });
+  const filePath = `${cacheDirectory}${fileName}`;
+  await writeAsStringAsync(filePath, csv, { encoding: 'utf8' });
 
   // Share
   if (await Sharing.isAvailableAsync()) {

@@ -4,7 +4,7 @@ import { StatusBar } from 'expo-status-bar';
 import { AuthProvider, useAuth } from '../contexts/AuthContext';
 import { View, ActivityIndicator, StyleSheet, Text } from 'react-native';
 import { Colors, FontFamily } from '../constants/theme';
-import { syncReminders } from '../lib/notifications';
+import { syncReminders, scheduleWeeklyDigestNotification } from '../lib/notifications';
 import { HealthDisclaimerModal, hasAcceptedDisclaimer } from '../components/HealthDisclaimerModal';
 import { useFonts } from 'expo-font';
 import {
@@ -54,6 +54,7 @@ function RootLayoutNav() {
   useEffect(() => {
     if (session?.user?.id) {
       syncReminders(session.user.id).catch(console.warn);
+      scheduleWeeklyDigestNotification().catch(console.warn);
       identifyUser(session.user.id);
     }
   }, [session?.user?.id]);

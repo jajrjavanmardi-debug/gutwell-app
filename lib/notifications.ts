@@ -69,6 +69,40 @@ export async function scheduleDailyCheckInReminder(
 
 const CHECKIN_REMINDER_ID_KEY = 'gut-checkin-reminder';
 const STREAK_ALERT_ID_KEY = 'gut-streak-alert';
+const WEEKLY_DIGEST_ID_KEY = 'gut-weekly-digest';
+
+// Schedule a weekly digest notification for Sunday mornings
+export async function scheduleWeeklyDigestNotification(
+  hour = 9,
+  minute = 0,
+): Promise<string | null> {
+  await cancelWeeklyDigestNotification();
+
+  const id = await Notifications.scheduleNotificationAsync({
+    identifier: WEEKLY_DIGEST_ID_KEY,
+    content: {
+      title: 'Your weekly gut health digest is ready',
+      body: 'See how your gut health trended this week.',
+      sound: true,
+      data: { screen: '/weekly-digest' },
+    },
+    trigger: {
+      type: Notifications.SchedulableTriggerInputTypes.WEEKLY,
+      weekday: 1, // Sunday
+      hour,
+      minute,
+    },
+  });
+  return id;
+}
+
+export async function cancelWeeklyDigestNotification(): Promise<void> {
+  try {
+    await Notifications.cancelScheduledNotificationAsync(WEEKLY_DIGEST_ID_KEY);
+  } catch {
+    // ignore if not found
+  }
+}
 
 export async function cancelDailyCheckInReminder(): Promise<void> {
   try {

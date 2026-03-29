@@ -14,6 +14,7 @@ import { WaterTracker } from '../../components/WaterTracker';
 import { BristolStoolChart } from '../../components/BristolStoolChart';
 import { Colors, Spacing, FontSize, BorderRadius, Shadows, FontFamily, Typography } from '../../constants/theme';
 import { updateTodayScore } from '../../lib/scoring';
+import { updateWidgetData, reloadWidget } from '../../lib/widget-data';
 import { track, Events } from '../../lib/analytics';
 import { enqueue } from '../../lib/offline-queue';
 import { CheckInSuccessOverlay } from '../../components/CheckInSuccessOverlay';
@@ -201,6 +202,13 @@ export default function CheckinScreen() {
 
       track(Events.CHECKIN_LOGGED, { stool_type: stoolType, score: freshScore });
 
+      // Update widget with latest data
+      updateWidgetData({
+        streak: newStreak,
+        gutScore: freshScore ?? 0,
+        lastCheckIn: 'Today',
+      }).then(reloadWidget).catch(() => {});
+
       if (STREAK_MILESTONES.includes(newStreak)) {
         track(Events.STREAK_MILESTONE, { streak: newStreak });
         // Delay streak popup until after success overlay dismisses
@@ -351,13 +359,15 @@ export default function CheckinScreen() {
         streak={currentStreak}
         onDone={() => {
           setShowSuccess(false);
-          router.push('/(tabs)/');
+          router.push('/(tabs)' as any);
         }}
       />
       <StreakPopup
         visible={showStreakPopup}
         currentStreak={currentStreak}
-        streakState="milestone"
+        bestStreak={currentStreak}
+        streakState="active"
+        completionRate={1}
         onClose={() => setShowStreakPopup(false)}
       />
     </SafeAreaView>

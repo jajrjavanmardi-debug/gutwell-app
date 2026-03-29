@@ -62,7 +62,15 @@
           }
         }
       ],
-      "@sentry/react-native"
+      "@sentry/react-native",
+      [
+        "react-native-widget-extension",
+        {
+          "widgetsFolder": "widgets",
+          "groupIdentifier": "group.com.parallellabs.gutwell",
+          "deploymentTarget": "16.0"
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,
