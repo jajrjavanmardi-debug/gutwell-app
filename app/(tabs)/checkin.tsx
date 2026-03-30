@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Animated } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Animated, KeyboardAvoidingView, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
@@ -247,6 +247,7 @@ export default function CheckinScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
         <Animated.View style={{ opacity: sectionFade }}>
         {/* Header */}
@@ -346,6 +347,7 @@ export default function CheckinScreen() {
         />
         </Animated.View>
       </ScrollView>
+      </KeyboardAvoidingView>
 
       <Toast
         message={toast.message}
@@ -359,7 +361,7 @@ export default function CheckinScreen() {
         streak={currentStreak}
         onDone={() => {
           setShowSuccess(false);
-          router.push('/(tabs)' as any);
+          router.replace('/(tabs)');
         }}
       />
       <StreakPopup

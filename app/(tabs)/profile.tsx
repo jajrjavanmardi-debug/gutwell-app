@@ -6,7 +6,6 @@ import {
   ScrollView,
   TouchableOpacity,
   Alert,
-  ActivityIndicator,
   Linking,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -29,6 +28,7 @@ import {
   FontFamily,
 } from '../../constants/theme';
 import { GutLevelBadge } from '../../components/GutLevelBadge';
+import { LoadingSkeleton } from '../../components/ui/LoadingSkeleton';
 import { calculatePoints } from '../../lib/levels';
 
 const AVATAR_COLORS = ['#1B4332', '#2D6A4F', '#40916C', '#52B788', '#74C69D'];
@@ -112,7 +112,7 @@ export default function ProfileScreen() {
               setToast({
                 visible: true,
                 message: 'Failed to delete account. Please try again.',
-                type: 'error' as any,
+                type: 'error',
               });
             } else {
               await signOut();
@@ -147,7 +147,7 @@ export default function ProfileScreen() {
       icon: 'flame',
       label: '7-Day Streak',
       desc: '7 consecutive days logged',
-      unlocked: (profile as any)?.total_points >= 50,
+      unlocked: (profile?.total_points ?? 0) >= 50,
     },
     {
       id: 'meals_10',
@@ -161,7 +161,7 @@ export default function ProfileScreen() {
       icon: 'trophy',
       label: 'Gut Champion',
       desc: 'Reached 100 points',
-      unlocked: ((profile as any)?.total_points || 0) >= 100,
+      unlocked: (profile?.total_points ?? 0) >= 100,
     },
   ];
 
@@ -186,7 +186,9 @@ export default function ProfileScreen() {
 
         {/* Level badge (compact) */}
         {loadingStats ? (
-          <ActivityIndicator size="small" color="#52B788" style={{ marginTop: 12 }} />
+          <View style={{ marginTop: 12 }}>
+            <LoadingSkeleton width={80} height={20} borderRadius={10} />
+          </View>
         ) : (
           <View style={{ marginTop: 12 }}>
             <GutLevelBadge totalPoints={totalPoints} compact />
@@ -210,7 +212,7 @@ export default function ProfileScreen() {
         {/* Gut Level (full badge) */}
         <Card style={styles.levelCard} variant="elevated">
           {loadingStats ? (
-            <ActivityIndicator size="small" color={Colors.secondary} />
+            <LoadingSkeleton width={80} height={20} borderRadius={10} />
           ) : (
             <GutLevelBadge totalPoints={totalPoints} />
           )}
@@ -232,7 +234,7 @@ export default function ProfileScreen() {
                   ]}
                 >
                   <Ionicons
-                    name={b.icon as any}
+                    name={b.icon as keyof typeof Ionicons.glyphMap}
                     size={22}
                     color={b.unlocked ? Colors.primary : Colors.textTertiary}
                   />
@@ -346,7 +348,7 @@ export default function ProfileScreen() {
 
       <Toast
         message={toast.message}
-        type={toast.type as any}
+        type={toast.type}
         visible={toast.visible}
         onDismiss={() => setToast((t) => ({ ...t, visible: false }))}
       />

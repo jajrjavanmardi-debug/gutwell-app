@@ -14,6 +14,7 @@ import { StreakPopup } from '../../components/StreakPopup';
 import { SparklineChart } from '../../components/SparklineChart';
 import { Colors, Spacing, FontSize, BorderRadius, Shadows, FontFamily, Typography } from '../../constants/theme';
 import { updateTodayScore } from '../../lib/scoring';
+import { scheduleStreakAtRiskAlert } from '../../lib/notifications';
 import { calculatePoints } from '../../lib/levels';
 import { ErrorState } from '../../components/ui/ErrorState';
 
@@ -98,12 +99,102 @@ export default function HomeScreen() {
     try {
 
     const today = new Date().toISOString().split('T')[0];
-    const { data: scoreData } = await supabase
-      .from('gut_scores')
-      .select('score')
-      .eq('user_id', user.id)
-      .eq('date', today)
-      .maybeSingle();
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    const yesterdayStr = yesterday.toISOString().split('T')[0];
+    const sevenDaysAgoSparkline = new Date();
+    sevenDaysAgoSparkline.setDate(sevenDaysAgoSparkline.getDate() - 6);
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6);
+    const sevenDaysAgoStr = sevenDaysAgo.toISOString().split('T')[0];
+
+    // ── Fetch all independent data in parallel ──────────────────────────────
+    const [
+      { data: scoreData },
+      { data: yData },
+      { data: weekData },
+      { data: streakData },
+      { data: recentCheckInDates },
+      { data: checkIns },
+      { count: totalCheckIns },
+      { count: totalFoodLogs },
+      { count: totalSymptomLogs },
+      { data: recentCheckins },
+      { data: recentFood },
+    ] = await Promise.all([
+      // Today's score
+      supabase
+        .from('gut_scores')
+        .select('score')
+        .eq('user_id', user.id)
+        .eq('date', today)
+        .maybeSingle(),
+      // Yesterday's score
+      supabase
+        .from('gut_scores')
+        .select('score')
+        .eq('user_id', user.id)
+        .eq('date', yesterdayStr)
+        .maybeSingle(),
+      // Last 7 days of gut scores for sparkline
+      supabase
+        .from('gut_scores')
+        .select('score, date')
+        .eq('user_id', user.id)
+        .gte('date', sevenDaysAgoSparkline.toISOString().split('T')[0])
+        .order('date', { ascending: true }),
+      // Streak data
+      supabase
+        .from('streaks')
+        .select('current_streak, best_streak')
+        .eq('user_id', user.id)
+        .maybeSingle(),
+      // Last 7 days of check-ins for weekly completions
+      supabase
+        .from('check_ins')
+        .select('entry_date')
+        .eq('user_id', user.id)
+        .gte('entry_date', sevenDaysAgoStr)
+        .order('entry_date', { ascending: true }),
+      // Fallback streak check-ins
+      supabase
+        .from('check_ins')
+        .select('entry_date')
+        .eq('user_id', user.id)
+        .order('entry_date', { ascending: false })
+        .limit(30),
+      // Total check-ins count
+      supabase
+        .from('check_ins')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', user.id),
+      // Total food logs count
+      supabase
+        .from('food_logs')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', user.id),
+      // Total symptom logs count
+      supabase
+        .from('symptoms')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', user.id),
+      // Recent check-ins
+      supabase
+        .from('check_ins')
+        .select('id, stool_type, created_at')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(3),
+      // Recent food logs
+      supabase
+        .from('food_logs')
+        .select('id, meal_name, logged_at')
+        .eq('user_id', user.id)
+        .order('logged_at', { ascending: false })
+        .limit(3),
+    ]);
+
+    // ── Today's score (may need recomputation) ──────────────────────────────
     if (scoreData?.score != null) {
       setGutScore(scoreData.score);
     } else {
@@ -124,56 +215,22 @@ export default function HomeScreen() {
       }
     }
 
-    // ── Yesterday's score for trend display ─────────────────────────────────
-    const yesterday = new Date();
-    yesterday.setDate(yesterday.getDate() - 1);
-    const yesterdayStr = yesterday.toISOString().split('T')[0];
-    const { data: yData } = await supabase
-      .from('gut_scores')
-      .select('score')
-      .eq('user_id', user.id)
-      .eq('date', yesterdayStr)
-      .maybeSingle();
+    // ── Yesterday's score ───────────────────────────────────────────────────
     setYesterdayScore(yData?.score ?? null);
 
-    // ── Last 7 days of gut scores for sparkline ──────────────────────────────
-    const sevenDaysAgoSparkline = new Date();
-    sevenDaysAgoSparkline.setDate(sevenDaysAgoSparkline.getDate() - 6);
-    const { data: weekData } = await supabase
-      .from('gut_scores')
-      .select('score, date')
-      .eq('user_id', user.id)
-      .gte('date', sevenDaysAgoSparkline.toISOString().split('T')[0])
-      .order('date', { ascending: true });
+    // ── Sparkline scores ────────────────────────────────────────────────────
     if (weekData && weekData.length >= 2) {
       setWeekScores(weekData.map(d => d.score));
     }
 
-    // ── Streak data from streaks table ──────────────────────────────────────
-    const { data: streakData } = await supabase
-      .from('streaks')
-      .select('current_streak, best_streak')
-      .eq('user_id', user.id)
-      .maybeSingle();
-
+    // ── Streak data ─────────────────────────────────────────────────────────
     const currentStreak = streakData?.current_streak ?? 0;
     const fetchedBestStreak = streakData?.best_streak ?? 0;
     setStreak(currentStreak);
     setBestStreak(fetchedBestStreak);
 
-    // ── Last 7 days of check-ins for weekly completions ──────────────────────
-    const sevenDaysAgo = new Date();
-    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6);
-    const sevenDaysAgoStr = sevenDaysAgo.toISOString().split('T')[0];
-
-    const { data: recentCheckInDates } = await supabase
-      .from('check_ins')
-      .select('check_date')
-      .eq('user_id', user.id)
-      .gte('check_date', sevenDaysAgoStr)
-      .order('check_date', { ascending: true });
-
-    const checkedDates = new Set((recentCheckInDates ?? []).map((r: { check_date: string }) => r.check_date));
+    // ── Weekly completions ──────────────────────────────────────────────────
+    const checkedDates = new Set((recentCheckInDates ?? []).map((r: { entry_date: string }) => r.entry_date));
 
     const todayDate = new Date();
     const weekly = Array.from({ length: 7 }, (_, i) => {
@@ -183,18 +240,15 @@ export default function HomeScreen() {
     });
     setWeeklyCompletions(weekly);
 
-    // Completion rate = days checked in over last 7
     const checkedCount = weekly.filter(Boolean).length;
     setCompletionRate(checkedCount / 7);
 
-    // Fallback streak calculation from check_ins table if streaks table missing
-    const { data: checkIns } = await supabase
-      .from('check_ins')
-      .select('entry_date')
-      .eq('user_id', user.id)
-      .order('entry_date', { ascending: false })
-      .limit(30);
+    // ── Streak-at-risk notification ─────────────────────────────────────────
+    if (currentStreak > 0 && !checkedDates.has(today)) {
+      scheduleStreakAtRiskAlert(currentStreak).catch(() => {});
+    }
 
+    // ── Fallback streak calculation ─────────────────────────────────────────
     if (!streakData && checkIns && checkIns.length > 0) {
       const todayDate = new Date();
       let fallbackStreak = 0;
@@ -211,22 +265,7 @@ export default function HomeScreen() {
       setStreak(fallbackStreak);
     }
 
-    // Fetch counts for level points calculation
-    const { count: totalCheckIns } = await supabase
-      .from('check_ins')
-      .select('id', { count: 'exact', head: true })
-      .eq('user_id', user.id);
-
-    const { count: totalFoodLogs } = await supabase
-      .from('food_logs')
-      .select('id', { count: 'exact', head: true })
-      .eq('user_id', user.id);
-
-    const { count: totalSymptomLogs } = await supabase
-      .from('symptoms')
-      .select('id', { count: 'exact', head: true })
-      .eq('user_id', user.id);
-
+    // ── Level points ────────────────────────────────────────────────────────
     const points = calculatePoints({
       checkIns: totalCheckIns || 0,
       foodLogs: totalFoodLogs || 0,
@@ -235,14 +274,8 @@ export default function HomeScreen() {
     });
     setTotalPoints(points);
 
+    // ── Recent entries ──────────────────────────────────────────────────────
     const entries: RecentEntry[] = [];
-
-    const { data: recentCheckins } = await supabase
-      .from('check_ins')
-      .select('id, stool_type, created_at')
-      .eq('user_id', user.id)
-      .order('created_at', { ascending: false })
-      .limit(3);
 
     recentCheckins?.forEach(c => {
       entries.push({
@@ -253,13 +286,6 @@ export default function HomeScreen() {
         sortKey: c.created_at,
       });
     });
-
-    const { data: recentFood } = await supabase
-      .from('food_logs')
-      .select('id, meal_name, logged_at')
-      .eq('user_id', user.id)
-      .order('logged_at', { ascending: false })
-      .limit(3);
 
     recentFood?.forEach(f => {
       entries.push({

@@ -17,9 +17,9 @@ export async function exportUserData(userId: string) {
 
   // Check-ins
   csv += '=== CHECK-INS ===\n';
-  csv += 'Date,Stool Type,Bloating,Pain,Energy,Note\n';
+  csv += 'Date,Stool Type,Bloating,Pain,Energy,Mood,Water Intake,Note\n';
   (checkIns.data || []).forEach(c => {
-    csv += `${c.entry_date},${c.stool_type},${c.bloating || ''},${c.pain || ''},${c.energy || ''},"${(c.note || '').replace(/"/g, '""')}"\n`;
+    csv += `${c.entry_date},${c.stool_type},${c.bloating || ''},${c.pain || ''},${c.energy || ''},${c.mood || ''},${c.water_intake || 0},"${(c.note || '').replace(/"/g, '""')}"\n`;
   });
 
   // Food logs

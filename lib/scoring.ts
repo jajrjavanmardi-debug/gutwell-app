@@ -33,15 +33,36 @@ export async function calculateGutScore(
   let energyComponent = 0;
   let moodComponent = 0;
 
-  // 1. Check-in data for the day
-  const { data: checkIn } = await supabase
-    .from('check_ins')
-    .select('stool_type, bloating, pain, energy, mood')
-    .eq('user_id', userId)
-    .eq('entry_date', date)
-    .order('created_at', { ascending: false })
-    .limit(1)
-    .maybeSingle();
+  // Compute the week-ago date before firing queries
+  const weekAgo = new Date(date);
+  weekAgo.setDate(weekAgo.getDate() - 7);
+
+  // 1-3. Run all three independent DB calls in parallel
+  const [{ data: checkIn }, { count: symptomCount }, { count: weeklyCheckIns }] = await Promise.all([
+    // 1. Check-in data for the day
+    supabase
+      .from('check_ins')
+      .select('stool_type, bloating, pain, energy, mood')
+      .eq('user_id', userId)
+      .eq('entry_date', date)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+    // 2. Symptom count for the day
+    supabase
+      .from('symptoms')
+      .select('id', { count: 'exact', head: true })
+      .eq('user_id', userId)
+      .gte('logged_at', `${date}T00:00:00`)
+      .lte('logged_at', `${date}T23:59:59.999`),
+    // 3. Regularity bonus: check-ins in the last 7 days
+    supabase
+      .from('check_ins')
+      .select('id', { count: 'exact', head: true })
+      .eq('user_id', userId)
+      .gte('entry_date', weekAgo.toISOString().split('T')[0])
+      .lte('entry_date', date),
+  ]);
 
   if (checkIn) {
     // Stool type score: 4 is ideal (25 pts), 3 and 5 are good (20 pts), etc.
@@ -75,26 +96,8 @@ export async function calculateGutScore(
     }
   }
 
-  // 2. Symptom count for the day
-  const { count: symptomCount } = await supabase
-    .from('symptoms')
-    .select('id', { count: 'exact', head: true })
-    .eq('user_id', userId)
-    .gte('logged_at', `${date}T00:00:00`)
-    .lte('logged_at', `${date}T23:59:59.999`);
-
   const symptomPenalty = symptomCount ? symptomCount * -5 : 0;
   score += symptomPenalty;
-
-  // 3. Regularity bonus: if user has checked in 5+ of the last 7 days
-  const weekAgo = new Date(date);
-  weekAgo.setDate(weekAgo.getDate() - 7);
-  const { count: weeklyCheckIns } = await supabase
-    .from('check_ins')
-    .select('id', { count: 'exact', head: true })
-    .eq('user_id', userId)
-    .gte('entry_date', weekAgo.toISOString().split('T')[0])
-    .lte('entry_date', date);
 
   const regularityBonus = weeklyCheckIns && weeklyCheckIns >= 5 ? 5 : 0;
   score += regularityBonus;

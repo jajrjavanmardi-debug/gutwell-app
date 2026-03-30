@@ -20,6 +20,7 @@ import {
   Inter_700Bold,
   Inter_800ExtraBold,
 } from '@expo-google-fonts/inter';
+import * as Notifications from 'expo-notifications';
 import NetInfo from '@react-native-community/netinfo';
 import * as Sentry from '@sentry/react-native';
 import { initAnalytics, identifyUser } from '../lib/analytics';
@@ -88,6 +89,17 @@ function RootLayoutNav() {
       router.replace('/(tabs)');
     }
   }, [session, loading, profile]);
+
+  // Deep-link into the correct screen when user taps a notification
+  useEffect(() => {
+    const subscription = Notifications.addNotificationResponseReceivedListener(response => {
+      const screen = response.notification.request.content.data?.screen;
+      if (screen && typeof screen === 'string') {
+        router.push(screen as any);
+      }
+    });
+    return () => subscription.remove();
+  }, [router]);
 
   if (loading) {
     return (
