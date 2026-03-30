@@ -1,8 +1,31 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
+import { createClient } from "jsr:@supabase/supabase-js@2";
 
 const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
 const GEMINI_URL =
   "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent";
+
+const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
+const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
+
+// --- Rate limiting (in-memory, IP-based, 10 req/min) ---
+const RATE_LIMIT_WINDOW_MS = 60_000;
+const RATE_LIMIT_MAX = 10;
+const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
+
+function isRateLimited(ip: string): boolean {
+  const now = Date.now();
+  const entry = rateLimitMap.get(ip);
+  if (!entry || now >= entry.resetAt) {
+    rateLimitMap.set(ip, { count: 1, resetAt: now + RATE_LIMIT_WINDOW_MS });
+    return false;
+  }
+  entry.count++;
+  return entry.count > RATE_LIMIT_MAX;
+}
+
+// Max base64 image size: 10 MB
+const MAX_IMAGE_SIZE = 10 * 1024 * 1024;
 
 const SYSTEM_PROMPT = `You are a gut health nutrition analyst. Analyze this food photo and identify every food item visible.
 
@@ -43,6 +66,44 @@ Deno.serve(async (req: Request) => {
     });
   }
 
+  // --- 1. Auth verification ---
+  const authHeader = req.headers.get("authorization");
+  if (!authHeader) {
+    return new Response(
+      JSON.stringify({ error: "Missing authorization" }),
+      { status: 401, headers: { "Content-Type": "application/json" } },
+    );
+  }
+
+  const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+    global: { headers: { Authorization: authHeader } },
+  });
+
+  const {
+    data: { user },
+    error: authError,
+  } = await supabase.auth.getUser();
+
+  if (authError || !user) {
+    return new Response(
+      JSON.stringify({ error: "Invalid or expired token" }),
+      { status: 401, headers: { "Content-Type": "application/json" } },
+    );
+  }
+
+  // --- 3. Rate limiting ---
+  const clientIp =
+    req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
+    req.headers.get("x-real-ip") ??
+    "unknown";
+
+  if (isRateLimited(clientIp)) {
+    return new Response(
+      JSON.stringify({ error: "Rate limit exceeded. Try again later." }),
+      { status: 429, headers: { "Content-Type": "application/json" } },
+    );
+  }
+
   if (!GEMINI_API_KEY) {
     return new Response(
       JSON.stringify({ error: "GEMINI_API_KEY not configured" }),
@@ -60,34 +121,42 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    // Call Gemini Vision API
-    const geminiResponse = await fetch(
-      `${GEMINI_URL}?key=${GEMINI_API_KEY}`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          contents: [
-            {
-              parts: [
-                { text: SYSTEM_PROMPT },
-                {
-                  inline_data: {
-                    mime_type: mimeType || "image/jpeg",
-                    data: image,
-                  },
-                },
-              ],
-            },
-          ],
-          generationConfig: {
-            temperature: 0.3,
-            maxOutputTokens: 2048,
-            responseMimeType: "application/json",
-          },
-        }),
+    // --- 4. Request body size validation (10 MB base64 limit) ---
+    if (typeof image === "string" && image.length > MAX_IMAGE_SIZE) {
+      return new Response(
+        JSON.stringify({ error: "Image exceeds 10 MB limit" }),
+        { status: 413, headers: { "Content-Type": "application/json" } },
+      );
+    }
+
+    // --- 2. Call Gemini Vision API with API key in header ---
+    const geminiResponse = await fetch(GEMINI_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-goog-api-key": GEMINI_API_KEY,
       },
-    );
+      body: JSON.stringify({
+        contents: [
+          {
+            parts: [
+              { text: SYSTEM_PROMPT },
+              {
+                inline_data: {
+                  mime_type: mimeType || "image/jpeg",
+                  data: image,
+                },
+              },
+            ],
+          },
+        ],
+        generationConfig: {
+          temperature: 0.3,
+          maxOutputTokens: 2048,
+          responseMimeType: "application/json",
+        },
+      }),
+    });
 
     if (!geminiResponse.ok) {
       const errorText = await geminiResponse.text();

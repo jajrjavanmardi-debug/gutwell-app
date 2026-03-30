@@ -22,6 +22,9 @@ BEGIN
   DELETE FROM public.symptoms WHERE user_id = uid;
   DELETE FROM public.gut_scores WHERE user_id = uid;
   DELETE FROM public.reminders WHERE user_id = uid;
+  DELETE FROM public.water_logs WHERE user_id = uid;
+  DELETE FROM public.favorites WHERE user_id = uid;
+  DELETE FROM public.streaks WHERE user_id = uid;
   DELETE FROM public.profiles WHERE id = uid;
 
   -- Delete the auth user (requires service_role, which SECURITY DEFINER provides)

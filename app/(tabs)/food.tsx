@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, KeyboardAvoidingView, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
@@ -234,6 +234,7 @@ export default function FoodScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
         <Text style={styles.title}>Track Your Plate</Text>
         <Text style={styles.subtitle}>What nourished you today?</Text>
@@ -378,6 +379,7 @@ export default function FoodScreen() {
           </View>
         )}
       </ScrollView>
+      </KeyboardAvoidingView>
       <Toast message={toast.message} type={toast.type} visible={toast.visible} onDismiss={() => setToast(t => ({ ...t, visible: false }))} />
     </SafeAreaView>
   );

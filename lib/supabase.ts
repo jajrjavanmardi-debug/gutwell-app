@@ -144,6 +144,9 @@ const SecureStoreAdapter = {
 
 export const supabase = createClient(supabaseUrl, supabaseKey, {
   auth: {
+    // SecureStoreAdapter's return types (Promise<string | null> vs Promise<void>)
+    // don't exactly match Supabase's SupportedStorage interface, but are functionally
+    // compatible. The cast is necessary to satisfy the type checker.
     storage: SecureStoreAdapter as any,
     autoRefreshToken: true,
     persistSession: true,

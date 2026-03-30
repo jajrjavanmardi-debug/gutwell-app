@@ -112,7 +112,7 @@ export default function EditProfileScreen() {
 
       <Toast
         message={toast.message}
-        type={toast.type as any}
+        type={toast.type}
         visible={toast.visible}
         onDismiss={() => setToast((t) => ({ ...t, visible: false }))}
       />
