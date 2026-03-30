@@ -94,7 +94,7 @@ export default function FoodScreen() {
     if (!user) return;
     const thirtyDaysAgo = new Date(); thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
     const [{ data: recentSymptoms }, { data: recentFoodLogs }] = await Promise.all([
-      supabase.from('symptom_logs').select('logged_at').eq('user_id', user.id).gte('logged_at', thirtyDaysAgo.toISOString()),
+      supabase.from('symptoms').select('logged_at').eq('user_id', user.id).gte('logged_at', thirtyDaysAgo.toISOString()),
       supabase.from('food_logs').select('meal_name, logged_at').eq('user_id', user.id).gte('logged_at', thirtyDaysAgo.toISOString()),
     ]);
     if (recentSymptoms && recentFoodLogs) {

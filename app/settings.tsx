@@ -357,7 +357,7 @@ export default function SettingsScreen() {
       const [checkIns, foodLogs, symptomLogs] = await Promise.all([
         supabase.from('check_ins').select('*').eq('user_id', user.id),
         supabase.from('food_logs').select('*').eq('user_id', user.id),
-        supabase.from('symptom_logs').select('*').eq('user_id', user.id),
+        supabase.from('symptoms').select('*').eq('user_id', user.id),
       ]);
 
       const exportData = {
@@ -391,7 +391,7 @@ export default function SettingsScreen() {
             await Promise.all([
               supabase.from('check_ins').delete().eq('user_id', user.id),
               supabase.from('food_logs').delete().eq('user_id', user.id),
-              supabase.from('symptom_logs').delete().eq('user_id', user.id),
+              supabase.from('symptoms').delete().eq('user_id', user.id),
             ]);
             Alert.alert('Done', 'All your data has been cleared.');
           },

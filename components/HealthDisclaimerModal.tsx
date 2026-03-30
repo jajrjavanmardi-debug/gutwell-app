@@ -26,33 +26,22 @@ type Props = {
 export function HealthDisclaimerModal({ visible, onAccept }: Props) {
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
-  const buttonAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     if (visible) {
       fadeAnim.setValue(0);
       slideAnim.setValue(30);
-      buttonAnim.setValue(0);
 
-      Animated.stagger(200, [
-        Animated.parallel([
-          Animated.timing(fadeAnim, {
-            toValue: 1,
-            duration: 480,
-            easing: Easing.out(Easing.cubic),
-            useNativeDriver: true,
-          }),
-          Animated.timing(slideAnim, {
-            toValue: 0,
-            duration: 480,
-            easing: Easing.out(Easing.cubic),
-            useNativeDriver: true,
-          }),
-        ]),
-        Animated.timing(buttonAnim, {
+      Animated.parallel([
+        Animated.timing(fadeAnim, {
           toValue: 1,
-          duration: 380,
-          delay: 800,
+          duration: 480,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver: true,
+        }),
+        Animated.timing(slideAnim, {
+          toValue: 0,
+          duration: 480,
           easing: Easing.out(Easing.cubic),
           useNativeDriver: true,
         }),
@@ -114,7 +103,7 @@ export function HealthDisclaimerModal({ visible, onAccept }: Props) {
           </Animated.View>
 
           {/* Buttons */}
-          <Animated.View style={[styles.buttonSection, { opacity: buttonAnim }]}>
+          <View style={styles.buttonSection}>
             <Button
               title="I Understand"
               onPress={handleAccept}
@@ -129,7 +118,7 @@ export function HealthDisclaimerModal({ visible, onAccept }: Props) {
               style={styles.ghostButton}
               textStyle={styles.ghostButtonText}
             />
-          </Animated.View>
+          </View>
         </SafeAreaView>
       </LinearGradient>
     </Modal>

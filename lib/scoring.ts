@@ -81,7 +81,7 @@ export async function calculateGutScore(
     .select('id', { count: 'exact', head: true })
     .eq('user_id', userId)
     .gte('logged_at', `${date}T00:00:00`)
-    .lt('logged_at', `${date}T23:59:59`);
+    .lte('logged_at', `${date}T23:59:59.999`);
 
   const symptomPenalty = symptomCount ? symptomCount * -5 : 0;
   score += symptomPenalty;

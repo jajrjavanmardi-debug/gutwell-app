@@ -99,7 +99,7 @@ export default function WeeklyDigestScreen() {
 
       // This week symptoms
       supabase
-        .from('symptom_logs')
+        .from('symptoms')
         .select('symptom_name, severity, logged_at')
         .eq('user_id', user.id)
         .gte('logged_at', weekStartISO),

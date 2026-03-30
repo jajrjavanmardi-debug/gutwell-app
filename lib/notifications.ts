@@ -23,6 +23,11 @@ export async function getPermissionStatus(): Promise<'granted' | 'denied' | 'und
   return status;
 }
 
+
+const CHECKIN_REMINDER_ID_KEY = 'gut-checkin-reminder';
+const STREAK_ALERT_ID_KEY = 'gut-streak-alert';
+const WEEKLY_DIGEST_ID_KEY = 'gut-weekly-digest';
+
 // Quiet hours: returns true if the given time (HH:MM) falls within quiet window
 export function isInQuietHours(timeHHMM: string, quietStart: string, quietEnd: string): boolean {
   const toMins = (t: string) => {
@@ -66,10 +71,6 @@ export async function scheduleDailyCheckInReminder(
   });
   return id;
 }
-
-const CHECKIN_REMINDER_ID_KEY = 'gut-checkin-reminder';
-const STREAK_ALERT_ID_KEY = 'gut-streak-alert';
-const WEEKLY_DIGEST_ID_KEY = 'gut-weekly-digest';
 
 // Schedule a weekly digest notification for Sunday mornings
 export async function scheduleWeeklyDigestNotification(
