@@ -223,7 +223,7 @@ export default function HomeScreen() {
       .eq('user_id', user.id);
 
     const { count: totalSymptomLogs } = await supabase
-      .from('symptom_logs')
+      .from('symptoms')
       .select('id', { count: 'exact', head: true })
       .eq('user_id', user.id);
 
@@ -311,7 +311,7 @@ export default function HomeScreen() {
             text: 'Delete',
             style: 'destructive',
             onPress: async () => {
-              await supabase.from('symptom_logs').delete().eq('id', entry.id);
+              await supabase.from('symptoms').delete().eq('id', entry.id);
               loadData();
             },
           },

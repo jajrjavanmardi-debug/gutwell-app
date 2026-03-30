@@ -23,7 +23,11 @@ export default function LoginScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [devLoading, setDevLoading] = useState(false);
   const [toast, setToast] = useState({ visible: false, message: '', type: 'error' as const });
+
+  const networkHint =
+    "Check .env: EXPO_PUBLIC_SUPABASE_URL must be your real https://…supabase.co URL (no quotes). Restart with: npx expo start -c. Create user dev@gutwell.app in Supabase → Authentication if needed.";
 
   const handleLogin = async () => {
     if (!email || !password) {
@@ -34,7 +38,26 @@ export default function LoginScreen() {
     const { error } = await signIn(email.trim(), password);
     setLoading(false);
     if (error) {
-      setToast({ visible: true, message: error.message, type: 'error' });
+      const msg = error.message ?? String(error);
+      setToast({
+        visible: true,
+        message: /network request failed/i.test(msg) ? `${msg}\n\n${networkHint}` : msg,
+        type: 'error',
+      });
+    }
+  };
+
+  const handleDevLogin = async () => {
+    setDevLoading(true);
+    const { error } = await signIn('dev@gutwell.app', 'devpass123');
+    setDevLoading(false);
+    if (error) {
+      const msg = error.message ?? String(error);
+      setToast({
+        visible: true,
+        message: /network request failed/i.test(msg) ? `${msg}\n\n${networkHint}` : msg,
+        type: 'error',
+      });
     }
   };
 
@@ -117,25 +140,11 @@ export default function LoginScreen() {
           {/* ── Dev login ── */}
           {__DEV__ && (
             <Button
-              title={loading ? 'Signing in…' : 'Dev Login'}
-              onPress={async () => {
-                setLoading(true);
-                const { error } = await signIn('dev@gutwell.app', 'devpass123');
-                setLoading(false);
-                if (error) {
-                  const isNetwork = /network|fetch|ECONNREFUSED/i.test(error.message);
-                  setToast({
-                    visible: true,
-                    type: 'error',
-                    message: isNetwork
-                      ? `${error.message}\n\nChecklist:\n• Set EXPO_PUBLIC_SUPABASE_URL in .env (no quotes)\n• npx expo start -c\n• Add dev@gutwell.app user in Supabase`
-                      : error.message,
-                  });
-                }
-              }}
+              title={devLoading ? 'Signing in…' : 'Dev Login'}
+              onPress={handleDevLogin}
+              loading={devLoading}
               variant="ghost"
               size="sm"
-              loading={loading}
               style={{ marginTop: Spacing.lg }}
             />
           )}

@@ -1,6 +1,6 @@
 import { supabase } from './supabase';
 
-// ─── New correlation engine (meal-level, symptom_logs table) ─────────────────
+// ─── New correlation engine (meal-level, symptoms table) ─────────────────
 
 export interface FoodCorrelation {
   foodName: string;
@@ -27,7 +27,7 @@ export async function computeCorrelations(userId: string, daysBack = 90): Promis
 
   const [{ data: foodLogs }, { data: symptomLogs }] = await Promise.all([
     supabase.from('food_logs').select('meal_name, logged_at, foods').eq('user_id', userId).gte('logged_at', sinceISO),
-    supabase.from('symptom_logs').select('symptom_name, logged_at, severity').eq('user_id', userId).gte('logged_at', sinceISO),
+    supabase.from('symptoms').select('symptom_type, logged_at, severity').eq('user_id', userId).gte('logged_at', sinceISO),
   ]);
 
   if (!foodLogs?.length) return { triggerFoods: [], safeFoods: [] };
@@ -53,7 +53,7 @@ export async function computeCorrelations(userId: string, daysBack = 90): Promis
     if (relatedSymptoms.length > 0) {
       entry.withSymptom++;
       relatedSymptoms.forEach(s => {
-        const sn = s.symptom_name || 'symptom';
+        const sn = s.symptom_type || 'symptom';
         entry.symptoms.set(sn, (entry.symptoms.get(sn) || 0) + 1);
       });
     }

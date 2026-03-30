@@ -92,9 +92,9 @@ export default function ResultsScreen() {
   // Entrance animation
   const contentAnim = useRef(new Animated.Value(0)).current;
 
-  // Delayed button animation
-  const buttonOpacity = useRef(new Animated.Value(0)).current;
-  const buttonTranslateY = useRef(new Animated.Value(16)).current;
+  // Button always visible (no delayed animation to avoid invisible CTA)
+  const buttonOpacity = useRef(new Animated.Value(1)).current;
+  const buttonTranslateY = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     // Load answers and compute profile

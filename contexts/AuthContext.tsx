@@ -91,8 +91,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const { error } = await supabase.auth.signInWithPassword({ email, password });
       return { error };
-    } catch (e: any) {
-      return { error: { message: e?.message ?? 'Network request failed' } };
+    } catch (e) {
+      const message =
+        e instanceof Error
+          ? e.message
+          : typeof e === 'string'
+            ? e
+            : (e as { message?: string })?.message ?? 'Network request failed';
+      return { error: { message } as { message: string } };
     }
   };
 

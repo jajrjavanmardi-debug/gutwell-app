@@ -79,7 +79,10 @@ function RootLayoutNav() {
       if (!inAuthGroup) {
         router.replace('/(auth)/login');
       }
-    } else if (profile && !profile.onboarding_completed && !inOnboarding) {
+    } else if (!profile) {
+      // Profile still loading or fetch failed — stay put, don't redirect
+      return;
+    } else if (!profile.onboarding_completed && !inOnboarding) {
       router.replace('/(onboarding)/welcome');
     } else if (inAuthGroup || inOnboarding) {
       router.replace('/(tabs)');

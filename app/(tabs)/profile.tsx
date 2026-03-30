@@ -67,7 +67,7 @@ export default function ProfileScreen() {
       const [checkInsRes, foodLogsRes, symptomLogsRes, streakRes] = await Promise.all([
         supabase.from('check_ins').select('id', { count: 'exact', head: true }).eq('user_id', user.id),
         supabase.from('food_logs').select('id', { count: 'exact', head: true }).eq('user_id', user.id),
-        supabase.from('symptom_logs').select('id', { count: 'exact', head: true }).eq('user_id', user.id),
+        supabase.from('symptoms').select('id', { count: 'exact', head: true }).eq('user_id', user.id),
         supabase.from('streaks').select('current_streak').eq('user_id', user.id).maybeSingle(),
       ]);
 
@@ -410,7 +410,7 @@ const styles = StyleSheet.create({
   gradientHeader: {
     paddingHorizontal: 24,
     paddingTop: 20,
-    paddingBottom: 36,
+    paddingBottom: 20,
     alignItems: 'center',
   },
   avatar: {
@@ -457,11 +457,11 @@ const styles = StyleSheet.create({
     paddingBottom: Spacing.xxl,
   },
 
-  // ── Stats cards row (overlaps gradient)
+  // ── Stats cards row
   statsRow: {
     flexDirection: 'row',
     gap: 10,
-    marginTop: -24,
+    marginTop: Spacing.md,
     marginBottom: Spacing.md,
   },
   statCard: {
