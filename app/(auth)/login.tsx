@@ -90,64 +90,67 @@ export default function LoginScreen() {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          <Text style={styles.formTitle}>Welcome back</Text>
+          <View style={styles.formInner}>
+            <Text style={styles.formTitle}>Welcome back</Text>
+            <Text style={styles.subtitle}>Sign in to continue your gut health journey.</Text>
 
-          {/* ── Form ── */}
-          <View style={styles.form}>
-            <Input
-              label="Email"
-              placeholder="you@example.com"
-              value={email}
-              onChangeText={setEmail}
-              keyboardType="email-address"
-              autoCapitalize="none"
-              autoComplete="email"
-            />
-            <Input
-              label="Password"
-              placeholder="Your password"
-              value={password}
-              onChangeText={setPassword}
-              secureTextEntry
-              autoComplete="password"
-            />
-            <Button
-              title="Sign In"
-              onPress={handleLogin}
-              loading={loading}
-              size="lg"
-            />
-          </View>
+            {/* ── Form ── */}
+            <View style={styles.form}>
+              <Input
+                label="Email"
+                placeholder="you@example.com"
+                value={email}
+                onChangeText={setEmail}
+                keyboardType="email-address"
+                autoCapitalize="none"
+                autoComplete="email"
+              />
+              <Input
+                label="Password"
+                placeholder="Your password"
+                value={password}
+                onChangeText={setPassword}
+                secureTextEntry
+                autoComplete="password"
+              />
+              <Button
+                title="Sign In"
+                onPress={handleLogin}
+                loading={loading}
+                size="lg"
+              />
+            </View>
 
-          {/* ── Links ── */}
-          <View style={styles.footer}>
-            <Link href="/(auth)/forgot-password" asChild>
-              <TouchableOpacity activeOpacity={0.7}>
-                <Text style={styles.forgotText}>Forgot password?</Text>
-              </TouchableOpacity>
-            </Link>
-
-            <View style={styles.signupRow}>
-              <Text style={styles.footerText}>Don't have an account? </Text>
-              <Link href="/(auth)/signup" asChild>
+            {/* ── Links ── */}
+            <View style={styles.footer}>
+              <Link href="/(auth)/forgot-password" asChild>
                 <TouchableOpacity activeOpacity={0.7}>
-                  <Text style={styles.signupLink}>Sign Up</Text>
+                  <Text style={styles.forgotText}>Forgot password?</Text>
                 </TouchableOpacity>
               </Link>
-            </View>
-          </View>
 
-          {/* ── Dev login ── */}
-          {__DEV__ && (
-            <Button
-              title={devLoading ? 'Signing in…' : 'Dev Login'}
-              onPress={handleDevLogin}
-              loading={devLoading}
-              variant="ghost"
-              size="sm"
-              style={{ marginTop: Spacing.lg }}
-            />
-          )}
+              <View style={styles.signupRow}>
+                <Text style={styles.footerText}>Don't have an account? </Text>
+                <Link href="/(auth)/signup" asChild>
+                  <TouchableOpacity activeOpacity={0.7}>
+                    <Text style={styles.signupLink}>Sign Up</Text>
+                  </TouchableOpacity>
+                </Link>
+              </View>
+            </View>
+
+            {/* ── Dev login ── */}
+            {__DEV__ && (
+              <Button
+                title={devLoading ? 'Signing in…' : 'Dev Login'}
+                onPress={handleDevLogin}
+                loading={devLoading}
+                variant="ghost"
+                size="sm"
+                style={{ marginTop: Spacing.lg }}
+              />
+            )}
+          </View>
         </ScrollView>
       </KeyboardAvoidingView>
 
@@ -212,11 +215,22 @@ const styles = StyleSheet.create({
     paddingTop: 24,
     paddingBottom: 40,
   },
+  formInner: {
+    width: '100%',
+    maxWidth: 420,
+    alignSelf: 'center',
+  },
   formTitle: {
     fontFamily: FontFamily.displayBold,
     fontSize: 28,
     color: Colors.primary,
-    marginBottom: 20,
+    marginBottom: 6,
+  },
+  subtitle: {
+    fontFamily: FontFamily.sansRegular,
+    fontSize: FontSize.md,
+    color: Colors.textSecondary,
+    marginBottom: Spacing.lg,
   },
 
   // ── Form ──

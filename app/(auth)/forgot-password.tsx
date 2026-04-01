@@ -67,34 +67,36 @@ export default function ForgotPasswordScreen() {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          <Text style={styles.formTitle}>Forgot your password?</Text>
-          <Text style={styles.subtitle}>
-            Enter your email and we'll send you a link to reset your password.
-          </Text>
+          <View style={styles.formInner}>
+            <Text style={styles.formTitle}>Forgot your password?</Text>
+            <Text style={styles.subtitle}>
+              Enter your email and we'll send you a link to reset your password.
+            </Text>
 
-          {/* ── Form ── */}
-          <View style={styles.form}>
-            <Input
-              label="Email"
-              placeholder="you@example.com"
-              value={email}
-              onChangeText={setEmail}
-              keyboardType="email-address"
-              autoCapitalize="none"
-            />
-            <Button
-              title="Send Reset Link"
-              onPress={handleReset}
-              loading={loading}
-              size="lg"
-            />
-          </View>
+            {/* ── Form ── */}
+            <View style={styles.form}>
+              <Input
+                label="Email"
+                placeholder="you@example.com"
+                value={email}
+                onChangeText={setEmail}
+                keyboardType="email-address"
+                autoCapitalize="none"
+              />
+              <Button
+                title="Send Reset Link"
+                onPress={handleReset}
+                loading={loading}
+                size="lg"
+              />
+            </View>
 
-          {/* ── Footer ── */}
-          <View style={styles.footer}>
-            <Link href="/(auth)/login" style={styles.backLink}>
-              Back to Sign In
-            </Link>
+            {/* ── Footer ── */}
+            <View style={styles.footer}>
+              <Link href="/(auth)/login" style={styles.backLink}>
+                Back to Sign In
+              </Link>
+            </View>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -159,6 +161,11 @@ const styles = StyleSheet.create({
     padding: 28,
     paddingTop: 24,
     paddingBottom: 40,
+  },
+  formInner: {
+    width: '100%',
+    maxWidth: 420,
+    alignSelf: 'center',
   },
   formTitle: {
     fontFamily: FontFamily.displayBold,

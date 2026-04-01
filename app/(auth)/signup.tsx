@@ -88,85 +88,88 @@ export default function SignupScreen() {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          <Text style={styles.formTitle}>Join GutWell</Text>
+          <View style={styles.formInner}>
+            <Text style={styles.formTitle}>Join GutWell</Text>
+            <Text style={styles.subtitle}>Create your account and start tracking in minutes.</Text>
 
-          {/* ── Form ── */}
-          <View style={styles.form}>
-            <Input
-              label="Name"
-              placeholder="Your name"
-              value={name}
-              onChangeText={setName}
-              autoCapitalize="words"
-              autoComplete="name"
-            />
-            <Input
-              label="Email"
-              placeholder="you@example.com"
-              value={email}
-              onChangeText={setEmail}
-              keyboardType="email-address"
-              autoCapitalize="none"
-              autoComplete="email"
-            />
-            <Input
-              label="Password"
-              placeholder="At least 6 characters"
-              value={password}
-              onChangeText={setPassword}
-              secureTextEntry
-            />
-            <Input
-              label="Confirm Password"
-              placeholder="Repeat your password"
-              value={confirmPassword}
-              onChangeText={setConfirmPassword}
-              secureTextEntry
-            />
-            {/* Terms checkbox */}
-            <TouchableOpacity
-              style={styles.termsRow}
-              onPress={() => setTermsAccepted(!termsAccepted)}
-              activeOpacity={0.7}
-            >
-              <View style={[styles.checkbox, termsAccepted && styles.checkboxChecked]}>
-                {termsAccepted && <Ionicons name="checkmark" size={14} color="#FFFFFF" />}
+            {/* ── Form ── */}
+            <View style={styles.form}>
+              <Input
+                label="Name"
+                placeholder="Your name"
+                value={name}
+                onChangeText={setName}
+                autoCapitalize="words"
+                autoComplete="name"
+              />
+              <Input
+                label="Email"
+                placeholder="you@example.com"
+                value={email}
+                onChangeText={setEmail}
+                keyboardType="email-address"
+                autoCapitalize="none"
+                autoComplete="email"
+              />
+              <Input
+                label="Password"
+                placeholder="At least 6 characters"
+                value={password}
+                onChangeText={setPassword}
+                secureTextEntry
+              />
+              <Input
+                label="Confirm Password"
+                placeholder="Repeat your password"
+                value={confirmPassword}
+                onChangeText={setConfirmPassword}
+                secureTextEntry
+              />
+              {/* Terms checkbox */}
+              <TouchableOpacity
+                style={styles.termsRow}
+                onPress={() => setTermsAccepted(!termsAccepted)}
+                activeOpacity={0.7}
+              >
+                <View style={[styles.checkbox, termsAccepted && styles.checkboxChecked]}>
+                  {termsAccepted && <Ionicons name="checkmark" size={14} color="#FFFFFF" />}
+                </View>
+                <Text style={styles.termsText}>
+                  I agree to the{' '}
+                  <Text
+                    style={styles.termsLink}
+                    onPress={() => router.push('/terms-of-service')}
+                  >
+                    Terms of Service
+                  </Text>
+                  {' '}and{' '}
+                  <Text
+                    style={styles.termsLink}
+                    onPress={() => router.push('/privacy-policy')}
+                  >
+                    Privacy Policy
+                  </Text>
+                </Text>
+              </TouchableOpacity>
+
+              <Button
+                title="Create Account"
+                onPress={handleSignup}
+                loading={loading}
+                size="lg"
+              />
+            </View>
+
+            {/* ── Footer ── */}
+            <View style={styles.footer}>
+              <View style={styles.row}>
+                <Text style={styles.footerText}>Already have an account? </Text>
+                <Link href="/(auth)/login" asChild>
+                  <TouchableOpacity activeOpacity={0.7}>
+                    <Text style={styles.signinLink}>Sign In</Text>
+                  </TouchableOpacity>
+                </Link>
               </View>
-              <Text style={styles.termsText}>
-                I agree to the{' '}
-                <Text
-                  style={styles.termsLink}
-                  onPress={() => router.push('/terms-of-service')}
-                >
-                  Terms of Service
-                </Text>
-                {' '}and{' '}
-                <Text
-                  style={styles.termsLink}
-                  onPress={() => router.push('/privacy-policy')}
-                >
-                  Privacy Policy
-                </Text>
-              </Text>
-            </TouchableOpacity>
-
-            <Button
-              title="Create Account"
-              onPress={handleSignup}
-              loading={loading}
-              size="lg"
-            />
-          </View>
-
-          {/* ── Footer ── */}
-          <View style={styles.footer}>
-            <View style={styles.row}>
-              <Text style={styles.footerText}>Already have an account? </Text>
-              <Link href="/(auth)/login" asChild>
-                <TouchableOpacity activeOpacity={0.7}>
-                  <Text style={styles.signinLink}>Sign In</Text>
-                </TouchableOpacity>
-              </Link>
             </View>
           </View>
         </ScrollView>
@@ -233,11 +236,22 @@ const styles = StyleSheet.create({
     paddingTop: 24,
     paddingBottom: 40,
   },
+  formInner: {
+    width: '100%',
+    maxWidth: 420,
+    alignSelf: 'center',
+  },
   formTitle: {
     fontFamily: FontFamily.displayBold,
     fontSize: 28,
     color: Colors.primary,
-    marginBottom: 20,
+    marginBottom: 6,
+  },
+  subtitle: {
+    fontFamily: FontFamily.sansRegular,
+    fontSize: FontSize.md,
+    color: Colors.textSecondary,
+    marginBottom: Spacing.lg,
   },
 
   // ── Form ──
