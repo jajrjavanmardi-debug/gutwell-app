@@ -72,26 +72,37 @@ const ebStyles = StyleSheet.create({
 });
 
 export default function TabLayout() {
+  const renderTabIcon = (
+    focused: boolean,
+    activeIcon: keyof typeof Ionicons.glyphMap,
+    inactiveIcon: keyof typeof Ionicons.glyphMap,
+    color: string
+  ) => (
+    <View style={[styles.iconWrap, focused && styles.iconWrapFocused]}>
+      <Ionicons name={focused ? activeIcon : inactiveIcon} size={20} color={color} />
+    </View>
+  );
+
   return (
     <Tabs
       screenOptions={{
         tabBarActiveTintColor: Colors.primary,
-        tabBarInactiveTintColor: Colors.textTertiary,
+        tabBarInactiveTintColor: Colors.textSecondary,
         headerShown: false,
-        tabBarBackground: () => <BlurView intensity={80} tint="light" style={StyleSheet.absoluteFill} />,
+        tabBarBackground: () => <BlurView intensity={60} tint="light" style={StyleSheet.absoluteFill} />,
         tabBarStyle: {
-          backgroundColor: 'rgba(250,253,247,0.85)',
+          backgroundColor: 'rgba(250,253,247,0.92)',
           borderTopColor: Colors.divider,
-          borderTopWidth: 0.5,
-          paddingTop: 6,
+          borderTopWidth: 1,
+          paddingTop: 8,
           paddingBottom: Platform.OS === 'ios' ? 0 : 8,
-          height: Platform.OS === 'ios' ? 88 : 64,
+          height: Platform.OS === 'ios' ? 90 : 66,
           ...Shadows.sm,
         },
         tabBarLabelStyle: {
           fontFamily: FontFamily.sansMedium,
           fontSize: 11,
-          marginTop: 2,
+          marginTop: 1,
         },
       }}
       screenListeners={{
@@ -107,7 +118,7 @@ export default function TabLayout() {
         options={{
           title: 'Home',
           tabBarIcon: ({ color, focused }) => (
-            <Ionicons name={focused ? 'home' : 'home-outline'} size={24} color={color} />
+            renderTabIcon(focused, 'home', 'home-outline', color)
           ),
         }}
       />
@@ -116,7 +127,7 @@ export default function TabLayout() {
         options={{
           title: 'Check-in',
           tabBarIcon: ({ color, focused }) => (
-            <Ionicons name={focused ? 'body' : 'body-outline'} size={24} color={color} />
+            renderTabIcon(focused, 'body', 'body-outline', color)
           ),
         }}
       />
@@ -125,7 +136,7 @@ export default function TabLayout() {
         options={{
           title: 'Food',
           tabBarIcon: ({ color, focused }) => (
-            <Ionicons name={focused ? 'restaurant' : 'restaurant-outline'} size={24} color={color} />
+            renderTabIcon(focused, 'restaurant', 'restaurant-outline', color)
           ),
         }}
       />
@@ -134,7 +145,7 @@ export default function TabLayout() {
         options={{
           title: 'Progress',
           tabBarIcon: ({ color, focused }) => (
-            <Ionicons name={focused ? 'trending-up' : 'trending-up-outline'} size={24} color={color} />
+            renderTabIcon(focused, 'trending-up', 'trending-up-outline', color)
           ),
         }}
       />
@@ -143,10 +154,23 @@ export default function TabLayout() {
         options={{
           title: 'Profile',
           tabBarIcon: ({ color, focused }) => (
-            <Ionicons name={focused ? 'person' : 'person-outline'} size={24} color={color} />
+            renderTabIcon(focused, 'person', 'person-outline', color)
           ),
         }}
       />
     </Tabs>
   );
 }
+
+const styles = StyleSheet.create({
+  iconWrap: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  iconWrapFocused: {
+    backgroundColor: Colors.primary + '12',
+  },
+});

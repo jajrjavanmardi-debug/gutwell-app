@@ -35,7 +35,7 @@ const styles = StyleSheet.create({
   label: {
     fontFamily: FontFamily.sansMedium,
     fontSize: FontSize.sm,
-    color: Colors.text,
+    color: Colors.textSecondary,
     marginLeft: Spacing.xs,
   },
   input: {
@@ -44,7 +44,8 @@ const styles = StyleSheet.create({
     borderColor: Colors.border,
     borderRadius: BorderRadius.md,
     paddingHorizontal: Spacing.md,
-    paddingVertical: 16,
+    paddingVertical: 14,
+    minHeight: 52,
     fontFamily: FontFamily.sansRegular,
     fontSize: FontSize.md,
     color: Colors.text,
@@ -52,6 +53,11 @@ const styles = StyleSheet.create({
   inputFocused: {
     borderColor: Colors.borderFocused,
     backgroundColor: Colors.surfaceSecondary,
+    shadowColor: Colors.primary,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
+    elevation: 1,
   },
   inputError: {
     borderColor: Colors.error,
