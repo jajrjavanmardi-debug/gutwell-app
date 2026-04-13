@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl, Platform } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
@@ -15,6 +15,13 @@ import { ShareCard } from '../../components/ShareCard';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { ErrorState } from '../../components/ui/ErrorState';
 import { isPremiumFeature } from '../../lib/subscription';
+import ScoreCard from '../../components/ScoreCard';
+import TrendBox from '../../components/TrendBox';
+import RecommendationBox from '../../components/RecommendationBox';
+import ChartComponent from '../../components/ChartComponent';
+import History from '../../components/History';
+import TriggerFoodsBox from '../../components/TriggerFoodsBox';
+import SafeFoodsBox from '../../components/SafeFoodsBox';
 
 type Period = 'W' | 'M' | '6M';
 
@@ -245,29 +252,7 @@ export default function ProgressScreen() {
 
         {/* Weekly Insights Card */}
         {weekInsights && (
-          <View style={styles.insightsCard}>
-            <View style={styles.insightsHeader}>
-              <Text style={styles.insightsTitle}>This Week</Text>
-              <View style={[styles.trendBadge, { backgroundColor: weekInsights.trend === 'up' ? Colors.secondary + '20' : weekInsights.trend === 'down' ? '#E0707020' : Colors.border + '40' }]}>
-                <Ionicons name={weekInsights.trend === 'up' ? 'trending-up' : weekInsights.trend === 'down' ? 'trending-down' : 'remove'} size={14} color={weekInsights.trend === 'up' ? Colors.secondary : weekInsights.trend === 'down' ? '#E07070' : Colors.textTertiary} />
-                <Text style={[styles.trendBadgeText, { color: weekInsights.trend === 'up' ? Colors.secondary : weekInsights.trend === 'down' ? '#E07070' : Colors.textTertiary }]}>
-                  {weekInsights.trend === 'up' ? 'Improving' : weekInsights.trend === 'down' ? 'Declining' : 'Steady'}
-                </Text>
-              </View>
-            </View>
-            <View style={styles.insightsRow}>
-              <View style={styles.insightsStat}>
-                <Text style={styles.insightsStatValue}>{weekInsights.avgScore}</Text>
-                <Text style={styles.insightsStatLabel}>Avg Score</Text>
-              </View>
-              {weekInsights.bestDay && (
-                <View style={[styles.insightsStat, { borderLeftWidth: 1, borderLeftColor: Colors.divider, paddingLeft: 20 }]}>
-                  <Text style={[styles.insightsStatValue, { fontSize: 16 }]}>{weekInsights.bestDay}</Text>
-                  <Text style={styles.insightsStatLabel}>Best Day</Text>
-                </View>
-              )}
-            </View>
-          </View>
+          <TrendBox avgScore={weekInsights.avgScore ?? 0} bestDay={weekInsights.bestDay} trend={weekInsights.trend} />
         )}
 
         {!isLoading && error ? (
@@ -286,34 +271,15 @@ export default function ProgressScreen() {
         <>
         {/* Stats Cards */}
         <View style={styles.statsRow}>
-          <View style={styles.statCard}>
-            <View style={styles.statIconWrap}>
-              <Ionicons name="checkmark-circle" size={22} color={Colors.primary} />
-            </View>
-            <Text style={styles.statValue}>{checkInCount}</Text>
-            <Text style={styles.statLabel}>Check-ins</Text>
-          </View>
-          <View style={styles.statCard}>
-            <View style={styles.statIconWrap}>
-              <Ionicons name="nutrition" size={22} color={Colors.accent} />
-            </View>
-            <Text style={styles.statValue}>{avgStoolType ?? '--'}</Text>
-            <Text style={styles.statLabel}>Avg Stool</Text>
-          </View>
-          <View style={styles.statCard}>
-            <View style={styles.statIconWrap}>
-              <Ionicons name="restaurant" size={22} color={Colors.secondary} />
-            </View>
-            <Text style={styles.statValue}>{foodCount}</Text>
-            <Text style={styles.statLabel}>Meals</Text>
-          </View>
+          <ScoreCard icon="checkmark-circle" iconColor={Colors.primary} value={checkInCount} label="Check-ins" />
+          <ScoreCard icon="nutrition" iconColor={Colors.accent} value={avgStoolType ?? '--'} label="Avg Stool" />
+          <ScoreCard icon="restaurant" iconColor={Colors.secondary} value={foodCount} label="Meals" />
         </View>
 
         {/* Gut Score Trend */}
         {gutScores.length >= 2 && (
           <>
-            <Text style={styles.sectionTitle}>Gut Score Trend</Text>
-            <View style={styles.chartCard}>
+            <ChartComponent title="Gut Score Trend">
               <View style={styles.scoreTrendChart}>
                 {gutScores.map((point, i) => (
                   <View key={i} style={styles.scoreTrendCol}>
@@ -327,7 +293,7 @@ export default function ProgressScreen() {
                   </View>
                 ))}
               </View>
-            </View>
+            </ChartComponent>
           </>
         )}
 
@@ -343,8 +309,7 @@ export default function ProgressScreen() {
 
         {/* Mood Trends */}
         <>
-          <Text style={styles.sectionTitle}>Mood Trends</Text>
-          <View style={styles.chartCard}>
+          <ChartComponent title="Mood Trends">
             {moodHistory.length === 0 ? (
               <View style={styles.moodEmpty}>
                 <Text style={styles.moodEmptyEmoji}>🙂</Text>
@@ -387,14 +352,13 @@ export default function ProgressScreen() {
                 </View>
               </>
             )}
-          </View>
+          </ChartComponent>
         </>
 
         {/* Stool Type Trend */}
         {stoolHistory.length > 0 && (
           <>
-            <Text style={styles.sectionTitle}>Stool Type Trend</Text>
-            <View style={styles.chartCard}>
+            <ChartComponent title="Stool Type Trend">
               <View style={styles.stoolChart}>
                 {stoolHistory.slice(-14).map((entry, i) => (
                   <View key={i} style={styles.stoolCol}>
@@ -410,89 +374,33 @@ export default function ProgressScreen() {
               <View style={styles.chartLegend}>
                 <Text style={styles.legendText}>Ideal: Type 3-4</Text>
               </View>
-            </View>
+            </ChartComponent>
           </>
         )}
 
         {/* Top Symptoms */}
-        {topSymptoms.length > 0 && (
-          <>
-            <Text style={styles.sectionTitle}>Top Symptoms</Text>
-            {topSymptoms.map(([symptom, count]) => (
-              <View key={symptom} style={styles.symptomCard}>
-                <View style={styles.symptomRow}>
-                  <Text style={styles.symptomName}>{symptom.charAt(0).toUpperCase() + symptom.slice(1).replace('_', ' ')}</Text>
-                  <View style={styles.symptomBadge}>
-                    <Text style={styles.symptomCount}>{count}x</Text>
-                  </View>
-                </View>
-                <View style={styles.symptomBar}>
-                  <View style={[styles.symptomFill, { width: `${(count / Math.max(1, ...Object.values(symptomCounts))) * 100}%` }]} />
-                </View>
-              </View>
-            ))}
-          </>
-        )}
+        <History
+          title="Top Symptoms"
+          items={topSymptoms.map(([symptom, count]) => ({
+            label: symptom.charAt(0).toUpperCase() + symptom.slice(1).replace('_', ' '),
+            count,
+            maxCount: Math.max(1, ...Object.values(symptomCounts)),
+          }))}
+        />
 
         {/* Premium Banner (future-proofing) */}
         {!isPremiumFeature('correlations') && (
-          <TouchableOpacity style={styles.premiumBanner} onPress={() => router.push('/paywall')}>
-            <Ionicons name="lock-closed" size={16} color={Colors.accent} />
-            <Text style={styles.premiumBannerText}>Unlock food-symptom insights with Premium</Text>
-            <Ionicons name="chevron-forward" size={14} color={Colors.accent} />
-          </TouchableOpacity>
+          <RecommendationBox
+            text="Unlock food-symptom insights with Premium"
+            onPress={() => router.push('/paywall')}
+          />
         )}
 
         {/* Trigger Foods — new engine */}
-        <Text style={styles.sectionTitle}>Trigger Foods</Text>
-        {triggerFoods.length > 0 ? (
-          <>
-            {triggerFoods.map((item, i) => {
-              const riskColor = item.riskLevel === 'high' ? '#E07070' : item.riskLevel === 'medium' ? Colors.accent : Colors.secondary;
-              return (
-                <View key={i} style={styles.triggerCard}>
-                  <View style={styles.triggerRow}>
-                    <Text style={[styles.triggerFood, { fontFamily: FontFamily.displayMedium, fontSize: 15 }]}>{item.foodName}</Text>
-                    <View style={[styles.riskBadge, { backgroundColor: riskColor + '18', borderWidth: 1, borderColor: riskColor + '40' }]}>
-                      <Text style={[styles.riskText, { color: riskColor }]}>
-                        {item.riskLevel.toUpperCase()}
-                      </Text>
-                    </View>
-                  </View>
-                  <View style={styles.correlationBarRow}>
-                    <View style={styles.correlationBarTrack}>
-                      <View style={[styles.correlationBarFill, { width: `${item.correlationPct}%` as any, backgroundColor: riskColor }]} />
-                    </View>
-                    <Text style={styles.correlationPctText}>{item.correlationPct}% correlation</Text>
-                  </View>
-                  {item.topSymptom && (
-                    <Text style={styles.topSymptomText}>→ {item.topSymptom.replace(/_/g, ' ')}</Text>
-                  )}
-                </View>
-              );
-            })}
-          </>
-        ) : (
-          <View style={styles.insufficientCard}>
-            <Ionicons name="analytics-outline" size={28} color={Colors.textTertiary} />
-            <Text style={styles.insufficientTitle}>No Trigger Foods Yet</Text>
-            <Text style={styles.insufficientText}>Log 2+ weeks of meals to detect trigger foods.</Text>
-          </View>
-        )}
+        <TriggerFoodsBox triggerFoods={triggerFoods} />
 
         {/* Safe Foods — new engine */}
-        {safeFoods.length > 0 && (
-          <>
-            <Text style={styles.sectionTitle}>Safe Foods</Text>
-            <View style={styles.safeFoodsRow}>
-              {safeFoods.map((item, i) => (
-                <View key={i} style={styles.safeFoodChip}>
-                  <Text style={styles.safeFoodText}>✓ {item.foodName} · {item.symptomFreeRate}% symptom-free</Text>
-                </View>
-              ))}
-            </View>
-          </>
-        )}
+        <SafeFoodsBox safeFoods={safeFoods} />
 
         {safeFoods.length === 0 && triggerFoods.length === 0 && !correlations && (
           <View style={styles.insufficientCard}>
@@ -619,27 +527,6 @@ const styles = StyleSheet.create({
     borderColor: Colors.border,
     ...Shadows.sm,
   },
-  statIconWrap: {
-    width: 40,
-    height: 40,
-    borderRadius: BorderRadius.full,
-    backgroundColor: Colors.surfaceSecondary,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: Spacing.sm,
-  },
-  statValue: {
-    fontFamily: FontFamily.sansBold,
-    fontSize: FontSize.xl,
-    color: Colors.text,
-  },
-  statLabel: {
-    fontFamily: FontFamily.sansRegular,
-    fontSize: FontSize.xs,
-    color: Colors.textTertiary,
-    marginTop: 2,
-  },
-
   // Section
   sectionTitle: {
     fontFamily: FontFamily.sansSemiBold,
@@ -728,151 +615,6 @@ const styles = StyleSheet.create({
     color: Colors.secondary,
   },
 
-  // Symptoms
-  symptomCard: {
-    backgroundColor: Colors.surface,
-    borderRadius: BorderRadius.md,
-    padding: Spacing.md,
-    marginBottom: Spacing.sm,
-    borderWidth: 1,
-    borderColor: Colors.border,
-  },
-  symptomRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  symptomName: {
-    fontFamily: FontFamily.sansMedium,
-    fontSize: FontSize.md,
-    color: Colors.text,
-  },
-  symptomBadge: {
-    backgroundColor: Colors.primary + '12',
-    borderRadius: BorderRadius.full,
-    paddingHorizontal: Spacing.sm,
-    paddingVertical: 2,
-  },
-  symptomCount: {
-    fontFamily: FontFamily.sansBold,
-    fontSize: FontSize.xs,
-    color: Colors.primary,
-  },
-  symptomBar: {
-    height: 6,
-    backgroundColor: Colors.surfaceSecondary,
-    borderRadius: 3,
-    marginTop: Spacing.sm,
-    overflow: 'hidden',
-  },
-  symptomFill: {
-    height: '100%',
-    backgroundColor: Colors.primary,
-    borderRadius: 3,
-  },
-
-  // Correlation bar
-  correlationBarRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.sm,
-    marginTop: Spacing.xs,
-  },
-  correlationBarTrack: {
-    flex: 1,
-    height: 6,
-    backgroundColor: Colors.surfaceSecondary,
-    borderRadius: 3,
-    overflow: 'hidden',
-  },
-  correlationBarFill: {
-    height: '100%',
-    borderRadius: 3,
-  },
-  correlationPctText: {
-    fontFamily: FontFamily.sansMedium,
-    fontSize: FontSize.xs,
-    color: Colors.textSecondary,
-    minWidth: 100,
-  },
-  topSymptomText: {
-    fontFamily: FontFamily.sansRegular,
-    fontSize: FontSize.xs,
-    color: Colors.textTertiary,
-    marginTop: Spacing.xs,
-    textTransform: 'capitalize',
-  },
-
-  // Correlations
-  triggerCard: {
-    backgroundColor: Colors.surface,
-    borderRadius: BorderRadius.md,
-    padding: Spacing.md,
-    marginBottom: Spacing.sm,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    ...Shadows.sm,
-  },
-  triggerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  triggerFood: {
-    fontFamily: FontFamily.sansSemiBold,
-    fontSize: FontSize.md,
-    color: Colors.text,
-    textTransform: 'capitalize',
-  },
-  triggerSymptom: {
-    fontFamily: FontFamily.sansRegular,
-    fontSize: FontSize.md,
-    color: Colors.textSecondary,
-    flex: 1,
-    textTransform: 'capitalize',
-  },
-  riskBadge: {
-    borderRadius: BorderRadius.full,
-    paddingHorizontal: Spacing.sm + 2,
-    paddingVertical: 3,
-  },
-  riskText: {
-    fontFamily: FontFamily.sansBold,
-    fontSize: FontSize.xs,
-  },
-  triggerDetail: {
-    fontFamily: FontFamily.sansRegular,
-    fontSize: FontSize.xs,
-    color: Colors.textTertiary,
-    marginTop: Spacing.xs,
-  },
-  safeFoodsRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    alignItems: 'center',
-    gap: Spacing.sm,
-    marginTop: Spacing.sm,
-    marginBottom: Spacing.lg,
-  },
-  safeFoodsLabel: {
-    fontFamily: FontFamily.sansMedium,
-    fontSize: FontSize.sm,
-    color: Colors.textSecondary,
-  },
-  safeFoodChip: {
-    backgroundColor: Colors.primary + '12',
-    borderRadius: BorderRadius.full,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.xs + 1,
-    borderWidth: 1,
-    borderColor: Colors.primary + '20',
-  },
-  safeFoodText: {
-    fontFamily: FontFamily.sansSemiBold,
-    fontSize: FontSize.xs,
-    color: Colors.primary,
-    textTransform: 'capitalize',
-  },
-
   // Empty / Insufficient
   insufficientCard: {
     alignItems: 'center',
@@ -883,71 +625,11 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: Colors.border,
   },
-  insufficientTitle: {
-    fontFamily: FontFamily.sansSemiBold,
-    fontSize: FontSize.md,
-    color: Colors.text,
-    marginTop: Spacing.sm,
-    marginBottom: Spacing.xs,
-  },
   insufficientText: {
     fontFamily: FontFamily.sansRegular,
     fontSize: FontSize.sm,
     color: Colors.textTertiary,
     textAlign: 'center',
-  },
-  // Weekly Insights Card
-  insightsCard: {
-    backgroundColor: Colors.surface,
-    borderRadius: BorderRadius.xl,
-    padding: 20,
-    marginBottom: Spacing.lg,
-    ...Shadows.sm,
-    borderWidth: 1,
-    borderColor: Colors.border,
-  },
-  insightsHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 16,
-  },
-  insightsTitle: {
-    fontFamily: FontFamily.displayMedium,
-    fontSize: FontSize.xl,
-    color: Colors.text,
-  },
-  trendBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: BorderRadius.full,
-  },
-  trendBadgeText: {
-    fontFamily: FontFamily.sansMedium,
-    fontSize: 12,
-  },
-  insightsRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 20,
-  },
-  insightsStat: {
-    flex: 1,
-  },
-  insightsStatValue: {
-    fontFamily: FontFamily.displayBold,
-    fontSize: 28,
-    color: Colors.text,
-    lineHeight: 34,
-  },
-  insightsStatLabel: {
-    fontFamily: FontFamily.sansRegular,
-    fontSize: 12,
-    color: Colors.textSecondary,
-    marginTop: 2,
   },
 
   // Mood Trends
@@ -1019,25 +701,6 @@ const styles = StyleSheet.create({
     fontFamily: FontFamily.sansRegular,
     fontSize: 10,
     color: Colors.textTertiary,
-  },
-
-  // Premium Banner
-  premiumBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    backgroundColor: Colors.accent + '15',
-    borderRadius: BorderRadius.lg,
-    padding: 14,
-    marginBottom: Spacing.md,
-    borderWidth: 1,
-    borderColor: Colors.accent + '30',
-  },
-  premiumBannerText: {
-    flex: 1,
-    fontFamily: FontFamily.sansMedium,
-    fontSize: FontSize.sm,
-    color: Colors.accent,
   },
 
 });
