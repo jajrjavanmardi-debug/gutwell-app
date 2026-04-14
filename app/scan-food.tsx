@@ -15,6 +15,7 @@ import { Card } from '../components/ui/Card';
 import { Toast } from '../components/ui/Toast';
 import { Colors, Spacing, FontSize, BorderRadius, FontFamily } from '../constants/theme';
 import { track, Events } from '../lib/analytics';
+import { enqueue } from '../lib/offline-queue';
 
 type FoodItem = {
   name: string;
@@ -194,17 +195,25 @@ export default function ScanFoodScreen() {
       ? foods.slice(0, 3).join(', ') + (foods.length > 3 ? ` +${foods.length - 3} more` : '')
       : 'Scanned meal';
 
-    const { error } = await supabase.from('food_logs').insert({
+    const payload = {
       user_id: user.id,
       meal_name: mealName,
       meal_type: getMealType(),
       foods: foods.length > 0 ? foods : null,
       note: `Gut score: ${analysis.overall_score}/10. ${analysis.summary}`,
-    });
+      logged_at: new Date().toISOString(),
+    };
+    const { error } = await supabase.from('food_logs').insert(payload);
 
     setSaving(false);
     if (error) {
-      setToast({ visible: true, message: 'Failed to save meal', type: 'error' });
+      if (error.message?.includes('network') || error.message?.includes('Network') || error.code === 'PGRST301' || !error.code) {
+        await enqueue('food_logs', payload);
+        setToast({ visible: true, message: 'Saved offline — will sync when connected', type: 'success' });
+        setTimeout(() => router.back(), 1500);
+      } else {
+        setToast({ visible: true, message: 'Failed to save meal', type: 'error' });
+      }
     } else {
       setToast({ visible: true, message: 'Meal logged!', type: 'success' });
       setTimeout(() => router.back(), 1500);

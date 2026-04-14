@@ -54,12 +54,16 @@ export async function flush(): Promise<number> {
   const now = Date.now();
   const failed: QueueItem[] = [];
   let synced = 0;
+  let expired = 0;
 
   // NOTE: Items are processed sequentially to avoid overwhelming the server
   // with concurrent writes. A future improvement could batch by table.
   for (const item of queue) {
     // Skip expired items (older than 7 days)
-    if (now - item.timestamp > EXPIRY_MS) continue;
+    if (now - item.timestamp > EXPIRY_MS) {
+      expired++;
+      continue;
+    }
 
     const { error } = await supabase.from(item.table).insert(item.payload);
     if (error) {
@@ -70,6 +74,9 @@ export async function flush(): Promise<number> {
   }
 
   await saveQueue(failed);
+  if (expired > 0) {
+    console.warn(`[offline-queue] dropped ${expired} expired item(s)`);
+  }
   return synced;
 }
 

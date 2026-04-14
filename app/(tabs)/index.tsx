@@ -293,8 +293,8 @@ export default function HomeScreen() {
             text: 'Delete',
             style: 'destructive',
             onPress: async () => {
-              await supabase.from('food_logs').delete().eq('id', entry.id);
-              loadData();
+              const { error } = await supabase.from('food_logs').delete().eq('id', entry.id);
+              if (!error) loadData();
             },
           },
         ]
@@ -309,8 +309,8 @@ export default function HomeScreen() {
             text: 'Delete',
             style: 'destructive',
             onPress: async () => {
-              await supabase.from('symptoms').delete().eq('id', entry.id);
-              loadData();
+              const { error } = await supabase.from('symptoms').delete().eq('id', entry.id);
+              if (!error) loadData();
             },
           },
         ]

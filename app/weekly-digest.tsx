@@ -73,6 +73,7 @@ export default function WeeklyDigestScreen() {
   const loadDigest = useCallback(async () => {
     if (!user) return;
     setIsLoading(true);
+    try {
 
     const weekStart = getMonday();
     const weekStartISO = weekStart.toISOString();
@@ -95,12 +96,12 @@ export default function WeeklyDigestScreen() {
         .from('check_ins')
         .select('entry_date, stool_type')
         .eq('user_id', user.id)
-        .gte('created_at', weekStartISO),
+        .gte('entry_date', weekStartDate),
 
       // This week symptoms
       supabase
         .from('symptoms')
-        .select('symptom_name, severity, logged_at')
+        .select('symptom_type, severity, logged_at')
         .eq('user_id', user.id)
         .gte('logged_at', weekStartISO),
 
@@ -127,6 +128,12 @@ export default function WeeklyDigestScreen() {
         .order('entry_date', { ascending: false })
         .limit(30),
     ]);
+    if (scoresRes.error) throw scoresRes.error;
+    if (checkInsRes.error) throw checkInsRes.error;
+    if (symptomsRes.error) throw symptomsRes.error;
+    if (foodsRes.error) throw foodsRes.error;
+    if (prevScoresRes.error) throw prevScoresRes.error;
+    if (checkInDatesRes.error) throw checkInDatesRes.error;
 
     const scores = scoresRes.data ?? [];
     const checkIns = checkInsRes.data ?? [];
@@ -155,7 +162,7 @@ export default function WeeklyDigestScreen() {
     // Top symptoms
     const symptomMap: Record<string, { count: number; totalSeverity: number }> = {};
     symptoms.forEach(s => {
-      const key = s.symptom_name || 'symptom';
+      const key = s.symptom_type || 'symptom';
       if (!symptomMap[key]) symptomMap[key] = { count: 0, totalSeverity: 0 };
       symptomMap[key].count++;
       symptomMap[key].totalSeverity += s.severity ?? 0;
@@ -211,7 +218,11 @@ export default function WeeklyDigestScreen() {
       weekDays,
       scoreByDay,
     });
-    setIsLoading(false);
+    } catch {
+      setData(null);
+    } finally {
+      setIsLoading(false);
+    }
   }, [user]);
 
   useEffect(() => { loadDigest(); }, [loadDigest]);

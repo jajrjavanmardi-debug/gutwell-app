@@ -146,8 +146,10 @@ export default function CheckinScreen() {
     if (!user) return;
 
     setLoading(true);
-    const { error } = await supabase.from('check_ins').insert({
+    const today = new Date().toISOString().split('T')[0];
+    const payload = {
       user_id: user.id,
+      entry_date: today,
       stool_type: stoolType,
       bloating,
       pain,
@@ -155,21 +157,33 @@ export default function CheckinScreen() {
       mood,
       water_intake: waterGlasses,
       note: note.trim() || null,
-    });
+    };
+    const { data: existingToday, error: existingTodayError } = await supabase
+      .from('check_ins')
+      .select('id')
+      .eq('user_id', user.id)
+      .eq('entry_date', today)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    let error: any = null;
+    if (existingTodayError) {
+      error = existingTodayError;
+    } else if (existingToday?.id) {
+      const updateResult = await supabase.from('check_ins').update(payload).eq('id', existingToday.id);
+      error = updateResult.error;
+    } else {
+      const insertResult = await supabase.from('check_ins').insert(payload);
+      error = insertResult.error;
+    }
     setLoading(false);
 
     if (error) {
       // Network error — queue offline and let the user continue
       if (error.message?.includes('network') || error.message?.includes('Network') || error.code === 'PGRST301' || !error.code) {
         await enqueue('check_ins', {
-          user_id: user.id,
-          stool_type: stoolType,
-          bloating,
-          pain,
-          energy,
-          mood,
-          water_intake: waterGlasses,
-          note: note.trim() || null,
+          ...payload,
         });
         setToast({ visible: true, message: 'Saved offline — will sync when connected', type: 'info' });
         setShowSuccess(true);

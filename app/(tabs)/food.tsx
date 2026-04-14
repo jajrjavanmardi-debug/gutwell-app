@@ -73,30 +73,37 @@ export default function FoodScreen() {
 
   const loadFavorites = async () => {
     if (!user) return;
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('favorites')
       .select('id, meal_name, meal_type, foods')
       .eq('user_id', user.id)
       .order('created_at', { ascending: false })
       .limit(10);
+    if (error) throw error;
     setFavorites(data || []);
   };
 
   const loadRecentMeals = async () => {
     if (!user) return;
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('food_logs').select('id, meal_name, meal_type, logged_at')
       .eq('user_id', user.id).order('logged_at', { ascending: false }).limit(5);
+    if (error) throw error;
     setRecentMeals(data || []);
   };
 
   const loadSensitiveFoods = async () => {
     if (!user) return;
     const thirtyDaysAgo = new Date(); thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-    const [{ data: recentSymptoms }, { data: recentFoodLogs }] = await Promise.all([
+    const [
+      { data: recentSymptoms, error: symptomsError },
+      { data: recentFoodLogs, error: foodsError },
+    ] = await Promise.all([
       supabase.from('symptoms').select('logged_at').eq('user_id', user.id).gte('logged_at', thirtyDaysAgo.toISOString()),
       supabase.from('food_logs').select('meal_name, logged_at').eq('user_id', user.id).gte('logged_at', thirtyDaysAgo.toISOString()),
     ]);
+    if (symptomsError) throw symptomsError;
+    if (foodsError) throw foodsError;
     if (recentSymptoms && recentFoodLogs) {
       const triggered = new Set<string>();
       recentSymptoms.forEach(s => {
@@ -119,12 +126,14 @@ export default function FoodScreen() {
   const quickLogFavorite = async (fav: Favorite) => {
     if (!user) return;
     setLoading(true);
-    const { error } = await supabase.from('food_logs').insert({
+    const payload = {
       user_id: user.id,
       meal_name: fav.meal_name,
       meal_type: fav.meal_type,
       foods: fav.foods || null,
-    });
+      logged_at: new Date().toISOString(),
+    };
+    const { error } = await supabase.from('food_logs').insert(payload);
     setLoading(false);
     if (error) {
       setToast({ visible: true, message: 'Failed to log favorite', type: 'error' });
@@ -139,18 +148,40 @@ export default function FoodScreen() {
       setToast({ visible: true, message: 'Please enter a meal name or add foods', type: 'error' }); return;
     }
     if (!user) return;
+    const normalizedMealName = (mealName.trim() || foods.join(', ')).trim().slice(0, 200);
+    if (!normalizedMealName) {
+      setToast({ visible: true, message: 'Meal name is required', type: 'error' });
+      return;
+    }
+    const payload = {
+      user_id: user.id,
+      meal_name: normalizedMealName,
+      meal_type: mealType,
+      foods: foods.length > 0 ? foods : null,
+      note: note.trim() || null,
+      logged_at: new Date().toISOString(),
+    };
     setLoading(true);
-    const { error } = await supabase.from('food_logs').insert({
-      user_id: user.id, meal_name: mealName.trim() || foods.join(', '),
-      meal_type: mealType, foods: foods.length > 0 ? foods : null, note: note.trim() || null,
-    });
+    const { data: existingRecent } = await supabase
+      .from('food_logs')
+      .select('id')
+      .eq('user_id', user.id)
+      .eq('meal_name', payload.meal_name)
+      .eq('meal_type', payload.meal_type)
+      .gte('logged_at', new Date(Date.now() - 120000).toISOString())
+      .limit(1);
+    if (existingRecent && existingRecent.length > 0) {
+      setLoading(false);
+      setToast({ visible: true, message: 'This meal was just logged.', type: 'info' });
+      return;
+    }
+    const { error } = await supabase.from('food_logs').insert(payload);
     setLoading(false);
     if (error) {
       // Network error — queue offline
       if (error.message?.includes('network') || error.message?.includes('Network') || error.code === 'PGRST301' || !error.code) {
         await enqueue('food_logs', {
-          user_id: user.id, meal_name: mealName.trim() || foods.join(', '),
-          meal_type: mealType, foods: foods.length > 0 ? foods : null, note: note.trim() || null,
+          ...payload,
         });
         setToast({ visible: true, message: 'Saved offline — will sync when connected', type: 'info' });
         setMealName(''); setFoods([]); setNote('');

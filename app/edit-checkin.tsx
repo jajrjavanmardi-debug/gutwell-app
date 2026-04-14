@@ -108,7 +108,7 @@ export default function EditCheckinScreen() {
       setPain(data.pain ?? 1);
       setEnergy(data.energy ?? 3);
       setMood(data.mood ?? null);
-      setWaterGlasses(data.water_glasses ?? 0);
+      setWaterGlasses(data.water_intake ?? 0);
       setNote(data.note ?? '');
       setFetching(false);
     })();
@@ -129,6 +129,7 @@ export default function EditCheckinScreen() {
         pain,
         energy,
         mood,
+        water_intake: waterGlasses,
         note: note.trim() || null,
       })
       .eq('id', id);

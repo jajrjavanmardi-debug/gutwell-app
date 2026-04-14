@@ -11,6 +11,7 @@ import { Input } from '../components/ui/Input';
 import { Toast } from '../components/ui/Toast';
 import { Colors, Spacing, FontSize, BorderRadius, FontFamily } from '../constants/theme';
 import { updateTodayScore } from '../lib/scoring';
+import { enqueue } from '../lib/offline-queue';
 
 const SYMPTOM_TYPES = [
   { key: 'bloating', label: 'Bloating', icon: 'ellipse' as const },
@@ -43,16 +44,24 @@ export default function LogSymptomScreen() {
     if (!user) return;
 
     setLoading(true);
-    const { error } = await supabase.from('symptoms').insert({
+    const payload = {
       user_id: user.id,
       symptom_type: selected,
       severity,
       note: note.trim() || null,
-    });
+      logged_at: new Date().toISOString(),
+    };
+    const { error } = await supabase.from('symptoms').insert(payload);
     setLoading(false);
 
     if (error) {
-      setToast({ visible: true, message: 'Failed to log symptom', type: 'error' });
+      if (error.message?.includes('network') || error.message?.includes('Network') || error.code === 'PGRST301' || !error.code) {
+        await enqueue('symptoms', payload);
+        setToast({ visible: true, message: 'Saved offline — will sync when connected', type: 'success' });
+        setTimeout(() => router.back(), 1200);
+      } else {
+        setToast({ visible: true, message: 'Failed to log symptom', type: 'error' });
+      }
     } else {
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       setToast({ visible: true, message: 'Symptom logged!', type: 'success' });

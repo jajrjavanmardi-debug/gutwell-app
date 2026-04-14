@@ -25,17 +25,26 @@ export async function computeCorrelations(userId: string, daysBack = 90): Promis
   since.setDate(since.getDate() - daysBack);
   const sinceISO = since.toISOString();
 
-  const [{ data: foodLogs }, { data: symptomLogs }] = await Promise.all([
+  const [
+    { data: foodLogs, error: foodError },
+    { data: symptomLogs, error: symptomError },
+  ] = await Promise.all([
     supabase.from('food_logs').select('meal_name, logged_at, foods').eq('user_id', userId).gte('logged_at', sinceISO),
     supabase.from('symptoms').select('symptom_type, logged_at, severity').eq('user_id', userId).gte('logged_at', sinceISO),
   ]);
+  if (foodError) throw foodError;
+  if (symptomError) throw symptomError;
 
   if (!foodLogs?.length) return { triggerFoods: [], safeFoods: [] };
+
+  const orderedMeals = [...foodLogs].sort(
+    (a, b) => new Date(a.logged_at).getTime() - new Date(b.logged_at).getTime()
+  );
 
   // Build a map: foodName → { total, withSymptoms, symptoms: Map<name, count> }
   const foodMap = new Map<string, { total: number; withSymptom: number; symptoms: Map<string, number> }>();
 
-  foodLogs.forEach(f => {
+  orderedMeals.forEach((f, idx) => {
     const name = f.meal_name?.trim();
     if (!name) return;
     const key = name.toLowerCase();
@@ -45,9 +54,13 @@ export async function computeCorrelations(userId: string, daysBack = 90): Promis
 
     // Find symptoms logged within 1–8 hours after this meal
     const mealTime = new Date(f.logged_at).getTime();
+    const nextMealTime = idx < orderedMeals.length - 1
+      ? new Date(orderedMeals[idx + 1].logged_at).getTime()
+      : Number.POSITIVE_INFINITY;
+    const windowEnd = Math.min(mealTime + 8 * 3600 * 1000, nextMealTime);
     const relatedSymptoms = (symptomLogs || []).filter(s => {
       const sTime = new Date(s.logged_at).getTime();
-      return sTime > mealTime && sTime - mealTime <= 8 * 3600 * 1000;
+      return sTime > mealTime && sTime <= windowEnd;
     });
 
     if (relatedSymptoms.length > 0) {
@@ -64,12 +77,14 @@ export async function computeCorrelations(userId: string, daysBack = 90): Promis
 
   foodMap.forEach((data, key) => {
     const displayName = foodLogs!.find(f => f.meal_name?.toLowerCase() === key)?.meal_name || key;
-    if (data.total < 2) return; // need at least 2 data points
+    if (data.total < 3) return; // need enough observations for trustable patterns
 
     const pct = Math.round((data.withSymptom / data.total) * 100);
     const topSymptomEntry = Array.from(data.symptoms.entries()).sort((a, b) => b[1] - a[1])[0];
+    const hasHighConfidenceTrigger = data.total >= 4 && data.withSymptom >= 2 && pct >= 55;
+    const hasHighConfidenceSafe = data.total >= 5 && data.withSymptom <= 1 && pct <= 15;
 
-    if (pct >= 40) {
+    if (hasHighConfidenceTrigger) {
       triggerFoods.push({
         foodName: displayName,
         timesLogged: data.total,
@@ -78,7 +93,7 @@ export async function computeCorrelations(userId: string, daysBack = 90): Promis
         topSymptom: topSymptomEntry?.[0] || null,
         riskLevel: pct >= 70 ? 'high' : pct >= 50 ? 'medium' : 'low',
       });
-    } else if (pct <= 20 && data.total >= 3) {
+    } else if (hasHighConfidenceSafe) {
       safeFoods.push({
         foodName: displayName,
         timesLogged: data.total,
@@ -151,6 +166,8 @@ export async function analyzeCorrelations(
       .gte('logged_at', sinceStr)
       .order('logged_at', { ascending: true }),
   ]);
+  if (foodResult.error) throw foodResult.error;
+  if (symptomResult.error) throw symptomResult.error;
 
   const foodLogs = foodResult.data ?? [];
   const symptoms = symptomResult.data ?? [];
@@ -207,7 +224,13 @@ export async function analyzeCorrelations(
   }
 
   // Calculate baseline rates: for each symptom type, what % of days had that symptom?
-  const totalDays = periodDays;
+  const observedDays = Math.max(
+    1,
+    new Set([
+      ...foodLogs.map(f => f.logged_at.split('T')[0]),
+      ...symptoms.map(s => s.logged_at.split('T')[0]),
+    ]).size
+  );
   const symptomDays = new Map<string, Set<string>>();
   for (const s of symptoms) {
     const day = s.logged_at.split('T')[0];
@@ -218,7 +241,7 @@ export async function analyzeCorrelations(
   }
   const baselineRates = new Map<string, number>();
   for (const [type, days] of symptomDays) {
-    baselineRates.set(type, days.size / totalDays);
+    baselineRates.set(type, days.size / observedDays);
   }
 
   // Build correlations

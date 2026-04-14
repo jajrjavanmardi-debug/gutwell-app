@@ -51,15 +51,18 @@ export default function ProgressScreen() {
     try {
     const daysBack = period === 'W' ? 7 : period === 'M' ? 30 : 180;
     const since = new Date(); since.setDate(since.getDate() - daysBack);
-    const sinceStr = since.toISOString();
     const sinceDateStr = since.toISOString().split('T')[0];
 
     const { data: checkIns } = await supabase.from('check_ins').select('stool_type, entry_date, mood')
-      .eq('user_id', user.id).gte('created_at', sinceStr).order('entry_date', { ascending: true });
+      .eq('user_id', user.id).gte('entry_date', sinceDateStr).order('entry_date', { ascending: true });
     if (checkIns) {
       setCheckInCount(checkIns.length);
-      const avg = checkIns.reduce((s, c) => s + c.stool_type, 0) / checkIns.length;
-      setAvgStoolType(checkIns.length > 0 ? Math.round(avg * 10) / 10 : null);
+      if (checkIns.length > 0) {
+        const avg = checkIns.reduce((s, c) => s + c.stool_type, 0) / checkIns.length;
+        setAvgStoolType(Math.round(avg * 10) / 10);
+      } else {
+        setAvgStoolType(null);
+      }
       setStoolHistory(checkIns.map(c => ({ date: c.entry_date, type: c.stool_type })));
       setCheckInDates(checkIns.map(c => c.entry_date));
       const moodEntries = checkIns.filter(c => c.mood != null).map(c => ({ date: c.entry_date, mood: c.mood as number }));
@@ -124,7 +127,7 @@ export default function ProgressScreen() {
     }
 
     const { data: symptoms } = await supabase.from('symptoms').select('symptom_type')
-      .eq('user_id', user.id).gte('logged_at', sinceStr);
+      .eq('user_id', user.id).gte('logged_at', since.toISOString());
     if (symptoms) {
       const counts: Record<string, number> = {};
       symptoms.forEach(s => { counts[s.symptom_type] = (counts[s.symptom_type] || 0) + 1; });
@@ -132,7 +135,7 @@ export default function ProgressScreen() {
     }
 
     const { count } = await supabase.from('food_logs').select('id', { count: 'exact', head: true })
-      .eq('user_id', user.id).gte('logged_at', sinceStr);
+      .eq('user_id', user.id).gte('logged_at', since.toISOString());
     setFoodCount(count || 0);
 
     // Food-symptom correlations (legacy engine)
