@@ -21,6 +21,7 @@ import { CheckInSuccessOverlay } from '../../components/CheckInSuccessOverlay';
 import { StreakPopup } from '../../components/StreakPopup';
 import * as StoreReview from 'expo-store-review';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { getStreakSnapshot, refreshStreakSnapshot } from '../../lib/streaks';
 
 const STREAK_MILESTONES = [7, 14, 30, 100, 180, 366];
 
@@ -132,14 +133,9 @@ export default function CheckinScreen() {
 
   useEffect(() => {
     if (!user) return;
-    supabase
-      .from('streaks')
-      .select('current_streak')
-      .eq('user_id', user.id)
-      .maybeSingle()
-      .then(({ data: sd }) => {
-        setCurrentStreak(sd?.current_streak || 0);
-      });
+    getStreakSnapshot(user.id)
+      .then((snapshot) => setCurrentStreak(snapshot.currentStreak))
+      .catch(() => setCurrentStreak(0));
   }, [user]);
 
   const handleSave = async () => {
@@ -192,12 +188,8 @@ export default function CheckinScreen() {
       setSavedScore(freshScore);
 
       // Check for streak milestones
-      const { data: streakData } = await supabase
-        .from('streaks')
-        .select('current_streak')
-        .eq('user_id', user.id)
-        .maybeSingle();
-      const newStreak = streakData?.current_streak || 0;
+      const streakSnapshot = await refreshStreakSnapshot(user.id).catch(() => ({ currentStreak: 0 }));
+      const newStreak = streakSnapshot.currentStreak || 0;
       setCurrentStreak(newStreak);
 
       track(Events.CHECKIN_LOGGED, { stool_type: stoolType, score: freshScore });

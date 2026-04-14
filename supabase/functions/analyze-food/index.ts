@@ -26,6 +26,25 @@ function isRateLimited(ip: string): boolean {
 
 // Max base64 image size: 10 MB
 const MAX_IMAGE_SIZE = 10 * 1024 * 1024;
+const CORS_HEADERS = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type",
+};
+
+function jsonResponse(
+  body: Record<string, unknown>,
+  status = 200,
+): Response {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: {
+      ...CORS_HEADERS,
+      "Content-Type": "application/json",
+    },
+  });
+}
 
 const SYSTEM_PROMPT = `You are a gut health nutrition analyst. Analyze this food photo and identify every food item visible.
 
@@ -56,22 +75,15 @@ Return ONLY valid JSON matching this exact structure, no markdown fences:
 
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
-    return new Response(null, {
-      headers: {
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Methods": "POST, OPTIONS",
-        "Access-Control-Allow-Headers":
-          "authorization, x-client-info, apikey, content-type",
-      },
-    });
+    return new Response(null, { headers: CORS_HEADERS });
   }
 
   // --- 1. Auth verification ---
   const authHeader = req.headers.get("authorization");
   if (!authHeader) {
-    return new Response(
-      JSON.stringify({ error: "Missing authorization" }),
-      { status: 401, headers: { "Content-Type": "application/json" } },
+    return jsonResponse(
+      { code: "UNAUTHORIZED", message: "Missing authorization", retryable: false },
+      401,
     );
   }
 
@@ -85,9 +97,13 @@ Deno.serve(async (req: Request) => {
   } = await supabase.auth.getUser();
 
   if (authError || !user) {
-    return new Response(
-      JSON.stringify({ error: "Invalid or expired token" }),
-      { status: 401, headers: { "Content-Type": "application/json" } },
+    return jsonResponse(
+      {
+        code: "UNAUTHORIZED",
+        message: "Invalid or expired token",
+        retryable: false,
+      },
+      401,
     );
   }
 
@@ -98,16 +114,24 @@ Deno.serve(async (req: Request) => {
     "unknown";
 
   if (isRateLimited(clientIp)) {
-    return new Response(
-      JSON.stringify({ error: "Rate limit exceeded. Try again later." }),
-      { status: 429, headers: { "Content-Type": "application/json" } },
+    return jsonResponse(
+      {
+        code: "RATE_LIMITED",
+        message: "Rate limit exceeded. Try again later.",
+        retryable: true,
+      },
+      429,
     );
   }
 
   if (!GEMINI_API_KEY) {
-    return new Response(
-      JSON.stringify({ error: "GEMINI_API_KEY not configured" }),
-      { status: 500, headers: { "Content-Type": "application/json" } },
+    return jsonResponse(
+      {
+        code: "SERVER_MISCONFIGURED",
+        message: "GEMINI_API_KEY not configured",
+        retryable: false,
+      },
+      500,
     );
   }
 
@@ -115,17 +139,21 @@ Deno.serve(async (req: Request) => {
     const { image, mimeType } = await req.json();
 
     if (!image) {
-      return new Response(
-        JSON.stringify({ error: "No image provided" }),
-        { status: 400, headers: { "Content-Type": "application/json" } },
+      return jsonResponse(
+        { code: "BAD_REQUEST", message: "No image provided", retryable: false },
+        400,
       );
     }
 
     // --- 4. Request body size validation (10 MB base64 limit) ---
     if (typeof image === "string" && image.length > MAX_IMAGE_SIZE) {
-      return new Response(
-        JSON.stringify({ error: "Image exceeds 10 MB limit" }),
-        { status: 413, headers: { "Content-Type": "application/json" } },
+      return jsonResponse(
+        {
+          code: "IMAGE_TOO_LARGE",
+          message: "Image exceeds 10 MB limit",
+          retryable: false,
+        },
+        413,
       );
     }
 
@@ -160,10 +188,18 @@ Deno.serve(async (req: Request) => {
 
     if (!geminiResponse.ok) {
       const errorText = await geminiResponse.text();
-      console.error("Gemini API error:", errorText);
-      return new Response(
-        JSON.stringify({ error: "Failed to analyze image" }),
-        { status: 502, headers: { "Content-Type": "application/json" } },
+      console.error("Gemini API error", {
+        status: geminiResponse.status,
+        provider: "gemini",
+        detail: errorText,
+      });
+      return jsonResponse(
+        {
+          code: "UPSTREAM_ERROR",
+          message: "Failed to analyze image",
+          retryable: true,
+        },
+        502,
       );
     }
 
@@ -174,9 +210,13 @@ Deno.serve(async (req: Request) => {
       geminiData?.candidates?.[0]?.content?.parts?.[0]?.text;
 
     if (!responseText) {
-      return new Response(
-        JSON.stringify({ error: "No analysis returned" }),
-        { status: 502, headers: { "Content-Type": "application/json" } },
+      return jsonResponse(
+        {
+          code: "EMPTY_RESPONSE",
+          message: "No analysis returned",
+          retryable: true,
+        },
+        502,
       );
     }
 
@@ -195,16 +235,20 @@ Deno.serve(async (req: Request) => {
     }
 
     return new Response(JSON.stringify(analysis), {
-      headers: {
-        "Content-Type": "application/json",
-        "Access-Control-Allow-Origin": "*",
-      },
+      headers: { ...CORS_HEADERS, "Content-Type": "application/json" },
     });
   } catch (error) {
-    console.error("Edge function error:", error);
-    return new Response(
-      JSON.stringify({ error: "Internal server error" }),
-      { status: 500, headers: { "Content-Type": "application/json" } },
+    console.error("Edge function error", {
+      error: String(error),
+      provider: "gemini",
+    });
+    return jsonResponse(
+      {
+        code: "INTERNAL_ERROR",
+        message: "Internal server error",
+        retryable: true,
+      },
+      500,
     );
   }
 });

@@ -17,6 +17,7 @@ import { updateTodayScore } from '../../lib/scoring';
 import { scheduleStreakAtRiskAlert } from '../../lib/notifications';
 import { calculatePoints } from '../../lib/levels';
 import { ErrorState } from '../../components/ui/ErrorState';
+import { getStreakSnapshot } from '../../lib/streaks';
 
 type RecentEntry = {
   id: string | number;
@@ -113,9 +114,8 @@ export default function HomeScreen() {
       { data: scoreData },
       { data: yData },
       { data: weekData },
-      { data: streakData },
+      streakSnapshot,
       { data: recentCheckInDates },
-      { data: checkIns },
       { count: totalCheckIns },
       { count: totalFoodLogs },
       { count: totalSymptomLogs },
@@ -144,11 +144,7 @@ export default function HomeScreen() {
         .gte('date', sevenDaysAgoSparkline.toISOString().split('T')[0])
         .order('date', { ascending: true }),
       // Streak data
-      supabase
-        .from('streaks')
-        .select('current_streak, best_streak')
-        .eq('user_id', user.id)
-        .maybeSingle(),
+      getStreakSnapshot(user.id),
       // Last 7 days of check-ins for weekly completions
       supabase
         .from('check_ins')
@@ -156,13 +152,6 @@ export default function HomeScreen() {
         .eq('user_id', user.id)
         .gte('entry_date', sevenDaysAgoStr)
         .order('entry_date', { ascending: true }),
-      // Fallback streak check-ins
-      supabase
-        .from('check_ins')
-        .select('entry_date')
-        .eq('user_id', user.id)
-        .order('entry_date', { ascending: false })
-        .limit(30),
       // Total check-ins count
       supabase
         .from('check_ins')
@@ -224,8 +213,8 @@ export default function HomeScreen() {
     }
 
     // ── Streak data ─────────────────────────────────────────────────────────
-    const currentStreak = streakData?.current_streak ?? 0;
-    const fetchedBestStreak = streakData?.best_streak ?? 0;
+    const currentStreak = streakSnapshot.currentStreak ?? 0;
+    const fetchedBestStreak = streakSnapshot.bestStreak ?? 0;
     setStreak(currentStreak);
     setBestStreak(fetchedBestStreak);
 
@@ -246,23 +235,6 @@ export default function HomeScreen() {
     // ── Streak-at-risk notification ─────────────────────────────────────────
     if (currentStreak > 0 && !checkedDates.has(today)) {
       scheduleStreakAtRiskAlert(currentStreak).catch(() => {});
-    }
-
-    // ── Fallback streak calculation ─────────────────────────────────────────
-    if (!streakData && checkIns && checkIns.length > 0) {
-      const todayDate = new Date();
-      let fallbackStreak = 0;
-      for (let i = 0; i < checkIns.length; i++) {
-        const expected = new Date(todayDate);
-        expected.setDate(expected.getDate() - i);
-        const expectedStr = expected.toISOString().split('T')[0];
-        if (checkIns[i].entry_date === expectedStr) {
-          fallbackStreak++;
-        } else {
-          break;
-        }
-      }
-      setStreak(fallbackStreak);
     }
 
     // ── Level points ────────────────────────────────────────────────────────

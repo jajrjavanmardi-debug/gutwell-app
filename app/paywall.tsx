@@ -14,6 +14,7 @@ import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors, FontFamily, FontSize, Spacing, BorderRadius } from '../constants/theme';
 import { track, Events } from '../lib/analytics';
+import { getPaywallOffering, initSubscription, purchasePlan, restorePurchases } from '../lib/subscription';
 
 const FEATURES = [
   '🔬 Food-symptom correlation analysis',
@@ -26,25 +27,52 @@ const FEATURES = [
 
 export default function PaywallScreen() {
   const [selectedPlan, setSelectedPlan] = useState<'monthly' | 'annual'>('annual');
+  const [purchasing, setPurchasing] = useState(false);
+  const [restoring, setRestoring] = useState(false);
 
   useEffect(() => {
     track(Events.PAYWALL_VIEWED);
+    initSubscription()
+      .then(() => getPaywallOffering())
+      .catch((error) => {
+        console.warn('Failed to load offerings:', error);
+      });
   }, []);
 
-  const handleCTA = () => {
-    Alert.alert(
-      'Coming Soon!',
-      'Premium features will be available at launch.',
-      [{ text: 'OK', style: 'default' }]
-    );
+  const handleCTA = async () => {
+    if (purchasing) return;
+    setPurchasing(true);
+    const result = await purchasePlan(selectedPlan);
+    setPurchasing(false);
+
+    if (result.success) {
+      track('purchase_success', { plan: selectedPlan });
+      Alert.alert('Success', 'Premium is now active.');
+      router.back();
+      return;
+    }
+
+    if (!result.cancelled) {
+      track('purchase_failed', { plan: selectedPlan, message: result.message });
+      Alert.alert('Purchase Failed', result.message || 'Please try again.');
+    }
   };
 
-  const handleRestore = () => {
-    Alert.alert(
-      'Restore Purchases',
-      'No previous purchases found.',
-      [{ text: 'OK', style: 'default' }]
-    );
+  const handleRestore = async () => {
+    if (restoring) return;
+    setRestoring(true);
+    const result = await restorePurchases();
+    setRestoring(false);
+
+    if (result.success) {
+      track('restore_success');
+      Alert.alert('Restore Complete', 'Premium access has been restored.');
+      router.back();
+      return;
+    }
+
+    track('restore_failed', { message: result.message });
+    Alert.alert('Restore Purchases', result.message || 'No previous purchases found.');
   };
 
   return (
@@ -147,7 +175,7 @@ export default function PaywallScreen() {
 
           {/* Restore Purchases */}
           <TouchableOpacity onPress={handleRestore} activeOpacity={0.7}>
-            <Text style={styles.restoreText}>Restore Purchases</Text>
+            <Text style={styles.restoreText}>{restoring ? 'Restoring...' : 'Restore Purchases'}</Text>
           </TouchableOpacity>
         </ScrollView>
       </SafeAreaView>

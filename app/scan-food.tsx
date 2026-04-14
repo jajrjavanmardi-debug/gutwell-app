@@ -14,6 +14,7 @@ import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
 import { Toast } from '../components/ui/Toast';
 import { Colors, Spacing, FontSize, BorderRadius, FontFamily } from '../constants/theme';
+import { track, Events } from '../lib/analytics';
 
 type FoodItem = {
   name: string;
@@ -31,6 +32,29 @@ type AnalysisResult = {
 
 type ScreenState = 'camera' | 'analyzing' | 'results';
 
+function getAnalysisErrorMessage(error: any): string {
+  const status = error?.context?.status;
+  const code = error?.context?.code;
+  const message = String(error?.message || '').toLowerCase();
+
+  if (status === 401 || code === 'UNAUTHORIZED') {
+    return 'Your session expired. Please sign in again.';
+  }
+  if (status === 429 || code === 'RATE_LIMITED') {
+    return 'Too many scans right now. Please wait a minute and try again.';
+  }
+  if (status === 413 || code === 'IMAGE_TOO_LARGE') {
+    return 'Image is too large. Please try another photo.';
+  }
+  if (status === 400 || code === 'BAD_REQUEST') {
+    return 'Could not read this image. Try a clearer food photo.';
+  }
+  if (message.includes('network') || message.includes('timeout')) {
+    return 'Network issue while analyzing. Please check your connection and retry.';
+  }
+  return 'Could not analyze the image. Try again.';
+}
+
 export default function ScanFoodScreen() {
   const { user } = useAuth();
   const [state, setState] = useState<ScreenState>('camera');
@@ -39,6 +63,22 @@ export default function ScanFoodScreen() {
   const [analysis, setAnalysis] = useState<AnalysisResult | null>(null);
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState({ visible: false, message: '', type: 'success' as 'success' | 'error' });
+
+  const invokeAnalyzeFood = async (image: string, mimeType: string) => {
+    const timeoutMs = 25000;
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      const timeoutId = setTimeout(() => {
+        clearTimeout(timeoutId);
+        reject(new Error('Analysis timeout'));
+      }, timeoutMs);
+    });
+
+    const invokePromise = supabase.functions.invoke('analyze-food', {
+      body: { image, mimeType },
+    });
+
+    return Promise.race([invokePromise, timeoutPromise]);
+  };
 
   const takePhoto = async () => {
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
@@ -90,19 +130,27 @@ export default function ScanFoodScreen() {
     }
 
     try {
-      const { data, error } = await supabase.functions.invoke('analyze-food', {
-        body: { image: imageData, mimeType: 'image/jpeg' },
-      });
+      const { data, error } = await invokeAnalyzeFood(imageData, 'image/jpeg');
 
       if (error) throw error;
-      if (data?.error) throw new Error(data.error);
+      if (data?.code) {
+        const apiError = new Error(data?.message || 'Analysis failed');
+        (apiError as any).context = { status: 400, code: data.code };
+        throw apiError;
+      }
 
       setAnalysis(data as AnalysisResult);
       setState('results');
+      track(Events.FOOD_SCANNED, { foodsDetected: (data as AnalysisResult).foods?.length ?? 0 });
     } catch (err) {
-      console.warn('Analysis failed:', err);
+      const typedErr: any = err;
+      const message = getAnalysisErrorMessage(typedErr);
+      const status = typedErr?.context?.status ?? typedErr?.status ?? null;
+      const code = typedErr?.context?.code ?? typedErr?.code ?? 'unknown';
+      console.warn('Analysis failed:', { message: typedErr?.message, status, code });
+      track('food_scan_failed', { status, code });
       setState('camera');
-      setToast({ visible: true, message: 'Could not analyze the image. Try again.', type: 'error' });
+      setToast({ visible: true, message, type: 'error' });
     }
   };
 

@@ -26,6 +26,7 @@ import * as Sentry from '@sentry/react-native';
 import { initAnalytics, identifyUser } from '../lib/analytics';
 import { flush } from '../lib/offline-queue';
 import * as SplashScreen from 'expo-splash-screen';
+import { initSubscription } from '../lib/subscription';
 
 // Initialize Sentry for crash reporting
 Sentry.init({
@@ -57,6 +58,7 @@ function RootLayoutNav() {
       syncReminders(session.user.id).catch(console.warn);
       scheduleWeeklyDigestNotification().catch(console.warn);
       identifyUser(session.user.id);
+      initSubscription(session.user.id).catch(console.warn);
     }
   }, [session?.user?.id]);
 
