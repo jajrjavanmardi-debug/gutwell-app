@@ -75,7 +75,7 @@ export function ShareCard({
   const handleShare = async () => {
     try {
       await Share.share({
-        message: `My GutWell gut score this week: ${score ?? '--'}/100 🌿 Day ${streak} streak! Download GutWell to track your gut health.`,
+        message: `My NutriFlow gut score this week: ${score ?? '--'}/100 🌿 Day ${streak} streak! Download NutriFlow to track your gut health.`,
       });
     } catch {
       // Share cancelled — no action needed
@@ -108,8 +108,8 @@ export function ShareCard({
         style={[
           styles.centeredView,
           { opacity: opacityAnim, transform: [{ scale: scaleAnim }] },
+          { pointerEvents: 'box-none' },
         ]}
-        pointerEvents="box-none"
       >
         <View style={[styles.sheet, { width: CARD_WIDTH }]}>
 
@@ -132,7 +132,7 @@ export function ShareCard({
             {/* Brand header */}
             <View style={styles.brandRow}>
               <Ionicons name="leaf" size={14} color={Colors.secondary} />
-              <Text style={styles.brandName}>GutWell</Text>
+              <Text style={styles.brandName}>NutriFlow</Text>
             </View>
 
             {/* Score Circle */}

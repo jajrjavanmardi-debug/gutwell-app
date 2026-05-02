@@ -14,7 +14,7 @@ export const StarFieldBackground: React.FC<StarFieldBackgroundProps> = ({ width,
   const h = height ?? screenHeight;
   const stars = useMemo(() => generateStars(w, h, { seed, count, opacityVariation }), [w, h, seed, count, opacityVariation]);
   return (
-    <View style={StyleSheet.absoluteFill} pointerEvents="none">
+    <View style={[StyleSheet.absoluteFill, { pointerEvents: 'none' }]}>
       <Svg width={w} height={h}>
         {stars.map((s, i) => <Circle key={i} cx={s.x} cy={s.y} r={s.r} fill="#FFFFFF" opacity={s.o} />)}
       </Svg>

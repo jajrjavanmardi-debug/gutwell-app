@@ -13,7 +13,7 @@ export async function exportUserData(userId: string) {
     supabase.from('symptoms').select('*').eq('user_id', userId).order('logged_at', { ascending: false }),
   ]);
 
-  let csv = 'GutWell Data Export\n\n';
+  let csv = 'NutriFlow Data Export\n\n';
 
   // Check-ins
   csv += '=== CHECK-INS ===\n';
@@ -45,7 +45,7 @@ export async function exportUserData(userId: string) {
   if (await Sharing.isAvailableAsync()) {
     await Sharing.shareAsync(filePath, {
       mimeType: 'text/csv',
-      dialogTitle: 'Export GutWell Data',
+      dialogTitle: 'Export NutriFlow Data',
       UTI: 'public.comma-separated-values-text',
     });
   }

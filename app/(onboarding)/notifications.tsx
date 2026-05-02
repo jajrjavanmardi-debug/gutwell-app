@@ -5,7 +5,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
 import { router } from 'expo-router';
-import * as Notifications from 'expo-notifications';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Sentry from '@sentry/react-native';
 import { supabase } from '../../lib/supabase';
@@ -80,7 +79,6 @@ export default function NotificationsScreen() {
   };
 
   const requestPermission = async () => {
-    await Notifications.requestPermissionsAsync();
     await completeOnboarding();
   };
 

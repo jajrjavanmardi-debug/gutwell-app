@@ -50,7 +50,7 @@ export default function ForgotPasswordScreen() {
             <View style={styles.logoCircle}>
               <Ionicons name="lock-closed" size={36} color="white" />
             </View>
-            <Text style={styles.appName}>GutWell</Text>
+            <Text style={styles.appName}>NutriFlow</Text>
             <Text style={styles.tagline}>Reset Password</Text>
           </View>
         </SafeAreaView>

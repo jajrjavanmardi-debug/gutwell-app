@@ -8,11 +8,19 @@ export interface QueueItem {
   table: string;
   payload: Record<string, unknown>;
   timestamp: number;
+  operation?: 'insert' | 'upsert';
+  onConflict?: string;
 }
 
 async function getQueue(): Promise<QueueItem[]> {
   const raw = await AsyncStorage.getItem(QUEUE_KEY);
-  return raw ? JSON.parse(raw) : [];
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? (parsed as QueueItem[]) : [];
+  } catch {
+    return [];
+  }
 }
 
 async function saveQueue(queue: QueueItem[]): Promise<void> {
@@ -23,7 +31,11 @@ async function saveQueue(queue: QueueItem[]): Promise<void> {
  * Add an insert operation to the offline queue.
  * Deduplicates by table + JSON-stringified payload to avoid redundant entries.
  */
-export async function enqueue(table: string, payload: Record<string, unknown>): Promise<void> {
+export async function enqueue(
+  table: string,
+  payload: Record<string, unknown>,
+  options?: { operation?: 'insert' | 'upsert'; onConflict?: string }
+): Promise<void> {
   const queue = await getQueue();
 
   // Deduplicate: skip if an identical table + payload combination already exists
@@ -38,6 +50,8 @@ export async function enqueue(table: string, payload: Record<string, unknown>): 
     table,
     payload,
     timestamp: Date.now(),
+    operation: options?.operation || 'insert',
+    onConflict: options?.onConflict,
   });
   await saveQueue(queue);
 }
@@ -54,14 +68,22 @@ export async function flush(): Promise<number> {
   const now = Date.now();
   const failed: QueueItem[] = [];
   let synced = 0;
+  let expired = 0;
 
   // NOTE: Items are processed sequentially to avoid overwhelming the server
   // with concurrent writes. A future improvement could batch by table.
   for (const item of queue) {
     // Skip expired items (older than 7 days)
-    if (now - item.timestamp > EXPIRY_MS) continue;
+    if (now - item.timestamp > EXPIRY_MS) {
+      expired++;
+      continue;
+    }
 
-    const { error } = await supabase.from(item.table).insert(item.payload);
+    const operation = item.operation || 'insert';
+    const result = operation === 'upsert'
+      ? await supabase.from(item.table).upsert(item.payload, item.onConflict ? { onConflict: item.onConflict } : undefined)
+      : await supabase.from(item.table).insert(item.payload);
+    const { error } = result;
     if (error) {
       failed.push(item);
     } else {
@@ -70,6 +92,9 @@ export async function flush(): Promise<number> {
   }
 
   await saveQueue(failed);
+  if (expired > 0) {
+    console.warn(`[offline-queue] dropped ${expired} expired item(s)`);
+  }
   return synced;
 }
 

@@ -73,7 +73,7 @@ export default function LoginScreen() {
             <View style={styles.logoCircle}>
               <Ionicons name="leaf" size={40} color="white" />
             </View>
-            <Text style={styles.appName}>GutWell</Text>
+            <Text style={styles.appName}>NutriFlow</Text>
             <Text style={styles.tagline}>Understand your gut. Feel your best.</Text>
           </View>
         </SafeAreaView>

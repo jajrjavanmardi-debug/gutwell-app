@@ -91,7 +91,11 @@ export default function EditCheckinScreen() {
   const [toast, setToast] = useState({ visible: false, message: '', type: 'success' as 'success' | 'error' });
 
   useEffect(() => {
-    if (!id) return;
+    if (!id) {
+      setToast({ visible: true, message: 'Missing check-in ID', type: 'error' });
+      setFetching(false);
+      return;
+    }
     (async () => {
       const { data, error } = await supabase
         .from('check_ins')
@@ -108,7 +112,7 @@ export default function EditCheckinScreen() {
       setPain(data.pain ?? 1);
       setEnergy(data.energy ?? 3);
       setMood(data.mood ?? null);
-      setWaterGlasses(data.water_glasses ?? 0);
+      setWaterGlasses(data.water_intake ?? 0);
       setNote(data.note ?? '');
       setFetching(false);
     })();
@@ -119,7 +123,14 @@ export default function EditCheckinScreen() {
       setToast({ visible: true, message: 'Please select a stool type', type: 'error' });
       return;
     }
-    if (!user || !id) return;
+    if (!id) {
+      setToast({ visible: true, message: 'Missing check-in ID', type: 'error' });
+      return;
+    }
+    if (!user) {
+      setToast({ visible: true, message: 'Please log in to continue', type: 'error' });
+      return;
+    }
     setSaving(true);
     const { error } = await supabase
       .from('check_ins')
@@ -129,6 +140,7 @@ export default function EditCheckinScreen() {
         pain,
         energy,
         mood,
+        water_intake: waterGlasses,
         note: note.trim() || null,
       })
       .eq('id', id);
@@ -152,7 +164,14 @@ export default function EditCheckinScreen() {
           text: 'Delete',
           style: 'destructive',
           onPress: async () => {
-            if (!user || !id) return;
+            if (!id) {
+              setToast({ visible: true, message: 'Missing check-in ID', type: 'error' });
+              return;
+            }
+            if (!user) {
+              setToast({ visible: true, message: 'Please log in to continue', type: 'error' });
+              return;
+            }
             setDeleting(true);
             const { error } = await supabase
               .from('check_ins')

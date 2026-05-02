@@ -86,13 +86,13 @@ export default function TabLayout() {
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: Colors.primary,
-        tabBarInactiveTintColor: Colors.textSecondary,
+        tabBarActiveTintColor: '#2DCE89',
+        tabBarInactiveTintColor: '#777777',
         headerShown: false,
-        tabBarBackground: () => <BlurView intensity={60} tint="light" style={StyleSheet.absoluteFill} />,
+        tabBarBackground: () => <BlurView intensity={60} tint="dark" style={StyleSheet.absoluteFill} />,
         tabBarStyle: {
-          backgroundColor: 'rgba(250,253,247,0.92)',
-          borderTopColor: Colors.divider,
+          backgroundColor: 'rgba(0,0,0,0.94)',
+          borderTopColor: '#181818',
           borderTopWidth: 1,
           paddingTop: 8,
           paddingBottom: Platform.OS === 'ios' ? 0 : 8,
@@ -171,6 +171,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   iconWrapFocused: {
-    backgroundColor: Colors.primary + '12',
+    backgroundColor: 'rgba(45,206,137,0.14)',
   },
 });

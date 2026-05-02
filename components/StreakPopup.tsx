@@ -159,8 +159,8 @@ export function StreakPopup({
         style={[
           styles.centeredView,
           { opacity: opacityAnim, transform: [{ scale: scaleAnim }] },
+          { pointerEvents: 'box-none' },
         ]}
-        pointerEvents="box-none"
       >
         <LinearGradient
           colors={['#0D2B1E', '#061510']}

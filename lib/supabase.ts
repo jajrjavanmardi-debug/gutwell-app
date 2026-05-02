@@ -30,7 +30,7 @@ const supabaseKey = normalizeKey(
 
 if (!supabaseUrl || !supabaseKey) {
   throw new Error(
-    '[GutWell] Missing Supabase config. Copy .env.example to .env, set EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_KEY (anon key from Supabase → Project Settings → API), then restart Expo.'
+    '[NutriFlow] Missing Supabase config. Copy .env.example to .env, set EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_KEY (anon key from Supabase → Project Settings → API), then restart Expo.'
   );
 }
 
@@ -47,7 +47,7 @@ function assertRealSupabaseCredentials(url: string, key: string): void {
   ];
   if (placeholderHints.some((h) => blob.includes(h))) {
     throw new Error(
-      '[GutWell] .env still has placeholder Supabase values. In Supabase Dashboard → Project Settings → API, copy the real Project URL and anon public key into .env, then run: npx expo start -c'
+      '[NutriFlow] .env still has placeholder Supabase values. In Supabase Dashboard → Project Settings → API, copy the real Project URL and anon public key into .env, then run: npx expo start -c'
     );
   }
 
@@ -55,7 +55,7 @@ function assertRealSupabaseCredentials(url: string, key: string): void {
   try {
     host = new URL(url).hostname.toLowerCase();
   } catch {
-    throw new Error('[GutWell] EXPO_PUBLIC_SUPABASE_URL is not a valid URL.');
+    throw new Error('[NutriFlow] EXPO_PUBLIC_SUPABASE_URL is not a valid URL.');
   }
 
   const isCloud = host.endsWith('.supabase.co');
@@ -63,13 +63,13 @@ function assertRealSupabaseCredentials(url: string, key: string): void {
     __DEV__ && (host === 'localhost' || host === '127.0.0.1' || host === '10.0.2.2');
   if (!isCloud && !isLocal) {
     throw new Error(
-      '[GutWell] EXPO_PUBLIC_SUPABASE_URL should look like https://<ref>.supabase.co (from Project Settings → API).'
+      '[NutriFlow] EXPO_PUBLIC_SUPABASE_URL should look like https://<ref>.supabase.co (from Project Settings → API).'
     );
   }
 
   if (isCloud && !key.startsWith('eyJ')) {
     throw new Error(
-      '[GutWell] EXPO_PUBLIC_SUPABASE_KEY should be the anon public key (long JWT starting with eyJ) from Project Settings → API — not the service_role key.'
+      '[NutriFlow] EXPO_PUBLIC_SUPABASE_KEY should be the anon public key (long JWT starting with eyJ) from Project Settings → API — not the service_role key.'
     );
   }
 
@@ -107,7 +107,7 @@ function assertRealSupabaseCredentials(url: string, key: string): void {
   const tokenRef = decodeJwtRef(key);
   if (tokenRef && urlRef && tokenRef !== urlRef) {
     throw new Error(
-      `[GutWell] Supabase anon key doesn't match the Project URL.\n` +
+      `[NutriFlow] Supabase anon key doesn't match the Project URL.\n` +
         `Project URL ref: ${urlRef}\n` +
         `Anon key ref: ${tokenRef}\n\n` +
         `In Supabase, open the SAME project → Project Settings → API and copy the "anon public" key again (for URL ref ${urlRef}).`

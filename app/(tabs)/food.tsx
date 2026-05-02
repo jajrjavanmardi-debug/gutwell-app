@@ -42,6 +42,11 @@ type Favorite = {
   foods: string[] | null;
 };
 
+function isSameLocalDay(iso: string, reference = new Date()): boolean {
+  const date = new Date(iso);
+  return date.toDateString() === reference.toDateString();
+}
+
 export default function FoodScreen() {
   const { user } = useAuth();
   const [mealType, setMealType] = useState('breakfast');
@@ -56,6 +61,7 @@ export default function FoodScreen() {
   const [sensitiveFoods, setSensitiveFoods] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const todaysMeals = recentMeals.filter((meal) => isSameLocalDay(meal.logged_at));
 
   const loadData = async () => {
     try {
@@ -73,37 +79,44 @@ export default function FoodScreen() {
 
   const loadFavorites = async () => {
     if (!user) return;
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('favorites')
       .select('id, meal_name, meal_type, foods')
       .eq('user_id', user.id)
       .order('created_at', { ascending: false })
       .limit(10);
+    if (error) throw error;
     setFavorites(data || []);
   };
 
   const loadRecentMeals = async () => {
     if (!user) return;
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('food_logs').select('id, meal_name, meal_type, logged_at')
       .eq('user_id', user.id).order('logged_at', { ascending: false }).limit(5);
+    if (error) throw error;
     setRecentMeals(data || []);
   };
 
   const loadSensitiveFoods = async () => {
     if (!user) return;
     const thirtyDaysAgo = new Date(); thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-    const [{ data: recentSymptoms }, { data: recentFoodLogs }] = await Promise.all([
+    const [
+      { data: recentSymptoms, error: symptomsError },
+      { data: recentFoodLogs, error: foodsError },
+    ] = await Promise.all([
       supabase.from('symptoms').select('logged_at').eq('user_id', user.id).gte('logged_at', thirtyDaysAgo.toISOString()),
       supabase.from('food_logs').select('meal_name, logged_at').eq('user_id', user.id).gte('logged_at', thirtyDaysAgo.toISOString()),
     ]);
+    if (symptomsError) throw symptomsError;
+    if (foodsError) throw foodsError;
     if (recentSymptoms && recentFoodLogs) {
       const triggered = new Set<string>();
       recentSymptoms.forEach(s => {
         const symTime = new Date(s.logged_at).getTime();
         recentFoodLogs.forEach(f => {
           const foodTime = new Date(f.logged_at).getTime();
-          if (foodTime < symTime && symTime - foodTime < 6 * 3600 * 1000) {
+          if (foodTime < symTime && symTime - foodTime < 6 * 3600 * 1000 && typeof f.meal_name === 'string' && f.meal_name.trim()) {
             triggered.add(f.meal_name.toLowerCase());
           }
         });
@@ -113,21 +126,37 @@ export default function FoodScreen() {
   };
 
   const addFood = () => {
-    if (currentFood.trim()) { setFoods([...foods, currentFood.trim()]); setCurrentFood(''); }
+    const normalized = currentFood.trim();
+    if (!normalized) return;
+    setFoods(prev => {
+      const exists = prev.some(item => item.toLowerCase() === normalized.toLowerCase());
+      return exists ? prev : [...prev, normalized];
+    });
+    setCurrentFood('');
   };
 
   const quickLogFavorite = async (fav: Favorite) => {
-    if (!user) return;
+    if (!user) {
+      setToast({ visible: true, message: 'Please log in to continue', type: 'error' });
+      return;
+    }
     setLoading(true);
-    const { error } = await supabase.from('food_logs').insert({
+    const payload = {
       user_id: user.id,
       meal_name: fav.meal_name,
       meal_type: fav.meal_type,
       foods: fav.foods || null,
-    });
+      logged_at: new Date().toISOString(),
+    };
+    const { error } = await supabase.from('food_logs').insert(payload);
     setLoading(false);
     if (error) {
-      setToast({ visible: true, message: 'Failed to log favorite', type: 'error' });
+      if (error.message?.includes('network') || error.message?.includes('Network') || error.code === 'PGRST301' || !error.code) {
+        await enqueue('food_logs', payload);
+        setToast({ visible: true, message: 'Favorite saved offline — will sync when connected', type: 'info' });
+      } else {
+        setToast({ visible: true, message: 'Failed to log favorite', type: 'error' });
+      }
     } else {
       setToast({ visible: true, message: `${fav.meal_name} logged!`, type: 'success' });
       loadRecentMeals();
@@ -138,30 +167,86 @@ export default function FoodScreen() {
     if (!mealName.trim() && foods.length === 0) {
       setToast({ visible: true, message: 'Please enter a meal name or add foods', type: 'error' }); return;
     }
-    if (!user) return;
+    if (!user) {
+      setToast({ visible: true, message: 'Please log in to continue', type: 'error' });
+      return;
+    }
+    const normalizedMealName = (mealName.trim() || foods.join(', ')).trim().slice(0, 200);
+    if (!normalizedMealName) {
+      setToast({ visible: true, message: 'Meal name is required', type: 'error' });
+      return;
+    }
+    const payload = {
+      user_id: user.id,
+      meal_name: normalizedMealName,
+      meal_type: mealType,
+      foods: foods.length > 0 ? foods : null,
+      note: note.trim() || null,
+      logged_at: new Date().toISOString(),
+    };
     setLoading(true);
-    const { error } = await supabase.from('food_logs').insert({
-      user_id: user.id, meal_name: mealName.trim() || foods.join(', '),
-      meal_type: mealType, foods: foods.length > 0 ? foods : null, note: note.trim() || null,
-    });
+    const { data: existingRecent, error: existingRecentError } = await supabase
+      .from('food_logs')
+      .select('id')
+      .eq('user_id', user.id)
+      .eq('meal_name', payload.meal_name)
+      .eq('meal_type', payload.meal_type)
+      .gte('logged_at', new Date(Date.now() - 120000).toISOString())
+      .limit(1);
+    if (existingRecentError) {
+      setLoading(false);
+      if (existingRecentError.message?.includes('network') || existingRecentError.message?.includes('Network') || existingRecentError.code === 'PGRST301' || !existingRecentError.code) {
+        await enqueue('food_logs', payload);
+        setToast({ visible: true, message: 'Saved offline — will sync when connected', type: 'info' });
+        setMealName('');
+        setFoods([]);
+        setNote('');
+      } else {
+        setToast({ visible: true, message: 'Failed to validate meal before saving', type: 'error' });
+      }
+      return;
+    }
+    if (existingRecent && existingRecent.length > 0) {
+      setLoading(false);
+      setToast({ visible: true, message: 'This meal was just logged.', type: 'info' });
+      return;
+    }
+    const { error } = await supabase.from('food_logs').insert(payload);
     setLoading(false);
     if (error) {
       // Network error — queue offline
       if (error.message?.includes('network') || error.message?.includes('Network') || error.code === 'PGRST301' || !error.code) {
         await enqueue('food_logs', {
-          user_id: user.id, meal_name: mealName.trim() || foods.join(', '),
-          meal_type: mealType, foods: foods.length > 0 ? foods : null, note: note.trim() || null,
+          ...payload,
         });
         setToast({ visible: true, message: 'Saved offline — will sync when connected', type: 'info' });
         setMealName(''); setFoods([]); setNote('');
       } else {
         setToast({ visible: true, message: 'Failed to save food log', type: 'error' });
       }
-    } else { setToast({ visible: true, message: 'Meal logged!', type: 'success' }); setMealName(''); setFoods([]); setNote(''); loadRecentMeals(); }
+    } else {
+      setToast({ visible: true, message: 'Meal logged!', type: 'success' });
+      setRecentMeals((prev) => [
+        {
+          id: Date.now(),
+          meal_name: payload.meal_name,
+          meal_type: payload.meal_type,
+          logged_at: payload.logged_at,
+        },
+        ...prev,
+      ]);
+      setMealName('');
+      setFoods([]);
+      setNote('');
+      loadRecentMeals();
+    }
   };
 
   const handleFavoriteFromRecent = async (meal: { id: number; meal_name: string; meal_type: string; logged_at: string }) => {
-    if (!user) return;
+    if (!user) {
+      setToast({ visible: true, message: 'Please log in to continue', type: 'error' });
+      return;
+    }
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     const { error } = await supabase
       .from('favorites')
@@ -207,7 +292,10 @@ export default function FoodScreen() {
   };
 
   const handleDeleteMeal = async (id: number) => {
-    if (!user) return;
+    if (!user) {
+      setToast({ visible: true, message: 'Please log in to continue', type: 'error' });
+      return;
+    }
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     const { error } = await supabase
       .from('food_logs')
@@ -244,13 +332,13 @@ export default function FoodScreen() {
         )}
 
         {/* Scan Button - Premium solid card */}
-        <TouchableOpacity style={styles.scanButton} onPress={() => router.push('/scan-food')} activeOpacity={0.7}>
+        <TouchableOpacity style={styles.scanButton} onPress={() => router.push('/photo-analysis')} activeOpacity={0.7}>
           <View style={styles.scanIcon}>
             <Ionicons name="camera" size={22} color={Colors.primary} />
           </View>
           <View style={styles.scanContent}>
-            <Text style={styles.scanTitle}>Scan with Camera</Text>
-            <Text style={styles.scanSubtitle}>Instant gut health analysis of your meal</Text>
+            <Text style={styles.scanTitle}>Photo Meal Analysis</Text>
+            <Text style={styles.scanSubtitle}>Take or choose a meal photo for gut-health analysis</Text>
           </View>
           <Ionicons name="chevron-forward" size={18} color={Colors.textTertiary} />
         </TouchableOpacity>
@@ -304,6 +392,37 @@ export default function FoodScreen() {
 
         {/* Meal Name Input */}
         <Input label="Meal Name" placeholder="e.g., Chicken salad" value={mealName} onChangeText={setMealName} />
+
+        {/* Today's Meals */}
+        <View style={styles.todaysMealsSection}>
+          <Text style={styles.sectionLabel}>Today's meals</Text>
+          {todaysMeals.length > 0 ? (
+            <View style={styles.todaysMealsList}>
+              {todaysMeals.map((meal) => (
+                <View key={`${meal.id}-${meal.logged_at}`} style={styles.todaysMealRow}>
+                  <View style={styles.todaysMealInfo}>
+                    <Text style={styles.todaysMealName} numberOfLines={1}>
+                      {meal.meal_name}
+                    </Text>
+                    <Text style={styles.todaysMealTime}>{formatMealTime(meal.logged_at)}</Text>
+                  </View>
+                  <TouchableOpacity
+                    style={styles.todaysMealDeleteBtn}
+                    activeOpacity={0.7}
+                    onPress={() => {
+                      setRecentMeals((prev) => prev.filter((m) => m.id !== meal.id));
+                      handleDeleteMeal(meal.id);
+                    }}
+                  >
+                    <Ionicons name="trash-outline" size={14} color={Colors.error} />
+                  </TouchableOpacity>
+                </View>
+              ))}
+            </View>
+          ) : (
+            <Text style={styles.todaysMealsEmpty}>No meals logged yet today.</Text>
+          )}
+        </View>
 
         {/* Food Tags */}
         <Text style={styles.sectionLabel}>Foods (optional tags)</Text>
@@ -362,16 +481,30 @@ export default function FoodScreen() {
                     <Ionicons name={getMealIcon(meal.meal_type) as any} size={18} color={Colors.primary} />
                   </View>
                   <View style={styles.recentInfo}>
+                    {(() => {
+                      const safeMealName = typeof meal.meal_name === 'string' ? meal.meal_name : '';
+                      const safeMealType = typeof meal.meal_type === 'string' ? meal.meal_type : '';
+                      const mealTypeLabel = safeMealType
+                        ? safeMealType.charAt(0).toUpperCase() + safeMealType.slice(1)
+                        : 'Meal';
+                      const normalizedMealName = safeMealName ? safeMealName.toLowerCase() : null;
+                      const isSensitive = normalizedMealName ? sensitiveFoods.includes(normalizedMealName) : false;
+
+                      return (
+                        <>
                     <Text style={styles.recentName} numberOfLines={1}>{meal.meal_name}</Text>
                     <Text style={styles.recentMeta}>
-                      {meal.meal_type.charAt(0).toUpperCase() + meal.meal_type.slice(1)} · {formatMealTime(meal.logged_at)}
+                          {mealTypeLabel} · {formatMealTime(meal.logged_at)}
                     </Text>
-                    {sensitiveFoods.includes(meal.meal_name?.toLowerCase()) && (
+                          {isSensitive && (
                       <View style={styles.sensitivityBadge}>
                         <Ionicons name="warning-outline" size={11} color="#D4A373" />
                         <Text style={styles.sensitivityText}>May trigger</Text>
                       </View>
                     )}
+                        </>
+                      );
+                    })()}
                   </View>
                 </View>
               </SwipeableCard>
@@ -516,6 +649,53 @@ const styles = StyleSheet.create({
     marginTop: Spacing.md,
     marginBottom: Spacing.xs,
     marginLeft: Spacing.xs,
+  },
+  todaysMealsSection: {
+    marginTop: Spacing.xs,
+    marginBottom: Spacing.md,
+  },
+  todaysMealsList: {
+    gap: Spacing.xs,
+  },
+  todaysMealRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: Colors.surface,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    borderRadius: BorderRadius.md,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+  },
+  todaysMealInfo: {
+    flex: 1,
+    marginRight: Spacing.sm,
+  },
+  todaysMealName: {
+    fontFamily: FontFamily.sansMedium,
+    fontSize: FontSize.sm,
+    color: Colors.text,
+  },
+  todaysMealTime: {
+    fontFamily: FontFamily.sansRegular,
+    fontSize: FontSize.xs,
+    color: Colors.textTertiary,
+  },
+  todaysMealDeleteBtn: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: Colors.error + '12',
+  },
+  todaysMealsEmpty: {
+    fontFamily: FontFamily.sansRegular,
+    fontSize: FontSize.xs,
+    color: Colors.textTertiary,
+    marginLeft: Spacing.xs,
+    marginTop: 2,
   },
   sectionTitle: {
     fontFamily: FontFamily.sansSemiBold,

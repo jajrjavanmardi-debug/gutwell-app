@@ -82,7 +82,7 @@ export default function WelcomeScreen() {
         </View>
 
         {/* App name */}
-        <Text style={styles.appName}>GutWell</Text>
+        <Text style={styles.appName}>NutriFlow</Text>
 
         {/* Animated tagline */}
         <View style={styles.taglineContainer}>
@@ -105,7 +105,7 @@ export default function WelcomeScreen() {
         <View style={styles.signInRow}>
           <Text style={styles.signInPrompt}>Already have an account? </Text>
           <TouchableOpacity
-            onPress={() => router.replace('/(auth)/login')}
+            onPress={() => router.replace('/(tabs)')}
             activeOpacity={0.7}
           >
             <Text style={styles.signInLink}>Sign in</Text>

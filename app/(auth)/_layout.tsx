@@ -1,12 +1,5 @@
-import { Stack } from 'expo-router';
+import { Redirect } from 'expo-router';
 
 export default function AuthLayout() {
-  return (
-    <Stack
-      screenOptions={{
-        headerShown: false,
-        contentStyle: { backgroundColor: '#F5FAF7' },
-      }}
-    />
-  );
+  return <Redirect href="/(tabs)" />;
 }

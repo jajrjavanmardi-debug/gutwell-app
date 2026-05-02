@@ -1,21 +1,25 @@
 {
   "expo": {
-    "name": "GutWell",
+    "name": "NutriFlow",
     "slug": "gutwell",
     "version": "1.0.0",
+    "sdkVersion": "54.0.0",
+    "platforms": ["android", "ios"],
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "gutwellapp",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
-      "supportsTablet": false,
+      "supportsTablet": true,
       "bundleIdentifier": "com.parallellabs.gutwell",
       "buildNumber": "1",
       "infoPlist": {
-        "NSPhotoLibraryUsageDescription": "GutWell uses your photo library to let you attach photos to your food logs.",
-        "NSCameraUsageDescription": "GutWell uses your camera to let you photograph meals for your food log.",
-        "NSUserNotificationsUsageDescription": "GutWell uses notifications to remind you to log your daily check-ins and meals."
+        "NSPhotoLibraryUsageDescription": "NutriFlow uses your photo library to let you attach photos to your food logs.",
+        "NSCameraUsageDescription": "This app uses the camera to take meal photos for gut-health analysis.",
+        "NSLocationWhenInUseUsageDescription": "This app needs location to find healthy food nearby.",
+        "NSMicrophoneUsageDescription": "NutriFlow uses the microphone to turn your voice corrections into text.",
+        "NSSpeechRecognitionUsageDescription": "NutriFlow uses speech recognition so you can correct meal analysis by voice."
       }
     },
     "android": {
@@ -27,7 +31,9 @@
       },
       "package": "com.parallellabs.gutwell",
       "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "softwareKeyboardLayoutMode": "resize",
+      "permissions": ["CAMERA", "ACCESS_FINE_LOCATION", "RECORD_AUDIO"]
     },
     "web": {
       "output": "static",
@@ -36,18 +42,10 @@
     "plugins": [
       "expo-router",
       [
-        "expo-notifications",
-        {
-          "icon": "./assets/images/icon.png",
-          "color": "#1B4332",
-          "sounds": []
-        }
-      ],
-      [
         "expo-image-picker",
         {
-          "photosPermission": "GutWell uses your photo library to let you attach photos to your food logs.",
-          "cameraPermission": "GutWell uses your camera to let you photograph meals for your food log."
+          "photosPermission": "NutriFlow uses your photo library to let you attach photos to your food logs.",
+          "cameraPermission": "NutriFlow uses your camera to let you photograph meals for your food log."
         }
       ],
       [
@@ -69,6 +67,27 @@
           "widgetsFolder": "widgets",
           "groupIdentifier": "group.com.parallellabs.gutwell",
           "deploymentTarget": "16.0"
+        }
+      ],
+      "expo-web-browser",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "NutriFlow uses your approximate location to suggest healthier food alternatives available near you."
+        }
+      ],
+      [
+        "@react-native-voice/voice",
+        {
+          "microphonePermission": "NutriFlow uses the microphone for speech-to-text when you describe meals or corrections.",
+          "speechRecognitionPermission": "NutriFlow uses speech recognition so you can speak meal descriptions and corrections."
+        }
+      ],
+      [
+        "expo-speech-recognition",
+        {
+          "microphonePermission": "NutriFlow uses the microphone for speech-to-text when you describe meals or corrections.",
+          "speechRecognitionPermission": "NutriFlow uses speech recognition so you can speak meal descriptions and corrections."
         }
       ]
     ],

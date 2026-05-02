@@ -14,6 +14,8 @@ import { Button } from '../components/ui/Button';
 import { Card } from '../components/ui/Card';
 import { Toast } from '../components/ui/Toast';
 import { Colors, Spacing, FontSize, BorderRadius, FontFamily } from '../constants/theme';
+import { track, Events } from '../lib/analytics';
+import { enqueue } from '../lib/offline-queue';
 
 type FoodItem = {
   name: string;
@@ -31,6 +33,49 @@ type AnalysisResult = {
 
 type ScreenState = 'camera' | 'analyzing' | 'results';
 
+function normalizeAnalysisResult(data: any): AnalysisResult {
+  const foods = Array.isArray(data?.foods)
+    ? data.foods
+      .filter((f: any) => typeof f?.name === 'string' && f.name.trim().length > 0)
+      .map((f: any) => ({
+        name: String(f.name),
+        gut_score: typeof f.gut_score === 'number' ? f.gut_score : 5,
+        fodmap_level: ['low', 'medium', 'high'].includes(f.fodmap_level) ? f.fodmap_level : 'medium',
+        flags: Array.isArray(f.flags) ? f.flags.filter((x: any) => typeof x === 'string') : [],
+        reasoning: typeof f.reasoning === 'string' ? f.reasoning : '',
+      }))
+    : [];
+
+  return {
+    foods,
+    overall_score: typeof data?.overall_score === 'number' ? data.overall_score : 5,
+    summary: typeof data?.summary === 'string' ? data.summary : 'Analysis completed.',
+  };
+}
+
+function getAnalysisErrorMessage(error: any): string {
+  const status = error?.context?.status;
+  const code = error?.context?.code;
+  const message = String(error?.message || '').toLowerCase();
+
+  if (status === 401 || code === 'UNAUTHORIZED') {
+    return 'Your session expired. Please sign in again.';
+  }
+  if (status === 429 || code === 'RATE_LIMITED') {
+    return 'Too many scans right now. Please wait a minute and try again.';
+  }
+  if (status === 413 || code === 'IMAGE_TOO_LARGE') {
+    return 'Image is too large. Please try another photo.';
+  }
+  if (status === 400 || code === 'BAD_REQUEST') {
+    return 'Could not read this image. Try a clearer food photo.';
+  }
+  if (message.includes('network') || message.includes('timeout')) {
+    return 'Network issue while analyzing. Please check your connection and retry.';
+  }
+  return 'Could not analyze the image. Try again.';
+}
+
 export default function ScanFoodScreen() {
   const { user } = useAuth();
   const [state, setState] = useState<ScreenState>('camera');
@@ -39,6 +84,22 @@ export default function ScanFoodScreen() {
   const [analysis, setAnalysis] = useState<AnalysisResult | null>(null);
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState({ visible: false, message: '', type: 'success' as 'success' | 'error' });
+
+  const invokeAnalyzeFood = async (image: string, mimeType: string) => {
+    const timeoutMs = 25000;
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      const timeoutId = setTimeout(() => {
+        clearTimeout(timeoutId);
+        reject(new Error('Analysis timeout'));
+      }, timeoutMs);
+    });
+
+    const invokePromise = supabase.functions.invoke('analyze-food', {
+      body: { image, mimeType },
+    });
+
+    return Promise.race([invokePromise, timeoutPromise]);
+  };
 
   const takePhoto = async () => {
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
@@ -90,19 +151,28 @@ export default function ScanFoodScreen() {
     }
 
     try {
-      const { data, error } = await supabase.functions.invoke('analyze-food', {
-        body: { image: imageData, mimeType: 'image/jpeg' },
-      });
+      const { data, error } = await invokeAnalyzeFood(imageData, 'image/jpeg');
 
       if (error) throw error;
-      if (data?.error) throw new Error(data.error);
+      if (data?.code) {
+        const apiError = new Error(data?.message || 'Analysis failed');
+        (apiError as any).context = { status: 400, code: data.code };
+        throw apiError;
+      }
 
-      setAnalysis(data as AnalysisResult);
+      const normalized = normalizeAnalysisResult(data);
+      setAnalysis(normalized);
       setState('results');
+      track(Events.FOOD_SCANNED, { foodsDetected: normalized.foods.length });
     } catch (err) {
-      console.warn('Analysis failed:', err);
+      const typedErr: any = err;
+      const message = getAnalysisErrorMessage(typedErr);
+      const status = typedErr?.context?.status ?? typedErr?.status ?? null;
+      const code = typedErr?.context?.code ?? typedErr?.code ?? 'unknown';
+      console.warn('Analysis failed:', { message: typedErr?.message, status, code });
+      track('food_scan_failed', { status, code });
       setState('camera');
-      setToast({ visible: true, message: 'Could not analyze the image. Try again.', type: 'error' });
+      setToast({ visible: true, message, type: 'error' });
     }
   };
 
@@ -141,22 +211,30 @@ export default function ScanFoodScreen() {
     if (!user || !analysis) return;
     setSaving(true);
 
-    const foods = analysis.foods.map(f => f.name.trim().toLowerCase());
+    const foods = (Array.isArray(analysis.foods) ? analysis.foods : []).map(f => f.name.trim().toLowerCase());
     const mealName = foods.length > 0
       ? foods.slice(0, 3).join(', ') + (foods.length > 3 ? ` +${foods.length - 3} more` : '')
       : 'Scanned meal';
 
-    const { error } = await supabase.from('food_logs').insert({
+    const payload = {
       user_id: user.id,
       meal_name: mealName,
       meal_type: getMealType(),
       foods: foods.length > 0 ? foods : null,
       note: `Gut score: ${analysis.overall_score}/10. ${analysis.summary}`,
-    });
+      logged_at: new Date().toISOString(),
+    };
+    const { error } = await supabase.from('food_logs').insert(payload);
 
     setSaving(false);
     if (error) {
-      setToast({ visible: true, message: 'Failed to save meal', type: 'error' });
+      if (error.message?.includes('network') || error.message?.includes('Network') || error.code === 'PGRST301' || !error.code) {
+        await enqueue('food_logs', payload);
+        setToast({ visible: true, message: 'Saved offline — will sync when connected', type: 'success' });
+        setTimeout(() => router.back(), 1500);
+      } else {
+        setToast({ visible: true, message: 'Failed to save meal', type: 'error' });
+      }
     } else {
       setToast({ visible: true, message: 'Meal logged!', type: 'success' });
       setTimeout(() => router.back(), 1500);
@@ -284,7 +362,7 @@ export default function ScanFoodScreen() {
 
           {/* Food Breakdown */}
           <Text style={styles.sectionTitle}>Food Breakdown</Text>
-          {analysis.foods.map((food, i) => (
+          {(Array.isArray(analysis.foods) ? analysis.foods : []).map((food, i) => (
             <View key={i} style={styles.foodCard}>
               <View style={styles.foodHeader}>
                 <Text style={styles.foodName}>{food.name}</Text>

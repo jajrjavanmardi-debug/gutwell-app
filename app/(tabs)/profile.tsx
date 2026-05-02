@@ -30,6 +30,7 @@ import {
 import { GutLevelBadge } from '../../components/GutLevelBadge';
 import { LoadingSkeleton } from '../../components/ui/LoadingSkeleton';
 import { calculatePoints } from '../../lib/levels';
+import { getStreakSnapshot } from '../../lib/streaks';
 
 const AVATAR_COLORS = ['#1B4332', '#2D6A4F', '#40916C', '#52B788', '#74C69D'];
 
@@ -64,11 +65,11 @@ export default function ProfileScreen() {
     if (!user) return;
     setLoadingStats(true);
     try {
-      const [checkInsRes, foodLogsRes, symptomLogsRes, streakRes] = await Promise.all([
+      const [checkInsRes, foodLogsRes, symptomLogsRes, streakSnapshot] = await Promise.all([
         supabase.from('check_ins').select('id', { count: 'exact', head: true }).eq('user_id', user.id),
         supabase.from('food_logs').select('id', { count: 'exact', head: true }).eq('user_id', user.id),
         supabase.from('symptoms').select('id', { count: 'exact', head: true }).eq('user_id', user.id),
-        supabase.from('streaks').select('current_streak').eq('user_id', user.id).maybeSingle(),
+        getStreakSnapshot(user.id),
       ]);
 
       const [ci, fl, sl] = [checkInsRes, foodLogsRes, symptomLogsRes];
@@ -78,7 +79,7 @@ export default function ProfileScreen() {
         checkIns: checkInsRes.count ?? 0,
         foodLogs: foodLogsRes.count ?? 0,
         symptomLogs: symptomLogsRes.count ?? 0,
-        currentStreak: streakRes.data?.current_streak ?? 0,
+        currentStreak: streakSnapshot.currentStreak ?? 0,
       });
       setTotalPoints(points);
     } catch {
@@ -280,7 +281,7 @@ export default function ProfileScreen() {
           <ListRow
             icon="mail-outline"
             label="Contact Support"
-            onPress={() => Linking.openURL('mailto:support@theparallellab.com?subject=GutWell%20Support')}
+            onPress={() => Linking.openURL('mailto:support@theparallellab.com?subject=NutriFlow%20Support')}
             isLast
           />
         </View>
@@ -306,7 +307,7 @@ export default function ProfileScreen() {
             onPress={() =>
               Alert.alert(
                 'Health Disclaimer',
-                'GutWell is a wellness tracking tool and is not intended to diagnose, treat, cure, or prevent any disease. Always consult your healthcare provider for medical advice.',
+                'NutriFlow is a wellness tracking tool and is not intended to diagnose, treat, cure, or prevent any disease. Always consult your healthcare provider for medical advice.',
                 [{ text: 'OK' }],
               )
             }

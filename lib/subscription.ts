@@ -1,6 +1,3 @@
-// Subscription state management (placeholder until RevenueCat)
-// In a real app this would check receipt validation
-
 export type PremiumFeature =
   | 'correlations'
   | 'weekly_digest'
@@ -8,12 +5,43 @@ export type PremiumFeature =
   | 'export'
   | 'unlimited_achievements';
 
-// For now everyone gets full access (pre-launch)
-// After launch, check AsyncStorage for purchase receipt
-export async function isPremium(): Promise<boolean> {
-  return true; // TODO: replace with RevenueCat check
+type PlanKey = 'monthly' | 'annual';
+
+type PurchaseResult = {
+  success: boolean;
+  cancelled?: boolean;
+  message?: string;
+};
+
+type PurchasesOffering = null;
+
+let premiumState = false;
+
+export async function initSubscription(userId?: string): Promise<void> {
+  void userId;
 }
 
-export function isPremiumFeature(feature: PremiumFeature): boolean {
-  return true; // TODO: gate after RevenueCat integration
+export async function isPremium(): Promise<boolean> {
+  return premiumState;
+}
+
+export async function refreshPremiumStatus(): Promise<boolean> {
+  return isPremium();
+}
+
+export function isPremiumFeature(_feature: PremiumFeature): boolean {
+  return premiumState;
+}
+
+export async function getPaywallOffering(): Promise<PurchasesOffering | null> {
+  return null;
+}
+
+export async function purchasePlan(selectedPlan: PlanKey): Promise<PurchaseResult> {
+  void selectedPlan;
+  return { success: false, message: 'Purchases are disabled for this native debug build.' };
+}
+
+export async function restorePurchases(): Promise<PurchaseResult> {
+  return { success: false, message: 'Purchases are disabled for this native debug build.' };
 }

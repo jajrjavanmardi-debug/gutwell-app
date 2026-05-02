@@ -82,7 +82,7 @@ export function HealthDisclaimerModal({ visible, onAccept }: Props) {
 
             {/* Body */}
             <Text style={styles.body}>
-              GutWell is a wellness tracking app, not a medical device. The
+              NutriFlow is a wellness tracking app, not a medical device. The
               information provided is for personal tracking purposes only and
               does not constitute medical advice.
             </Text>
@@ -97,7 +97,7 @@ export function HealthDisclaimerModal({ visible, onAccept }: Props) {
 
             {/* Legal note */}
             <Text style={styles.legalNote}>
-              By continuing, you acknowledge that GutWell does not diagnose,
+              By continuing, you acknowledge that NutriFlow does not diagnose,
               treat, cure, or prevent any disease or medical condition.
             </Text>
           </Animated.View>
