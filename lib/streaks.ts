@@ -1,4 +1,5 @@
 import { supabase } from './supabase';
+import { addDaysToLocalDateKey, getLocalDateKey } from './date';
 
 export type StreakSnapshot = {
   currentStreak: number;
@@ -17,9 +18,7 @@ function normalizeDate(dateStr: string): string {
 }
 
 function addDays(dateStr: string, days: number): string {
-  const date = new Date(`${dateStr}T00:00:00`);
-  date.setDate(date.getDate() + days);
-  return date.toISOString().split('T')[0];
+  return addDaysToLocalDateKey(dateStr, days);
 }
 
 function isMissingRelationError(error: any): boolean {
@@ -42,7 +41,7 @@ function calculateStreakFromDates(inputDates: string[]): StreakSnapshot {
     }
   }
 
-  const today = new Date().toISOString().split('T')[0];
+  const today = getLocalDateKey();
   const yesterday = addDays(today, -1);
   const lastDate = uniqueSorted[uniqueSorted.length - 1];
 

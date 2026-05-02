@@ -71,7 +71,7 @@ export default function SignupScreen() {
             <View style={styles.logoCircle}>
               <Ionicons name="leaf" size={40} color="white" />
             </View>
-            <Text style={styles.appName}>GutWell</Text>
+            <Text style={styles.appName}>NutriFlow</Text>
             <Text style={styles.tagline}>Create Account</Text>
           </View>
         </SafeAreaView>
@@ -89,7 +89,7 @@ export default function SignupScreen() {
           showsVerticalScrollIndicator={false}
         >
           <View style={styles.formInner}>
-            <Text style={styles.formTitle}>Join GutWell</Text>
+            <Text style={styles.formTitle}>Join NutriFlow</Text>
             <Text style={styles.subtitle}>Create your account and start tracking in minutes.</Text>
 
             {/* ── Form ── */}

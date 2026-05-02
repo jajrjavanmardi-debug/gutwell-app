@@ -67,7 +67,7 @@ struct GutWellSmallView: View {
                 Image(systemName: "leaf.fill")
                     .font(.system(size: 12))
                     .foregroundColor(Color(red: 0.32, green: 0.72, blue: 0.53))
-                Text("GutWell")
+                Text("NutriFlow")
                     .font(.system(size: 12, weight: .semibold))
                     .foregroundColor(.secondary)
             }
@@ -138,7 +138,7 @@ struct GutWellMediumView: View {
                     Image(systemName: "leaf.fill")
                         .font(.system(size: 12))
                         .foregroundColor(Color(red: 0.32, green: 0.72, blue: 0.53))
-                    Text("GutWell")
+                    Text("NutriFlow")
                         .font(.system(size: 13, weight: .semibold))
                         .foregroundColor(.secondary)
                 }
@@ -185,7 +185,7 @@ struct GutWellStreakWidget: Widget {
                 GutWellWidgetEntryView(entry: entry)
             }
         }
-        .configurationDisplayName("Gut Health")
+        .configurationDisplayName("NutriFlow")
         .description("Track your gut score and check-in streak.")
         .supportedFamilies([.systemSmall, .systemMedium])
     }

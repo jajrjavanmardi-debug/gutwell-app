@@ -18,6 +18,7 @@ import { ShareCard, ShareCardProps } from '../components/ShareCard';
 import { calculateLevel } from '../lib/levels';
 import { EmptyState } from '../components/ui/EmptyState';
 import { Colors, Spacing, FontSize, BorderRadius, Shadows, FontFamily } from '../constants/theme';
+import { addDaysToLocalDateKey, getLocalDateKey, localDateKeyToDate } from '../lib/date';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -38,7 +39,7 @@ type DigestData = {
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function getMonday(): Date {
-  const now = new Date();
+  const now = localDateKeyToDate(getLocalDateKey());
   const day = now.getDay(); // 0=Sun … 6=Sat
   const diff = day === 0 ? -6 : 1 - day; // offset to Monday
   const monday = new Date(now);
@@ -76,11 +77,10 @@ export default function WeeklyDigestScreen() {
     try {
 
     const weekStart = getMonday();
-    const weekStartISO = weekStart.toISOString();
-    const weekStartDate = weekStartISO.split('T')[0];
+    const weekStartDate = getLocalDateKey(weekStart);
+    const weekStartISO = `${weekStartDate}T00:00:00`;
 
-    const prevWeekStart = new Date(weekStart.getTime() - 7 * 86400000);
-    const prevWeekStartDate = prevWeekStart.toISOString().split('T')[0];
+    const prevWeekStartDate = addDaysToLocalDateKey(weekStartDate, -7);
 
     const [scoresRes, checkInsRes, symptomsRes, foodsRes, prevScoresRes, checkInDatesRes] = await Promise.all([
       // This week gut_scores
@@ -178,11 +178,10 @@ export default function WeeklyDigestScreen() {
 
     // Streak
     let streak = 0;
-    const today = new Date();
+    const today = getLocalDateKey();
     for (let i = 0; i < checkInDates.length; i++) {
-      const expected = new Date(today);
-      expected.setDate(today.getDate() - i);
-      if (checkInDates[i].entry_date === expected.toISOString().split('T')[0]) {
+      const expected = addDaysToLocalDateKey(today, -i);
+      if (checkInDates[i].entry_date === expected) {
         streak++;
       } else break;
     }
@@ -192,7 +191,7 @@ export default function WeeklyDigestScreen() {
     const weekDays: boolean[] = Array.from({ length: 7 }, (_, i) => {
       const d = new Date(weekStart);
       d.setDate(weekStart.getDate() + i);
-      return checkInDateSet.has(d.toISOString().split('T')[0]);
+      return checkInDateSet.has(getLocalDateKey(d));
     });
 
     // Score per day of week
@@ -201,7 +200,7 @@ export default function WeeklyDigestScreen() {
     const scoreByDay: (number | null)[] = Array.from({ length: 7 }, (_, i) => {
       const d = new Date(weekStart);
       d.setDate(weekStart.getDate() + i);
-      const key = d.toISOString().split('T')[0];
+      const key = getLocalDateKey(d);
       return scoreMap[key] ?? null;
     });
 

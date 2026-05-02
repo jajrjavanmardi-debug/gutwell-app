@@ -103,7 +103,7 @@ export default function PaywallScreen() {
             <View style={styles.heroIconWrap}>
               <Ionicons name="leaf" size={52} color="#52B788" />
             </View>
-            <Text style={styles.heroTitle}>GutWell Premium</Text>
+            <Text style={styles.heroTitle}>NutriFlow Premium</Text>
             <Text style={styles.heroSubtitle}>Unlock your full gut health picture</Text>
           </View>
 

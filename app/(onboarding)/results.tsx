@@ -67,7 +67,7 @@ function computeProfile(answers: Record<string, string>): GutProfile {
       emoji: '🔋',
       color: '#D4A373',
       description:
-        "Your gut-energy connection is disrupted. What you eat is directly affecting how you feel and perform. GutWell will show you exactly how.",
+        "Your gut-energy connection is disrupted. What you eat is directly affecting how you feel and perform. NutriFlow will show you exactly how.",
     };
   }
   return {

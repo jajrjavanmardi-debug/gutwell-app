@@ -1,4 +1,5 @@
 import { supabase } from './supabase';
+import { addDaysToLocalDateKey, getLocalDateKey, getLocalDayIsoRange } from './date';
 
 export type ScoreFactors = {
   stool_score: number;
@@ -39,8 +40,8 @@ export async function calculateGutScore(
   let moodComponent = 0;
 
   // Compute the week-ago date before firing queries
-  const weekAgo = new Date(date);
-  weekAgo.setDate(weekAgo.getDate() - 7);
+  const weekAgoDate = addDaysToLocalDateKey(date, -7);
+  const { startIso: symptomStartIso, endIso: symptomEndIso } = getLocalDayIsoRange(date);
 
   // 1-3. Run all three independent DB calls in parallel
   const [
@@ -62,14 +63,14 @@ export async function calculateGutScore(
       .from('symptoms')
       .select('id', { count: 'exact', head: true })
       .eq('user_id', userId)
-      .gte('logged_at', `${date}T00:00:00`)
-      .lte('logged_at', `${date}T23:59:59.999`),
+      .gte('logged_at', symptomStartIso)
+      .lt('logged_at', symptomEndIso),
     // 3. Regularity bonus: check-ins in the last 7 days
     supabase
       .from('check_ins')
       .select('id', { count: 'exact', head: true })
       .eq('user_id', userId)
-      .gte('entry_date', weekAgo.toISOString().split('T')[0])
+      .gte('entry_date', weekAgoDate)
       .lte('entry_date', date),
   ]);
 
@@ -144,7 +145,7 @@ export async function calculateGutScore(
  * Calculate and save today's gut score for a user.
  */
 export async function updateTodayScore(userId: string): Promise<number> {
-  const today = new Date().toISOString().split('T')[0];
+  const today = getLocalDateKey();
   const { score, factors } = await calculateGutScore(userId, today);
 
   const { error } = await supabase

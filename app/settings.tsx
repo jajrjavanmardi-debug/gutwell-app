@@ -369,7 +369,7 @@ export default function SettingsScreen() {
 
       await Share.share({
         message: JSON.stringify(exportData, null, 2),
-        title: 'GutWell Data Export',
+        title: 'NutriFlow Data Export',
       });
     } catch (err) {
       Alert.alert('Export Failed', 'Could not export your data. Please try again.');
@@ -563,7 +563,7 @@ export default function SettingsScreen() {
           <Divider />
           <SettingsRow
             icon="star-outline"
-            label="Rate GutWell"
+            label="Rate NutriFlow"
             onPress={handleRateApp}
             isLast
           />

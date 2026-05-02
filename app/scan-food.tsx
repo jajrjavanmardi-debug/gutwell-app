@@ -33,6 +33,26 @@ type AnalysisResult = {
 
 type ScreenState = 'camera' | 'analyzing' | 'results';
 
+function normalizeAnalysisResult(data: any): AnalysisResult {
+  const foods = Array.isArray(data?.foods)
+    ? data.foods
+      .filter((f: any) => typeof f?.name === 'string' && f.name.trim().length > 0)
+      .map((f: any) => ({
+        name: String(f.name),
+        gut_score: typeof f.gut_score === 'number' ? f.gut_score : 5,
+        fodmap_level: ['low', 'medium', 'high'].includes(f.fodmap_level) ? f.fodmap_level : 'medium',
+        flags: Array.isArray(f.flags) ? f.flags.filter((x: any) => typeof x === 'string') : [],
+        reasoning: typeof f.reasoning === 'string' ? f.reasoning : '',
+      }))
+    : [];
+
+  return {
+    foods,
+    overall_score: typeof data?.overall_score === 'number' ? data.overall_score : 5,
+    summary: typeof data?.summary === 'string' ? data.summary : 'Analysis completed.',
+  };
+}
+
 function getAnalysisErrorMessage(error: any): string {
   const status = error?.context?.status;
   const code = error?.context?.code;
@@ -140,9 +160,10 @@ export default function ScanFoodScreen() {
         throw apiError;
       }
 
-      setAnalysis(data as AnalysisResult);
+      const normalized = normalizeAnalysisResult(data);
+      setAnalysis(normalized);
       setState('results');
-      track(Events.FOOD_SCANNED, { foodsDetected: (data as AnalysisResult).foods?.length ?? 0 });
+      track(Events.FOOD_SCANNED, { foodsDetected: normalized.foods.length });
     } catch (err) {
       const typedErr: any = err;
       const message = getAnalysisErrorMessage(typedErr);
@@ -190,7 +211,7 @@ export default function ScanFoodScreen() {
     if (!user || !analysis) return;
     setSaving(true);
 
-    const foods = analysis.foods.map(f => f.name.trim().toLowerCase());
+    const foods = (Array.isArray(analysis.foods) ? analysis.foods : []).map(f => f.name.trim().toLowerCase());
     const mealName = foods.length > 0
       ? foods.slice(0, 3).join(', ') + (foods.length > 3 ? ` +${foods.length - 3} more` : '')
       : 'Scanned meal';
@@ -341,7 +362,7 @@ export default function ScanFoodScreen() {
 
           {/* Food Breakdown */}
           <Text style={styles.sectionTitle}>Food Breakdown</Text>
-          {analysis.foods.map((food, i) => (
+          {(Array.isArray(analysis.foods) ? analysis.foods : []).map((food, i) => (
             <View key={i} style={styles.foodCard}>
               <View style={styles.foodHeader}>
                 <Text style={styles.foodName}>{food.name}</Text>

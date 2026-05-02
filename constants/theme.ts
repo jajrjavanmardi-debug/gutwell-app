@@ -12,15 +12,15 @@ export const Colors = {
   accentLight: '#E6C9A8',
 
   // Backgrounds
-  background: '#FAFDF7',
-  surface: '#FFFFFF',
-  surfaceSecondary: '#F0F7F2',
+  background: '#000000',
+  surface: '#0B0B0B',
+  surfaceSecondary: '#111111',
   surfaceDark: '#0B2618',
 
   // Text
-  text: '#1B4332',
-  textSecondary: '#40916C',
-  textTertiary: '#95D5B2',
+  text: '#FFFFFF',
+  textSecondary: '#A7A7A7',
+  textTertiary: '#777777',
   textInverse: '#FFFFFF',
 
   // Functional
@@ -30,11 +30,11 @@ export const Colors = {
   info: '#5B9BD5',
 
   // UI elements
-  border: '#D8F3DC',
+  border: '#242424',
   borderFocused: '#2D6A4F',
-  divider: '#E8F5E9',
-  disabled: '#B7D7C8',
-  tabInactive: '#95D5B2',
+  divider: '#181818',
+  disabled: '#2A2A2A',
+  tabInactive: '#777777',
 
   // Severity scale (1-5) for symptoms
   severity: {
@@ -66,7 +66,7 @@ export const Colors = {
   } as Record<number, string>,
 
   // Contribution calendar heatmap
-  calendarEmpty: '#F0F7F2',
+  calendarEmpty: '#151515',
   calendarLevel1: '#D8F3DC',
   calendarLevel2: '#95D5B2',
   calendarLevel3: '#52B788',

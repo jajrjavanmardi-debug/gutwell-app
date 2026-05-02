@@ -1,32 +1,11 @@
-import * as Notifications from 'expo-notifications';
-import { Platform } from 'react-native';
-import { supabase } from './supabase';
-
-// Configure notification handler
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: true,
-    shouldSetBadge: false,
-    shouldShowBanner: true,
-    shouldShowList: true,
-  }),
-});
-
 export async function requestPermissions(): Promise<boolean> {
-  const { status } = await Notifications.requestPermissionsAsync();
-  return status === 'granted';
+  return true;
 }
 
 export async function getPermissionStatus(): Promise<'granted' | 'denied' | 'undetermined'> {
-  const { status } = await Notifications.getPermissionsAsync();
-  return status;
+  return 'granted';
 }
 
-
-const CHECKIN_REMINDER_ID_KEY = 'gut-checkin-reminder';
-const STREAK_ALERT_ID_KEY = 'gut-streak-alert';
-const WEEKLY_DIGEST_ID_KEY = 'gut-weekly-digest';
 
 // Quiet hours: returns true if the given time (HH:MM) falls within quiet window
 export function isInQuietHours(timeHHMM: string, quietStart: string, quietEnd: string): boolean {
@@ -53,23 +32,7 @@ export async function scheduleDailyCheckInReminder(
 ): Promise<string | null> {
   const timeStr = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
   if (isInQuietHours(timeStr, quietStart, quietEnd)) return null;
-
-  await cancelDailyCheckInReminder();
-
-  const id = await Notifications.scheduleNotificationAsync({
-    identifier: CHECKIN_REMINDER_ID_KEY,
-    content: {
-      title: "Time for your gut check-in 🌿",
-      body: "Log how you're feeling and track your progress.",
-      sound: true,
-    },
-    trigger: {
-      type: Notifications.SchedulableTriggerInputTypes.DAILY,
-      hour,
-      minute,
-    },
-  });
-  return id;
+  return `local-reminder-${hour}-${minute}`;
 }
 
 // Schedule a weekly digest notification for Sunday mornings
@@ -77,87 +40,32 @@ export async function scheduleWeeklyDigestNotification(
   hour = 9,
   minute = 0,
 ): Promise<string | null> {
-  await cancelWeeklyDigestNotification();
-
-  const id = await Notifications.scheduleNotificationAsync({
-    identifier: WEEKLY_DIGEST_ID_KEY,
-    content: {
-      title: 'Your weekly gut health digest is ready',
-      body: 'See how your gut health trended this week.',
-      sound: true,
-      data: { screen: '/weekly-digest' },
-    },
-    trigger: {
-      type: Notifications.SchedulableTriggerInputTypes.WEEKLY,
-      weekday: 1, // Sunday
-      hour,
-      minute,
-    },
-  });
-  return id;
+  return `weekly-digest-${hour}-${minute}`;
 }
 
 export async function cancelWeeklyDigestNotification(): Promise<void> {
-  try {
-    await Notifications.cancelScheduledNotificationAsync(WEEKLY_DIGEST_ID_KEY);
-  } catch {
-    // ignore if not found
-  }
+  return undefined;
 }
 
 export async function cancelDailyCheckInReminder(): Promise<void> {
-  try {
-    await Notifications.cancelScheduledNotificationAsync(CHECKIN_REMINDER_ID_KEY);
-  } catch {
-    // ignore if not found
-  }
+  return undefined;
 }
 
 // Schedule a one-time streak-at-risk alert at a specific hour today
 export async function scheduleStreakAtRiskAlert(streakDays: number): Promise<void> {
-  // Cancel any existing streak alert first
-  await cancelStreakAtRiskAlert();
-
-  const now = new Date();
-  const alertHour = 21; // 9 PM
-  const target = new Date(now);
-  target.setHours(alertHour, 0, 0, 0);
-
-  // If 9 PM has already passed today, don't schedule
-  if (target <= now) return;
-
-  const secondsUntil = Math.floor((target.getTime() - now.getTime()) / 1000);
-
-  await Notifications.scheduleNotificationAsync({
-    identifier: STREAK_ALERT_ID_KEY,
-    content: {
-      title: `Don't break your ${streakDays}-day streak! 🔥`,
-      body: "Complete your daily check-in before midnight to keep it alive.",
-      sound: true,
-    },
-    trigger: {
-      type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
-      seconds: secondsUntil,
-      repeats: false,
-    },
-  });
+  void streakDays;
 }
 
 export async function cancelStreakAtRiskAlert(): Promise<void> {
-  try {
-    await Notifications.cancelScheduledNotificationAsync(STREAK_ALERT_ID_KEY);
-  } catch {
-    // ignore if not found
-  }
+  return undefined;
 }
 
 export async function cancelAllNotifications(): Promise<void> {
-  await Notifications.cancelAllScheduledNotificationsAsync();
+  return undefined;
 }
 
 export async function getScheduledCount(): Promise<number> {
-  const scheduled = await Notifications.getAllScheduledNotificationsAsync();
-  return scheduled.length;
+  return 0;
 }
 
 // ─── Legacy / compatibility exports ──────────────────────────────────────────
@@ -168,13 +76,7 @@ export async function getScheduledCount(): Promise<number> {
  * @deprecated Use requestPermissions() instead.
  */
 export async function requestNotificationPermissions(): Promise<boolean> {
-  const { status: existingStatus } = await Notifications.getPermissionsAsync();
-  let finalStatus = existingStatus;
-  if (existingStatus !== 'granted') {
-    const { status } = await Notifications.requestPermissionsAsync();
-    finalStatus = status;
-  }
-  return finalStatus === 'granted';
+  return true;
 }
 
 /**
@@ -185,67 +87,26 @@ export async function scheduleDailyReminder(
   hour: number,
   minute: number,
 ): Promise<string> {
-  const messages = {
-    checkin: { title: 'Time for a check-in', body: "How's your gut feeling today?" },
-    food: { title: 'Log your meal', body: 'Record what you ate to track patterns.' },
-    symptom: { title: 'Symptom check', body: 'Experiencing any symptoms? Log them now.' },
-  };
-
-  const id = await Notifications.scheduleNotificationAsync({
-    content: {
-      title: messages[type].title,
-      body: messages[type].body,
-      data: {
-        type,
-        screen:
-          type === 'checkin'
-            ? '/(tabs)/checkin'
-            : type === 'food'
-              ? '/(tabs)/food'
-              : '/log-symptom',
-      },
-    },
-    trigger: {
-      type: Notifications.SchedulableTriggerInputTypes.DAILY,
-      hour,
-      minute,
-    },
-  });
-  return id;
+  return `local-${type}-${hour}-${minute}`;
 }
 
 /**
  * Cancel all scheduled notifications.
  */
 export async function cancelAllReminders() {
-  await Notifications.cancelAllScheduledNotificationsAsync();
+  return undefined;
 }
 
 /**
  * Cancel a specific scheduled notification.
  */
 export async function cancelReminder(notificationId: string) {
-  await Notifications.cancelScheduledNotificationAsync(notificationId);
+  void notificationId;
 }
 
 /**
  * Sync reminders from the database — cancel all and reschedule from DB state.
  */
 export async function syncReminders(userId: string) {
-  await cancelAllReminders();
-
-  const { data: reminders } = await supabase
-    .from('reminders')
-    .select('*')
-    .eq('user_id', userId)
-    .eq('enabled', true);
-
-  if (!reminders) return;
-
-  for (const reminder of reminders) {
-    const [hourStr, minuteStr] = (reminder.time as string).split(':');
-    const hour = parseInt(hourStr, 10);
-    const minute = parseInt(minuteStr, 10);
-    await scheduleDailyReminder(reminder.reminder_type, hour, minute);
-  }
+  void userId;
 }

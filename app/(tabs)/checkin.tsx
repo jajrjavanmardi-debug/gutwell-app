@@ -22,6 +22,7 @@ import { StreakPopup } from '../../components/StreakPopup';
 import * as StoreReview from 'expo-store-review';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getStreakSnapshot, refreshStreakSnapshot } from '../../lib/streaks';
+import { getLocalDateKey } from '../../lib/date';
 
 const STREAK_MILESTONES = [7, 14, 30, 100, 180, 366];
 
@@ -132,9 +133,12 @@ export default function CheckinScreen() {
   }, []);
 
   useEffect(() => {
-    if (!user) return;
+    if (!user) {
+      setToast({ visible: true, message: 'Please log in to save your check-in', type: 'error' });
+      return;
+    }
     getStreakSnapshot(user.id)
-      .then((snapshot) => setCurrentStreak(snapshot.currentStreak))
+      .then((snapshot) => setCurrentStreak(snapshot?.currentStreak ?? 0))
       .catch(() => setCurrentStreak(0));
   }, [user]);
 
@@ -146,7 +150,7 @@ export default function CheckinScreen() {
     if (!user) return;
 
     setLoading(true);
-    const today = new Date().toISOString().split('T')[0];
+    const today = getLocalDateKey();
     const payload = {
       user_id: user.id,
       entry_date: today,
@@ -158,33 +162,15 @@ export default function CheckinScreen() {
       water_intake: waterGlasses,
       note: note.trim() || null,
     };
-    const { data: existingToday, error: existingTodayError } = await supabase
+    const { error } = await supabase
       .from('check_ins')
-      .select('id')
-      .eq('user_id', user.id)
-      .eq('entry_date', today)
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .maybeSingle();
-
-    let error: any = null;
-    if (existingTodayError) {
-      error = existingTodayError;
-    } else if (existingToday?.id) {
-      const updateResult = await supabase.from('check_ins').update(payload).eq('id', existingToday.id);
-      error = updateResult.error;
-    } else {
-      const insertResult = await supabase.from('check_ins').insert(payload);
-      error = insertResult.error;
-    }
+      .upsert(payload, { onConflict: 'user_id,entry_date' });
     setLoading(false);
 
     if (error) {
       // Network error — queue offline and let the user continue
       if (error.message?.includes('network') || error.message?.includes('Network') || error.code === 'PGRST301' || !error.code) {
-        await enqueue('check_ins', {
-          ...payload,
-        });
+        await enqueue('check_ins', payload, { operation: 'upsert', onConflict: 'user_id,entry_date' });
         setToast({ visible: true, message: 'Saved offline — will sync when connected', type: 'info' });
         setShowSuccess(true);
         setStoolType(null);
@@ -203,7 +189,7 @@ export default function CheckinScreen() {
 
       // Check for streak milestones
       const streakSnapshot = await refreshStreakSnapshot(user.id).catch(() => ({ currentStreak: 0 }));
-      const newStreak = streakSnapshot.currentStreak || 0;
+      const newStreak = streakSnapshot?.currentStreak ?? 0;
       setCurrentStreak(newStreak);
 
       track(Events.CHECKIN_LOGGED, { stool_type: stoolType, score: freshScore });
@@ -363,7 +349,7 @@ export default function CheckinScreen() {
       />
       <CheckInSuccessOverlay
         visible={showSuccess}
-        score={savedScore}
+        score={savedScore ?? undefined}
         streak={currentStreak}
         onDone={() => {
           setShowSuccess(false);

@@ -13,11 +13,11 @@ type SectionData = {
 const SECTIONS: SectionData[] = [
   {
     title: '1. Data We Collect',
-    body: 'GutWell collects the data you voluntarily enter: check-in logs (stool type, bloating, pain, energy), food logs (meal names, meal types), symptom logs (type, severity), and basic account information (email, display name).',
+    body: 'NutriFlow collects the data you voluntarily enter: check-in logs (stool type, bloating, pain, energy), food logs (meal names, meal types), symptom logs (type, severity), and basic account information (email, display name).',
   },
   {
     title: '2. How We Use Your Data',
-    body: 'Your data is used solely to provide the GutWell service \u2014 displaying your health trends, calculating your gut health score, and sending reminders you configure. We do not sell or share your personal health data with third parties.',
+    body: 'Your data is used solely to provide the NutriFlow service \u2014 displaying your health trends, calculating your gut health score, and sending reminders you configure. We do not sell or share your personal health data with third parties.',
   },
   {
     title: '3. Data Storage & Security',

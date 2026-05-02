@@ -35,13 +35,51 @@ export default function LogSymptomScreen() {
   const [note, setNote] = useState('');
   const [loading, setLoading] = useState(false);
   const [toast, setToast] = useState({ visible: false, message: '', type: 'success' as 'success' | 'error' });
+  const [todaysSymptoms, setTodaysSymptoms] = useState<
+    { id: string; symptom_type: string; severity: number; logged_at: string }[]
+  >([]);
+
+  useEffect(() => {
+    if (!user) return;
+    const loadTodaysSymptoms = async () => {
+      const now = new Date();
+      const startOfDay = new Date(now);
+      startOfDay.setHours(0, 0, 0, 0);
+      const endOfDay = new Date(now);
+      endOfDay.setHours(23, 59, 59, 999);
+
+      const { data } = await supabase
+        .from('symptoms')
+        .select('id, symptom_type, severity, logged_at')
+        .eq('user_id', user.id)
+        .gte('logged_at', startOfDay.toISOString())
+        .lte('logged_at', endOfDay.toISOString())
+        .order('logged_at', { ascending: false });
+
+      if (data) {
+        setTodaysSymptoms(
+          data.map((item) => ({
+            id: String(item.id),
+            symptom_type: item.symptom_type,
+            severity: item.severity,
+            logged_at: item.logged_at,
+          }))
+        );
+      }
+    };
+
+    loadTodaysSymptoms();
+  }, [user]);
 
   const handleSave = async () => {
     if (!selected) {
       setToast({ visible: true, message: 'Please select a symptom', type: 'error' });
       return;
     }
-    if (!user) return;
+    if (!user) {
+      setToast({ visible: true, message: 'Please log in to continue', type: 'error' });
+      return;
+    }
 
     setLoading(true);
     const payload = {
@@ -65,6 +103,15 @@ export default function LogSymptomScreen() {
     } else {
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       setToast({ visible: true, message: 'Symptom logged!', type: 'success' });
+      setTodaysSymptoms((prev) => [
+        {
+          id: `${Date.now()}`,
+          symptom_type: selected,
+          severity,
+          logged_at: payload.logged_at,
+        },
+        ...prev,
+      ]);
       updateTodayScore(user.id).catch(console.warn);
       setTimeout(() => router.back(), 1500);
     }
@@ -128,6 +175,22 @@ export default function LogSymptomScreen() {
             );
           })}
         </View>
+
+        <Text style={styles.sectionLabel}>Today's symptoms</Text>
+        {todaysSymptoms.length > 0 ? (
+          <View style={styles.todaysSymptomsList}>
+            {todaysSymptoms.map((item) => (
+              <View key={`${item.id}-${item.logged_at}`} style={styles.todaysSymptomRow}>
+                <Text style={styles.todaysSymptomName}>
+                  {item.symptom_type.charAt(0).toUpperCase() + item.symptom_type.slice(1).replace(/_/g, ' ')}
+                </Text>
+                <Text style={styles.todaysSymptomMeta}>Severity {item.severity}</Text>
+              </View>
+            ))}
+          </View>
+        ) : (
+          <Text style={styles.todaysSymptomsEmpty}>No symptoms logged yet today.</Text>
+        )}
 
         {/* Section: Severity */}
         <Text style={styles.sectionLabel}>How severe is it?</Text>
@@ -290,6 +353,39 @@ const styles = StyleSheet.create({
   symptomLabelSelected: {
     color: Colors.primary,
     fontFamily: FontFamily.sansSemiBold,
+  },
+  todaysSymptomsList: {
+    gap: Spacing.xs,
+    marginBottom: Spacing.lg,
+  },
+  todaysSymptomRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: Colors.surface,
+    borderRadius: BorderRadius.md,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+  },
+  todaysSymptomName: {
+    flex: 1,
+    marginRight: Spacing.sm,
+    fontFamily: FontFamily.sansMedium,
+    fontSize: FontSize.sm,
+    color: Colors.text,
+  },
+  todaysSymptomMeta: {
+    fontFamily: FontFamily.sansRegular,
+    fontSize: FontSize.xs,
+    color: Colors.textTertiary,
+  },
+  todaysSymptomsEmpty: {
+    fontFamily: FontFamily.sansRegular,
+    fontSize: FontSize.xs,
+    color: Colors.textTertiary,
+    marginBottom: Spacing.lg,
   },
 
   // Severity

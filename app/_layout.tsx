@@ -1,10 +1,7 @@
-import { useEffect, useCallback, useState } from 'react';
-import { Stack, useRouter, useSegments } from 'expo-router';
+import { useEffect, useMemo, useState } from 'react';
+import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { AuthProvider, useAuth } from '../contexts/AuthContext';
-import { View, ActivityIndicator, StyleSheet, Text } from 'react-native';
-import { Colors, FontFamily } from '../constants/theme';
-import { syncReminders, scheduleWeeklyDigestNotification } from '../lib/notifications';
 import { HealthDisclaimerModal, hasAcceptedDisclaimer } from '../components/HealthDisclaimerModal';
 import { useFonts } from 'expo-font';
 import {
@@ -20,13 +17,15 @@ import {
   Inter_700Bold,
   Inter_800ExtraBold,
 } from '@expo-google-fonts/inter';
-import * as Notifications from 'expo-notifications';
 import NetInfo from '@react-native-community/netinfo';
 import * as Sentry from '@sentry/react-native';
 import { initAnalytics, identifyUser } from '../lib/analytics';
 import { flush } from '../lib/offline-queue';
 import * as SplashScreen from 'expo-splash-screen';
-import { initSubscription } from '../lib/subscription';
+
+export const unstable_settings = {
+  initialRouteName: '(tabs)',
+};
 
 // Initialize Sentry for crash reporting
 Sentry.init({
@@ -35,13 +34,17 @@ Sentry.init({
   enabled: !__DEV__,
 });
 
-SplashScreen.preventAutoHideAsync();
+SplashScreen.preventAutoHideAsync().catch(() => {
+  // The splash may already be hidden during fast refresh.
+});
 
 function RootLayoutNav() {
-  const { session, loading, profile } = useAuth();
-  const segments = useSegments();
-  const router = useRouter();
+  const { session, profile } = useAuth();
   const [showDisclaimer, setShowDisclaimer] = useState(false);
+
+  useEffect(() => {
+    console.log('NutriFlow Core Updated: Focus English/German, Voice Active, Memory Cleared');
+  }, []);
 
   // Check health disclaimer after entering tabs
   useEffect(() => {
@@ -52,13 +55,10 @@ function RootLayoutNav() {
     }
   }, [session, profile?.onboarding_completed]);
 
-  // Sync reminders + identify user for analytics when authenticated
+  // Identify user for analytics when authenticated
   useEffect(() => {
     if (session?.user?.id) {
-      syncReminders(session.user.id).catch(console.warn);
-      scheduleWeeklyDigestNotification().catch(console.warn);
       identifyUser(session.user.id);
-      initSubscription(session.user.id).catch(console.warn);
     }
   }, [session?.user?.id]);
 
@@ -72,61 +72,24 @@ function RootLayoutNav() {
     return () => unsubscribe();
   }, []);
 
-  useEffect(() => {
-    if (loading) return;
-
-    const inAuthGroup = segments[0] === '(auth)';
-    const inOnboarding = segments[0] === '(onboarding)';
-
-    if (!session) {
-      if (!inAuthGroup) {
-        router.replace('/(auth)/login');
-      }
-    } else if (!profile) {
-      // Profile still loading or fetch failed — stay put, don't redirect
-      return;
-    } else if (!profile.onboarding_completed && !inOnboarding) {
-      router.replace('/(onboarding)/welcome');
-    } else if (inAuthGroup || inOnboarding) {
-      router.replace('/(tabs)');
-    }
-  }, [session, loading, profile]);
-
-  // Deep-link into the correct screen when user taps a notification
-  useEffect(() => {
-    const subscription = Notifications.addNotificationResponseReceivedListener(response => {
-      const screen = response.notification.request.content.data?.screen;
-      if (screen && typeof screen === 'string') {
-        router.push(screen as any);
-      }
-    });
-    return () => subscription.remove();
-  }, [router]);
-
-  if (loading) {
-    return (
-      <View style={styles.loading}>
-        <ActivityIndicator size="large" color={Colors.secondary} />
-      </View>
-    );
-  }
-
   return (
     <>
-      <StatusBar style="dark" />
-      <Stack screenOptions={{ headerShown: false }}>
+      <StatusBar style="light" />
+      <Stack initialRouteName="(tabs)" screenOptions={{ headerShown: false }}>
+        <Stack.Screen name="(tabs)" />
         <Stack.Screen name="(auth)" />
         <Stack.Screen name="(onboarding)" />
-        <Stack.Screen name="(tabs)" />
         <Stack.Screen name="log-symptom" options={{ presentation: 'modal' }} />
         <Stack.Screen name="privacy-policy" options={{ presentation: 'modal' }} />
         <Stack.Screen name="terms-of-service" options={{ presentation: 'modal' }} />
         <Stack.Screen name="reminders" options={{ presentation: 'modal' }} />
         <Stack.Screen name="scan-food" options={{ presentation: 'modal' }} />
+        <Stack.Screen name="photo-analysis" options={{ presentation: 'modal' }} />
+        <Stack.Screen name="food-history" />
         <Stack.Screen name="weekly-digest" options={{ presentation: 'modal' }} />
         <Stack.Screen name="settings" options={{ title: 'Settings', presentation: 'modal' }} />
         <Stack.Screen name="edit-checkin" options={{ title: 'Edit Check-in', presentation: 'modal' }} />
-        <Stack.Screen name="paywall" options={{ title: 'GutWell Premium', presentation: 'modal', headerShown: false }} />
+        <Stack.Screen name="paywall" options={{ title: 'NutriFlow Premium', presentation: 'modal', headerShown: false }} />
       </Stack>
       <HealthDisclaimerModal
         visible={showDisclaimer}
@@ -149,24 +112,19 @@ function RootLayout() {
     Inter_800ExtraBold,
   });
 
-  const onLayoutRootView = useCallback(async () => {
-    if (fontsLoaded || fontError) {
-      await SplashScreen.hideAsync();
-    }
-  }, [fontsLoaded, fontError]);
+  const appIsReady = useMemo(() => fontsLoaded || Boolean(fontError), [fontError, fontsLoaded]);
 
   useEffect(() => {
-    onLayoutRootView();
-    initAnalytics();
-  }, [onLayoutRootView]);
+    if (!appIsReady) return;
 
-  if (!fontsLoaded && !fontError) {
-    return (
-      <View style={styles.loading}>
-        <ActivityIndicator size="large" color={Colors.secondary} />
-      </View>
-    );
-  }
+    SplashScreen.hideAsync().catch(() => {
+      // Ignore if the native splash has already been dismissed.
+    });
+  }, [appIsReady]);
+
+  useEffect(() => {
+    initAnalytics();
+  }, []);
 
   return (
     <AuthProvider>
@@ -176,12 +134,3 @@ function RootLayout() {
 }
 
 export default Sentry.wrap(RootLayout);
-
-const styles = StyleSheet.create({
-  loading: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: Colors.background,
-  },
-});

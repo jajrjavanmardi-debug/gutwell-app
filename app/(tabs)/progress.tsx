@@ -14,7 +14,7 @@ import { analyzeCorrelations, CorrelationSummary, computeCorrelations, FoodCorre
 import { ShareCard } from '../../components/ShareCard';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { ErrorState } from '../../components/ui/ErrorState';
-import { isPremiumFeature } from '../../lib/subscription';
+import { isPremiumFeature, refreshPremiumStatus } from '../../lib/subscription';
 import ScoreCard from '../../components/ScoreCard';
 import TrendBox from '../../components/TrendBox';
 import RecommendationBox from '../../components/RecommendationBox';
@@ -22,6 +22,7 @@ import ChartComponent from '../../components/ChartComponent';
 import History from '../../components/History';
 import TriggerFoodsBox from '../../components/TriggerFoodsBox';
 import SafeFoodsBox from '../../components/SafeFoodsBox';
+import { addDaysToLocalDateKey, getLocalDateKey } from '../../lib/date';
 
 type Period = 'W' | 'M' | '6M';
 
@@ -45,13 +46,13 @@ export default function ProgressScreen() {
   const [moodHistory, setMoodHistory] = useState<{ date: string; mood: number }[]>([]);
   const [avgMood, setAvgMood] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [hasPremium, setHasPremium] = useState<boolean>(isPremiumFeature('correlations'));
 
   const loadData = useCallback(async () => {
     if (!user) return;
     try {
     const daysBack = period === 'W' ? 7 : period === 'M' ? 30 : 180;
-    const since = new Date(); since.setDate(since.getDate() - daysBack);
-    const sinceDateStr = since.toISOString().split('T')[0];
+    const sinceDateStr = addDaysToLocalDateKey(getLocalDateKey(), -daysBack);
 
     const { data: checkIns } = await supabase.from('check_ins').select('stool_type, entry_date, mood')
       .eq('user_id', user.id).gte('entry_date', sinceDateStr).order('entry_date', { ascending: true });
@@ -127,7 +128,7 @@ export default function ProgressScreen() {
     }
 
     const { data: symptoms } = await supabase.from('symptoms').select('symptom_type')
-      .eq('user_id', user.id).gte('logged_at', since.toISOString());
+      .eq('user_id', user.id).gte('logged_at', `${sinceDateStr}T00:00:00`);
     if (symptoms) {
       const counts: Record<string, number> = {};
       symptoms.forEach(s => { counts[s.symptom_type] = (counts[s.symptom_type] || 0) + 1; });
@@ -135,7 +136,7 @@ export default function ProgressScreen() {
     }
 
     const { count } = await supabase.from('food_logs').select('id', { count: 'exact', head: true })
-      .eq('user_id', user.id).gte('logged_at', since.toISOString());
+      .eq('user_id', user.id).gte('logged_at', `${sinceDateStr}T00:00:00`);
     setFoodCount(count || 0);
 
     // Food-symptom correlations (legacy engine)
@@ -164,6 +165,20 @@ export default function ProgressScreen() {
   }, [user, period]);
 
   useEffect(() => { loadData(); }, [loadData]);
+
+  useEffect(() => {
+    let active = true;
+    const syncPremium = async () => {
+      const status = await refreshPremiumStatus().catch(() => false);
+      if (active) {
+        setHasPremium(status);
+      }
+    };
+    syncPremium();
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const onRefresh = async () => { setRefreshing(true); await loadData(); setRefreshing(false); };
 
@@ -392,7 +407,7 @@ export default function ProgressScreen() {
         />
 
         {/* Premium Banner (future-proofing) */}
-        {!isPremiumFeature('correlations') && (
+        {!hasPremium && (
           <RecommendationBox
             text="Unlock food-symptom insights with Premium"
             onPress={() => router.push('/paywall')}

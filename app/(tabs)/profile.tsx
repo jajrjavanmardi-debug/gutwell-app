@@ -281,7 +281,7 @@ export default function ProfileScreen() {
           <ListRow
             icon="mail-outline"
             label="Contact Support"
-            onPress={() => Linking.openURL('mailto:support@theparallellab.com?subject=GutWell%20Support')}
+            onPress={() => Linking.openURL('mailto:support@theparallellab.com?subject=NutriFlow%20Support')}
             isLast
           />
         </View>
@@ -307,7 +307,7 @@ export default function ProfileScreen() {
             onPress={() =>
               Alert.alert(
                 'Health Disclaimer',
-                'GutWell is a wellness tracking tool and is not intended to diagnose, treat, cure, or prevent any disease. Always consult your healthcare provider for medical advice.',
+                'NutriFlow is a wellness tracking tool and is not intended to diagnose, treat, cure, or prevent any disease. Always consult your healthcare provider for medical advice.',
                 [{ text: 'OK' }],
               )
             }
