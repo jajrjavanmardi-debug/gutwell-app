@@ -29,7 +29,8 @@ type AuthContextType = {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-const BYPASS_AUTH_FOR_NATIVE_TESTING = true;
+/** Must be false for Supabase inserts/selects — RLS uses JWT `auth.uid()`; a fake session never matches `user_id` in rows. */
+const BYPASS_AUTH_FOR_NATIVE_TESTING = false;
 const MOCK_USER_ID = '00000000-0000-4000-8000-000000000001';
 
 const mockUser: User = {
