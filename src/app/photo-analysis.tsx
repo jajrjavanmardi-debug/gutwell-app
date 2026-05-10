@@ -1,8 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as ImagePicker from 'expo-image-picker';
-import { router, useLocalSearchParams } from 'expo-router';
-import { useEffect, useRef, useState } from 'react';
+import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -32,6 +32,12 @@ import { enqueue } from '../../lib/offline-queue';
 import { canUseNativeSpeechToText } from '../../lib/runtime-environment';
 import { analyzeMealPhoto, reviseMealAnalysis } from '../../lib/RecommendationEngine';
 import {
+  APP_LANGUAGE_STORAGE_KEY,
+  isRtlLanguage as isAppRtlLanguage,
+  parseStoredLanguage,
+  type AppLanguage,
+} from '../../lib/app-language';
+import {
   applyDynamicMealImpactScore,
   extractMealName,
   getPhotoAnalysisHistory,
@@ -52,23 +58,21 @@ import {
   type MedicalCondition,
 } from '../../lib/user-profile-settings';
 
-type AppLanguage = 'en' | 'de';
 type WizardStep = 1 | 2 | 3;
-const APP_LANGUAGE_STORAGE_KEY = 'gutwell_app_language';
 /** When set to `Germany`, skips GPS and fixes AI context to Nürtingen (dev/testing only). */
 const DEV_LOCATION_OVERRIDE = process.env.EXPO_PUBLIC_DEV_LOCATION_OVERRIDE?.trim() ?? '';
 
 const SYMPTOM_OPTIONS = [
-  { key: 'bloating', promptLabel: 'Bloating', labels: { en: 'Bloating', de: 'Blähungen' } },
-  { key: 'pain', promptLabel: 'Stomach pain', labels: { en: 'Pain', de: 'Schmerzen' } },
-  { key: 'heaviness', promptLabel: 'Heaviness', labels: { en: 'Heaviness', de: 'Schweregefühl' } },
-  { key: 'gas', promptLabel: 'Gas', labels: { en: 'Gas', de: 'Gas' } },
-  { key: 'cramps', promptLabel: 'Cramps', labels: { en: 'Cramps', de: 'Krämpfe' } },
-  { key: 'nausea', promptLabel: 'Nausea', labels: { en: 'Nausea', de: 'Übelkeit' } },
-  { key: 'reflux', promptLabel: 'Reflux', labels: { en: 'Reflux', de: 'Reflux' } },
-  { key: 'diarrhea', promptLabel: 'Diarrhea', labels: { en: 'Diarrhea', de: 'Durchfall' } },
-  { key: 'constipation', promptLabel: 'Constipation', labels: { en: 'Constipation', de: 'Verstopfung' } },
-  { key: 'lowEnergy', promptLabel: 'Low energy', labels: { en: 'Low energy', de: 'Wenig Energie' } },
+  { key: 'bloating', promptLabel: 'Bloating', labels: { en: 'Bloating', de: 'Blähungen', fa: 'نفخ' } },
+  { key: 'pain', promptLabel: 'Stomach pain', labels: { en: 'Pain', de: 'Schmerzen', fa: 'درد' } },
+  { key: 'heaviness', promptLabel: 'Heaviness', labels: { en: 'Heaviness', de: 'Schweregefühl', fa: 'سنگینی' } },
+  { key: 'gas', promptLabel: 'Gas', labels: { en: 'Gas', de: 'Gas', fa: 'گاز' } },
+  { key: 'cramps', promptLabel: 'Cramps', labels: { en: 'Cramps', de: 'Krämpfe', fa: 'گرفتگی' } },
+  { key: 'nausea', promptLabel: 'Nausea', labels: { en: 'Nausea', de: 'Übelkeit', fa: 'تهوع' } },
+  { key: 'reflux', promptLabel: 'Reflux', labels: { en: 'Reflux', de: 'Reflux', fa: 'ریفلاکس' } },
+  { key: 'diarrhea', promptLabel: 'Diarrhea', labels: { en: 'Diarrhea', de: 'Durchfall', fa: 'اسهال' } },
+  { key: 'constipation', promptLabel: 'Constipation', labels: { en: 'Constipation', de: 'Verstopfung', fa: 'یبوست' } },
+  { key: 'lowEnergy', promptLabel: 'Low energy', labels: { en: 'Low energy', de: 'Wenig Energie', fa: 'انرژی کم' } },
 ] as const;
 
 type SymptomKey = (typeof SYMPTOM_OPTIONS)[number]['key'];
@@ -246,6 +250,92 @@ const copy = {
     expoGoTextOnlyHint:
       'Expo Go (Entwicklung): Halten-zum-Sprechen ist aus. Beschreib Mahlzeit und Befinden im Textfeld — Analyse, Nürtingen-Hinweise und der 4-Schritte-Ablauf bleiben aktiv.',
   },
+  fa: {
+    back: 'بازگشت',
+    title: 'تحلیل عکس غذا',
+    wizardStep1Subtitle: 'مرحله ۱ از ۴ - عکس',
+    wizardStep2Subtitle: 'مرحله ۲ از ۴ - صدا و احساس',
+    wizardStep3Subtitle: 'مرحله ۳ از ۴ - تحلیل',
+    wizardStep4Hint: 'مرحله ۴ از ۴ - بررسی نهایی',
+    wizardNext: 'بعدی',
+    changePhoto: 'تغییر عکس',
+    step2Prompt: 'این غذا چیست؟ چه احساسی دارید؟',
+    generateAnalysis: 'ایجاد تحلیل',
+    isThisAccurate: 'این تحلیل درست است؟',
+    yes: 'بله',
+    no: 'خیر',
+    correctionPlaceholder: 'بگویید چه چیزی را اصلاح کنیم...',
+    applyCorrection: 'اعمال اصلاح',
+    recommendationUnchanged: 'پیشنهاد بدون تغییر ماند.',
+    subtitle: 'چهار مرحله: عکس بگیرید، با صدا یا متن توضیح دهید، تحلیل را ببینید و دقت آن را تأیید کنید.',
+    profileContext: 'شخصی سازی شده بر اساس پروفایل گوارش، علائم و شرایط انتخاب شده شما',
+    findingLocation: 'در حال یافتن گزینه های غذایی نزدیک...',
+    usingLocation: 'استفاده از زمینه محلی:',
+    locationUnavailable: 'موقعیت در دسترس نیست. پیشنهادها عمومی می مانند.',
+    takePhoto: 'گرفتن عکس',
+    takePhotoText: 'دوربین را باز می کند. وقتی عکس واضح بود، روی بعدی بزنید.',
+    chooseGallery: 'انتخاب از گالری',
+    chooseGalleryText: 'یک عکس غذا انتخاب کنید، سپس روی بعدی بزنید.',
+    analyzing: 'در حال تحلیل عکس و یادداشت ها با پروفایل گوارش شما...',
+    analyzingBrand: 'NutriFlow',
+    resultTitle: 'تأثیر غذا',
+    symptomsLabel: 'علائم و یادداشت ها',
+    symptomSelectorLabel: 'انتخاب علائم',
+    symptomSelectorHint: 'هر موردی را که صدق می کند انتخاب کنید تا امتیاز بر اساس واکنش فعلی شما باشد.',
+    symptomsPlaceholder: 'قبل از عکس می توانید علائم را بنویسید؛ بعد از عکس، احساس خود را توضیح دهید.',
+    howYouFeelLabel: 'جزئیات غذا و یادداشت های بیشتر',
+    howYouFeelPlaceholder: 'مثال: این سوپ عدس با پیاز است. یک کاسه بزرگ خوردم.',
+    photoCapturedPrompt: 'عکس ثبت شد! احساس خود را بگویید یا بنویسید.',
+    analyzeCombined: 'تحلیل غذا',
+    feelingsRequiredTitle: 'ابتدا زمینه غذا را اضافه کنید',
+    feelingsRequiredMessage: 'قبل از ایجاد تحلیل، حداقل یک علامت انتخاب کنید یا یک یادداشت کوتاه درباره غذا بنویسید.',
+    share: 'اشتراک گذاری نتیجه',
+    scoreLabel: 'امتیاز تأثیر غذا',
+    shareTitle: 'تحلیل غذای NutriFlow من',
+    snapshotHeading: 'خلاصه غذای NutriFlow',
+    shareErrorTitle: 'اشتراک گذاری در دسترس نیست',
+    shareErrorMessage: 'اکنون امکان باز کردن اشتراک گذاری وجود ندارد.',
+    disagree: 'این برای بدن من خوب نبود',
+    planBTitle: 'برنامه جایگزین',
+    planBText: 'متأسفم که این پیشنهاد حال شما را بدتر کرد. آن را به عنوان محرک ثبت کردم. برنامه امن تر: فعلا این غذا را کنار بگذارید، چای زنجبیل یا نعناع بنوشید، آب کافی بخورید و تا آرام شدن معده یک غذای ساده مثل برنج، موز یا سوپ انتخاب کنید.',
+    instantReliefTitle: 'آرام سازی فوری',
+    instantReliefText: 'چای نعناع، کمپرس گرم روی شکم، تنفس آرام، آب کافی و استراحت را امتحان کنید. فعلا غذای محرک احتمالی را کنار بگذارید. اگر درد شدید، بدترشونده یا غیرمعمول است، کمک پزشکی بگیرید.',
+    painApology: 'متأسفم که این غذا ممکن است بدن شما را اذیت کرده باشد. اول سراغ یک برنامه جایگزین امن تر برویم.',
+    medicalDisclaimer:
+      'نکته مهم: این تحلیل فقط برای اطلاع است و جایگزین تشخیص پزشکی نیست. اگر علائم شدید دارید، کمک پزشکی بگیرید.',
+    rankUp: 'ارتقای رتبه',
+    chatPlaceholder: 'اصلاح کنید یا جزئیات اضافه کنید...',
+    send: 'ارسال',
+    newScan: 'اسکن جدید',
+    voiceUnavailableTitle: 'صدا در دسترس نیست',
+    voiceUnavailableMessage:
+      'تبدیل گفتار به متن شروع نشد. همچنان می توانید تایپ کنید. اگر ادامه داشت، مجوزهای میکروفون و تشخیص گفتار NutriFlow را بررسی کنید.',
+    microphoneDisabledToast:
+      'میکروفون غیرفعال است. لطفا مجوز میکروفون را در تنظیمات گوشی فعال کنید (Settings > NutriFlow > Microphone).',
+    voiceInputA11yLabel: 'ورودی صوتی',
+    voiceInputA11yHint: 'برای ضبط نگه دارید؛ برای پایان رها کنید.',
+    correcting: 'در حال به روزرسانی با اصلاح شما...',
+    recording: 'در حال ضبط...',
+    photoAnalysisFailedTitle: 'تحلیل عکس ناموفق بود',
+    photoAnalysisFailedTryAgain: 'لطفا دوباره تلاش کنید.',
+    photoUnavailableTitle: 'عکس در دسترس نیست',
+    photoUnavailableMessage: 'داده های عکس خوانده نشد. لطفا دوباره تلاش کنید.',
+    cameraNeededTitle: 'دسترسی به دوربین لازم است',
+    cameraNeededMessage: 'برای گرفتن عکس غذا، اجازه دسترسی به دوربین را بدهید.',
+    libraryNeededTitle: 'دسترسی به گالری لازم است',
+    libraryNeededMessage: 'برای انتخاب عکس غذا، اجازه دسترسی به گالری را بدهید.',
+    correctionFailedTitle: 'اصلاح ناموفق بود',
+    correctionFailedTryAgain: 'لطفا دوباره تلاش کنید.',
+    logMeal: 'ثبت غذا',
+    logMealSuccess: 'غذا ثبت شد!',
+    logMealFailed: 'ذخیره غذا ممکن نبود',
+    logMealOffline: 'آفلاین ذخیره شد - پس از اتصال همگام می شود',
+    loginRequired: 'برای ثبت غذا وارد شوید.',
+    pendingScore: 'در انتظار',
+    photoMealDefault: 'غذای عکس',
+    expoGoTextOnlyHint:
+      'Expo Go (توسعه): نگه داشتن برای صحبت غیرفعال است. غذا و احساس خود را در کادر متن توضیح دهید؛ تحلیل و روند چهار مرحله ای همچنان کار می کند.',
+  },
 } as const;
 
 type NativeLocationModule = {
@@ -364,26 +454,20 @@ function ensurePainApology(analysis: string, apology: string, hasPainSymptom: bo
 }
 
 function hasPainText(value: string): boolean {
-  return /stomach ache|stomach pain|abdominal pain|belly pain|cramp|bloating pain|bauchschmerz|bauchschmerzen|krampf/i.test(value);
+  return /stomach ache|stomach pain|abdominal pain|belly pain|cramp|bloating pain|bauchschmerz|bauchschmerzen|krampf|درد|دل درد|گرفتگی/i.test(value);
 }
 
 function getVoiceLocale(language: AppLanguage): string {
   return {
     en: 'en-US',
     de: 'de-DE',
+    fa: 'fa-IR',
   }[language];
 }
 
-function getCorrectionLanguage(correction: string, currentLanguage: AppLanguage): AppLanguage {
-  return /[äöüß]|\b(ich|du|das|tee|brot|kartoffel|zucchini|reis)\b/i.test(correction)
-    ? 'de'
-    : currentLanguage === 'de'
-      ? 'de'
-      : 'en';
-}
-
 function isDifferentFoodCorrection(correction: string): boolean {
-  return /\b(it is|it's|this is|actually|not|instead|tea|herbal tea|soup|rice|potato|zucchini|yogurt|banana|das ist|eigentlich|tee|suppe|reis|kartoffel)\b/i.test(correction);
+  return /\b(it is|it's|this is|actually|not|instead|tea|herbal tea|soup|rice|potato|zucchini|yogurt|banana|das ist|eigentlich|tee|suppe|reis|kartoffel)\b/i.test(correction)
+    || /(?:این|غذا|چای|سوپ|برنج|سیب زمینی|ماست|موز)/.test(correction);
 }
 
 export default function PhotoAnalysisScreen() {
@@ -432,7 +516,7 @@ export default function PhotoAnalysisScreen() {
   const t = copy[language];
   /** Dev client / standalone only — Expo Go has no custom native STT modules. */
   const voiceNativeEnabled = canUseNativeSpeechToText();
-  const isRtlLanguage = false;
+  const isRtlLanguage = isAppRtlLanguage(language);
   const selectedSymptomLabels = selectedSymptoms.map((symptomKey) => {
     const option = SYMPTOM_OPTIONS.find((item) => item.key === symptomKey);
     return option?.promptLabel ?? symptomKey;
@@ -455,7 +539,7 @@ export default function PhotoAnalysisScreen() {
   const hasPainSymptom = currentSymptoms.some((symptom) =>
     hasPainText(symptom)
   );
-  const mealImpactScore = resolveMealImpactScore(analysis, currentSymptoms, mealDescriptionText);
+  const mealImpactScore = resolveMealImpactScore(analysis, currentSymptoms, mealDescriptionText, language);
   const wizardSubtitle =
     wizardStep === 1 ? t.wizardStep1Subtitle : wizardStep === 2 ? t.wizardStep2Subtitle : t.wizardStep3Subtitle;
   const canRecordFeelings = wizardStep === 2 && Boolean(photoUri && lastImageBase64);
@@ -570,17 +654,19 @@ export default function PhotoAnalysisScreen() {
     };
   }, []);
 
-  useEffect(() => {
+  useFocusEffect(useCallback(() => {
+    let isActive = true;
+
     AsyncStorage.getItem(APP_LANGUAGE_STORAGE_KEY)
       .then((storedLanguage) => {
-        if (storedLanguage === 'en' || storedLanguage === 'de') {
-          setLanguage(storedLanguage);
-        } else {
-          setLanguage('en');
-        }
+        if (isActive) setLanguage(parseStoredLanguage(storedLanguage));
       })
       .catch(console.warn);
-  }, []);
+
+    return () => {
+      isActive = false;
+    };
+  }, []));
 
   useEffect(() => {
     console.log('NutriFlow Core Updated: Focus English/German, Voice Active, Memory Cleared');
@@ -625,7 +711,7 @@ export default function PhotoAnalysisScreen() {
         const savedSymptomKeys = SYMPTOM_OPTIONS
           .filter((option) =>
             savedUserSymptoms.some((symptom) =>
-              [option.promptLabel, option.labels.en, option.labels.de].includes(symptom)
+              ([option.promptLabel, option.labels.en, option.labels.de, option.labels.fa] as string[]).includes(symptom)
             )
           )
           .map((option) => option.key);
@@ -634,7 +720,7 @@ export default function PhotoAnalysisScreen() {
           savedUserSymptoms
             .filter((symptom) =>
               !SYMPTOM_OPTIONS.some((option) =>
-                [option.promptLabel, option.labels.en, option.labels.de].includes(symptom)
+                ([option.promptLabel, option.labels.en, option.labels.de, option.labels.fa] as string[]).includes(symptom)
               )
             )
             .join(', ')
@@ -744,8 +830,8 @@ export default function PhotoAnalysisScreen() {
         retailLocationHint,
         userFeelingsNarrative: feelingsNarrative,
       });
-      const dynamicResult = applyDynamicMealImpactScore(rawResult, currentSymptoms, feelingsNarrative);
-      const dynamicMealImpactScore = resolveMealImpactScore(dynamicResult, currentSymptoms, feelingsNarrative);
+      const dynamicResult = applyDynamicMealImpactScore(rawResult, currentSymptoms, feelingsNarrative, language);
+      const dynamicMealImpactScore = resolveMealImpactScore(dynamicResult, currentSymptoms, feelingsNarrative, language);
       setAnalysis(dynamicResult);
       setResultsScrollKey((key) => key + 1);
       setWizardStep(3);
@@ -756,6 +842,7 @@ export default function PhotoAnalysisScreen() {
         aiText: dynamicResult,
         symptoms: currentSymptoms,
         mealImpactScore: dynamicMealImpactScore,
+        language,
         userId: user?.id,
       });
       const xpResult = await addXpForAction(10);
@@ -1012,7 +1099,7 @@ export default function PhotoAnalysisScreen() {
 
     try {
       const revisedAnalysis = await reviseMealAnalysis({
-        preferredLanguage: getCorrectionLanguage(correction, language),
+        preferredLanguage: language,
         previousAnalysis: correctionIsDifferentFood
           ? 'Previous meal context intentionally cleared because the user described a different food. Do not mention the old guessed food.'
           : [
@@ -1031,6 +1118,7 @@ export default function PhotoAnalysisScreen() {
         revisedAnalysis,
         [...currentSymptoms, correction],
         correction,
+        language,
       );
       const correctedAnalysis = ensurePainApology(
         dynamicRevisedAnalysis,
@@ -1552,7 +1640,7 @@ export default function PhotoAnalysisScreen() {
                       </View>
                     ) : null}
                     <View style={styles.resultHeader}>
-                      <View style={styles.resultTitleRow}>
+                      <View style={[styles.resultTitleRow, isRtlLanguage && styles.rtlRow]}>
                         <Ionicons name="nutrition" size={20} color={Colors.secondary} />
                         <Text style={[styles.resultTitle, isRtlLanguage && styles.rtlText]}>{t.resultTitle}</Text>
                       </View>
@@ -1564,7 +1652,7 @@ export default function PhotoAnalysisScreen() {
                         isRtlLanguage && styles.rtlRow,
                       ]}>
                         <Ionicons name="speedometer" size={18} color={Colors.textInverse} />
-                        <Text style={styles.scoreBadgeLabel}>{t.scoreLabel}</Text>
+                        <Text style={[styles.scoreBadgeLabel, isRtlLanguage && styles.rtlText]}>{t.scoreLabel}</Text>
                         <Text style={styles.scoreBadgeValue}>{mealImpactScore}</Text>
                       </View>
                     ) : null}

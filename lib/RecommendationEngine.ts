@@ -96,13 +96,14 @@ export async function analyzeProductBarcode(
   barcode: string,
   barcodeType?: string,
   locationContext?: string,
+  preferredLanguage?: MealPhotoAnalysisContext['preferredLanguage'],
 ): Promise<string> {
   const normalizedBarcode = barcode.trim();
   if (!normalizedBarcode) {
     throw new Error('Barcode data is required to analyze a product.');
   }
 
-  return analyzeProductBarcodeWithGroq(normalizedBarcode, barcodeType, locationContext);
+  return analyzeProductBarcodeWithGroq(normalizedBarcode, barcodeType, locationContext, preferredLanguage);
 }
 
 export { AnalysisService, FoodService };

@@ -385,6 +385,27 @@ const NUTRIENT_TRANSLATIONS: Record<Language, Record<string, string>> = {
     vitaminc: 'Vitamin C',
     'vitamin c': 'Vitamin C',
   },
+  fa: {
+    fiber: 'فیبر',
+    probiotic: 'پروبیوتیک',
+    probiotics: 'پروبیوتیک ها',
+    prebiotic: 'پری بیوتیک',
+    prebiotics: 'پری بیوتیک ها',
+    magnesium: 'منیزیم',
+    iron: 'آهن',
+    zinc: 'روی',
+    potassium: 'پتاسیم',
+    calcium: 'کلسیم',
+    protein: 'پروتئین',
+    omega3: 'امگا ۳',
+    'omega-3': 'امگا ۳',
+    vitaminb12: 'ویتامین B12',
+    'vitamin b12': 'ویتامین B12',
+    vitamind: 'ویتامین D',
+    'vitamin d': 'ویتامین D',
+    vitaminc: 'ویتامین C',
+    'vitamin c': 'ویتامین C',
+  },
 };
 
 function getGutScoreColor(score: number): string {
@@ -762,7 +783,7 @@ export default function HomeScreen() {
         `${t.conditions}: ${localizedConditionSummary}`,
         `${t.activity}: ${localizedActivityLevel}`,
         `Preferred response language: ${AI_LANGUAGE_LABELS[language]}`,
-        'Use English or German only. Do not respond in Persian or Kurdish.',
+        `Use ${AI_LANGUAGE_LABELS[language]} only. Do not respond in any other language.`,
         'For IBS/bloating, do not suggest brown rice, barley bread, barley, or high-fiber whole grains. Prefer white rice, boiled potatoes, zucchini, carrots, peppermint tea, ginger tea, or low-FODMAP soup.',
       ].join('\n');
       const recommendation = await getNutritionRecommendation(analysisInput);

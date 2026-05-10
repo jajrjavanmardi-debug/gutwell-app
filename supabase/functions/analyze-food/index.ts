@@ -33,6 +33,27 @@ const CORS_HEADERS = {
     "authorization, x-client-info, apikey, content-type",
 };
 
+type AppLanguage = "en" | "de" | "fa";
+
+const LANGUAGE_COPY: Record<AppLanguage, { name: string; rule: string }> = {
+  en: {
+    name: "English",
+    rule: "Write all food names, reasoning, and summary values in English.",
+  },
+  de: {
+    name: "German",
+    rule: "Write all food names, reasoning, and summary values in German.",
+  },
+  fa: {
+    name: "Persian",
+    rule: "Write all food names, reasoning, and summary values in Persian using Persian script.",
+  },
+};
+
+function parseLanguage(value: unknown): AppLanguage {
+  return value === "de" || value === "fa" ? value : "en";
+}
+
 function jsonResponse(
   body: Record<string, unknown>,
   status = 200,
@@ -46,7 +67,13 @@ function jsonResponse(
   });
 }
 
-const SYSTEM_PROMPT = `You are a gut health nutrition analyst. Analyze this food photo and identify every food item visible.
+function buildSystemPrompt(language: AppLanguage): string {
+  const languageCopy = LANGUAGE_COPY[language];
+
+  return `You are a gut health nutrition analyst. Analyze this food photo and identify every food item visible.
+
+Selected app language: ${languageCopy.name}.
+Language rule: ${languageCopy.rule} Return only JSON keys in English, but all user-visible string values must be in ${languageCopy.name}.
 
 For each food item, provide:
 - name: the food item (lowercase)
@@ -72,6 +99,7 @@ Scoring guidelines:
 
 Return ONLY valid JSON matching this exact structure, no markdown fences:
 {"foods":[{"name":"...","gut_score":0,"fodmap_level":"...","flags":[],"reasoning":"..."}],"overall_score":0,"summary":"..."}`;
+}
 
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
@@ -136,7 +164,8 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
-    const { image, mimeType } = await req.json();
+    const { image, mimeType, language: rawLanguage } = await req.json();
+    const language = parseLanguage(rawLanguage);
 
     if (!image) {
       return jsonResponse(
@@ -168,7 +197,7 @@ Deno.serve(async (req: Request) => {
         contents: [
           {
             parts: [
-              { text: SYSTEM_PROMPT },
+              { text: buildSystemPrompt(language) },
               {
                 inline_data: {
                   mime_type: mimeType || "image/jpeg",

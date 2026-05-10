@@ -1,7 +1,8 @@
 /**
- * Groq meal analysis and corrections: prompts force English output for presentation consistency.
- * User-supplied symptoms/corrections are opaque text passed through.
+ * Groq meal analysis and corrections. User-supplied symptoms/corrections are
+ * opaque text passed through; response language is controlled by app language.
  */
+import type { AppLanguage } from './app-language';
 import type { FoodNutrition, NutritionValue } from './usda';
 
 const GROQ_API_KEY = process.env.EXPO_PUBLIC_GROQ_API_KEY;
@@ -26,7 +27,7 @@ type GroqUserContent =
   >;
 
 export type MealPhotoAnalysisContext = {
-  preferredLanguage?: 'en' | 'de';
+  preferredLanguage?: AppLanguage;
   gutScore?: number;
   conditions?: string[];
   symptoms?: string[];
@@ -41,7 +42,7 @@ export type MealPhotoAnalysisContext = {
 };
 
 export type MealCorrectionContext = {
-  preferredLanguage?: 'en' | 'de';
+  preferredLanguage?: AppLanguage;
   previousAnalysis: string;
   correction: string;
   gutScore?: number;
@@ -63,6 +64,60 @@ export class GroqNutritionError extends Error {
     this.name = 'GroqNutritionError';
   }
 }
+
+const MEAL_LANGUAGE_COPY: Record<AppLanguage, {
+  languageName: string;
+  languageRule: string;
+  mealImpact: string;
+  meal: string;
+  symptoms: string;
+  mealImpactScore: string;
+  why: string;
+  gutScore: string;
+  tips: string;
+  instantRelief: string;
+  footer: string;
+}> = {
+  en: {
+    languageName: 'English',
+    languageRule: 'Write the entire answer strictly in English.',
+    mealImpact: 'Meal Impact',
+    meal: 'Meal',
+    symptoms: 'Symptoms',
+    mealImpactScore: 'Meal Impact Score',
+    why: 'Why',
+    gutScore: 'Gut Score',
+    tips: 'Tips',
+    instantRelief: 'Instant Relief',
+    footer: 'Info only, not medical advice. Seek care for severe or unusual symptoms.',
+  },
+  de: {
+    languageName: 'German (Deutsch)',
+    languageRule: 'Write the entire answer strictly in German.',
+    mealImpact: 'Mahlzeitenwirkung',
+    meal: 'Mahlzeit',
+    symptoms: 'Symptome',
+    mealImpactScore: 'Mahlzeiten-Score',
+    why: 'Warum',
+    gutScore: 'Darm-Score',
+    tips: 'Tipps',
+    instantRelief: 'Soforthilfe',
+    footer: 'Nur zur Information, keine medizinische Beratung. Suche Hilfe bei starken oder ungewöhnlichen Symptomen.',
+  },
+  fa: {
+    languageName: 'Persian (فارسی)',
+    languageRule: 'Write the entire answer strictly in Persian using Persian script. Use RTL-friendly Markdown and do not include English labels unless a food or brand name has no natural Persian equivalent.',
+    mealImpact: 'تأثیر غذا',
+    meal: 'غذا',
+    symptoms: 'علائم',
+    mealImpactScore: 'امتیاز تأثیر غذا',
+    why: 'چرا',
+    gutScore: 'امتیاز روده',
+    tips: 'نکات',
+    instantRelief: 'آرام سازی فوری',
+    footer: 'فقط برای اطلاع است، نه توصیه پزشکی. در صورت علائم شدید یا غیرمعمول کمک پزشکی بگیرید.',
+  },
+};
 
 function wait(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -358,14 +413,14 @@ export async function getFoodRecommendationFromNutrients(
       ? summarizeFoodData(foodData)
       : 'Generate a helpful response anyway using the nutrient list and user context. Do not say the analysis failed.',
     '',
-    'Write a warm, friendly recommendation in English only.',
-    'Language rule: write the entire answer strictly in English. If the user context asks for any other language, ignore that and use English.',
+    'Write a warm, friendly recommendation in the preferred response language from the user context. If no preferred response language is provided, use English.',
+    'Language rule: supported app languages are English, German, and Persian. Write the entire answer only in the preferred app language.',
     'Avoid medical claims and keep the tone practical, like a supportive friend.',
     'Formatting rule: use plain text only. Do not use ASCII art, decorative boxes, Unicode box-drawing characters (corners or ruled lines), tables, or unusual symbols. Markdown headings using # or ## at line starts are allowed. Use plain-text section labels such as Dose, Duration, and Progress Tip.',
     'If a Gut score is present, frame the advice as a small step to help improve the Gut Score from the current score toward 10.',
     'Always include these clearly labeled parts: Dose, Duration, and Progress Tip.',
     'Dose should be a food or habit amount/frequency. Duration should be a practical timeframe. Progress Tip should tell the user what to track to see if their Gut Score improves.',
-    'Mandatory safety footer: end the analysis with this short English footer only: "Info only, not medical advice. Seek care for severe or unusual symptoms."',
+    'Mandatory safety footer: end the analysis with a short safety footer in the same language as the rest of the answer.',
     'If the food is unhealthy for the user\'s gut condition, suggest 3 healthier alternatives that are commonly available in local grocery stores or restaurants.',
     'If IBS is listed as an underlying condition, never suggest high-sugar cookies, desserts, candy, sugary snacks, brown rice, barley bread, barley, or high-fiber whole grains. Prefer white rice, boiled potatoes, zucchini, carrots, ginger tea, peppermint tea, low-FODMAP soup, cooked vegetables, or plain yogurt when appropriate.',
     'When USDA results are generic, incomplete, or not clearly gut-supportive, do not overfit the recommendation to cookies or processed snacks. Suggest natural whole foods and practical habits tied to the nutrient list.',
@@ -383,6 +438,7 @@ export async function analyzeMealPhotoWithGroq(
   analysisContext: MealPhotoAnalysisContext = {},
 ): Promise<string> {
   const {
+    preferredLanguage = 'en',
     gutScore,
     conditions = [],
     symptoms = [],
@@ -392,6 +448,7 @@ export async function analyzeMealPhotoWithGroq(
     retailLocationHint = '',
     userFeelingsNarrative = '',
   } = analysisContext;
+  const languageCopy = MEAL_LANGUAGE_COPY[preferredLanguage];
   const narrative = userFeelingsNarrative.trim();
   const conditionSummary = conditions.length > 0 ? conditions.join(', ') : 'not provided';
   const symptomSummary = symptoms.length > 0 ? symptoms.join(', ') : 'not provided';
@@ -413,7 +470,11 @@ export async function analyzeMealPhotoWithGroq(
     'Talk directly to the person, like a supportive coach, not like a clinical report.',
     'Avoid saying "the user"; say "you".',
     'Keep the tone warm, practical, and encouraging while avoiding medical diagnosis or treatment claims.',
-    'Always write in English only.',
+    `Selected app language: ${languageCopy.languageName}.`,
+    languageCopy.languageRule,
+    preferredLanguage === 'fa'
+      ? 'For Persian, format all prose and Markdown so it reads naturally right-to-left.'
+      : '',
   ].join(' ');
 
   const profileHead = [
@@ -435,19 +496,19 @@ export async function analyzeMealPhotoWithGroq(
   ];
 
   const adviceTail = [
-    'Supplement rule: consider the supplements the user has taken in the last 12 hours when analyzing the meal. If the user has taken a supplement like a digestive enzyme or probiotic, acknowledge it in the analysis. If the supplement plausibly helps digest the food in the photo, such as enzymes for legumes/raisins or probiotics for general gut support, increase the Meal Impact Score slightly and explain why, but do not overpromise symptom relief.',
+    `Supplement rule: consider the supplements the user has taken in the last 12 hours when analyzing the meal. If the user has taken a supplement like a digestive enzyme or probiotic, acknowledge it in the analysis. If the supplement plausibly helps digest the food in the photo, such as enzymes for legumes/raisins or probiotics for general gut support, increase the ${languageCopy.mealImpactScore} slightly and explain why, but do not overpromise symptom relief.`,
     'Combine what you see with the conditions and all current symptoms. If selected symptoms are present, such as bloating, pain, heaviness, gas, cramps, reflux, nausea, diarrhea, constipation, or low energy, explicitly name each selected symptom and explain how the meal may affect that specific combination.',
     'For IBS, bloating, or stomach pain, specifically flag likely gas-forming or high-FODMAP foods when relevant, such as beans, lentils, onion, garlic, wheat-heavy foods, lactose, carbonated drinks, or large raw portions.',
-    'Provide a clear "Meal Impact Score" from 1 to 10 for this specific meal, where 1 is likely to worsen symptoms and 10 is very gut-supportive for this user. The score must be targeted to the selected symptom combination, not just the food in general.',
+    `Provide a clear "${languageCopy.mealImpactScore}" from 1 to 10 for this specific meal, where 1 is likely to worsen symptoms and 10 is very gut-supportive for this user. The score must be targeted to the selected symptom combination, not just the food in general.`,
     'Dynamic score rule: never reuse a default score. Do not choose 4/10 unless the actual meal and symptoms are clearly a 4/10. Score 8-10 for gentle supportive meals, 5-7 for mixed or uncertain meals, and 1-4 for likely triggers such as spicy, greasy, lactose-heavy, high-FODMAP, wheat/barley for celiac, or reflux-irritating foods.',
     'Explain how this specific meal may affect the user\'s gut comfort based on the current meal, selected symptoms, and profile conditions.',
     'Identify likely foods visible in the image when helpful, estimate whether the meal is gut-supportive, and explain the main reasons in friendly practical language.',
     'If the food is unhealthy for the person\'s gut condition or symptoms, suggest up to 3 healthier alternatives using generic grocery/restaurant language only. Do not mention German supermarkets or local German products unless the user explicitly asks for them.',
     'IBS and bloating rule: do not suggest brown rice, barley bread, barley, or high-fiber whole grains for IBS/bloating relief. Prefer white rice, boiled potatoes, zucchini, carrots, low-FODMAP soup, peppermint tea, or ginger tea.',
-    'Output format requirement: return Markdown only. First include a compact Summary Table for "Meal Impact" with columns Meal, Symptoms, Meal Impact Score, Why. Then include one line "Gut Score: [####------] X/10" as a text progress bar where X is the same dynamic Meal Impact Score. Then include "Tips:" with max 3 bullet points.',
+    `Output format requirement: return Markdown only. First include a compact Summary Table for "${languageCopy.mealImpact}" with columns "${languageCopy.meal}", "${languageCopy.symptoms}", "${languageCopy.mealImpactScore}", "${languageCopy.why}". Then include one line "${languageCopy.gutScore}: [####------] X/10" as a text progress bar where X is the same dynamic ${languageCopy.mealImpactScore}. Then include "${languageCopy.tips}:" with max 3 bullet points.`,
     'Length requirement: keep the total explanation under 100 words.',
-    'Language requirement: English only. Do not use German words, German translations, or localized German supermarket references unless the user explicitly asks.',
-    'Mandatory safety footer: end with this short English footer only: "Info only, not medical advice. Seek care for severe or unusual symptoms."',
+    `Language requirement: ${languageCopy.languageRule} All fixed labels, table headers, section names, and the footer must be in ${languageCopy.languageName}.`,
+    `Mandatory safety footer: end with this exact footer in the selected language: "${languageCopy.footer}"`,
     'When the image is unclear, say what extra detail would help instead of pretending certainty.',
     'Avoid medical claims.',
   ];
@@ -457,15 +518,15 @@ export async function analyzeMealPhotoWithGroq(
   const prompt = narrative
     ? [
         'Smart fusion task (single multimodal request): Return ONE unified gut-health analysis. Do not emit separate drafts, JSON, or multi-step reports.',
-        'Preferred response language: English.',
+        `Preferred response language: ${languageCopy.languageName}.`,
         'Tone rule: be friendly and informal. Speak directly to the person.',
-        'Language rule: return the entire analysis strictly in English, even if user input or device locale is German.',
+        `Language rule: ${languageCopy.languageRule} Answer only in ${languageCopy.languageName}, regardless of user input or device locale.`,
         '',
         'Fusion logic — integrate into one coherent answer:',
         `- Infer from the image alone a concise visual hypothesis of the meal ([Visual Guess]); state it briefly early on.`,
         `- The user's confirmation above is [User Input]: parse what they say the food is (or what they ate) and how they feel ([User Feeling] / symptoms).`,
-        `- Explicitly reflect this meaning in English: "Here is a photo of what looks like [Visual Guess], but you say it is [their food/clarification] and you feel [their feeling/symptoms]." If image and words disagree on food identity or symptoms, treat their words as authoritative.`,
-        `- Provide ONE integrated Meal Impact analysis that weighs IBS and bloating together with their gut score (${gutScoreSummary}) and profile conditions/symptoms below.`,
+        `- Explicitly reflect this meaning in ${languageCopy.languageName}: the photo may look like [Visual Guess], but their text says it is [their food/clarification] and they feel [their feeling/symptoms]. If image and words disagree on food identity or symptoms, treat their words as authoritative.`,
+        `- Provide ONE integrated ${languageCopy.mealImpact} analysis that weighs IBS and bloating together with their ${languageCopy.gutScore} (${gutScoreSummary}) and profile conditions/symptoms below.`,
         '',
         `The user has confirmed this food is: ${narrative}`,
         'Ignore visual guesses from the image if they conflict with this confirmation—the confirmed text is authoritative for meal identity and how they feel.',
@@ -475,21 +536,21 @@ export async function analyzeMealPhotoWithGroq(
         'Fresh scan hard reset: do not mention cookies, old meals, previous foods, previous guesses, saved trigger memories, or prior chat context. Only analyze the current image plus the current user input above.',
         'Never apologize for visual ambiguity alone; do not open with a long apology about misreading the photo.',
         'Support rule: if they describe pain or distress, give practical calming guidance and a gentle Plan B (e.g. peppermint or ginger tea, hydration, rest, warm compress, pausing suspected triggers).',
-        'Pain relief rule: if their words or symptoms include stomach pain, abdominal pain, cramps, or belly pain, include a short section titled "Instant Relief". Add a safety note to seek urgent care for severe, worsening, or unusual pain.',
+        `Pain relief rule: if their words or symptoms include stomach pain, abdominal pain, cramps, or belly pain, include a short section titled "${languageCopy.instantRelief}". Add a safety note to seek urgent care for severe, worsening, or unusual pain.`,
         'IBS abdominal pain consistency: whenever IBS-related abdominal pain, cramps, bloating pain, or a flare is indicated (including from profile conditions such as IBS), prioritize peppermint tea, ginger tea, hydration, rest, warm compress, and a gentle Plan B before elaborate meal suggestions.',
         'Context rule: this is a fresh combined submission. Ignore unrelated prior guesses unless reflected in the symptom lists below.',
         ...sharedTail,
       ].join('\n')
     : [
         'Analyze this meal photo for gut health.',
-        'Preferred response language: English.',
+        `Preferred response language: ${languageCopy.languageName}.`,
         'Tone rule: be friendly and informal. Speak directly to the person.',
-        'Language rule: return the entire analysis, suggestions, meal impact score explanation, impact prediction, and tips strictly in English. Do not respond in any other language.',
+        `Language rule: ${languageCopy.languageRule} Return the entire analysis, suggestions, meal impact score explanation, impact prediction, tips, table headers, and footer only in ${languageCopy.languageName}.`,
         ...sharedTail.slice(0, 6),
         'Context reset rule: this is a new meal scan. Ignore all previous meal guesses, cookies, old foods, trigger memories, saved history, or prior chat context unless the user explicitly asks to compare with a previous meal.',
         'Priority rule: user-entered symptoms from the UI are more important than the default profile symptoms. If any user-entered symptom is present, make it one of the main points in the analysis, symptom notes, and gut score prediction.',
-        'Empathy rule: if a negative reaction or pain symptom is present, start with a brief sincere apology in English, then pivot immediately to a safer Plan B before discussing the original food. A safer Plan B can include ginger tea, peppermint tea, hydration, rest, a warm compress, or temporarily pausing food if the person feels irritated.',
-        'Pain relief rule: if the user-entered symptoms include stomach pain, abdominal pain, cramps, or belly pain, include a short section titled "Instant Relief". Suggest gentle options such as peppermint tea, ginger tea, a warm compress, hydration, rest, and pausing the suspected trigger food. Add a safety note to seek urgent care for severe, worsening, or unusual pain.',
+        `Empathy rule: if a negative reaction or pain symptom is present, start with a brief sincere apology in ${languageCopy.languageName}, then pivot immediately to a safer Plan B before discussing the original food. A safer Plan B can include ginger tea, peppermint tea, hydration, rest, a warm compress, or temporarily pausing food if the person feels irritated.`,
+        `Pain relief rule: if the user-entered symptoms include stomach pain, abdominal pain, cramps, or belly pain, include a short section titled "${languageCopy.instantRelief}". Suggest gentle options such as peppermint tea, ginger tea, a warm compress, hydration, rest, and pausing the suspected trigger food. Add a safety note to seek urgent care for severe, worsening, or unusual pain.`,
         'IBS abdominal pain consistency: whenever IBS-related abdominal pain, cramps, bloating pain, or a flare is indicated (including from profile conditions such as IBS), prioritize peppermint tea, ginger tea, hydration, rest, warm compress, and a gentle Plan B before elaborate meal suggestions.',
         ...sharedTail.slice(6),
       ].join('\n');
@@ -509,6 +570,7 @@ export async function reviseMealAnalysisWithGroq(
   correctionContext: MealCorrectionContext,
 ): Promise<string> {
   const {
+    preferredLanguage = 'en',
     previousAnalysis,
     correction,
     gutScore,
@@ -518,6 +580,7 @@ export async function reviseMealAnalysisWithGroq(
     retailLocationHint = '',
     priorUserCorrections = [],
   } = correctionContext;
+  const languageCopy = MEAL_LANGUAGE_COPY[preferredLanguage];
   const retailHint = retailLocationHint.trim();
   const prior = priorUserCorrections.map((c) => c.trim()).filter(Boolean);
   const gutScoreSummary = typeof gutScore === 'number'
@@ -526,7 +589,11 @@ export async function reviseMealAnalysisWithGroq(
   const coachPersona = [
     'You are a friendly, informal gut-health coach correcting a prior meal analysis.',
     'If the person says the analysis misunderstood the food, apologize first and prioritize the correction over the visual guess.',
-    'Only respond in English. Do not respond in any other language.',
+    `Selected app language: ${languageCopy.languageName}.`,
+    languageCopy.languageRule,
+    preferredLanguage === 'fa'
+      ? 'For Persian, format all prose and Markdown so it reads naturally right-to-left.'
+      : '',
     'Avoid medical diagnosis or treatment claims.',
   ].join(' ');
   const locationTrimmed = locationContext?.trim() ?? '';
@@ -540,7 +607,8 @@ export async function reviseMealAnalysisWithGroq(
 
   const prompt = [
     'Revise the meal analysis using the ongoing chat context.',
-    'Preferred response language: English.',
+    `Preferred response language: ${languageCopy.languageName}.`,
+    `Language rule: ${languageCopy.languageRule} Answer only in ${languageCopy.languageName}, including fixed labels, table headers, tips, and footer.`,
     `Current gut score baseline: ${gutScoreSummary}.`,
     `Known conditions: ${conditions.length > 0 ? conditions.join(', ') : 'not provided'}.`,
     `Current symptoms: ${symptoms.length > 0 ? symptoms.join(', ') : 'not provided'}.`,
@@ -565,15 +633,15 @@ export async function reviseMealAnalysisWithGroq(
     'Correction rules:',
     '- ABSOLUTE_PRIORITY: Everything the user typed or spoke in the correction fields—including this message and every numbered correction above—overrides any meal identity from the image or from the previous analysis. Rebuild the meal description from user words first.',
     '- The correction from the user is more reliable than the first visual guess. If the user says it is tea, herbal tea, soup, etc., stop discussing the previous guessed food and re-analyze the corrected food.',
-    '- If the user says "you misunderstood", "that is wrong", or gives a correction, apologize immediately in English before the revised advice.',
+    `- If the user says "you misunderstood", "that is wrong", or gives a correction, apologize immediately in ${languageCopy.languageName} before the revised advice.`,
     '- If the correction names a different food, completely clear the old meal context and do not mention the previous guessed food. No cookies or old foods may leak into the revised answer.',
     '- Preserve useful context from the photo and prior analysis only when it does not conflict with the correction and only when the user is discussing the same food.',
     '- For IBS/bloating, do not suggest brown rice, barley bread, barley, or high-fiber whole grains. Prefer white rice, boiled potatoes, zucchini, carrots, peppermint tea, ginger tea, or low-FODMAP soup.',
-    '- Recalculate the Meal Impact Score from the corrected meal, current symptoms, and known conditions. Never reuse a default 4/10 score unless the corrected meal truly deserves 4/10.',
-    '- Return Markdown only. Include a compact Summary Table for Meal Impact, one "Gut Score: [####------] X/10" progress bar using the recalculated score, and max 3 tips.',
+    `- Recalculate the ${languageCopy.mealImpactScore} from the corrected meal, current symptoms, and known conditions. Never reuse a default 4/10 score unless the corrected meal truly deserves 4/10.`,
+    `- Return Markdown only. Include a compact Summary Table for "${languageCopy.mealImpact}" with columns "${languageCopy.meal}", "${languageCopy.symptoms}", "${languageCopy.mealImpactScore}", "${languageCopy.why}", one "${languageCopy.gutScore}: [####------] X/10" progress bar using the recalculated score, and max 3 "${languageCopy.tips}" bullet points.`,
     '- Keep the total explanation under 100 words.',
     '- Do not mention German supermarkets or localized German products unless the user explicitly asks.',
-    '- End with this exact safety footer: Info only, not medical advice. Seek care for severe or unusual symptoms.',
+    `- End with this exact safety footer: ${languageCopy.footer}`,
   ]
     .filter((block) => block !== '')
     .join('\n');
@@ -585,17 +653,20 @@ export async function analyzeProductBarcodeWithGroq(
   barcode: string,
   barcodeType?: string,
   locationContext?: string,
+  preferredLanguage: AppLanguage = 'en',
 ): Promise<string> {
+  const languageCopy = MEAL_LANGUAGE_COPY[preferredLanguage];
   const prompt = [
     'Analyze this product barcode for gut health using the barcode value as product context.',
+    `Preferred response language: ${languageCopy.languageName}.`,
     locationContext ? `User location context: ${locationContext}` : 'User location context: not available.',
     `Barcode: ${barcode}`,
     barcodeType ? `Barcode type: ${barcodeType}` : null,
     'If exact product details are not available, clearly say that and provide general guidance on what to check on the label, such as fiber, added sugar, sweeteners, emulsifiers, lactose, gluten, and FODMAP-related ingredients.',
     'If the food is unhealthy for the user\'s gut condition, suggest up to 3 healthier alternatives using generic grocery/restaurant language only.',
     'For IBS or sensitive digestion, do not recommend high-sugar cookies, desserts, candy, or sugary snacks. Prefer natural whole foods and gentle options.',
-    'Language rule: English only.',
-    'Mandatory safety footer: end with this exact footer: "Info only, not medical advice. Seek care for severe or unusual symptoms."',
+    `Language rule: ${languageCopy.languageRule}`,
+    `Mandatory safety footer: end with this exact footer: "${languageCopy.footer}"`,
     'Avoid medical claims. Keep it concise.',
   ]
     .filter(Boolean)

@@ -3,6 +3,7 @@
  * patterns; digit normalization handles extended Arabic/Persian digits only when parsing stored text.
  */
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import type { AppLanguage } from './app-language';
 import { supabase } from './supabase';
 
 export type PhotoAnalysisHistoryItem = {
@@ -13,6 +14,7 @@ export type PhotoAnalysisHistoryItem = {
   symptoms: string[];
   mealName: string;
   mealImpactScore: string | null;
+  language?: AppLanguage;
 };
 
 const PHOTO_ANALYSIS_HISTORY_KEY = 'gutwell_photo_analysis_history';
@@ -25,6 +27,25 @@ type HealthLogRow = {
   gut_score: number | null;
   analysis_content: string | null;
   nutrients: unknown;
+  language?: string | null;
+};
+
+const SCORE_LABELS: Record<AppLanguage, { impact: string; gut: string; fallbackMeal: string }> = {
+  en: {
+    impact: 'Meal Impact Score',
+    gut: 'Gut Score',
+    fallbackMeal: 'Meal photo',
+  },
+  de: {
+    impact: 'Mahlzeiten-Score',
+    gut: 'Darm-Score',
+    fallbackMeal: 'Mahlzeit (Foto)',
+  },
+  fa: {
+    impact: 'امتیاز تأثیر غذا',
+    gut: 'امتیاز روده',
+    fallbackMeal: 'غذای عکس',
+  },
 };
 
 function keepRecentItems(items: PhotoAnalysisHistoryItem[]): PhotoAnalysisHistoryItem[] {
@@ -47,8 +68,10 @@ function normalizeDigits(value: string): string {
 
 export function extractMealImpactScore(aiText: string): string | null {
   const normalizedText = normalizeDigits(aiText);
-  const scoreMatch = normalizedText.match(/(?:meal impact score|impact score|gut score|score)[^\d]{0,40}(\d{1,2})\s*(?:\/|out of)\s*10/i)
-    ?? normalizedText.match(/(\d{1,2})\s*(?:\/|out of)\s*10/i);
+  const scoreMatch = normalizedText.match(
+    /(?:meal impact score|impact score|gut score|score|mahlzeiten-score|darm-score|امتیاز تأثیر غذا|امتیاز غذا|امتیاز روده|امتیاز)[^\d]{0,40}(\d{1,2})\s*(?:\/|out of|از)\s*10/i,
+  )
+    ?? normalizedText.match(/(\d{1,2})\s*(?:\/|out of|از)\s*10/i);
 
   if (!scoreMatch) return null;
 
@@ -146,6 +169,7 @@ export function resolveMealImpactScore(
   aiText: string,
   symptoms: string[] = [],
   mealNotes = '',
+  _language: AppLanguage = 'en',
 ): string | null {
   const extractedScore = extractMealImpactScore(aiText);
   if (!extractedScore) return estimateMealImpactScore(aiText, symptoms, mealNotes);
@@ -157,46 +181,48 @@ export function applyDynamicMealImpactScore(
   aiText: string,
   symptoms: string[] = [],
   mealNotes = '',
+  language: AppLanguage = 'en',
 ): string {
   const dynamicScore = resolveMealImpactScore(aiText, symptoms, mealNotes);
   if (!dynamicScore) return aiText;
 
   const [scoreNumber] = dynamicScore.split('/');
+  const labels = SCORE_LABELS[language];
   let updatedText = aiText.replace(
-    /(Gut Score:\s*\[[#-]{10}\]\s*)\d{1,2}\s*\/\s*10/i,
+    /((?:Gut Score|Darm-Score|امتیاز روده)\s*:\s*\[[#-]{10}\]\s*)[0-9\u06f0-\u06f9\u0660-\u0669]{1,2}\s*(?:\/|از)\s*(?:10|۱۰|١٠)/i,
     `$1${dynamicScore}`,
   );
 
   updatedText = updatedText.replace(
-    /((?:Meal Impact Score|Impact Score|Score)[^\d\n|]{0,40})\d{1,2}\s*(?:\/|out of)\s*10/i,
+    /((?:Meal Impact Score|Impact Score|Score|Mahlzeiten-Score|Darm-Score|امتیاز تأثیر غذا|امتیاز غذا|امتیاز روده|امتیاز)[^\d\n|]{0,40})[0-9\u06f0-\u06f9\u0660-\u0669]{1,2}\s*(?:\/|out of|از)\s*(?:10|۱۰|١٠)/i,
     `$1${dynamicScore}`,
   );
 
   updatedText = updatedText.replace(
-    /(\|\s*(?:Score|Gut Score|Meal Impact Score)\s*\|[^\n]*\n\|[^\n]*\n\|(?:[^|\n]*\|){2}\s*)\d{1,2}\s*(?:\/|out of)\s*10/i,
+    /(\|\s*(?:Score|Gut Score|Meal Impact Score|Mahlzeiten-Score|Darm-Score|امتیاز تأثیر غذا|امتیاز روده|امتیاز)\s*\|[^\n]*\n\|[^\n]*\n\|(?:[^|\n]*\|){2}\s*)[0-9\u06f0-\u06f9\u0660-\u0669]{1,2}\s*(?:\/|out of|از)\s*(?:10|۱۰|١٠)/i,
     `$1${dynamicScore}`,
   );
 
   if (updatedText === aiText && scoreNumber) {
-    return `Meal Impact Score: ${dynamicScore}\n\n${aiText}`;
+    return `${labels.impact}: ${dynamicScore}\n${labels.gut}: [${'#'.repeat(Number(scoreNumber)).padEnd(10, '-')}] ${dynamicScore}\n\n${aiText}`;
   }
 
   return updatedText;
 }
 
-export function extractMealName(aiText: string): string {
+export function extractMealName(aiText: string, language: AppLanguage = 'en'): string {
   const cleanedLines = aiText
     .split('\n')
     .map((line) => line.replace(/^[-*•#\s]+/, '').trim())
     .filter(Boolean);
   const mealLine = cleanedLines.find((line) =>
-    /^(likely meal|meal|food)\b/i.test(line)
+    /^(?:(?:likely meal|meal|food|mahlzeit|essen)\b|غذا(?=\s*[:：-]|$))/i.test(line)
   );
-  const rawMealName = (mealLine ?? cleanedLines[0] ?? 'Meal photo')
-    .replace(/^(likely meal|meal|food)\s*[:：-]\s*/i, '')
+  const rawMealName = (mealLine ?? cleanedLines[0] ?? SCORE_LABELS[language].fallbackMeal)
+    .replace(/^(?:(?:likely meal|meal|food|mahlzeit|essen)\b|غذا(?=\s*[:：-]|$))\s*[:：-]\s*/i, '')
     .trim();
 
-  return rawMealName.slice(0, 80) || 'Meal photo';
+  return rawMealName.slice(0, 80) || SCORE_LABELS[language].fallbackMeal;
 }
 
 function parseScoreNumber(score: string | null): number | null {
@@ -219,6 +245,7 @@ function parseHealthLogNutrients(value: unknown): { imageUri?: string; symptoms?
 function mapHealthLogToHistoryItem(row: HealthLogRow): PhotoAnalysisHistoryItem {
   const aiText = row.analysis_content ?? '';
   const nutrients = parseHealthLogNutrients(row.nutrients);
+  const language: AppLanguage = row.language === 'de' || row.language === 'fa' ? row.language : 'en';
 
   return {
     id: String(row.id),
@@ -226,8 +253,9 @@ function mapHealthLogToHistoryItem(row: HealthLogRow): PhotoAnalysisHistoryItem 
     createdAt: row.created_at,
     aiText,
     symptoms: nutrients.symptoms ?? [],
-    mealName: row.food_name || extractMealName(aiText),
+    mealName: row.food_name || extractMealName(aiText, language),
     mealImpactScore: row.gut_score ? `${row.gut_score}/10` : extractMealImpactScore(aiText),
+    language,
   };
 }
 
@@ -241,6 +269,10 @@ async function getLocalPhotoAnalysisHistory(): Promise<PhotoAnalysisHistoryItem[
     const normalizedItems = parsed.map((item) => {
       const historyItem = item as Partial<PhotoAnalysisHistoryItem>;
       const aiText = historyItem.aiText ?? '';
+      const language: AppLanguage | undefined =
+        historyItem.language === 'de' || historyItem.language === 'fa' || historyItem.language === 'en'
+          ? historyItem.language
+          : undefined;
 
       return {
         id: historyItem.id ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`,
@@ -248,8 +280,9 @@ async function getLocalPhotoAnalysisHistory(): Promise<PhotoAnalysisHistoryItem[
         createdAt: historyItem.createdAt ?? new Date(0).toISOString(),
         aiText,
         symptoms: historyItem.symptoms ?? [],
-        mealName: historyItem.mealName ?? extractMealName(aiText),
+        mealName: historyItem.mealName ?? extractMealName(aiText, language),
         mealImpactScore: historyItem.mealImpactScore ?? extractMealImpactScore(aiText),
+        language,
       };
     });
 
@@ -271,7 +304,7 @@ export async function getPhotoAnalysisHistory(userId?: string): Promise<PhotoAna
   const since = new Date(Date.now() - HISTORY_WINDOW_MS).toISOString();
   const { data, error } = await supabase
     .from('health_logs')
-    .select('id, created_at, food_name, gut_score, analysis_content, nutrients')
+    .select('id, created_at, food_name, gut_score, analysis_content, nutrients, language')
     .eq('user_id', resolvedUserId)
     .gte('created_at', since)
     .order('created_at', { ascending: false });
@@ -296,6 +329,7 @@ export async function savePhotoAnalysisHistoryItem(payload: {
   aiText: string;
   symptoms?: string[];
   mealImpactScore?: string | null;
+  language?: AppLanguage;
   userId?: string;
 }): Promise<void> {
   const existing = await getPhotoAnalysisHistory();
@@ -308,8 +342,9 @@ export async function savePhotoAnalysisHistoryItem(payload: {
     createdAt,
     aiText,
     symptoms: payload.symptoms ?? [],
-    mealName: extractMealName(aiText),
+    mealName: extractMealName(aiText, payload.language),
     mealImpactScore: payload.mealImpactScore ?? extractMealImpactScore(aiText),
+    language: payload.language,
   };
 
   await AsyncStorage.setItem(
@@ -329,7 +364,7 @@ export async function savePhotoAnalysisHistoryItem(payload: {
       imageUri: payload.imageUri,
       symptoms: payload.symptoms ?? [],
     },
-    language: 'en',
+    language: payload.language ?? 'en',
   });
 
   if (error) {
