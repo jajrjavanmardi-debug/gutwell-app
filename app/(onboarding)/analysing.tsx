@@ -3,31 +3,26 @@ import { Animated, Easing, StyleSheet, Text, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import { useLanguage } from '../../contexts/LanguageContext';
+import { ONBOARDING_COPY } from '../../constants/onboarding-copy';
 import { FontFamily } from '../../constants/theme';
 import StarFieldBackground from '../../components/StarFieldBackground';
 
-const ANALYSIS_STEPS = [
-  'Reviewing your gut profile...',
-  'Identifying your symptom patterns...',
-  'Mapping your food-energy connections...',
-  'Building your personalised plan...',
-];
-
 export default function AnalysingScreen() {
+  const { language, isRtl } = useLanguage();
+  const copy = ONBOARDING_COPY[language].analysing;
   const progressAnim = useRef(new Animated.Value(0)).current;
   const contentFade = useRef(new Animated.Value(0)).current;
   const [stepIndex, setStepIndex] = useState(0);
   const stepFade = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
-    // Fade in content
     Animated.timing(contentFade, {
       toValue: 1,
       duration: 400,
       useNativeDriver: true,
     }).start();
 
-    // Progress bar animation over 2400ms
     Animated.timing(progressAnim, {
       toValue: 1,
       duration: 2400,
@@ -35,15 +30,13 @@ export default function AnalysingScreen() {
       useNativeDriver: false,
     }).start();
 
-    // Step cycling every 600ms
     let step = 0;
     const interval = setInterval(() => {
       step++;
-      if (step >= ANALYSIS_STEPS.length) {
+      if (step >= copy.steps.length) {
         clearInterval(interval);
         return;
       }
-      // Cross-fade to next step
       Animated.timing(stepFade, {
         toValue: 0,
         duration: 150,
@@ -58,7 +51,6 @@ export default function AnalysingScreen() {
       });
     }, 600);
 
-    // Navigate after 2600ms
     const navTimer = setTimeout(() => {
       router.replace('/(onboarding)/results');
     }, 2600);
@@ -67,7 +59,7 @@ export default function AnalysingScreen() {
       clearInterval(interval);
       clearTimeout(navTimer);
     };
-  }, []);
+  }, [contentFade, copy.steps.length, progressAnim, stepFade]);
 
   const progressWidth = progressAnim.interpolate({
     inputRange: [0, 1],
@@ -81,22 +73,18 @@ export default function AnalysingScreen() {
       <StarFieldBackground count={120} seed={44} />
 
       <Animated.View style={[styles.content, { opacity: contentFade }]}>
-        {/* Icon */}
         <View style={styles.iconRing}>
           <Text style={styles.iconEmoji}>🔬</Text>
         </View>
 
-        {/* Title */}
-        <Text style={styles.title}>Analysing your answers</Text>
+        <Text style={[styles.title, isRtl && styles.rtlText]}>{copy.title}</Text>
 
-        {/* Progress bar */}
-        <View style={styles.progressTrack}>
+        <View style={[styles.progressTrack, isRtl && styles.progressTrackRtl]}>
           <Animated.View style={[styles.progressFill, { width: progressWidth }]} />
         </View>
 
-        {/* Step label */}
-        <Animated.Text style={[styles.stepLabel, { opacity: stepFade }]}>
-          {ANALYSIS_STEPS[stepIndex]}
+        <Animated.Text style={[styles.stepLabel, isRtl && styles.rtlText, { opacity: stepFade }]}>
+          {copy.steps[stepIndex]}
         </Animated.Text>
       </Animated.View>
     </View>
@@ -133,6 +121,10 @@ const styles = StyleSheet.create({
     borderRadius: 2,
     overflow: 'hidden',
     marginBottom: 20,
+    alignItems: 'flex-start',
+  },
+  progressTrackRtl: {
+    alignItems: 'flex-end',
   },
   progressFill: {
     height: 4,
@@ -144,5 +136,10 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: 'rgba(255,255,255,0.55)',
     textAlign: 'center',
+    lineHeight: 20,
+  },
+  rtlText: {
+    textAlign: 'right',
+    writingDirection: 'rtl',
   },
 });

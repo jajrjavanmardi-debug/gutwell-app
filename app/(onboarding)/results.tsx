@@ -14,15 +14,24 @@ import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useLanguage } from '../../contexts/LanguageContext';
+import {
+  getOnboardingAnswerLabel,
+  ONBOARDING_COPY,
+  type OnboardingProfileKey,
+} from '../../constants/onboarding-copy';
 import { FontFamily } from '../../constants/theme';
 import StarFieldBackground from '../../components/StarFieldBackground';
 
 type GutProfile = {
-  type: string;
+  key: OnboardingProfileKey;
   emoji: string;
   color: string;
-  description: string;
 };
+
+function isOneOf(value: string, options: string[]): boolean {
+  return options.includes(value);
+}
 
 function computeProfile(answers: Record<string, string>): GutProfile {
   const meal = answers.meal_feeling ?? '';
@@ -31,80 +40,60 @@ function computeProfile(answers: Record<string, string>): GutProfile {
   const knowledge = answers.food_knowledge ?? '';
 
   const hasSevereSymptoms =
-    meal === 'Bloated or uncomfortable' ||
-    bloating === 'Every single day' ||
-    bloating === 'A few times a week';
+    isOneOf(meal, ['bloated_uncomfortable', 'Bloated or uncomfortable']) ||
+    isOneOf(bloating, ['daily', 'few_times_week', 'Every single day', 'A few times a week']);
 
   const hasEnergyIssues =
-    energy === 'I crash — need caffeine or a rest' ||
-    energy === 'Noticeable slump but I push through';
+    isOneOf(energy, ['crash', 'slump', 'I crash — need caffeine or a rest', 'Noticeable slump but I push through']);
 
   const lacksKnowledge =
-    knowledge === 'I have no idea' ||
-    knowledge === "I suspect a few but can't be sure";
+    isOneOf(knowledge, ['no_idea', 'suspect', 'I have no idea', "I suspect a few but can't be sure"]);
 
   if (hasSevereSymptoms && hasEnergyIssues) {
     return {
-      type: 'Reactive Gut',
+      key: 'reactive',
       emoji: '⚡',
       color: '#E07A5F',
-      description:
-        "Your gut reacts strongly to food and stress — often leaving you drained. The good news: reactive guts respond fast to the right changes.",
     };
   }
   if (hasSevereSymptoms && lacksKnowledge) {
     return {
-      type: 'Sensitive Gut',
+      key: 'sensitive',
       emoji: '🌿',
       color: '#52B788',
-      description:
-        "Your gut is sensitive, but without knowing your triggers you're flying blind. Just 14 days of tracking will change everything.",
     };
   }
   if (hasEnergyIssues) {
     return {
-      type: 'Energy-Depleted',
+      key: 'energyDepleted',
       emoji: '🔋',
       color: '#D4A373',
-      description:
-        "Your gut-energy connection is disrupted. What you eat is directly affecting how you feel and perform. NutriFlow will show you exactly how.",
     };
   }
   return {
-    type: 'Optimisation Mode',
+    key: 'optimisation',
     emoji: '🎯',
     color: '#74C69D',
-    description:
-      "Your gut is in decent shape — you're here to fine-tune, eliminate subtle triggers, and operate at your peak. Smart move.",
   };
 }
 
-const NEXT_STEPS = [
-  'Your gut score recalculates with every check-in',
-  'Food-symptom patterns emerge after 7 days',
-  'Weekly digests show what\'s changing and why',
-];
-
 export default function ResultsScreen() {
+  const { language, isRtl } = useLanguage();
+  const copy = ONBOARDING_COPY[language].results;
   const [profile, setProfile] = useState<GutProfile | null>(null);
   const [answers, setAnswers] = useState<Record<string, string>>({});
 
-  // Entrance animation
   const contentAnim = useRef(new Animated.Value(0)).current;
-
-  // Button always visible (no delayed animation to avoid invisible CTA)
   const buttonOpacity = useRef(new Animated.Value(1)).current;
   const buttonTranslateY = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    // Load answers and compute profile
     AsyncStorage.getItem('onboarding_answers').then((raw) => {
       const parsed: Record<string, string> = raw ? JSON.parse(raw) : {};
       setAnswers(parsed);
       setProfile(computeProfile(parsed));
     });
 
-    // Fade in content
     Animated.timing(contentAnim, {
       toValue: 1,
       duration: 600,
@@ -112,7 +101,6 @@ export default function ResultsScreen() {
       useNativeDriver: true,
     }).start();
 
-    // Delayed button entrance
     const buttonTimer = setTimeout(() => {
       Animated.parallel([
         Animated.timing(buttonOpacity, {
@@ -139,6 +127,11 @@ export default function ResultsScreen() {
     );
   }
 
+  const profileCopy = copy.profiles[profile.key];
+  const goalLabel = answers.goal
+    ? getOnboardingAnswerLabel(language, 'goal', answers.goal)
+    : '';
+
   return (
     <View style={styles.container}>
       <StatusBar style="light" />
@@ -152,47 +145,45 @@ export default function ResultsScreen() {
           showsVerticalScrollIndicator={false}
         >
           <Animated.View style={[styles.contentWrapper, { opacity: contentAnim }]}>
-            {/* Label */}
-            <Text style={styles.profileLabel}>YOUR GUT HEALTH PROFILE</Text>
+            <Text style={[styles.profileLabel, isRtl && styles.rtlText]}>{copy.profileLabel}</Text>
 
-            {/* Profile card */}
             <View style={styles.profileCard}>
               <Text style={styles.profileEmoji}>{profile.emoji}</Text>
-              <Text style={styles.profileType}>{profile.type}</Text>
+              <Text style={[styles.profileType, isRtl && styles.rtlText]}>{profileCopy.type}</Text>
               <View style={[styles.profileUnderline, { backgroundColor: profile.color }]} />
-              <Text style={styles.profileDescription}>{profile.description}</Text>
+              <Text style={[styles.profileDescription, isRtl && styles.rtlText]}>
+                {profileCopy.description}
+              </Text>
             </View>
 
-            {/* Divider */}
             <View style={styles.divider} />
 
-            {/* What happens next */}
             <View style={styles.nextSection}>
-              <Text style={styles.nextTitle}>WHAT HAPPENS NEXT</Text>
-              {NEXT_STEPS.map((step, i) => (
-                <View key={i} style={styles.nextRow}>
+              <Text style={[styles.nextTitle, isRtl && styles.rtlText]}>{copy.nextTitle}</Text>
+              {copy.nextSteps.map((step, i) => (
+                <View key={i} style={[styles.nextRow, isRtl && styles.nextRowRtl]}>
                   <View style={styles.checkCircle}>
                     <Ionicons name="checkmark" size={14} color="#52B788" />
                   </View>
-                  <Text style={styles.nextText}>{step}</Text>
+                  <Text style={[styles.nextText, isRtl && styles.rtlText]}>{step}</Text>
                 </View>
               ))}
-              {answers.goal ? (
-                <View style={styles.nextRow}>
+              {goalLabel ? (
+                <View style={[styles.nextRow, isRtl && styles.nextRowRtl]}>
                   <View style={styles.checkCircle}>
                     <Ionicons name="checkmark" size={14} color="#52B788" />
                   </View>
-                  <Text style={styles.nextTextGoal}>{'Your goal: ' + answers.goal}</Text>
+                  <Text style={[styles.nextTextGoal, isRtl && styles.rtlText]}>
+                    {copy.goalPrefix + goalLabel}
+                  </Text>
                 </View>
               ) : null}
             </View>
 
-            {/* Spacer so button doesn't overlap content */}
             <View style={styles.bottomSpacer} />
           </Animated.View>
         </ScrollView>
 
-        {/* Delayed CTA button */}
         <Animated.View
           style={[
             styles.bottomCTA,
@@ -207,7 +198,7 @@ export default function ResultsScreen() {
             onPress={() => router.push('/(onboarding)/notifications')}
             activeOpacity={0.88}
           >
-            <Text style={styles.ctaText}>I'm Ready to Start</Text>
+            <Text style={[styles.ctaText, isRtl && styles.rtlText]}>{copy.cta}</Text>
           </TouchableOpacity>
         </Animated.View>
       </SafeAreaView>
@@ -302,6 +293,9 @@ const styles = StyleSheet.create({
     gap: 12,
     marginBottom: 14,
   },
+  nextRowRtl: {
+    flexDirection: 'row-reverse',
+  },
   checkCircle: {
     width: 24,
     height: 24,
@@ -341,16 +335,23 @@ const styles = StyleSheet.create({
   },
   ctaButton: {
     width: '100%',
-    height: 60,
+    minHeight: 60,
     borderRadius: 20,
     backgroundColor: '#FFFFFF',
     justifyContent: 'center',
     alignItems: 'center',
+    paddingHorizontal: 18,
+    paddingVertical: 12,
   },
   ctaText: {
     fontFamily: FontFamily.sansBold,
     fontSize: 17,
     color: '#0B1F14',
     letterSpacing: -0.3,
+    textAlign: 'center',
+  },
+  rtlText: {
+    textAlign: 'right',
+    writingDirection: 'rtl',
   },
 });

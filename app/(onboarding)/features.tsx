@@ -1,7 +1,6 @@
 import React, { useRef, useState } from 'react';
 import {
   Animated,
-  Dimensions,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -12,47 +11,23 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
+import { useLanguage } from '../../contexts/LanguageContext';
+import { ONBOARDING_COPY } from '../../constants/onboarding-copy';
 import { FontFamily } from '../../constants/theme';
 import StarFieldBackground from '../../components/StarFieldBackground';
-
-const { width } = Dimensions.get('window');
-
-const SLIDES = [
-  {
-    icon: 'analytics-outline' as const,
-    title: 'Your Daily Gut Score',
-    description:
-      'Every check-in generates a personal gut score. Watch it climb as you learn what works for your body.',
-  },
-  {
-    icon: 'restaurant-outline' as const,
-    title: 'Connect Food & Symptoms',
-    description:
-      'Log meals and discover which foods trigger discomfort and which ones make you thrive — with real data.',
-  },
-  {
-    icon: 'trending-up-outline' as const,
-    title: 'Spot Patterns Instantly',
-    description:
-      'Our engine connects the dots between your food, mood, sleep, and symptoms so you never have to guess again.',
-  },
-  {
-    icon: 'shield-checkmark-outline' as const,
-    title: 'Your Privacy, Protected',
-    description:
-      'Your gut data is sensitive. It stays encrypted, on your terms. We never sell your health information.',
-  },
-];
 
 const FADE_OUT_MS = 150;
 const FADE_IN_MS = 250;
 
 export default function FeaturesScreen() {
+  const { language, isRtl } = useLanguage();
+  const copy = ONBOARDING_COPY[language].features;
+  const slides = copy.slides;
   const [currentSlide, setCurrentSlide] = useState(0);
   const contentOpacity = useRef(new Animated.Value(1)).current;
-  const dotWidths = useRef(SLIDES.map((_, i) => new Animated.Value(i === 0 ? 24 : 8))).current;
+  const dotWidths = useRef(slides.map((_, i) => new Animated.Value(i === 0 ? 24 : 8))).current;
 
-  const isLast = currentSlide === SLIDES.length - 1;
+  const isLast = currentSlide === slides.length - 1;
 
   const advanceSlide = () => {
     if (isLast) {
@@ -68,8 +43,7 @@ export default function FeaturesScreen() {
       const next = currentSlide + 1;
       setCurrentSlide(next);
 
-      // Animate dots
-      SLIDES.forEach((_, i) => {
+      slides.forEach((_, i) => {
         Animated.timing(dotWidths[i], {
           toValue: i === next ? 24 : 8,
           duration: 200,
@@ -85,7 +59,7 @@ export default function FeaturesScreen() {
     });
   };
 
-  const slide = SLIDES[currentSlide];
+  const slide = slides[currentSlide];
 
   return (
     <View style={styles.container}>
@@ -95,28 +69,25 @@ export default function FeaturesScreen() {
 
       <SafeAreaView edges={['top']} style={styles.safeTop}>
         <TouchableOpacity
-          style={styles.backButton}
+          style={[styles.backButton, isRtl && styles.backButtonRtl]}
           onPress={() => router.back()}
           activeOpacity={0.7}
         >
-          <Ionicons name="chevron-back" size={24} color="#FFFFFF" />
+          <Ionicons name={isRtl ? 'chevron-forward' : 'chevron-back'} size={24} color="#FFFFFF" />
         </TouchableOpacity>
       </SafeAreaView>
 
-      {/* Slide content */}
       <Animated.View style={[styles.slideContent, { opacity: contentOpacity }]}>
         <View style={styles.iconCircle}>
           <Ionicons name={slide.icon} size={48} color="#52B788" />
         </View>
-        <Text style={styles.title}>{slide.title}</Text>
-        <Text style={styles.description}>{slide.description}</Text>
+        <Text style={[styles.title, isRtl && styles.rtlText]}>{slide.title}</Text>
+        <Text style={[styles.description, isRtl && styles.rtlText]}>{slide.description}</Text>
       </Animated.View>
 
-      {/* Bottom section */}
       <View style={styles.bottomSection}>
-        {/* Pagination dots */}
-        <View style={styles.dotsRow}>
-          {SLIDES.map((_, i) => (
+        <View style={[styles.dotsRow, isRtl && styles.rtlRow]}>
+          {slides.map((_, i) => (
             <Animated.View
               key={i}
               style={[
@@ -128,14 +99,13 @@ export default function FeaturesScreen() {
           ))}
         </View>
 
-        {/* Continue button */}
         <TouchableOpacity
           style={[styles.continueButton, isLast && styles.continueButtonLast]}
           onPress={advanceSlide}
           activeOpacity={0.88}
         >
-          <Text style={[styles.continueText, isLast && styles.continueTextLast]}>
-            {isLast ? "Let's Personalise" : 'Continue'}
+          <Text style={[styles.continueText, isLast && styles.continueTextLast, isRtl && styles.rtlText]}>
+            {isLast ? copy.finalButton : copy.continue}
           </Text>
         </TouchableOpacity>
       </View>
@@ -155,6 +125,9 @@ const styles = StyleSheet.create({
     height: 40,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  backButtonRtl: {
+    alignSelf: 'flex-end',
   },
   slideContent: {
     flex: 1,
@@ -213,13 +186,15 @@ const styles = StyleSheet.create({
   },
   continueButton: {
     width: '100%',
-    height: 60,
+    minHeight: 60,
     borderRadius: 20,
     backgroundColor: 'rgba(255,255,255,0.15)',
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.3)',
     justifyContent: 'center',
     alignItems: 'center',
+    paddingHorizontal: 18,
+    paddingVertical: 12,
   },
   continueButtonLast: {
     backgroundColor: '#FFFFFF',
@@ -230,8 +205,16 @@ const styles = StyleSheet.create({
     fontSize: 17,
     color: '#FFFFFF',
     letterSpacing: -0.3,
+    textAlign: 'center',
   },
   continueTextLast: {
     color: '#0B1F14',
+  },
+  rtlRow: {
+    flexDirection: 'row-reverse',
+  },
+  rtlText: {
+    textAlign: 'right',
+    writingDirection: 'rtl',
   },
 });

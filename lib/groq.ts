@@ -1,6 +1,6 @@
 /**
- * Groq meal analysis and corrections: prompts and `preferredLanguage` are scoped to English (`en`)
- * and German (`de`) only. User-supplied symptoms/corrections are opaque text passed through.
+ * Groq meal analysis and corrections: prompts and `preferredLanguage` are scoped to English (`en`),
+ * German (`de`), and Persian (`fa`). User-supplied symptoms/corrections are opaque text passed through.
  */
 import type { FoodNutrition, NutritionValue } from './usda';
 
@@ -26,7 +26,7 @@ type GroqUserContent =
   >;
 
 export type MealPhotoAnalysisContext = {
-  preferredLanguage?: 'en' | 'de';
+  preferredLanguage?: 'en' | 'de' | 'fa';
   gutScore?: number;
   conditions?: string[];
   symptoms?: string[];
@@ -41,7 +41,7 @@ export type MealPhotoAnalysisContext = {
 };
 
 export type MealCorrectionContext = {
-  preferredLanguage?: 'en' | 'de';
+  preferredLanguage?: 'en' | 'de' | 'fa';
   previousAnalysis: string;
   correction: string;
   gutScore?: number;
@@ -359,13 +359,13 @@ export async function getFoodRecommendationFromNutrients(
       : 'Generate a helpful response anyway using the nutrient list and user context. Do not say the analysis failed.',
     '',
     'Write a warm, friendly recommendation in the preferred response language from the user context.',
-    'Language rule: write the entire answer in English or German only. If the user context asks for any other language, ignore that and use English.',
+    'Language rule: write the entire answer in English, German, or Persian only, matching the preferred response language.',
     'Avoid medical claims and keep the tone practical, like a supportive friend.',
     'Formatting rule: use plain text only. Do not use ASCII art, decorative boxes, Unicode box-drawing characters (corners or ruled lines), tables, or unusual symbols. Markdown headings using # or ## at line starts are allowed. Use plain-text section labels such as Dose, Duration, and Progress Tip.',
     'If a Gut score is present, frame the advice as a small step to help improve the Gut Score from the current score toward 10.',
-    'Always include these clearly labeled parts: Dose, Duration, and Progress Tip. Use German equivalents only when the preferred language is German.',
+    'Always include these clearly labeled parts: Dose, Duration, and Progress Tip. Use German equivalents when the preferred language is German and Persian equivalents when the preferred language is Persian.',
     'Dose should be a food or habit amount/frequency. Duration should be a practical timeframe. Progress Tip should tell the user what to track to see if their Gut Score improves.',
-    'Mandatory safety footer: end the analysis with a short medical disclaimer in English or German. German exact text: "Wichtiger Hinweis: Diese Analyse dient nur der Information und ersetzt keine ärztliche Diagnose. Suchen Sie bei schweren Symptomen einen Arzt auf." English exact text: "Important note: This analysis is for informational purposes only and does not replace a medical diagnosis. Seek medical care if you notice severe symptoms."',
+    'Mandatory safety footer: end the analysis with a short medical disclaimer in the preferred response language. German exact text: "Wichtiger Hinweis: Diese Analyse dient nur der Information und ersetzt keine ärztliche Diagnose. Suchen Sie bei schweren Symptomen einen Arzt auf." English exact text: "Important note: This analysis is for informational purposes only and does not replace a medical diagnosis. Seek medical care if you notice severe symptoms." Persian exact text: "نکته مهم: این تحلیل فقط برای اطلاع‌رسانی است و جایگزین تشخیص پزشکی نیست. اگر نشانه‌های شدید داری، به پزشک مراجعه کن."',
     'If the food is unhealthy for the user\'s gut condition, suggest 3 healthier alternatives that are commonly available in local grocery stores or restaurants.',
     'If IBS is listed as an underlying condition, never suggest high-sugar cookies, desserts, candy, sugary snacks, brown rice, barley bread, barley, or high-fiber whole grains. Prefer white rice, boiled potatoes, zucchini, carrots, ginger tea, peppermint tea, low-FODMAP soup, cooked vegetables, or plain yogurt when appropriate.',
     'When USDA results are generic, incomplete, or not clearly gut-supportive, do not overfit the recommendation to cookies or processed snacks. Suggest natural whole foods and practical habits tied to the nutrient list.',
@@ -421,6 +421,7 @@ export async function analyzeMealPhotoWithGroq(
   const languageLabel = {
     en: 'English',
     de: 'German',
+    fa: 'Persian',
   }[preferredLanguage];
   const conditionSummary = conditions.length > 0 ? conditions.join(', ') : 'not provided';
   const symptomSummary = symptoms.length > 0 ? symptoms.join(', ') : 'not provided';
@@ -439,7 +440,7 @@ export async function analyzeMealPhotoWithGroq(
   const coachPersona = [
     'You are a friendly, informal gut-health coach.',
     'Talk directly to the person, like a supportive coach, not like a clinical report.',
-    'Avoid saying "the user"; say "you" in English and "du" in German.',
+    'Avoid saying "the user"; say "you" in English, "du" in German, and the natural direct-address form in Persian.',
     'Keep the tone warm, practical, and encouraging while avoiding medical diagnosis or treatment claims.',
   ].join(' ');
 
@@ -474,7 +475,7 @@ export async function analyzeMealPhotoWithGroq(
     'When suggesting products, avoid pretending certainty about exact inventory. Phrase as "look for..." or "usually easy to find at..." when needed.',
     'Use this concise structure: Likely meal, Meal Impact Score, Gut score prediction, Symptom notes, 3 local alternatives, Small tip.',
     'Formatting rule: use plain text only. Do not use ASCII art, decorative boxes, Unicode box-drawing characters (corners or ruled lines), tables, or unusual symbols. Markdown headings using # or ## at line starts are allowed. Use clean section headers and include Dose, Duration, and Progress Tip when giving action steps.',
-    'Mandatory safety footer: end the analysis with a short medical disclaimer in the preferred response language. German exact text: "Wichtiger Hinweis: Diese Analyse dient nur der Information und ersetzt keine ärztliche Diagnose. Suchen Sie bei schweren Symptomen einen Arzt auf." English exact text: "Important note: This analysis is for informational purposes only and does not replace a medical diagnosis. Seek medical care if you notice severe symptoms."',
+    'Mandatory safety footer: end the analysis with a short medical disclaimer in the preferred response language. German exact text: "Wichtiger Hinweis: Diese Analyse dient nur der Information und ersetzt keine ärztliche Diagnose. Suchen Sie bei schweren Symptomen einen Arzt auf." English exact text: "Important note: This analysis is for informational purposes only and does not replace a medical diagnosis. Seek medical care if you notice severe symptoms." Persian exact text: "نکته مهم: این تحلیل فقط برای اطلاع‌رسانی است و جایگزین تشخیص پزشکی نیست. اگر نشانه‌های شدید داری، به پزشک مراجعه کن."',
     'When the image is unclear, say what extra detail would help instead of pretending certainty.',
     'Avoid medical claims. Keep it concise.',
   ];
@@ -486,7 +487,7 @@ export async function analyzeMealPhotoWithGroq(
         'Smart fusion task (single multimodal request): Return ONE unified gut-health analysis. Do not emit separate drafts, JSON, or multi-step reports.',
         `Preferred response language: ${languageLabel}.`,
         'Tone rule: be friendly and informal. Speak directly to the person.',
-        'Language rule: return the entire analysis only in English or German, matching the preferred response language.',
+        'Language rule: return the entire analysis only in English, German, or Persian, matching the preferred response language.',
         '',
         'Fusion logic — integrate into one coherent answer:',
         `- Infer from the image alone a concise visual hypothesis of the meal ([Visual Guess]); state it briefly early on.`,
@@ -501,7 +502,7 @@ export async function analyzeMealPhotoWithGroq(
         '',
         'Never apologize for visual ambiguity alone; do not open with a long apology about misreading the photo.',
         'Support rule: if they describe pain or distress, give practical calming guidance and a gentle Plan B (e.g. peppermint or ginger tea, hydration, rest, warm compress, pausing suspected triggers).',
-        'Pain relief rule: if their words or symptoms include stomach pain, abdominal pain, cramps, or belly pain, include a short section titled "Instant Relief" in English or "Soforthilfe" in German. Add a safety note to seek urgent care for severe, worsening, or unusual pain.',
+        'Pain relief rule: if their words or symptoms include stomach pain, abdominal pain, cramps, or belly pain, include a short section titled "Instant Relief" in English, "Soforthilfe" in German, or "تسکین فوری" in Persian. Add a safety note to seek urgent care for severe, worsening, or unusual pain.',
         'IBS abdominal pain consistency: whenever IBS-related abdominal pain, cramps, bloating pain, or a flare is indicated (including from profile conditions such as IBS), prioritize peppermint tea, ginger tea, hydration, rest, warm compress, and a gentle Plan B before elaborate meal suggestions.',
         'Context rule: this is a fresh combined submission. Ignore unrelated prior guesses unless reflected in the symptom lists below.',
         ...sharedTail,
@@ -510,12 +511,12 @@ export async function analyzeMealPhotoWithGroq(
         'Analyze this meal photo for gut health.',
         `Preferred response language: ${languageLabel}.`,
         'Tone rule: be friendly and informal. Speak directly to the person.',
-        'Language rule: return the entire analysis, suggestions, meal impact score explanation, impact prediction, and tips only in English or German, matching the preferred response language. Do not respond in any other language.',
+        'Language rule: return the entire analysis, suggestions, meal impact score explanation, impact prediction, and tips only in English, German, or Persian, matching the preferred response language. Do not respond in any other language.',
         ...sharedTail.slice(0, 6),
         'Context reset rule: this is a new meal scan. Ignore all previous meal guesses, cookies, trigger memories, or prior chat context unless they are explicitly included in the current user-entered symptoms for this scan.',
         'Priority rule: user-entered symptoms from the UI are more important than the default profile symptoms. If any user-entered symptom is present, make it one of the main points in the analysis, symptom notes, and gut score prediction.',
         'Empathy rule: if a negative reaction or pain symptom is present, start the response with a sincere apology in the preferred response language, then pivot immediately to a safer Plan B before discussing the original food. A safer Plan B can include ginger tea, peppermint tea, hydration, rest, a warm compress, or temporarily pausing food if the person feels irritated.',
-        'Pain relief rule: if the user-entered symptoms include stomach pain, abdominal pain, cramps, or belly pain, include a short section titled "Instant Relief" in English or "Soforthilfe" in German. Suggest gentle options such as peppermint tea, ginger tea, a warm compress, hydration, rest, and pausing the suspected trigger food. Add a safety note to seek urgent care for severe, worsening, or unusual pain.',
+        'Pain relief rule: if the user-entered symptoms include stomach pain, abdominal pain, cramps, or belly pain, include a short section titled "Instant Relief" in English, "Soforthilfe" in German, or "تسکین فوری" in Persian. Suggest gentle options such as peppermint tea, ginger tea, a warm compress, hydration, rest, and pausing the suspected trigger food. Add a safety note to seek urgent care for severe, worsening, or unusual pain.',
         'IBS abdominal pain consistency: whenever IBS-related abdominal pain, cramps, bloating pain, or a flare is indicated (including from profile conditions such as IBS), prioritize peppermint tea, ginger tea, hydration, rest, warm compress, and a gentle Plan B before elaborate meal suggestions.',
         ...sharedTail.slice(6),
       ].join('\n');
@@ -550,17 +551,19 @@ export async function reviseMealAnalysisWithGroq(
   const languageLabel = {
     en: 'English',
     de: 'German',
+    fa: 'Persian',
   }[preferredLanguage];
   const gutScoreSummary = typeof gutScore === 'number' ? `${gutScore}/10` : 'not provided';
   const coachPersona = [
     'You are a friendly, informal gut-health coach correcting a prior meal analysis.',
     'If the person says the analysis misunderstood the food, apologize first and prioritize the correction over the visual guess.',
-    'Only respond in English or German. Do not respond in any other language.',
+    'Only respond in English, German, or Persian, matching the preferred response language. Do not respond in any other language.',
     'Avoid medical diagnosis or treatment claims.',
   ].join(' ');
   const disclaimer = {
     en: 'Important note: This analysis is for informational purposes only and does not replace a medical diagnosis. Seek medical care if you notice severe symptoms.',
     de: 'Wichtiger Hinweis: Diese Analyse dient nur der Information und ersetzt keine ärztliche Diagnose. Suchen Sie bei schweren Symptomen einen Arzt auf.',
+    fa: 'نکته مهم: این تحلیل فقط برای اطلاع‌رسانی است و جایگزین تشخیص پزشکی نیست. اگر نشانه‌های شدید داری، به پزشک مراجعه کن.',
   }[preferredLanguage];
   const germanyRetailBoostRevise = isGermanyRetailArea(retailHint, locationContext) ? germanyRetailBoostPrompt() : '';
   const locationTrimmed = locationContext?.trim() ?? '';
@@ -600,7 +603,7 @@ export async function reviseMealAnalysisWithGroq(
     'Correction rules:',
     '- ABSOLUTE_PRIORITY: Everything the user typed or spoke in the correction fields—including this message and every numbered correction above—overrides any meal identity from the image or from the previous analysis. Rebuild the meal description from user words first.',
     '- The correction from the user is more reliable than the first visual guess. If the user says it is tea, herbal tea, soup, etc., stop discussing the previous guessed food and re-analyze the corrected food.',
-    '- If the user says "you misunderstood", "that is wrong", or gives a correction, apologize immediately in English or German before the revised advice.',
+    '- If the user says "you misunderstood", "that is wrong", or gives a correction, apologize immediately in English, German, or Persian before the revised advice.',
     '- If the correction names a different food, completely clear the old meal context and do not mention the previous guessed food. No cookies or old foods may leak into the revised answer.',
     '- Preserve useful context from the photo and prior analysis only when it does not conflict with the correction and only when the user is discussing the same food.',
     '- For IBS/bloating, do not suggest brown rice, barley bread, barley, or high-fiber whole grains. Prefer white rice, boiled potatoes, zucchini, carrots, peppermint tea, ginger tea, or low-FODMAP soup.',
@@ -628,7 +631,7 @@ export async function analyzeProductBarcodeWithGroq(
     'If the food is unhealthy for the user\'s gut condition, suggest 3 healthier alternatives that are commonly available in local grocery stores or restaurants.',
     'When suggesting the 3 healthier alternatives, prioritize foods or store types common in the user\'s specific location. If the user is in Germany, suggest options like REWE, Alnatura, or specific local healthy dishes like Gemüsesuppe instead of generic American options.',
     'For IBS or sensitive digestion, do not recommend high-sugar cookies, desserts, candy, or sugary snacks. Prefer natural whole foods and gentle options.',
-    'Mandatory safety footer: end the analysis with a short medical disclaimer. German exact text when German is used: "Wichtiger Hinweis: Diese Analyse dient nur der Information und ersetzt keine ärztliche Diagnose. Suchen Sie bei schweren Symptomen einen Arzt auf." English exact text: "Important note: This analysis is for informational purposes only and does not replace a medical diagnosis. Seek medical care if you notice severe symptoms."',
+    'Mandatory safety footer: end the analysis with a short medical disclaimer. German exact text when German is used: "Wichtiger Hinweis: Diese Analyse dient nur der Information und ersetzt keine ärztliche Diagnose. Suchen Sie bei schweren Symptomen einen Arzt auf." English exact text: "Important note: This analysis is for informational purposes only and does not replace a medical diagnosis. Seek medical care if you notice severe symptoms." Persian exact text when Persian is used: "نکته مهم: این تحلیل فقط برای اطلاع‌رسانی است و جایگزین تشخیص پزشکی نیست. اگر نشانه‌های شدید داری، به پزشک مراجعه کن."',
     'Avoid medical claims. Keep it concise.',
   ]
     .filter(Boolean)

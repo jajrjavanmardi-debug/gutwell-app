@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -176,7 +176,7 @@ export default function LogSymptomScreen() {
           })}
         </View>
 
-        <Text style={styles.sectionLabel}>Today's symptoms</Text>
+        <Text style={styles.sectionLabel}>{"Today's symptoms"}</Text>
         {todaysSymptoms.length > 0 ? (
           <View style={styles.todaysSymptomsList}>
             {todaysSymptoms.map((item) => (

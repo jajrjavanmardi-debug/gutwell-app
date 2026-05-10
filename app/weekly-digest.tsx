@@ -286,7 +286,7 @@ export default function WeeklyDigestScreen() {
               end={{ x: 0.4, y: 1 }}
               style={styles.heroCard}
             >
-              <Text style={styles.heroLabel}>This Week's Average</Text>
+              <Text style={styles.heroLabel}>{"This Week's Average"}</Text>
               <View style={styles.heroScoreRow}>
                 <Text style={[styles.heroScore, { color: getScoreColor(data.avgScore) }]}>
                   {data.avgScore != null ? data.avgScore : '--'}

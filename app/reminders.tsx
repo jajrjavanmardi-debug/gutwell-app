@@ -353,7 +353,7 @@ export default function RemindersScreen() {
               <View style={styles.quietWarning}>
                 <Ionicons name="moon-outline" size={15} color={Colors.warning ?? '#F59E0B'} />
                 <Text style={styles.quietWarningText}>
-                  This time falls within quiet hours (10 PM – 8 AM). The notification won't fire unless quiet hours are turned off.
+                  {"This time falls within quiet hours (10 PM – 8 AM). The notification won't fire unless quiet hours are turned off."}
                 </Text>
               </View>
             )}

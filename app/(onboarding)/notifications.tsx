@@ -9,18 +9,16 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Sentry from '@sentry/react-native';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
+import { useLanguage } from '../../contexts/LanguageContext';
+import { ONBOARDING_COPY } from '../../constants/onboarding-copy';
 import { FontFamily } from '../../constants/theme';
 import StarFieldBackground from '../../components/StarFieldBackground';
 import { track, Events } from '../../lib/analytics';
 
-const BENEFITS = [
-  { icon: 'time-outline' as const, text: 'Daily check-in reminder at your chosen time' },
-  { icon: 'flame-outline' as const, text: 'Streak alerts so you never lose progress' },
-  { icon: 'trending-up-outline' as const, text: 'Weekly digest delivered every Sunday' },
-];
-
 export default function NotificationsScreen() {
   const { user, refreshProfile } = useAuth();
+  const { language, isRtl } = useLanguage();
+  const copy = ONBOARDING_COPY[language].notifications;
   const [showCelebration, setShowCelebration] = useState(false);
 
   const celebrationFade = useRef(new Animated.Value(0)).current;
@@ -64,7 +62,6 @@ export default function NotificationsScreen() {
       await refreshProfile();
       track(Events.ONBOARDING_COMPLETED, { name: name || 'unknown' });
 
-      // Show celebration moment before navigating
       setShowCelebration(true);
       Animated.parallel([
         Animated.spring(celebrationScale, { toValue: 1, friction: 6, tension: 40, useNativeDriver: true }),
@@ -89,35 +86,29 @@ export default function NotificationsScreen() {
       <StarFieldBackground count={120} seed={42} />
 
       <SafeAreaView edges={['top', 'bottom']} style={styles.safeArea}>
-        {/* Main content */}
         <View style={styles.topSection}>
-          {/* Bell icon ring */}
           <View style={styles.bellRing}>
             <Ionicons name="notifications-outline" size={40} color="#52B788" />
           </View>
 
-          {/* Title */}
-          <Text style={styles.title}>{"Never miss your\ngut check-in"}</Text>
+          <Text style={[styles.title, isRtl && styles.rtlText]}>{copy.title}</Text>
 
-          {/* Subtitle */}
-          <Text style={styles.subtitle}>
-            Daily reminders keep your streak alive and your data accurate — 60 seconds a day, every day.
+          <Text style={[styles.subtitle, isRtl && styles.rtlText]}>
+            {copy.subtitle}
           </Text>
 
-          {/* Benefit rows */}
           <View style={styles.benefitsContainer}>
-            {BENEFITS.map((benefit, i) => (
-              <View key={i} style={styles.benefitRow}>
+            {copy.benefits.map((benefit, i) => (
+              <View key={i} style={[styles.benefitRow, isRtl && styles.benefitRowRtl]}>
                 <View style={styles.benefitIconCircle}>
                   <Ionicons name={benefit.icon} size={16} color="#52B788" />
                 </View>
-                <Text style={styles.benefitText}>{benefit.text}</Text>
+                <Text style={[styles.benefitText, isRtl && styles.rtlText]}>{benefit.text}</Text>
               </View>
             ))}
           </View>
         </View>
 
-        {/* Animated bottom buttons */}
         <Animated.View
           style={[
             styles.bottomSection,
@@ -139,16 +130,15 @@ export default function NotificationsScreen() {
             onPress={requestPermission}
             activeOpacity={0.88}
           >
-            <Text style={styles.allowButtonText}>Enable Notifications</Text>
+            <Text style={[styles.allowButtonText, isRtl && styles.rtlText]}>{copy.allow}</Text>
           </TouchableOpacity>
 
           <TouchableOpacity onPress={completeOnboarding} activeOpacity={0.7}>
-            <Text style={styles.skipText}>Skip for now</Text>
+            <Text style={[styles.skipText, isRtl && styles.rtlText]}>{copy.skip}</Text>
           </TouchableOpacity>
         </Animated.View>
       </SafeAreaView>
 
-      {/* Celebration overlay */}
       {showCelebration && (
         <Animated.View
           style={[
@@ -160,9 +150,9 @@ export default function NotificationsScreen() {
             <View style={styles.celebrationIcon}>
               <Ionicons name="leaf" size={48} color="#52B788" />
             </View>
-            <Text style={styles.celebrationTitle}>You're all set!</Text>
-            <Text style={styles.celebrationSubtitle}>
-              Your gut health journey starts now
+            <Text style={[styles.celebrationTitle, isRtl && styles.rtlText]}>{copy.celebrationTitle}</Text>
+            <Text style={[styles.celebrationSubtitle, isRtl && styles.rtlText]}>
+              {copy.celebrationSubtitle}
             </Text>
           </Animated.View>
         </Animated.View>
@@ -221,6 +211,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 14,
   },
+  benefitRowRtl: {
+    flexDirection: 'row-reverse',
+  },
   benefitIconCircle: {
     width: 32,
     height: 32,
@@ -242,16 +235,19 @@ const styles = StyleSheet.create({
   },
   allowButton: {
     width: '100%',
-    height: 60,
+    minHeight: 60,
     borderRadius: 20,
     backgroundColor: '#FFFFFF',
     justifyContent: 'center',
     alignItems: 'center',
+    paddingHorizontal: 18,
+    paddingVertical: 12,
   },
   allowButtonText: {
     fontFamily: FontFamily.sansBold,
     fontSize: 17,
     color: '#0B1F14',
+    textAlign: 'center',
   },
   skipText: {
     fontFamily: FontFamily.sansRegular,
@@ -259,8 +255,6 @@ const styles = StyleSheet.create({
     color: 'rgba(255,255,255,0.45)',
     textAlign: 'center',
   },
-
-  // ── Celebration overlay ──
   celebrationOverlay: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: '#0B1F14',
@@ -284,10 +278,16 @@ const styles = StyleSheet.create({
     fontSize: 32,
     color: '#FFFFFF',
     marginBottom: 8,
+    textAlign: 'center',
   },
   celebrationSubtitle: {
     fontFamily: FontFamily.sansRegular,
     fontSize: 16,
     color: 'rgba(255,255,255,0.6)',
+    textAlign: 'center',
+  },
+  rtlText: {
+    textAlign: 'right',
+    writingDirection: 'rtl',
   },
 });

@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import {
-  Dimensions,
   KeyboardAvoidingView,
   Platform,
   StyleSheet,
@@ -15,12 +14,14 @@ import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useLanguage } from '../../contexts/LanguageContext';
+import { ONBOARDING_COPY } from '../../constants/onboarding-copy';
 import { FontFamily } from '../../constants/theme';
 import StarFieldBackground from '../../components/StarFieldBackground';
 
-const { width } = Dimensions.get('window');
-
 export default function AboutScreen() {
+  const { language, isRtl } = useLanguage();
+  const copy = ONBOARDING_COPY[language].about;
   const [name, setName] = useState('');
   const [focused, setFocused] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -50,23 +51,21 @@ export default function AboutScreen() {
 
         <SafeAreaView edges={['top']} style={styles.safeTop}>
           <TouchableOpacity
-            style={styles.backButton}
+            style={[styles.backButton, isRtl && styles.backButtonRtl]}
             onPress={() => router.back()}
             activeOpacity={0.7}
           >
-            <Ionicons name="chevron-back" size={24} color="#FFFFFF" />
+            <Ionicons name={isRtl ? 'chevron-forward' : 'chevron-back'} size={24} color="#FFFFFF" />
           </TouchableOpacity>
         </SafeAreaView>
 
-        {/* Main content */}
         <View style={styles.content}>
-          <Text style={styles.label}>ABOUT YOU</Text>
-          <Text style={styles.title}>{"What should we\ncall you?"}</Text>
-          <Text style={styles.subtitle}>
-            {"We'll personalise your gut health journey\naround you."}
+          <Text style={[styles.label, isRtl && styles.rtlText]}>{copy.label}</Text>
+          <Text style={[styles.title, isRtl && styles.rtlText]}>{copy.title}</Text>
+          <Text style={[styles.subtitle, isRtl && styles.rtlText]}>
+            {copy.subtitle}
           </Text>
 
-          {/* Name input */}
           <View
             style={[
               styles.inputContainer,
@@ -74,10 +73,10 @@ export default function AboutScreen() {
             ]}
           >
             <TextInput
-              style={styles.input}
+              style={[styles.input, isRtl && styles.inputRtl]}
               value={name}
               onChangeText={setName}
-              placeholder="Your first name"
+              placeholder={copy.placeholder}
               placeholderTextColor="rgba(255,255,255,0.35)"
               autoCapitalize="words"
               autoFocus={false}
@@ -89,7 +88,6 @@ export default function AboutScreen() {
           </View>
         </View>
 
-        {/* Bottom CTA */}
         <View style={styles.bottomSection}>
           <TouchableOpacity
             style={[styles.continueButton, !canContinue && styles.continueButtonDisabled]}
@@ -97,7 +95,7 @@ export default function AboutScreen() {
             disabled={!canContinue || loading}
             activeOpacity={0.88}
           >
-            <Text style={styles.continueText}>Continue</Text>
+            <Text style={[styles.continueText, isRtl && styles.rtlText]}>{copy.continue}</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -120,6 +118,9 @@ const styles = StyleSheet.create({
     height: 40,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  backButtonRtl: {
+    alignSelf: 'flex-end',
   },
   content: {
     flex: 1,
@@ -165,17 +166,23 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     height: '100%',
   },
+  inputRtl: {
+    textAlign: 'right',
+    writingDirection: 'rtl',
+  },
   bottomSection: {
     paddingBottom: 40,
     paddingHorizontal: 24,
   },
   continueButton: {
     width: '100%',
-    height: 60,
+    minHeight: 60,
     borderRadius: 20,
     backgroundColor: '#FFFFFF',
     justifyContent: 'center',
     alignItems: 'center',
+    paddingHorizontal: 18,
+    paddingVertical: 12,
   },
   continueButtonDisabled: {
     opacity: 0.4,
@@ -185,5 +192,10 @@ const styles = StyleSheet.create({
     fontSize: 17,
     color: '#0B1F14',
     letterSpacing: -0.3,
+    textAlign: 'center',
+  },
+  rtlText: {
+    textAlign: 'right',
+    writingDirection: 'rtl',
   },
 });

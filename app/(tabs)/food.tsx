@@ -395,7 +395,7 @@ export default function FoodScreen() {
 
         {/* Today's Meals */}
         <View style={styles.todaysMealsSection}>
-          <Text style={styles.sectionLabel}>Today's meals</Text>
+          <Text style={styles.sectionLabel}>{"Today's meals"}</Text>
           {todaysMeals.length > 0 ? (
             <View style={styles.todaysMealsList}>
               {todaysMeals.map((meal) => (

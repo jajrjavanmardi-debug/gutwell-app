@@ -1,5 +1,4 @@
 import { Ionicons } from '@expo/vector-icons';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
@@ -25,6 +24,7 @@ import Svg, { Circle, Line, Path, Text as SvgText } from 'react-native-svg';
 
 import { GutScoreGauge } from '../../components/gut-score-gauge';
 import { BorderRadius, Colors, FontFamily, FontSize, Shadows, Spacing } from '../../constants/theme';
+import { useLanguage, type AppLanguage } from '../../contexts/LanguageContext';
 import { getNutritionRecommendation, type NutritionRecommendationResult } from '../../lib/RecommendationEngine';
 import { getPhotoAnalysisHistory, type PhotoAnalysisHistoryItem } from '../../lib/photo-analysis-history';
 import {
@@ -44,12 +44,11 @@ const EXAMPLE_FEELINGS = [
   'bloated',
   'stressed',
 ] as const;
-const APP_LANGUAGE_STORAGE_KEY = 'gutwell_app_language';
 const COMMON_SUPPLEMENTS = ['Probiotic', 'Digestive Enzyme', 'Ginger', 'Vitamin D'] as const;
 
 const NUTRIENT_ICONS = ['leaf', 'water', 'sparkles', 'fitness', 'nutrition'] as const;
 
-type Language = 'en' | 'de';
+type Language = AppLanguage;
 type Condition = 'ibs' | 'gastritis' | 'bloating' | 'celiac' | 'lactoseIntolerance';
 type ActivityLevel = 'sedentary' | 'moderate' | 'active' | 'athlete';
 type ScoreStatus = 'poor' | 'moderate' | 'excellent';
@@ -263,6 +262,111 @@ const translations = {
       excellent: 'Gesund',
     },
   },
+  fa: {
+    appEyebrow: 'راهنمای تغذیه NutriFlow',
+    welcome: 'امروز روده‌ات چطور است؟',
+    heroSubtitle:
+      'انرژی، هضم، میل غذایی یا نشانه‌هایت را بنویس. NutriFlow مواد مغذی پشتیبان و ایده‌های غذایی ساده را پیشنهاد می‌کند.',
+    inputLabel: 'بگو چه خبر است',
+    score: 'امتیاز روده: ',
+    currentStatus: 'وضعیت فعلی',
+    dose: 'مقدار',
+    duration: 'مدت',
+    progressTip: 'نکته پیشرفت',
+    noConditions: 'چیزی ثبت نشده',
+    conditions: 'شرایط زمینه‌ای',
+    activity: 'سطح فعالیت',
+    button: 'مثل یک دوست تحلیل کن',
+    photoAnalysisButton: 'تحلیل عکس غذا',
+    placeholder: 'بگو چه خوردی یا چه حسی داری...',
+    clear: 'پاک کردن',
+    loading: 'در حال تحلیل مواد مغذی و داده‌های USDA...',
+    preparingHealthBuddy: 'در حال آماده‌سازی همراه سلامت...',
+    recommendationReady: 'پیشنهاد آماده است!',
+    reanalyzeMessage: 'برای دیدن نتیجه به فارسی، لطفاً دوباره تحلیل کن.',
+    emptyAlertTitle: 'چه حسی داری؟',
+    emptyAlertMessage: 'قبل از ساخت برنامه تغذیه، لطفاً حالت را توضیح بده.',
+    errorTitle: 'ساخت برنامه تغذیه ناموفق بود',
+    genericErrorMessage: 'هنگام ساخت برنامه تغذیه مشکلی پیش آمد.',
+    shareTitle: 'پیشنهاد NutriFlow من',
+    shareFeeling: 'حس',
+    shareNutrients: 'مواد مغذی کمک‌کننده',
+    shareButton: 'اشتراک‌گذاری با دوستان',
+    shareErrorTitle: 'اشتراک‌گذاری در دسترس نیست',
+    shareErrorMessage: 'الان امکان باز کردن اشتراک‌گذاری نیست.',
+    supportiveNutrients: 'مواد مغذی پشتیبان',
+    nutrientBadges: 'نشان‌های مواد مغذی',
+    usdaMatches: 'نتایج USDA',
+    recommendedFoods: 'غذاهای پیشنهادی',
+    noFoods: 'هنوز غذای مطابقی در USDA پیدا نشد، اما راهنمای مواد مغذی آماده است.',
+    yourPlan: 'برنامه تو',
+    bigRecommendation: 'پیشنهاد اصلی',
+    photoHistoryTitle: 'سابقه اخیر',
+    photoHistorySubtitle: 'اسکن‌های غذای ۱۴ روز گذشته',
+    photoHistoryEmpty: 'هنوز تحلیل عکس غذا نداری.',
+    photoHistoryNoScore: 'امتیاز در انتظار',
+    historyButton: 'دیدن همه سابقه',
+    heatmapTitle: 'روند اسکن غذا',
+    heatmapSubtitle: '۳۰ روز گذشته',
+    progressChartTitle: 'ریتم ۷ روزه بدن',
+    progressChartSubtitle: 'امتیاز روده + سطح انرژی',
+    gutScoreMetric: 'امتیاز روده',
+    energyMetric: 'انرژی',
+    xpLabel: 'XP',
+    nextRank: 'رتبه بعدی',
+    rankUp: 'ارتقای رتبه',
+    goodFeelingCelebration: 'حس خوب ثبت شد',
+    chartPopupDate: 'تاریخ',
+    chartPopupScore: 'امتیاز',
+    chartPopupFeeling: 'حس',
+    medicalDisclaimer:
+      'نکته مهم: این تحلیل فقط برای اطلاع‌رسانی است و جایگزین تشخیص پزشکی نیست. اگر نشانه‌های شدید داری، به پزشک مراجعه کن.',
+    rankTitle: 'Gut Warrior سطح ۱',
+    todaysStatus: 'وضعیت امروز',
+    supplementTaken: 'مکمل مصرف شد',
+    noSupplementsLogged: 'هنوز مکملی ثبت نشده',
+    supplementTitle: 'مکمل‌های امروز',
+    supplementLogTitle: 'ثبت مکمل و پروبیوتیک',
+    supplementSubtitle: 'مکمل‌ها و پروبیوتیک‌ها را برای زمینه بهتر تحلیل غذا ثبت کن.',
+    supplementNamePlaceholder: 'نام مکمل، مثل پروبیوتیک',
+    supplementDosagePlaceholder: 'مقدار، مثل ۱ کپسول',
+    supplementSave: 'ذخیره مکمل',
+    supplementHistoryTitle: 'سابقه مکمل‌ها',
+    supplementEmpty: 'در ۱۴ روز گذشته مکملی ثبت نشده است.',
+    scoreDecrease: 'کاهش امتیاز روده',
+    scoreIncrease: 'افزایش امتیاز روده',
+    languageButtons: {
+      en: 'EN',
+      de: 'DE',
+      fa: 'فا',
+    },
+    welcomeEmptyTitle: 'برای شروع مسیر تغذیه، بگو چه حسی داری.',
+    welcomeEmptyText:
+      'NutriFlow چک‌این تو را به مواد مغذی پشتیبان، ایده‌های غذایی و یک قدم بعدی مهربان تبدیل می‌کند.',
+    diseases: {
+      ibs: 'IBS',
+      gastritis: 'گاستریت',
+      bloating: 'نفخ',
+      celiac: 'سلیاک',
+      lactoseIntolerance: 'عدم تحمل لاکتوز',
+    },
+    activityLevels: {
+      sedentary: 'کم‌تحرک',
+      moderate: 'متوسط',
+      active: 'فعال',
+      athlete: 'ورزشکار',
+    },
+    examples: {
+      lowEnergy: 'انرژی کم و گرفتگی عضله',
+      bloated: 'نفخ بعد از غذا',
+      stressed: 'استرس و میل به شیرینی',
+    },
+    statusLabels: {
+      poor: 'ضعیف',
+      moderate: 'متوسط',
+      excellent: 'سالم',
+    },
+  },
 } as const;
 
 const CONDITION_OPTIONS: Condition[] = ['ibs', 'gastritis', 'bloating', 'celiac', 'lactoseIntolerance'];
@@ -270,6 +374,7 @@ const ACTIVITY_LEVELS: ActivityLevel[] = ['sedentary', 'moderate', 'active', 'at
 const AI_LANGUAGE_LABELS: Record<Language, string> = {
   en: 'English',
   de: 'German',
+  fa: 'Persian',
 };
 
 const NUTRIENT_TRANSLATIONS: Record<Language, Record<string, string>> = {
@@ -314,6 +419,27 @@ const NUTRIENT_TRANSLATIONS: Record<Language, Record<string, string>> = {
     'vitamin d': 'Vitamin D',
     vitaminc: 'Vitamin C',
     'vitamin c': 'Vitamin C',
+  },
+  fa: {
+    fiber: 'فیبر',
+    probiotic: 'پروبیوتیک',
+    probiotics: 'پروبیوتیک‌ها',
+    prebiotic: 'پری‌بیوتیک',
+    prebiotics: 'پری‌بیوتیک‌ها',
+    magnesium: 'منیزیم',
+    iron: 'آهن',
+    zinc: 'روی',
+    potassium: 'پتاسیم',
+    calcium: 'کلسیم',
+    protein: 'پروتئین',
+    omega3: 'امگا ۳',
+    'omega-3': 'امگا ۳',
+    vitaminb12: 'ویتامین B12',
+    'vitamin b12': 'ویتامین B12',
+    vitamind: 'ویتامین D',
+    'vitamin d': 'ویتامین D',
+    vitaminc: 'ویتامین C',
+    'vitamin c': 'ویتامین C',
   },
 };
 
@@ -477,11 +603,11 @@ function SevenDayProgressChart({
 
 export default function HomeScreen() {
   const { width } = useWindowDimensions();
+  const { language } = useLanguage();
   const scrollViewRef = useRef<ScrollView>(null);
   const previousLanguageRef = useRef<Language>('en');
   const celebrationPulse = useRef(new Animated.Value(0)).current;
   const [feeling, setFeeling] = useState('');
-  const [language, setLanguage] = useState<Language>('en');
   const [gutScore, setGutScore] = useState(4);
   const [conditions, setConditions] = useState<Condition[]>([]);
   const [activityLevel, setActivityLevel] = useState<ActivityLevel>('moderate');
@@ -506,7 +632,7 @@ export default function HomeScreen() {
   const [selectedChartPoint, setSelectedChartPoint] = useState<ChartPoint | null>(null);
 
   const t = translations[language];
-  const isRtlLanguage = false;
+  const isRtlLanguage = language === 'fa';
   const trimmedFeeling = useMemo(() => feeling.trim(), [feeling]);
   const hasFeelingInput = trimmedFeeling.length > 0;
   const isWideLayout = width >= 760;
@@ -551,22 +677,6 @@ export default function HomeScreen() {
       };
     });
   }, [photoHistory]);
-  useEffect(() => {
-    AsyncStorage.getItem(APP_LANGUAGE_STORAGE_KEY)
-      .then((storedLanguage) => {
-        if (storedLanguage === 'en' || storedLanguage === 'de') {
-          setLanguage(storedLanguage);
-        } else {
-          setLanguage('en');
-        }
-      })
-      .catch(console.warn);
-  }, []);
-
-  useEffect(() => {
-    AsyncStorage.setItem(APP_LANGUAGE_STORAGE_KEY, language).catch(console.warn);
-  }, [language]);
-
   useFocusEffect(
     useCallback(() => {
       let isActive = true;
@@ -675,7 +785,7 @@ export default function HomeScreen() {
         `${t.conditions}: ${localizedConditionSummary}`,
         `${t.activity}: ${localizedActivityLevel}`,
         `Preferred response language: ${AI_LANGUAGE_LABELS[language]}`,
-        'Use English or German only. Do not respond in Persian or Kurdish.',
+        'Use English, German, or Persian only, matching the preferred response language.',
         'For IBS/bloating, do not suggest brown rice, barley bread, barley, or high-fiber whole grains. Prefer white rice, boiled potatoes, zucchini, carrots, peppermint tea, ginger tea, or low-FODMAP soup.',
       ].join('\n');
       const recommendation = await getNutritionRecommendation(analysisInput);
@@ -1046,26 +1156,6 @@ export default function HomeScreen() {
 
           <View style={[styles.hero, isWideLayout && styles.heroWide]}>
             <View style={styles.heroCopy}>
-              <View style={[styles.languageRow, isRtlLanguage && styles.rtlRow]}>
-                {(['en', 'de'] as Language[]).map((item) => (
-                  <Pressable
-                    key={item}
-                    onPress={() => setLanguage(item)}
-                    style={[
-                      styles.languageButton,
-                      language === item && styles.languageButtonActive,
-                    ]}
-                  >
-                    <Text style={[
-                      styles.languageButtonText,
-                      language === item && styles.languageButtonTextActive,
-                    ]}>
-                      {t.languageButtons[item]}
-                    </Text>
-                  </Pressable>
-                ))}
-              </View>
-
               <Text style={[styles.heroTitle, isRtlLanguage && styles.rtlText]}>{t.welcome}</Text>
               <Text style={[styles.heroSubtitle, isRtlLanguage && styles.rtlText]}>{t.heroSubtitle}</Text>
 

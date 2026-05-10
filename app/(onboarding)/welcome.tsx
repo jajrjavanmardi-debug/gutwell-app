@@ -1,30 +1,21 @@
 import React, { useEffect, useRef, useState } from 'react';
 import {
   Animated,
-  Dimensions,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
 import { useAuth } from '../../contexts/AuthContext';
+import { useLanguage } from '../../contexts/LanguageContext';
+import { ONBOARDING_COPY } from '../../constants/onboarding-copy';
 import { FontFamily } from '../../constants/theme';
+import { LanguageSelector } from '../../components/LanguageSelector';
 import StarFieldBackground from '../../components/StarFieldBackground';
-
-const { width } = Dimensions.get('window');
-
-const TAGLINES = [
-  'Understand your gut.',
-  'Find your triggers.',
-  'Reduce symptoms.',
-  'Track what matters.',
-  'Feel your best.',
-];
 
 const TAGLINE_DISPLAY_MS = 2200;
 const TAGLINE_FADE_MS = 150;
@@ -33,21 +24,25 @@ export default function WelcomeScreen() {
   // Keep import for pattern reference in later screens
   useAuth();
 
+  const { language, setLanguage, isRtl } = useLanguage();
+  const copy = ONBOARDING_COPY[language].welcome;
+  const taglines = copy.taglines;
   const [taglineIndex, setTaglineIndex] = useState(0);
   const taglineOpacity = useRef(new Animated.Value(1)).current;
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
+    setTaglineIndex((current) => current % taglines.length);
+  }, [taglines.length]);
+
+  useEffect(() => {
     const cycle = () => {
-      // Fade out
       Animated.timing(taglineOpacity, {
         toValue: 0,
         duration: TAGLINE_FADE_MS,
         useNativeDriver: true,
       }).start(() => {
-        // Switch tagline
-        setTaglineIndex((prev) => (prev + 1) % TAGLINES.length);
-        // Fade in
+        setTaglineIndex((prev) => (prev + 1) % taglines.length);
         Animated.timing(taglineOpacity, {
           toValue: 1,
           duration: TAGLINE_FADE_MS,
@@ -66,7 +61,7 @@ export default function WelcomeScreen() {
         clearInterval(intervalRef.current);
       }
     };
-  }, [taglineOpacity]);
+  }, [taglineOpacity, taglines.length]);
 
   return (
     <View style={styles.container}>
@@ -74,41 +69,50 @@ export default function WelcomeScreen() {
       <LinearGradient colors={['#0B1F14', '#1B4332']} style={StyleSheet.absoluteFill} />
       <StarFieldBackground count={180} seed={42} />
 
-      {/* Center content */}
       <View style={styles.centerContent}>
-        {/* Logo icon */}
         <View style={styles.iconCircle}>
           <Ionicons name="leaf" size={40} color="#FFFFFF" />
         </View>
 
-        {/* App name */}
         <Text style={styles.appName}>NutriFlow</Text>
 
-        {/* Animated tagline */}
         <View style={styles.taglineContainer}>
-          <Animated.Text style={[styles.tagline, { opacity: taglineOpacity }]}>
-            {TAGLINES[taglineIndex]}
+          <Animated.Text style={[styles.tagline, isRtl && styles.rtlText, { opacity: taglineOpacity }]}>
+            {taglines[taglineIndex]}
           </Animated.Text>
         </View>
       </View>
 
-      {/* Bottom CTA section */}
       <View style={styles.bottomSection}>
+        <LanguageSelector
+          language={language}
+          onChange={setLanguage}
+          title={copy.languageTitle}
+          subtitle={copy.languageSubtitle}
+          isRtl={isRtl}
+        />
+
         <TouchableOpacity
           style={styles.primaryButton}
           onPress={() => router.push('/(onboarding)/features')}
           activeOpacity={0.88}
         >
-          <Text style={styles.primaryButtonText}>Build My Gut Plan</Text>
+          <Text style={[styles.primaryButtonText, isRtl && styles.rtlText]}>
+            {copy.primaryButton}
+          </Text>
         </TouchableOpacity>
 
-        <View style={styles.signInRow}>
-          <Text style={styles.signInPrompt}>Already have an account? </Text>
+        <View style={[styles.signInRow, isRtl && styles.rtlRow]}>
+          <Text style={[styles.signInPrompt, isRtl && styles.rtlText]}>
+            {copy.signInPrompt}
+          </Text>
           <TouchableOpacity
             onPress={() => router.replace('/(tabs)')}
             activeOpacity={0.7}
           >
-            <Text style={styles.signInLink}>Sign in</Text>
+            <Text style={[styles.signInLink, isRtl && styles.rtlText]}>
+              {copy.signInLink}
+            </Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -125,6 +129,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: 24,
+    paddingBottom: 150,
   },
   iconCircle: {
     width: 80,
@@ -145,15 +150,17 @@ const styles = StyleSheet.create({
   },
   taglineContainer: {
     marginTop: 40,
-    height: 28,
+    minHeight: 32,
     justifyContent: 'center',
     alignItems: 'center',
+    paddingHorizontal: 18,
   },
   tagline: {
     fontFamily: FontFamily.sansMedium,
     fontSize: 18,
     color: 'rgba(255,255,255,0.7)',
     textAlign: 'center',
+    lineHeight: 25,
   },
   bottomSection: {
     position: 'absolute',
@@ -162,26 +169,30 @@ const styles = StyleSheet.create({
     right: 0,
     paddingBottom: 32,
     paddingHorizontal: 24,
-    gap: 16,
+    gap: 14,
   },
   primaryButton: {
     backgroundColor: '#FFFFFF',
-    height: 60,
+    minHeight: 60,
     borderRadius: 20,
     width: '100%',
     justifyContent: 'center',
     alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
   },
   primaryButtonText: {
     fontFamily: FontFamily.sansBold,
     fontSize: 17,
     color: '#0B1F14',
     letterSpacing: -0.3,
+    textAlign: 'center',
   },
   signInRow: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
+    flexWrap: 'wrap',
   },
   signInPrompt: {
     fontFamily: FontFamily.sansRegular,
@@ -192,5 +203,12 @@ const styles = StyleSheet.create({
     fontFamily: FontFamily.sansSemiBold,
     fontSize: 14,
     color: '#52B788',
+  },
+  rtlRow: {
+    flexDirection: 'row-reverse',
+  },
+  rtlText: {
+    textAlign: 'right',
+    writingDirection: 'rtl',
   },
 });
