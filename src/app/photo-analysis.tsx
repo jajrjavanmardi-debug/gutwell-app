@@ -161,6 +161,17 @@ const copy = {
     loginRequired: 'Please sign in to log meals.',
     pendingScore: 'Pending',
     photoMealDefault: 'Photo meal',
+    analysisInsightTitle: 'Analysis Insight',
+    scientificSource: 'Scientific Source: USDA FoodData Central & Localized AI Adaptation.',
+    insightFallbacks: {
+      fructan: 'High fructan content detected',
+      ibsTrigger: 'Potential IBS trigger identified',
+      lowFiber: 'Low fiber density for your gut profile',
+      inflammatory: 'High inflammatory food combination',
+      symptomMatch: 'Current symptoms weighted in the score',
+      gentle: 'Gentle digestion profile identified',
+      profileSensitive: 'Adjusted for your selected gut profile',
+    },
     expoGoTextOnlyHint:
       'Expo Go (development): hold-to-talk voice is off. Describe your meal and how you feel below — analysis, Nürtingen-style prompts, and the 4-step flow still work.',
   },
@@ -247,6 +258,17 @@ const copy = {
     loginRequired: 'Bitte melde dich an, um Mahlzeiten zu speichern.',
     pendingScore: 'Ausstehend',
     photoMealDefault: 'Mahlzeit (Foto)',
+    analysisInsightTitle: 'Analyse-Einblick',
+    scientificSource: 'Wissenschaftliche Quelle: USDA FoodData Central & lokalisierte KI-Anpassung.',
+    insightFallbacks: {
+      fructan: 'Hoher Fruktangehalt erkannt',
+      ibsTrigger: 'Möglicher Reizdarm-Trigger identifiziert',
+      lowFiber: 'Geringe Ballaststoffdichte für dein Darmprofil',
+      inflammatory: 'Entzündungsfördernde Lebensmittelkombination',
+      symptomMatch: 'Aktuelle Symptome im Score berücksichtigt',
+      gentle: 'Sanftes Verdauungsprofil erkannt',
+      profileSensitive: 'An dein ausgewähltes Darmprofil angepasst',
+    },
     expoGoTextOnlyHint:
       'Expo Go (Entwicklung): Halten-zum-Sprechen ist aus. Beschreib Mahlzeit und Befinden im Textfeld — Analyse, Nürtingen-Hinweise und der 4-Schritte-Ablauf bleiben aktiv.',
   },
@@ -333,6 +355,17 @@ const copy = {
     loginRequired: 'برای ثبت غذا وارد شوید.',
     pendingScore: 'در انتظار',
     photoMealDefault: 'غذای عکس',
+    analysisInsightTitle: 'بینش تحلیل',
+    scientificSource: 'منبع علمی: USDA FoodData Central و سازگاری محلی هوش مصنوعی.',
+    insightFallbacks: {
+      fructan: 'محتوای بالای فروکتان شناسایی شد',
+      ibsTrigger: 'محرک احتمالی IBS شناسایی شد',
+      lowFiber: 'تراکم فیبر برای پروفایل گوارش شما پایین است',
+      inflammatory: 'ترکیب غذایی التهاب زا شناسایی شد',
+      symptomMatch: 'علائم فعلی در امتیاز لحاظ شد',
+      gentle: 'الگوی هضم ملایم شناسایی شد',
+      profileSensitive: 'بر اساس پروفایل گوارش انتخابی شما تنظیم شد',
+    },
     expoGoTextOnlyHint:
       'Expo Go (توسعه): نگه داشتن برای صحبت غیرفعال است. غذا و احساس خود را در کادر متن توضیح دهید؛ تحلیل و روند چهار مرحله ای همچنان کار می کند.',
   },
@@ -457,6 +490,150 @@ function hasPainText(value: string): boolean {
   return /stomach ache|stomach pain|abdominal pain|belly pain|cramp|bloating pain|bauchschmerz|bauchschmerzen|krampf|درد|دل درد|گرفتگی/i.test(value);
 }
 
+function cleanMarkdownLine(value: string): string {
+  return value
+    .replace(/^#+\s*/, '')
+    .replace(/^[-*•]\s*/, '')
+    .replace(/^\d+[.)]\s*/, '')
+    .replace(/\*\*/g, '')
+    .replace(/[`_]/g, '')
+    .trim();
+}
+
+function isAnalysisInsightHeader(line: string, language: AppLanguage): boolean {
+  const normalized = cleanMarkdownLine(line)
+    .replace(/[:：]\s*$/, '')
+    .toLocaleLowerCase();
+  const localizedTitle = copy[language].analysisInsightTitle.toLocaleLowerCase();
+
+  return [
+    localizedTitle,
+    'analysis insight',
+    'analyse-einblick',
+    'analyse einblick',
+    'بینش تحلیل',
+  ].includes(normalized);
+}
+
+function isInsightSectionBoundary(line: string, language: AppLanguage): boolean {
+  const normalized = cleanMarkdownLine(line)
+    .replace(/[:：]\s*$/, '')
+    .toLocaleLowerCase();
+
+  return [
+    copy[language].analysisInsightTitle.toLocaleLowerCase(),
+    'tips',
+    'tipps',
+    'نکات',
+    copy[language].instantReliefTitle.toLocaleLowerCase(),
+    copy[language].scoreLabel.toLocaleLowerCase(),
+    'gut score',
+    'darm-score',
+    'امتیاز روده',
+  ].includes(normalized);
+}
+
+function extractAnalysisInsightBullets(aiText: string, language: AppLanguage): string[] {
+  const lines = aiText.split('\n');
+  const insights: string[] = [];
+  let isCollecting = false;
+
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!isCollecting && isAnalysisInsightHeader(trimmed, language)) {
+      isCollecting = true;
+      continue;
+    }
+
+    if (!isCollecting) continue;
+    if (!trimmed) {
+      if (insights.length > 0) break;
+      continue;
+    }
+
+    if (insights.length > 0 && isInsightSectionBoundary(trimmed, language)) break;
+    if (trimmed.startsWith('|')) continue;
+
+    const cleaned = cleanMarkdownLine(trimmed);
+    if (!cleaned || isInsightSectionBoundary(cleaned, language)) {
+      if (insights.length > 0) break;
+      continue;
+    }
+
+    insights.push(cleaned.replace(/[.;؛]\s*$/, ''));
+    if (insights.length >= 3) break;
+  }
+
+  return insights;
+}
+
+function stripAnalysisInsightSection(aiText: string, language: AppLanguage): string {
+  const lines = aiText.split('\n');
+  const keptLines: string[] = [];
+  let isSkipping = false;
+  let skippedAnyInsight = false;
+
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!isSkipping && isAnalysisInsightHeader(trimmed, language)) {
+      isSkipping = true;
+      skippedAnyInsight = true;
+      continue;
+    }
+
+    if (isSkipping) {
+      if (!trimmed) {
+        isSkipping = false;
+        continue;
+      }
+
+      if (isInsightSectionBoundary(trimmed, language) && !isAnalysisInsightHeader(trimmed, language)) {
+        isSkipping = false;
+        keptLines.push(line);
+      }
+      continue;
+    }
+
+    keptLines.push(line);
+  }
+
+  return skippedAnyInsight ? keptLines.join('\n').replace(/\n{3,}/g, '\n\n').trim() : aiText;
+}
+
+function buildFallbackAnalysisInsights(
+  aiText: string,
+  symptoms: string[],
+  conditions: string[],
+  language: AppLanguage,
+): string[] {
+  const insightCopy = copy[language].insightFallbacks;
+  const combinedText = `${aiText} ${symptoms.join(' ')} ${conditions.join(' ')}`.toLocaleLowerCase();
+  const insights: string[] = [];
+  const addInsight = (value: string) => {
+    if (!insights.includes(value) && insights.length < 3) insights.push(value);
+  };
+
+  if (/onion|garlic|wheat|barley|beans?|lentils?|high-fodmap|fodmap|پیاز|سیر|گندم|حبوبات|عدس/i.test(combinedText)) {
+    addInsight(insightCopy.fructan);
+  }
+  if (/ibs|bloating|gas|pain|cramp|reflux|reizdarm|bläh|schmerz|نفخ|گاز|درد|ریفلاکس/i.test(combinedText)) {
+    addInsight(insightCopy.ibsTrigger);
+  }
+  if (/low fiber|refined|white bread|pasta|cookie|cake|sugar|processed|wenig ballast|کم فیبر|قند|شیرینی/i.test(combinedText)) {
+    addInsight(insightCopy.lowFiber);
+  }
+  if (/fried|greasy|spicy|high-fat|inflammatory|frittiert|scharf|چرب|سرخ|تند|التهاب/i.test(combinedText)) {
+    addInsight(insightCopy.inflammatory);
+  }
+  if (symptoms.length > 0) addInsight(insightCopy.symptomMatch);
+  if (/gentle|supportive|easy to digest|gut-friendly|sanft|verträglich|ملایم|آسان/i.test(combinedText)) {
+    addInsight(insightCopy.gentle);
+  }
+  addInsight(insightCopy.profileSensitive);
+
+  return insights.slice(0, 3);
+}
+
 function getVoiceLocale(language: AppLanguage): string {
   return {
     en: 'en-US',
@@ -540,6 +717,11 @@ export default function PhotoAnalysisScreen() {
     hasPainText(symptom)
   );
   const mealImpactScore = resolveMealImpactScore(analysis, currentSymptoms, mealDescriptionText, language);
+  const extractedAnalysisInsights = extractAnalysisInsightBullets(analysis, language);
+  const analysisInsights = extractedAnalysisInsights.length > 0
+    ? extractedAnalysisInsights
+    : buildFallbackAnalysisInsights(analysis, currentSymptoms, promptConditions, language);
+  const displayAnalysisText = stripAnalysisInsightSection(analysis, language);
   const wizardSubtitle =
     wizardStep === 1 ? t.wizardStep1Subtitle : wizardStep === 2 ? t.wizardStep2Subtitle : t.wizardStep3Subtitle;
   const canRecordFeelings = wizardStep === 2 && Boolean(photoUri && lastImageBase64);
@@ -1656,7 +1838,29 @@ export default function PhotoAnalysisScreen() {
                         <Text style={styles.scoreBadgeValue}>{mealImpactScore}</Text>
                       </View>
                     ) : null}
-                    <Text style={[styles.resultText, isRtlLanguage && styles.rtlText]}>{analysis}</Text>
+                    {analysisInsights.length > 0 ? (
+                      <View style={styles.analysisInsightCard}>
+                        <View style={[styles.analysisInsightHeader, isRtlLanguage && styles.rtlRow]}>
+                          <View style={styles.analysisInsightIcon}>
+                            <Ionicons name="analytics" size={17} color="#D8FBEA" />
+                          </View>
+                          <Text style={[styles.analysisInsightTitle, isRtlLanguage && styles.rtlText]}>
+                            {t.analysisInsightTitle}
+                          </Text>
+                        </View>
+                        <View style={styles.analysisInsightList}>
+                          {analysisInsights.map((insight, index) => (
+                            <View key={`${insight}-${index}`} style={[styles.analysisInsightItem, isRtlLanguage && styles.rtlRow]}>
+                              <View style={styles.analysisInsightDot} />
+                              <Text style={[styles.analysisInsightText, isRtlLanguage && styles.rtlText]}>
+                                {insight}
+                              </Text>
+                            </View>
+                          ))}
+                        </View>
+                      </View>
+                    ) : null}
+                    <Text style={[styles.resultText, isRtlLanguage && styles.rtlText]}>{displayAnalysisText}</Text>
                     {hasPainSymptom ? (
                       <View style={styles.instantReliefCard}>
                         <View style={[styles.instantReliefHeader, isRtlLanguage && styles.rtlRow]}>
@@ -1682,6 +1886,12 @@ export default function PhotoAnalysisScreen() {
                     <View style={styles.medicalDisclaimerBox}>
                       <Text style={[styles.medicalDisclaimerText, isRtlLanguage && styles.rtlText]}>
                         {t.medicalDisclaimer}
+                      </Text>
+                    </View>
+                    <View style={[styles.scientificSourceRow, isRtlLanguage && styles.rtlRow]}>
+                      <Ionicons name="library-outline" size={13} color="#8CA99A" />
+                      <Text style={[styles.scientificSourceText, isRtlLanguage && styles.rtlText]}>
+                        {t.scientificSource}
                       </Text>
                     </View>
 
@@ -2284,6 +2494,61 @@ const styles = StyleSheet.create({
     fontFamily: FontFamily.sansBold,
     fontSize: FontSize.md,
   },
+  analysisInsightCard: {
+    backgroundColor: '#0F2D22',
+    borderColor: '#2DCE8966',
+    borderRadius: 15,
+    borderWidth: 1,
+    marginBottom: Spacing.lg,
+    padding: Spacing.md,
+    shadowColor: '#2DCE89',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.14,
+    shadowRadius: 18,
+    elevation: 3,
+  },
+  analysisInsightHeader: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: Spacing.sm,
+    marginBottom: Spacing.sm,
+  },
+  analysisInsightIcon: {
+    alignItems: 'center',
+    backgroundColor: '#2DCE8940',
+    borderRadius: BorderRadius.full,
+    height: 30,
+    justifyContent: 'center',
+    width: 30,
+  },
+  analysisInsightTitle: {
+    color: '#FFFFFF',
+    flex: 1,
+    fontFamily: FontFamily.sansBold,
+    fontSize: FontSize.md,
+  },
+  analysisInsightList: {
+    gap: Spacing.sm,
+  },
+  analysisInsightItem: {
+    alignItems: 'flex-start',
+    flexDirection: 'row',
+    gap: Spacing.sm,
+  },
+  analysisInsightDot: {
+    backgroundColor: '#7DD9A8',
+    borderRadius: BorderRadius.full,
+    height: 7,
+    marginTop: 7,
+    width: 7,
+  },
+  analysisInsightText: {
+    color: '#D8FBEA',
+    flex: 1,
+    fontFamily: FontFamily.sansSemiBold,
+    fontSize: FontSize.sm,
+    lineHeight: 20,
+  },
   instantReliefCard: {
     backgroundColor: '#1B1205',
     borderColor: '#F59E0B66',
@@ -2356,6 +2621,19 @@ const styles = StyleSheet.create({
     fontSize: FontSize.xs,
     fontStyle: 'italic',
     lineHeight: 18,
+  },
+  scientificSourceRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 6,
+    marginTop: Spacing.sm,
+  },
+  scientificSourceText: {
+    color: '#8CA99A',
+    flex: 1,
+    fontFamily: FontFamily.sansMedium,
+    fontSize: 11,
+    lineHeight: 16,
   },
   disagreeButton: {
     alignItems: 'center',

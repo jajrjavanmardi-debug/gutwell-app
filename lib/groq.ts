@@ -74,6 +74,7 @@ const MEAL_LANGUAGE_COPY: Record<AppLanguage, {
   mealImpactScore: string;
   why: string;
   gutScore: string;
+  analysisInsight: string;
   tips: string;
   instantRelief: string;
   footer: string;
@@ -87,6 +88,7 @@ const MEAL_LANGUAGE_COPY: Record<AppLanguage, {
     mealImpactScore: 'Meal Impact Score',
     why: 'Why',
     gutScore: 'Gut Score',
+    analysisInsight: 'Analysis Insight',
     tips: 'Tips',
     instantRelief: 'Instant Relief',
     footer: 'Info only, not medical advice. Seek care for severe or unusual symptoms.',
@@ -100,6 +102,7 @@ const MEAL_LANGUAGE_COPY: Record<AppLanguage, {
     mealImpactScore: 'Mahlzeiten-Score',
     why: 'Warum',
     gutScore: 'Darm-Score',
+    analysisInsight: 'Analyse-Einblick',
     tips: 'Tipps',
     instantRelief: 'Soforthilfe',
     footer: 'Nur zur Information, keine medizinische Beratung. Suche Hilfe bei starken oder ungewöhnlichen Symptomen.',
@@ -113,6 +116,7 @@ const MEAL_LANGUAGE_COPY: Record<AppLanguage, {
     mealImpactScore: 'امتیاز تأثیر غذا',
     why: 'چرا',
     gutScore: 'امتیاز روده',
+    analysisInsight: 'بینش تحلیل',
     tips: 'نکات',
     instantRelief: 'آرام سازی فوری',
     footer: 'فقط برای اطلاع است، نه توصیه پزشکی. در صورت علائم شدید یا غیرمعمول کمک پزشکی بگیرید.',
@@ -505,8 +509,8 @@ export async function analyzeMealPhotoWithGroq(
     'Identify likely foods visible in the image when helpful, estimate whether the meal is gut-supportive, and explain the main reasons in friendly practical language.',
     'If the food is unhealthy for the person\'s gut condition or symptoms, suggest up to 3 healthier alternatives using generic grocery/restaurant language only. Do not mention German supermarkets or local German products unless the user explicitly asks for them.',
     'IBS and bloating rule: do not suggest brown rice, barley bread, barley, or high-fiber whole grains for IBS/bloating relief. Prefer white rice, boiled potatoes, zucchini, carrots, low-FODMAP soup, peppermint tea, or ginger tea.',
-    `Output format requirement: return Markdown only. First include a compact Summary Table for "${languageCopy.mealImpact}" with columns "${languageCopy.meal}", "${languageCopy.symptoms}", "${languageCopy.mealImpactScore}", "${languageCopy.why}". Then include one line "${languageCopy.gutScore}: [####------] X/10" as a text progress bar where X is the same dynamic ${languageCopy.mealImpactScore}. Then include "${languageCopy.tips}:" with max 3 bullet points.`,
-    'Length requirement: keep the total explanation under 100 words.',
+    `Output format requirement: return Markdown only. First include a compact Summary Table for "${languageCopy.mealImpact}" with columns "${languageCopy.meal}", "${languageCopy.symptoms}", "${languageCopy.mealImpactScore}", "${languageCopy.why}". Then include one line "${languageCopy.gutScore}: [####------] X/10" as a text progress bar where X is the same dynamic ${languageCopy.mealImpactScore}. Then include "${languageCopy.analysisInsight}:" with 2-3 concise bullet points explaining why the score was assigned. Then include "${languageCopy.tips}:" with max 3 bullet points.`,
+    'Length requirement: keep the total explanation under 130 words.',
     `Language requirement: ${languageCopy.languageRule} All fixed labels, table headers, section names, and the footer must be in ${languageCopy.languageName}.`,
     `Mandatory safety footer: end with this exact footer in the selected language: "${languageCopy.footer}"`,
     'When the image is unclear, say what extra detail would help instead of pretending certainty.',
@@ -638,8 +642,8 @@ export async function reviseMealAnalysisWithGroq(
     '- Preserve useful context from the photo and prior analysis only when it does not conflict with the correction and only when the user is discussing the same food.',
     '- For IBS/bloating, do not suggest brown rice, barley bread, barley, or high-fiber whole grains. Prefer white rice, boiled potatoes, zucchini, carrots, peppermint tea, ginger tea, or low-FODMAP soup.',
     `- Recalculate the ${languageCopy.mealImpactScore} from the corrected meal, current symptoms, and known conditions. Never reuse a default 4/10 score unless the corrected meal truly deserves 4/10.`,
-    `- Return Markdown only. Include a compact Summary Table for "${languageCopy.mealImpact}" with columns "${languageCopy.meal}", "${languageCopy.symptoms}", "${languageCopy.mealImpactScore}", "${languageCopy.why}", one "${languageCopy.gutScore}: [####------] X/10" progress bar using the recalculated score, and max 3 "${languageCopy.tips}" bullet points.`,
-    '- Keep the total explanation under 100 words.',
+    `- Return Markdown only. Include a compact Summary Table for "${languageCopy.mealImpact}" with columns "${languageCopy.meal}", "${languageCopy.symptoms}", "${languageCopy.mealImpactScore}", "${languageCopy.why}", one "${languageCopy.gutScore}: [####------] X/10" progress bar using the recalculated score, "${languageCopy.analysisInsight}:" with 2-3 concise score-rationale bullets, and max 3 "${languageCopy.tips}" bullet points.`,
+    '- Keep the total explanation under 130 words.',
     '- Do not mention German supermarkets or localized German products unless the user explicitly asks.',
     `- End with this exact safety footer: ${languageCopy.footer}`,
   ]

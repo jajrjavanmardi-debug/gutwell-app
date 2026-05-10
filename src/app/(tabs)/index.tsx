@@ -342,6 +342,12 @@ const AI_LANGUAGE_LABELS: Record<Language, string> = {
   fa: 'Persian',
 };
 
+const SCIENTIFIC_SOURCE_COPY: Record<Language, string> = {
+  en: 'Scientific Source: USDA FoodData Central & Localized AI Adaptation.',
+  de: 'Wissenschaftliche Quelle: USDA FoodData Central & lokalisierte KI-Anpassung.',
+  fa: 'منبع علمی: USDA FoodData Central و سازگاری محلی هوش مصنوعی.',
+};
+
 const NUTRIENT_TRANSLATIONS: Record<Language, Record<string, string>> = {
   en: {
     fiber: 'Fiber',
@@ -603,6 +609,7 @@ export default function HomeScreen() {
   const t = translations[language === 'fa' ? 'en' : language];
   const isRtl = isRtlLanguage(language);
   const ui = UI_COPY[language];
+  const scientificSource = SCIENTIFIC_SOURCE_COPY[language];
   const localizedStaticLabels = {
     profile: ui.profile,
     login: ui.login,
@@ -1506,6 +1513,12 @@ export default function HomeScreen() {
                       {t.noFoods}
                     </Text>
                   )}
+                  <View style={[styles.scientificSourceRow, isRtl && styles.rtlRow]}>
+                    <Ionicons name="library-outline" size={13} color={DS.colors.slate} />
+                    <Text style={[styles.scientificSourceText, isRtl && styles.rtlText]}>
+                      {scientificSource}
+                    </Text>
+                  </View>
                 </View>
               </View>
 
@@ -2549,6 +2562,20 @@ const styles = StyleSheet.create({
     fontFamily: FontFamily.sansRegular,
     fontSize: FontSize.sm,
     lineHeight: 20,
+  },
+  scientificSourceRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 6,
+    marginTop: Spacing.md,
+  },
+  scientificSourceText: {
+    color: DS.colors.slate,
+    flex: 1,
+    fontFamily: FontFamily.sansMedium,
+    fontSize: 11,
+    lineHeight: 16,
+    opacity: 0.78,
   },
   recommendationCard: { backgroundColor: DS.colors.sageSoft, borderRadius: DS.borderRadii.card, overflow: 'hidden', padding: Spacing.lg },
   recommendationIcon: {

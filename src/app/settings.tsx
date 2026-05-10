@@ -41,6 +41,11 @@ const SETTINGS_COPY = {
     saved: 'Profile saved',
     saveFailed: 'Could not save profile',
     saving: 'Saving...',
+    proTitle: 'NutriFlow Pro',
+    proPlan: 'Current Plan: Free Preview',
+    proCta: 'Upgrade to Pro – 5 USD/month',
+    proBenefits: ['Unlimited Scans', 'Detailed 30-day Progress Charts', 'Priority SOS Support'],
+    proComingSoon: 'Pro checkout preview selected',
   },
   de: {
     personalizedProfile: 'Personalisiertes Profil',
@@ -57,6 +62,11 @@ const SETTINGS_COPY = {
     saved: 'Profil gespeichert',
     saveFailed: 'Profil konnte nicht gespeichert werden',
     saving: 'Speichern...',
+    proTitle: 'NutriFlow Pro',
+    proPlan: 'Aktueller Plan: Kostenlose Vorschau',
+    proCta: 'Auf Pro upgraden – 5 USD/Monat',
+    proBenefits: ['Unbegrenzte Scans', 'Detaillierte 30-Tage-Verlaufsgrafiken', 'Priorisierter SOS-Support'],
+    proComingSoon: 'Pro-Checkout-Vorschau ausgewählt',
   },
   fa: {
     personalizedProfile: 'پروفایل شخصی سازی شده',
@@ -73,6 +83,11 @@ const SETTINGS_COPY = {
     saved: 'پروفایل ذخیره شد',
     saveFailed: 'ذخیره پروفایل انجام نشد',
     saving: 'در حال ذخیره...',
+    proTitle: 'NutriFlow Pro',
+    proPlan: 'طرح فعلی: پیش نمایش رایگان',
+    proCta: 'ارتقا به Pro – ماهانه ۵ دلار',
+    proBenefits: ['اسکن نامحدود', 'نمودارهای پیشرفت دقیق ۳۰ روزه', 'پشتیبانی SOS با اولویت'],
+    proComingSoon: 'پیش نمایش پرداخت Pro انتخاب شد',
   },
 } as const;
 
@@ -202,6 +217,42 @@ export default function SettingsScreen() {
                 </Pressable>
               );
             })}
+          </View>
+        </View>
+
+        <View style={styles.proCard}>
+          <View style={[styles.proHeader, isRtl && styles.rtlRow]}>
+            <View style={styles.proIconCircle}>
+              <Ionicons name="diamond" size={22} color="#F5FFF9" />
+            </View>
+            <View style={styles.cardHeaderCopy}>
+              <Text style={[styles.proTitle, isRtl && styles.rtlText]}>{t.proTitle}</Text>
+              <Text style={[styles.proPlan, isRtl && styles.rtlText]}>{t.proPlan}</Text>
+            </View>
+          </View>
+
+          <Pressable
+            onPress={() => setSaveMessage(t.proComingSoon)}
+            accessibilityRole="button"
+            style={({ pressed }) => [styles.proCtaButton, isRtl && styles.rtlRow, pressed && styles.pressed]}
+          >
+            <Ionicons name="sparkles" size={18} color={SLATE_DARK} />
+            <Text style={[styles.proCtaText, isRtl && styles.rtlText]}>{t.proCta}</Text>
+          </Pressable>
+
+          <View style={styles.proBenefitList}>
+            {t.proBenefits.map((benefit, index) => (
+              <View key={benefit} style={[styles.proBenefitItem, isRtl && styles.rtlRow]}>
+                <View style={styles.proBenefitIcon}>
+                  <Ionicons
+                    name={index === 0 ? 'infinite' : index === 1 ? 'stats-chart' : 'shield-checkmark'}
+                    size={15}
+                    color="#D8FBEA"
+                  />
+                </View>
+                <Text style={[styles.proBenefitText, isRtl && styles.rtlText]}>{benefit}</Text>
+              </View>
+            ))}
           </View>
         </View>
 
@@ -345,6 +396,86 @@ const styles = StyleSheet.create({
   },
   chipTextSelected: {
     color: SLATE_DARK,
+  },
+  proCard: {
+    backgroundColor: '#0F3D2E',
+    borderColor: '#7DD9A855',
+    borderRadius: CARD_RADIUS,
+    borderWidth: 1,
+    overflow: 'hidden',
+    padding: SCREEN_PADDING,
+    shadowColor: '#0F3D2E',
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.18,
+    shadowRadius: 20,
+    elevation: 4,
+  },
+  proHeader: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 14,
+    marginBottom: 16,
+  },
+  proIconCircle: {
+    alignItems: 'center',
+    backgroundColor: '#2DCE8966',
+    borderRadius: CARD_RADIUS,
+    height: 48,
+    justifyContent: 'center',
+    width: 48,
+  },
+  proTitle: {
+    color: '#FFFFFF',
+    fontSize: 21,
+    fontWeight: '900',
+  },
+  proPlan: {
+    color: '#D8FBEA',
+    fontSize: 14,
+    fontWeight: '700',
+    marginTop: 5,
+  },
+  proCtaButton: {
+    alignItems: 'center',
+    backgroundColor: '#DFF5EA',
+    borderRadius: CARD_RADIUS,
+    flexDirection: 'row',
+    gap: 8,
+    justifyContent: 'center',
+    minHeight: 50,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+  },
+  proCtaText: {
+    color: SLATE_DARK,
+    flexShrink: 1,
+    fontSize: 15,
+    fontWeight: '900',
+    textAlign: 'center',
+  },
+  proBenefitList: {
+    gap: 10,
+    marginTop: 16,
+  },
+  proBenefitItem: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 10,
+  },
+  proBenefitIcon: {
+    alignItems: 'center',
+    backgroundColor: '#2DCE8933',
+    borderRadius: CARD_RADIUS,
+    height: 30,
+    justifyContent: 'center',
+    width: 30,
+  },
+  proBenefitText: {
+    color: '#F5FFF9',
+    flex: 1,
+    fontSize: 14,
+    fontWeight: '700',
+    lineHeight: 20,
   },
   saveButton: {
     flex: 1,
