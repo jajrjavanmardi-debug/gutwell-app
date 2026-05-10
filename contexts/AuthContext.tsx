@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import type { Session, User } from '@supabase/supabase-js';
+import { Platform } from 'react-native';
 import { supabase } from '../lib/supabase';
 
 type Profile = {
@@ -28,6 +29,11 @@ type AuthContextType = {
 };
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+function getWebAuthRedirectUrl(): string | undefined {
+  if (Platform.OS !== 'web' || typeof window === 'undefined') return undefined;
+  return window.location.origin;
+}
 
 /** Must be false for Supabase inserts/selects — RLS uses JWT `auth.uid()`; a fake session never matches `user_id` in rows. */
 const BYPASS_AUTH_FOR_NATIVE_TESTING = false;
@@ -132,11 +138,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const signUp = async (email: string, password: string, displayName?: string) => {
+    const emailRedirectTo = getWebAuthRedirectUrl();
     const { error } = await supabase.auth.signUp({
       email,
       password,
       options: {
         data: { display_name: displayName },
+        ...(emailRedirectTo ? { emailRedirectTo } : {}),
       },
     });
     return { error };
@@ -163,7 +171,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const resetPassword = async (email: string) => {
-    const { error } = await supabase.auth.resetPasswordForEmail(email);
+    const redirectTo = getWebAuthRedirectUrl();
+    const { error } = await supabase.auth.resetPasswordForEmail(
+      email,
+      redirectTo ? { redirectTo } : undefined
+    );
     return { error };
   };
 

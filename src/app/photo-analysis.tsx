@@ -20,41 +20,58 @@ import {
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { Toast } from '../components/ui/Toast';
-import { useAuth } from '../contexts/AuthContext';
-import { BorderRadius, Colors, FontFamily, FontSize, Shadows, Spacing } from '../constants/theme';
+import { Toast } from '../../components/ui/Toast';
+import { useAuth } from '../../contexts/AuthContext';
+import { BorderRadius, Colors, FontFamily, FontSize, Shadows, Spacing } from '../../constants/theme';
 import {
   parseRnVoiceError,
   teardownExpoSpeechRecognition,
   tryStartExpoSpeechRecognition,
-} from '../lib/meal-voice-session';
-import { enqueue } from '../lib/offline-queue';
-import { canUseNativeSpeechToText } from '../lib/runtime-environment';
-import { analyzeMealPhoto, reviseMealAnalysis } from '../lib/RecommendationEngine';
+} from '../../lib/meal-voice-session';
+import { enqueue } from '../../lib/offline-queue';
+import { canUseNativeSpeechToText } from '../../lib/runtime-environment';
+import { analyzeMealPhoto, reviseMealAnalysis } from '../../lib/RecommendationEngine';
 import {
+  applyDynamicMealImpactScore,
   extractMealName,
-  extractMealImpactScore,
   getPhotoAnalysisHistory,
+  resolveMealImpactScore,
   savePhotoAnalysisHistoryItem,
-} from '../lib/photo-analysis-history';
-import { getRecentSupplements, type SupplementHistoryItem } from '../lib/supplement-history';
-import { supabase } from '../lib/supabase';
+} from '../../lib/photo-analysis-history';
+import { getRecentSupplements, type SupplementHistoryItem } from '../../lib/supplement-history';
+import { supabase } from '../../lib/supabase';
 import {
   addXpForAction,
   getUserProgressProfile,
   recordTriggerFeedback,
   type TriggerFeedbackItem,
-} from '../lib/user-progress';
+} from '../../lib/user-progress';
+import {
+  getPromptConditions,
+  getUserProfileSettings,
+  type MedicalCondition,
+} from '../../lib/user-profile-settings';
 
 type AppLanguage = 'en' | 'de';
 type WizardStep = 1 | 2 | 3;
 const APP_LANGUAGE_STORAGE_KEY = 'gutwell_app_language';
 /** When set to `Germany`, skips GPS and fixes AI context to Nürtingen (dev/testing only). */
 const DEV_LOCATION_OVERRIDE = process.env.EXPO_PUBLIC_DEV_LOCATION_OVERRIDE?.trim() ?? '';
-const TEST_GUT_PROFILE = {
-  gutScore: 4,
-  conditions: ['IBS', 'Bloating'],
-};
+
+const SYMPTOM_OPTIONS = [
+  { key: 'bloating', promptLabel: 'Bloating', labels: { en: 'Bloating', de: 'Blähungen' } },
+  { key: 'pain', promptLabel: 'Stomach pain', labels: { en: 'Pain', de: 'Schmerzen' } },
+  { key: 'heaviness', promptLabel: 'Heaviness', labels: { en: 'Heaviness', de: 'Schweregefühl' } },
+  { key: 'gas', promptLabel: 'Gas', labels: { en: 'Gas', de: 'Gas' } },
+  { key: 'cramps', promptLabel: 'Cramps', labels: { en: 'Cramps', de: 'Krämpfe' } },
+  { key: 'nausea', promptLabel: 'Nausea', labels: { en: 'Nausea', de: 'Übelkeit' } },
+  { key: 'reflux', promptLabel: 'Reflux', labels: { en: 'Reflux', de: 'Reflux' } },
+  { key: 'diarrhea', promptLabel: 'Diarrhea', labels: { en: 'Diarrhea', de: 'Durchfall' } },
+  { key: 'constipation', promptLabel: 'Constipation', labels: { en: 'Constipation', de: 'Verstopfung' } },
+  { key: 'lowEnergy', promptLabel: 'Low energy', labels: { en: 'Low energy', de: 'Wenig Energie' } },
+] as const;
+
+type SymptomKey = (typeof SYMPTOM_OPTIONS)[number]['key'];
 
 const copy = {
   en: {
@@ -75,7 +92,7 @@ const copy = {
     applyCorrection: 'Apply correction',
     recommendationUnchanged: 'Recommendation remains unchanged.',
     subtitle: 'Four steps: capture a photo, describe with voice or text, review the analysis, then confirm accuracy.',
-    profileContext: 'Personalized for Gut Score 4/10, IBS and bloating',
+    profileContext: 'Personalized for your gut profile, symptoms, and selected conditions',
     findingLocation: 'Finding nearby food options...',
     usingLocation: 'Using local context:',
     locationUnavailable: 'Location unavailable. Suggestions will stay general.',
@@ -87,13 +104,15 @@ const copy = {
     analyzingBrand: 'NutriFlow',
     resultTitle: 'Personalized gut guidance',
     symptomsLabel: 'Symptoms & notes',
+    symptomSelectorLabel: 'Select symptoms',
+    symptomSelectorHint: 'Choose all that apply so the score reflects your current reaction.',
     symptomsPlaceholder: 'Before taking a photo you can note symptoms; after capture, describe how you feel.',
-    howYouFeelLabel: 'What is it & how do you feel?',
-    howYouFeelPlaceholder: 'Example: This is lentil soup—I feel bloated and sluggish.',
+    howYouFeelLabel: 'Meal details & extra notes',
+    howYouFeelPlaceholder: 'Example: This is lentil soup with onions. I ate a large bowl.',
     photoCapturedPrompt: 'Photo captured! Speak or type how you feel.',
     analyzeCombined: 'Analyze Meal',
-    feelingsRequiredTitle: 'Describe the meal first',
-    feelingsRequiredMessage: 'Speak or type how you feel (and what the food is if you want)—then tap Generate Analysis.',
+    feelingsRequiredTitle: 'Add meal context first',
+    feelingsRequiredMessage: 'Select at least one symptom or type a short meal note before generating the analysis.',
     share: 'Share Result',
     scoreLabel: 'Meal Impact Score',
     shareTitle: 'My NutriFlow meal analysis',
@@ -159,7 +178,7 @@ const copy = {
     applyCorrection: 'Korrektur anwenden',
     recommendationUnchanged: 'Die Empfehlung bleibt unverändert.',
     subtitle: 'Vier Schritte: Foto, Beschreibung per Sprache oder Text, Analyse prüfen, Genauigkeit bestätigen.',
-    profileContext: 'Personalisiert für Darm-Score 4/10, IBS und Blähungen',
+    profileContext: 'Personalisiert für dein Darmprofil, Symptome und ausgewählte Bedingungen',
     findingLocation: 'Suche nach lokalen Essensoptionen...',
     usingLocation: 'Lokaler Kontext:',
     locationUnavailable: 'Standort nicht verfügbar. Vorschläge bleiben allgemein.',
@@ -171,13 +190,15 @@ const copy = {
     analyzingBrand: 'NutriFlow',
     resultTitle: 'Personalisierte Darm-Empfehlung',
     symptomsLabel: 'Symptome & Notizen',
+    symptomSelectorLabel: 'Symptome auswählen',
+    symptomSelectorHint: 'Wähle alles aus, was zutrifft, damit der Score deine aktuelle Reaktion berücksichtigt.',
     symptomsPlaceholder: 'Vor dem Foto optional Symptome; nach der Aufnahme beschreibst du dein Befinden.',
-    howYouFeelLabel: 'Was ist es & wie fühlst du dich?',
-    howYouFeelPlaceholder: 'Zum Beispiel: Das ist Linsensuppe—Ich fühle mich aufgebläht.',
+    howYouFeelLabel: 'Mahlzeitdetails & Zusatznotizen',
+    howYouFeelPlaceholder: 'Zum Beispiel: Das ist Linsensuppe mit Zwiebeln. Ich habe eine große Schüssel gegessen.',
     photoCapturedPrompt: 'Foto gespeichert! Sprich oder tippe, wie du dich fühlst.',
     analyzeCombined: 'Mahlzeit analysieren',
-    feelingsRequiredTitle: 'Erst die Mahlzeit beschreiben',
-    feelingsRequiredMessage: 'Bitte per Sprache oder Text beschreiben, wie du dich fühlst (und optional das Essen)—danach „Analyse erstellen“.',
+    feelingsRequiredTitle: 'Erst Kontext ergänzen',
+    feelingsRequiredMessage: 'Wähle mindestens ein Symptom aus oder tippe eine kurze Mahlzeitnotiz, bevor du die Analyse erstellst.',
     share: 'Ergebnis teilen',
     scoreLabel: 'Mahlzeiten-Score',
     shareTitle: 'Meine NutriFlow-Mahlzeitenanalyse',
@@ -233,13 +254,13 @@ type NativeLocationModule = {
   getCurrentPositionAsync: (options: { accuracy: number }) => Promise<{
     coords: { latitude: number; longitude: number };
   }>;
-  reverseGeocodeAsync: (coords: { latitude: number; longitude: number }) => Promise<Array<{
+  reverseGeocodeAsync: (coords: { latitude: number; longitude: number }) => Promise<{
     city?: string | null;
     district?: string | null;
     subregion?: string | null;
     region?: string | null;
     country?: string | null;
-  }>>;
+  }[]>;
 };
 
 type VoiceModule = {
@@ -251,6 +272,27 @@ type VoiceModule = {
   onSpeechPartialResults?: (event: { value?: string[] }) => void;
   onSpeechError?: (event: unknown) => void;
 };
+
+function formatTriggerMemories(items: TriggerFeedbackItem[]): string[] {
+  return items.map((item) =>
+    [
+      item.mealName,
+      item.adviceSummary,
+      item.symptoms?.length ? `Symptoms: ${item.symptoms.join(', ')}` : '',
+    ]
+      .filter(Boolean)
+      .join(' - ')
+  );
+}
+
+function readFileAsDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result ?? ''));
+    reader.onerror = () => reject(reader.error ?? new Error('Unable to read image file.'));
+    reader.readAsDataURL(file);
+  });
+}
 
 let loadedVoiceModule: VoiceModule | null = null;
 
@@ -362,6 +404,8 @@ export default function PhotoAnalysisScreen() {
   const [accuracyAnswer, setAccuracyAnswer] = useState<'yes' | 'no' | null>(null);
   const [correctionDraft, setCorrectionDraft] = useState('');
   const [mealDescription, setMealDescription] = useState('');
+  const [selectedSymptoms, setSelectedSymptoms] = useState<SymptomKey[]>([]);
+  const [profileConditions, setProfileConditions] = useState<MedicalCondition[]>([]);
   /** Corrections the user submitted this session (typed or sent after voice); fed to revise prompts as prior context. */
   const [userFeedback, setUserFeedback] = useState<string[]>([]);
   const [todaysSupplements, setTodaysSupplements] = useState<SupplementHistoryItem[]>([]);
@@ -389,21 +433,38 @@ export default function PhotoAnalysisScreen() {
   /** Dev client / standalone only — Expo Go has no custom native STT modules. */
   const voiceNativeEnabled = canUseNativeSpeechToText();
   const isRtlLanguage = false;
-  const userEnteredSymptoms = mealDescription
-      .split(/[,\n]+/)
-      .map((symptom) => symptom.trim())
-      .filter(Boolean);
+  const selectedSymptomLabels = selectedSymptoms.map((symptomKey) => {
+    const option = SYMPTOM_OPTIONS.find((item) => item.key === symptomKey);
+    return option?.promptLabel ?? symptomKey;
+  });
+  const selectedSymptomSummary = selectedSymptomLabels.length > 0
+    ? selectedSymptomLabels.join(', ')
+    : 'None selected';
+  const mealDescriptionText = mealDescription.trim();
+  const analysisInputSummary = [
+    mealDescriptionText ? `Meal details: ${mealDescriptionText}` : '',
+    selectedSymptomLabels.length > 0 ? `Selected symptoms: ${selectedSymptomSummary}` : '',
+  ].filter(Boolean).join('\n');
+  const hasAnalysisInput = Boolean(mealDescriptionText || selectedSymptoms.length > 0);
+  const userEnteredSymptoms = selectedSymptomLabels;
+  const promptConditions = getPromptConditions(profileConditions);
   const currentSymptoms = [
-    ...TEST_GUT_PROFILE.conditions,
+    ...promptConditions,
     ...userEnteredSymptoms,
   ];
   const hasPainSymptom = currentSymptoms.some((symptom) =>
     hasPainText(symptom)
   );
-  const mealImpactScore = extractMealImpactScore(analysis);
+  const mealImpactScore = resolveMealImpactScore(analysis, currentSymptoms, mealDescriptionText);
   const wizardSubtitle =
     wizardStep === 1 ? t.wizardStep1Subtitle : wizardStep === 2 ? t.wizardStep2Subtitle : t.wizardStep3Subtitle;
   const canRecordFeelings = wizardStep === 2 && Boolean(photoUri && lastImageBase64);
+
+  useEffect(() => {
+    getUserProfileSettings()
+      .then((settings) => setProfileConditions(settings.conditions))
+      .catch(console.warn);
+  }, []);
 
   useEffect(() => {
     if (!voiceNativeEnabled) {
@@ -545,7 +606,7 @@ export default function PhotoAnalysisScreen() {
   useEffect(() => {
     if (!params.historyId) return;
 
-    getPhotoAnalysisHistory()
+    getPhotoAnalysisHistory(user?.id)
       .then((history) => {
         const savedAnalysis = history.find((item) => item.id === params.historyId);
         if (!savedAnalysis) return;
@@ -558,14 +619,29 @@ export default function PhotoAnalysisScreen() {
         setWizardStep(3);
         setAccuracyAnswer(null);
         setCorrectionDraft('');
+        const savedUserSymptoms = savedAnalysis.symptoms.filter(
+          (symptom) => !promptConditions.includes(symptom as MedicalCondition) && symptom !== 'General Gut Health'
+        );
+        const savedSymptomKeys = SYMPTOM_OPTIONS
+          .filter((option) =>
+            savedUserSymptoms.some((symptom) =>
+              [option.promptLabel, option.labels.en, option.labels.de].includes(symptom)
+            )
+          )
+          .map((option) => option.key);
+        setSelectedSymptoms(savedSymptomKeys);
         setMealDescription(
-          savedAnalysis.symptoms
-            .filter((symptom) => !TEST_GUT_PROFILE.conditions.includes(symptom))
+          savedUserSymptoms
+            .filter((symptom) =>
+              !SYMPTOM_OPTIONS.some((option) =>
+                [option.promptLabel, option.labels.en, option.labels.de].includes(symptom)
+              )
+            )
             .join(', ')
         );
       })
       .catch(console.warn);
-  }, [params.historyId]);
+  }, [params.historyId, user?.id]);
 
   const handleShareAnalysis = async () => {
     if (!analysis) return;
@@ -628,14 +704,21 @@ export default function PhotoAnalysisScreen() {
     setToast({ visible: true, message: t.logMealSuccess, type: 'success' });
   };
 
+  const toggleSymptom = (symptomKey: SymptomKey) => {
+    setSelectedSymptoms((current) =>
+      current.includes(symptomKey)
+        ? current.filter((item) => item !== symptomKey)
+        : [...current, symptomKey]
+    );
+  };
+
   const handleGenerateAnalysis = () => {
     if (!lastImageBase64.trim() || !photoUri) return;
-    const narrative = mealDescription.trim();
-    if (!narrative) {
+    if (!hasAnalysisInput) {
       Alert.alert(t.feelingsRequiredTitle, t.feelingsRequiredMessage);
       return;
     }
-    void runPhotoAnalysis(lastImageBase64, photoUri, narrative);
+    void runPhotoAnalysis(lastImageBase64, photoUri, analysisInputSummary);
   };
 
   const runPhotoAnalysis = async (
@@ -652,8 +735,7 @@ export default function PhotoAnalysisScreen() {
     try {
       const rawResult = await analyzeMealPhoto(imageBase64, 'image/jpeg', {
         preferredLanguage: language,
-        gutScore: TEST_GUT_PROFILE.gutScore,
-        conditions: TEST_GUT_PROFILE.conditions,
+        conditions: promptConditions,
         symptoms: currentSymptoms,
         userEnteredSymptoms,
         supplementsTakenToday: todaysSupplements.map((item) => `${item.name} (${item.dosage}, ${item.time})`),
@@ -662,16 +744,19 @@ export default function PhotoAnalysisScreen() {
         retailLocationHint,
         userFeelingsNarrative: feelingsNarrative,
       });
-      setAnalysis(rawResult);
+      const dynamicResult = applyDynamicMealImpactScore(rawResult, currentSymptoms, feelingsNarrative);
+      const dynamicMealImpactScore = resolveMealImpactScore(dynamicResult, currentSymptoms, feelingsNarrative);
+      setAnalysis(dynamicResult);
       setResultsScrollKey((key) => key + 1);
       setWizardStep(3);
       setAccuracyAnswer(null);
       setCorrectionDraft('');
       await savePhotoAnalysisHistoryItem({
         imageUri: uri,
-        aiText: rawResult,
+        aiText: dynamicResult,
         symptoms: currentSymptoms,
-        mealImpactScore: extractMealImpactScore(rawResult),
+        mealImpactScore: dynamicMealImpactScore,
+        userId: user?.id,
       });
       const xpResult = await addXpForAction(10);
       if (hasPainSymptom) {
@@ -714,8 +799,167 @@ export default function PhotoAnalysisScreen() {
     setMealDescription('');
   };
 
+  const pickImageFileOnWeb = () => {
+    if (typeof document === 'undefined') return;
+
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    input.style.display = 'none';
+
+    input.onchange = async () => {
+      const file = input.files?.[0];
+      input.remove();
+      if (!file) return;
+
+      try {
+        const dataUrl = await readFileAsDataUrl(file);
+        const [, base64 = ''] = dataUrl.split(',');
+        if (!base64) {
+          Alert.alert(t.photoUnavailableTitle, t.photoUnavailableMessage);
+          return;
+        }
+        storeCapturedPhoto({
+          uri: dataUrl,
+          base64,
+          width: 0,
+          height: 0,
+        } as ImagePicker.ImagePickerAsset);
+      } catch (error) {
+        console.error('Web image read failed:', error);
+        Alert.alert(t.photoUnavailableTitle, t.photoUnavailableMessage);
+      }
+    };
+
+    document.body.appendChild(input);
+    input.click();
+  };
+
+  const takePhotoOnWeb = async () => {
+    if (typeof document === 'undefined' || typeof navigator === 'undefined') return;
+
+    if (!navigator.mediaDevices?.getUserMedia) {
+      Alert.alert(t.cameraNeededTitle, 'Camera access is not available in this browser. Please use Safari/Chrome on HTTPS or choose from gallery.');
+      pickImageFileOnWeb();
+      return;
+    }
+
+    let stream: MediaStream | null = null;
+    const overlay = document.createElement('div');
+    const video = document.createElement('video');
+    const actions = document.createElement('div');
+    const captureButton = document.createElement('button');
+    const cancelButton = document.createElement('button');
+
+    const cleanup = () => {
+      stream?.getTracks().forEach((track) => track.stop());
+      overlay.remove();
+    };
+
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({
+        video: {
+          facingMode: { ideal: 'environment' },
+          width: { ideal: 1280 },
+          height: { ideal: 960 },
+        },
+        audio: false,
+      });
+    } catch (error) {
+      console.error('Web camera permission failed:', error);
+      Alert.alert(t.cameraNeededTitle, 'Please allow camera access in your browser, then try again.');
+      return;
+    }
+
+    overlay.style.cssText = [
+      'position:fixed',
+      'inset:0',
+      'z-index:99999',
+      'background:#000',
+      'display:flex',
+      'flex-direction:column',
+      'align-items:center',
+      'justify-content:center',
+      'padding:16px',
+      'box-sizing:border-box',
+    ].join(';');
+    video.style.cssText = [
+      'width:100%',
+      'max-width:520px',
+      'max-height:75vh',
+      'border-radius:20px',
+      'object-fit:cover',
+      'background:#111',
+    ].join(';');
+    actions.style.cssText = [
+      'display:flex',
+      'gap:12px',
+      'margin-top:16px',
+      'width:100%',
+      'max-width:520px',
+    ].join(';');
+    captureButton.textContent = 'Use Photo';
+    cancelButton.textContent = 'Cancel';
+    [captureButton, cancelButton].forEach((button) => {
+      button.type = 'button';
+      button.style.cssText = [
+        'flex:1',
+        'min-height:48px',
+        'border:0',
+        'border-radius:16px',
+        'font:600 16px system-ui,-apple-system,BlinkMacSystemFont,sans-serif',
+      ].join(';');
+    });
+    captureButton.style.background = '#2DCE89';
+    captureButton.style.color = '#000';
+    cancelButton.style.background = '#1F2937';
+    cancelButton.style.color = '#FFF';
+
+    video.autoplay = true;
+    video.playsInline = true;
+    video.muted = true;
+    video.srcObject = stream;
+
+    captureButton.onclick = () => {
+      const width = video.videoWidth || 1280;
+      const height = video.videoHeight || 960;
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+      const context = canvas.getContext('2d');
+      if (!context) {
+        cleanup();
+        Alert.alert(t.photoUnavailableTitle, t.photoUnavailableMessage);
+        return;
+      }
+      context.drawImage(video, 0, 0, width, height);
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.82);
+      const [, base64 = ''] = dataUrl.split(',');
+      cleanup();
+      storeCapturedPhoto({
+        uri: dataUrl,
+        base64,
+        width,
+        height,
+      } as ImagePicker.ImagePickerAsset);
+    };
+    cancelButton.onclick = cleanup;
+
+    actions.append(captureButton, cancelButton);
+    overlay.append(video, actions);
+    document.body.appendChild(overlay);
+    await video.play().catch((error) => {
+      console.error('Web camera preview failed:', error);
+    });
+  };
+
   const takePhoto = async () => {
     if (isAnalyzing) return;
+
+    if (Platform.OS === 'web') {
+      takePhotoOnWeb();
+      return;
+    }
 
     const permission = await ImagePicker.requestCameraPermissionsAsync();
     if (!permission.granted) {
@@ -736,6 +980,11 @@ export default function PhotoAnalysisScreen() {
 
   const pickImage = async () => {
     if (isAnalyzing) return;
+
+    if (Platform.OS === 'web') {
+      pickImageFileOnWeb();
+      return;
+    }
 
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!permission.granted) {
@@ -771,16 +1020,20 @@ export default function PhotoAnalysisScreen() {
             analysis,
           ].join('\n\n'),
         correction,
-        gutScore: TEST_GUT_PROFILE.gutScore,
-        conditions: TEST_GUT_PROFILE.conditions,
+        conditions: promptConditions,
         symptoms: [...currentSymptoms, correction],
-        triggerMemories: [],
+        triggerMemories: formatTriggerMemories(triggerMemories),
         locationContext,
         retailLocationHint,
         priorUserCorrections: userFeedback,
       });
-      const correctedAnalysis = ensurePainApology(
+      const dynamicRevisedAnalysis = applyDynamicMealImpactScore(
         revisedAnalysis,
+        [...currentSymptoms, correction],
+        correction,
+      );
+      const correctedAnalysis = ensurePainApology(
+        dynamicRevisedAnalysis,
         t.painApology,
         hasPainSymptom || hasPainText(correction)
       );
@@ -968,6 +1221,7 @@ export default function PhotoAnalysisScreen() {
     setPlanBMessage('');
     setRankUpBadge('');
     setMealDescription('');
+    setSelectedSymptoms([]);
     setUserFeedback([]);
     setWizardStep(1);
     setAccuracyAnswer(null);
@@ -982,6 +1236,7 @@ export default function PhotoAnalysisScreen() {
     setLastImageBase64('');
     setAnalysis('');
     setMealDescription('');
+    setSelectedSymptoms([]);
     setWizardStep(1);
     setAccuracyAnswer(null);
     setCorrectionDraft('');
@@ -1089,6 +1344,42 @@ export default function PhotoAnalysisScreen() {
                 </>
               ) : null}
 
+              <View style={styles.symptomSelectorCard}>
+                <Text style={[styles.symptomsLabel, isRtlLanguage && styles.rtlText]}>
+                  {t.symptomSelectorLabel}
+                </Text>
+                <Text style={[styles.symptomSelectorHint, isRtlLanguage && styles.rtlText]}>
+                  {t.symptomSelectorHint}
+                </Text>
+                <View style={[styles.symptomChipWrap, isRtlLanguage && styles.rtlRow]}>
+                  {SYMPTOM_OPTIONS.map((option) => {
+                    const isSelected = selectedSymptoms.includes(option.key);
+                    return (
+                      <Pressable
+                        key={option.key}
+                        onPress={() => toggleSymptom(option.key)}
+                        accessibilityRole="button"
+                        accessibilityState={{ selected: isSelected }}
+                        style={({ pressed }) => [
+                          styles.symptomChip,
+                          isSelected && styles.symptomChipSelected,
+                          pressed && styles.pressed,
+                        ]}
+                      >
+                        <Text
+                          style={[
+                            styles.symptomChipText,
+                            isSelected && styles.symptomChipTextSelected,
+                          ]}
+                        >
+                          {option.labels[language]}
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              </View>
+
               <TextInput
                 value={mealDescription}
                 onChangeText={setMealDescription}
@@ -1105,18 +1396,18 @@ export default function PhotoAnalysisScreen() {
 
               <Pressable
                 onPress={handleGenerateAnalysis}
-                disabled={!mealDescription.trim() || isAnalyzing || !lastImageBase64.trim()}
+                disabled={!hasAnalysisInput || isAnalyzing || !lastImageBase64.trim()}
                 accessibilityRole="button"
                 accessibilityLabel={t.generateAnalysis}
                 accessibilityState={{
-                  disabled: !mealDescription.trim() || isAnalyzing || !lastImageBase64.trim(),
+                  disabled: !hasAnalysisInput || isAnalyzing || !lastImageBase64.trim(),
                 }}
                 style={({ pressed }) => [
                   styles.analyzeCombinedButton,
-                  (!mealDescription.trim() || isAnalyzing || !lastImageBase64.trim()) &&
+                  (!hasAnalysisInput || isAnalyzing || !lastImageBase64.trim()) &&
                     styles.analyzeCombinedButtonDisabled,
                   pressed &&
-                    mealDescription.trim() &&
+                    hasAnalysisInput &&
                     !isAnalyzing &&
                     lastImageBase64.trim() &&
                     styles.pressed,
@@ -1586,6 +1877,45 @@ const styles = StyleSheet.create({
     fontFamily: FontFamily.sansSemiBold,
     fontSize: FontSize.sm,
     marginBottom: Spacing.sm,
+  },
+  symptomSelectorCard: {
+    backgroundColor: 'rgba(45,206,137,0.08)',
+    borderColor: 'rgba(45,206,137,0.28)',
+    borderRadius: BorderRadius.lg,
+    borderWidth: 1,
+    padding: Spacing.md,
+  },
+  symptomSelectorHint: {
+    color: '#BEBEBE',
+    fontFamily: FontFamily.sansRegular,
+    fontSize: FontSize.xs,
+    lineHeight: 18,
+    marginBottom: Spacing.sm,
+  },
+  symptomChipWrap: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Spacing.sm,
+  },
+  symptomChip: {
+    backgroundColor: '#111111',
+    borderColor: '#2A2A2A',
+    borderRadius: BorderRadius.full,
+    borderWidth: 1,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+  },
+  symptomChipSelected: {
+    backgroundColor: '#2DCE89',
+    borderColor: '#68F3B3',
+  },
+  symptomChipText: {
+    color: '#D8D8D8',
+    fontFamily: FontFamily.sansSemiBold,
+    fontSize: FontSize.sm,
+  },
+  symptomChipTextSelected: {
+    color: '#000000',
   },
   symptomsInput: {
     backgroundColor: '#111111',

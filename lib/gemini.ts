@@ -166,3 +166,16 @@ export async function getFoodRecommendationFromNutrients(
 
   return callGemini(prompt, 'text/plain');
 }
+
+export async function generateDailyGutScoreInsight(input: {
+  score: number;
+  mainGoal: string | null;
+}): Promise<string> {
+  const prompt = [
+    `Based on a Gut Score of ${input.score} and the goal of ${input.mainGoal ?? 'General health'}, give a 1-sentence tip.`,
+    'Tone: supportive and practical.',
+    'No medical diagnosis, no emojis, max 20 words.',
+  ].join('\n');
+
+  return callGemini(prompt, 'text/plain');
+}

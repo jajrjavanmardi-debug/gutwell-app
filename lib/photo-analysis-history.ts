@@ -3,6 +3,7 @@
  * patterns; digit normalization handles extended Arabic/Persian digits only when parsing stored text.
  */
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { supabase } from './supabase';
 
 export type PhotoAnalysisHistoryItem = {
   id: string;
@@ -16,6 +17,15 @@ export type PhotoAnalysisHistoryItem = {
 
 const PHOTO_ANALYSIS_HISTORY_KEY = 'gutwell_photo_analysis_history';
 const HISTORY_WINDOW_MS = 14 * 24 * 60 * 60 * 1000;
+
+type HealthLogRow = {
+  id: number | string;
+  created_at: string;
+  food_name: string | null;
+  gut_score: number | null;
+  analysis_content: string | null;
+  nutrients: unknown;
+};
 
 function keepRecentItems(items: PhotoAnalysisHistoryItem[]): PhotoAnalysisHistoryItem[] {
   const cutoff = Date.now() - HISTORY_WINDOW_MS;
@@ -37,7 +47,7 @@ function normalizeDigits(value: string): string {
 
 export function extractMealImpactScore(aiText: string): string | null {
   const normalizedText = normalizeDigits(aiText);
-  const scoreMatch = normalizedText.match(/(?:meal impact score|impact score|score)[^\d]{0,24}(\d{1,2})\s*(?:\/|out of)\s*10/i)
+  const scoreMatch = normalizedText.match(/(?:meal impact score|impact score|gut score|score)[^\d]{0,40}(\d{1,2})\s*(?:\/|out of)\s*10/i)
     ?? normalizedText.match(/(\d{1,2})\s*(?:\/|out of)\s*10/i);
 
   if (!scoreMatch) return null;
@@ -46,6 +56,132 @@ export function extractMealImpactScore(aiText: string): string | null {
   if (!Number.isFinite(score) || score < 1 || score > 10) return null;
 
   return `${score}/10`;
+}
+
+function clampMealImpactScore(score: number): number {
+  return Math.max(1, Math.min(10, Math.round(score)));
+}
+
+function hasAnyText(value: string, patterns: RegExp[]): boolean {
+  return patterns.some((pattern) => pattern.test(value));
+}
+
+export function estimateMealImpactScore(
+  aiText: string,
+  symptoms: string[] = [],
+  mealNotes = '',
+): string {
+  const combinedText = `${aiText} ${mealNotes} ${symptoms.join(' ')}`.toLowerCase();
+  let score = 6;
+
+  const severeSymptoms = ['pain', 'cramps', 'reflux', 'nausea', 'diarrhea'];
+  const moderateSymptoms = ['bloating', 'gas', 'heaviness', 'constipation', 'low energy'];
+  score -= symptoms.filter((symptom) => severeSymptoms.some((item) => symptom.toLowerCase().includes(item))).length * 1.5;
+  score -= symptoms.filter((symptom) => moderateSymptoms.some((item) => symptom.toLowerCase().includes(item))).length * 0.75;
+
+  if (hasAnyText(combinedText, [
+    /\bfried\b/,
+    /\bgreasy\b/,
+    /\bspicy\b/,
+    /\bchili\b/,
+    /\bcream\b/,
+    /\bmilk\b/,
+    /\bcheese\b/,
+    /\bonion\b/,
+    /\bgarlic\b/,
+    /\bbeans?\b/,
+    /\blentils?\b/,
+    /\bwheat\b/,
+    /\bbarley\b/,
+    /\bcookie\b/,
+    /\bcake\b/,
+    /\bcandy\b/,
+    /\bsoda\b/,
+    /\bcarbonated\b/,
+    /\balcohol\b/,
+    /\bcoffee\b/,
+  ])) {
+    score -= 2;
+  }
+
+  if (hasAnyText(combinedText, [
+    /\blikely (?:worsen|trigger|irritate)\b/,
+    /\bmay (?:worsen|trigger|irritate)\b/,
+    /\bnot ideal\b/,
+    /\bhigh-fodmap\b/,
+    /\bflare\b/,
+  ])) {
+    score -= 1.5;
+  }
+
+  if (hasAnyText(combinedText, [
+    /\bboiled potatoes?\b/,
+    /\bwhite rice\b/,
+    /\bzucchini\b/,
+    /\bcarrots?\b/,
+    /\bsoup\b/,
+    /\bginger\b/,
+    /\bpeppermint\b/,
+    /\bplain yogurt\b/,
+    /\bcooked vegetables?\b/,
+    /\blean protein\b/,
+  ])) {
+    score += 1.5;
+  }
+
+  if (hasAnyText(combinedText, [
+    /\bgut-friendly\b/,
+    /\bgentle\b/,
+    /\bsupportive\b/,
+    /\blower risk\b/,
+    /\beasy to digest\b/,
+  ])) {
+    score += 1;
+  }
+
+  return `${clampMealImpactScore(score)}/10`;
+}
+
+export function resolveMealImpactScore(
+  aiText: string,
+  symptoms: string[] = [],
+  mealNotes = '',
+): string | null {
+  const extractedScore = extractMealImpactScore(aiText);
+  if (!extractedScore) return estimateMealImpactScore(aiText, symptoms, mealNotes);
+  if (extractedScore !== '4/10') return extractedScore;
+  return estimateMealImpactScore(aiText, symptoms, mealNotes);
+}
+
+export function applyDynamicMealImpactScore(
+  aiText: string,
+  symptoms: string[] = [],
+  mealNotes = '',
+): string {
+  const dynamicScore = resolveMealImpactScore(aiText, symptoms, mealNotes);
+  if (!dynamicScore) return aiText;
+
+  const [scoreNumber] = dynamicScore.split('/');
+  let updatedText = aiText.replace(
+    /(Gut Score:\s*\[[#-]{10}\]\s*)\d{1,2}\s*\/\s*10/i,
+    `$1${dynamicScore}`,
+  );
+
+  updatedText = updatedText.replace(
+    /((?:Meal Impact Score|Impact Score|Score)[^\d\n|]{0,40})\d{1,2}\s*(?:\/|out of)\s*10/i,
+    `$1${dynamicScore}`,
+  );
+
+  updatedText = updatedText.replace(
+    /(\|\s*(?:Score|Gut Score|Meal Impact Score)\s*\|[^\n]*\n\|[^\n]*\n\|(?:[^|\n]*\|){2}\s*)\d{1,2}\s*(?:\/|out of)\s*10/i,
+    `$1${dynamicScore}`,
+  );
+
+  if (updatedText === aiText && scoreNumber) {
+    return `Meal Impact Score: ${dynamicScore}\n\n${aiText}`;
+  }
+
+  return updatedText;
 }
 
 export function extractMealName(aiText: string): string {
@@ -63,7 +199,39 @@ export function extractMealName(aiText: string): string {
   return rawMealName.slice(0, 80) || 'Meal photo';
 }
 
-export async function getPhotoAnalysisHistory(): Promise<PhotoAnalysisHistoryItem[]> {
+function parseScoreNumber(score: string | null): number | null {
+  if (!score) return null;
+  const value = Number(score.match(/\d{1,2}/)?.[0]);
+  return Number.isFinite(value) ? Math.max(1, Math.min(10, value)) : null;
+}
+
+function parseHealthLogNutrients(value: unknown): { imageUri?: string; symptoms?: string[] } {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return {};
+  const record = value as Record<string, unknown>;
+  return {
+    imageUri: typeof record.imageUri === 'string' ? record.imageUri : undefined,
+    symptoms: Array.isArray(record.symptoms)
+      ? record.symptoms.filter((item): item is string => typeof item === 'string')
+      : undefined,
+  };
+}
+
+function mapHealthLogToHistoryItem(row: HealthLogRow): PhotoAnalysisHistoryItem {
+  const aiText = row.analysis_content ?? '';
+  const nutrients = parseHealthLogNutrients(row.nutrients);
+
+  return {
+    id: String(row.id),
+    imageUri: nutrients.imageUri ?? '',
+    createdAt: row.created_at,
+    aiText,
+    symptoms: nutrients.symptoms ?? [],
+    mealName: row.food_name || extractMealName(aiText),
+    mealImpactScore: row.gut_score ? `${row.gut_score}/10` : extractMealImpactScore(aiText),
+  };
+}
+
+async function getLocalPhotoAnalysisHistory(): Promise<PhotoAnalysisHistoryItem[]> {
   const raw = await AsyncStorage.getItem(PHOTO_ANALYSIS_HISTORY_KEY);
   if (!raw) return [];
 
@@ -91,11 +259,44 @@ export async function getPhotoAnalysisHistory(): Promise<PhotoAnalysisHistoryIte
   }
 }
 
+export async function getPhotoAnalysisHistory(userId?: string): Promise<PhotoAnalysisHistoryItem[]> {
+  const localHistory = await getLocalPhotoAnalysisHistory();
+  const resolvedUserId =
+    userId ??
+    (await supabase.auth.getSession()).data.session?.user.id ??
+    (await supabase.auth.getUser()).data.user?.id;
+
+  if (!resolvedUserId) return localHistory;
+
+  const since = new Date(Date.now() - HISTORY_WINDOW_MS).toISOString();
+  const { data, error } = await supabase
+    .from('health_logs')
+    .select('id, created_at, food_name, gut_score, analysis_content, nutrients')
+    .eq('user_id', resolvedUserId)
+    .gte('created_at', since)
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    console.warn('Supabase photo history fetch failed:', error.message);
+    return localHistory;
+  }
+
+  const remoteHistory = keepRecentItems((data ?? []).map(mapHealthLogToHistoryItem));
+  if (remoteHistory.length === 0) return localHistory;
+
+  const existingIds = new Set(remoteHistory.map((item) => item.id));
+  return keepRecentItems([
+    ...remoteHistory,
+    ...localHistory.filter((item) => !existingIds.has(item.id)),
+  ]);
+}
+
 export async function savePhotoAnalysisHistoryItem(payload: {
   imageUri: string;
   aiText: string;
   symptoms?: string[];
   mealImpactScore?: string | null;
+  userId?: string;
 }): Promise<void> {
   const existing = await getPhotoAnalysisHistory();
   const aiText = payload.aiText;
@@ -115,4 +316,23 @@ export async function savePhotoAnalysisHistoryItem(payload: {
     PHOTO_ANALYSIS_HISTORY_KEY,
     JSON.stringify([newItem, ...existing]),
   );
+
+  if (!payload.userId) return;
+
+  const { error } = await supabase.from('health_logs').insert({
+    user_id: payload.userId,
+    food_name: newItem.mealName,
+    gut_score: parseScoreNumber(newItem.mealImpactScore),
+    analysis_content: aiText,
+    nutrients: {
+      source: 'photo-analysis',
+      imageUri: payload.imageUri,
+      symptoms: payload.symptoms ?? [],
+    },
+    language: 'en',
+  });
+
+  if (error) {
+    console.warn('Supabase photo history save failed:', error.message);
+  }
 }

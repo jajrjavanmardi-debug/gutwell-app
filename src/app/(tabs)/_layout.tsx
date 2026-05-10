@@ -1,9 +1,12 @@
 import { Ionicons } from '@expo/vector-icons';
-import { Tabs } from 'expo-router';
+import { Tabs, useFocusEffect } from 'expo-router';
 import * as Haptics from 'expo-haptics';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useCallback, useState } from 'react';
 import { Platform, StyleSheet, View, Text, TouchableOpacity } from 'react-native';
 import { BlurView } from 'expo-blur';
-import { Colors, FontSize, FontFamily, Shadows, Spacing } from '../../constants/theme';
+import { Colors, FontSize, FontFamily, Shadows, Spacing } from '../../../constants/theme';
+import { APP_LANGUAGE_STORAGE_KEY, parseStoredLanguage, type AppLanguage } from '../../../lib/app-language';
 
 /** Expo Router error boundary for all tab screens */
 export function ErrorBoundary({ error, retry }: { error: Error; retry: () => void }) {
@@ -29,7 +32,7 @@ const ebStyles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: Colors.background,
+    backgroundColor: 'transparent',
     paddingHorizontal: Spacing.xl,
   },
   iconCircle: {
@@ -72,6 +75,16 @@ const ebStyles = StyleSheet.create({
 });
 
 export default function TabLayout() {
+  const [language, setLanguage] = useState<AppLanguage>('en');
+
+  useFocusEffect(
+    useCallback(() => {
+    AsyncStorage.getItem(APP_LANGUAGE_STORAGE_KEY)
+      .then((storedLanguage) => setLanguage(parseStoredLanguage(storedLanguage)))
+      .catch(console.warn);
+    }, [])
+  );
+
   const renderTabIcon = (
     focused: boolean,
     activeIcon: keyof typeof Ionicons.glyphMap,
@@ -84,85 +97,56 @@ export default function TabLayout() {
   );
 
   return (
-    <Tabs
-      screenOptions={{
-        tabBarActiveTintColor: '#2DCE89',
-        tabBarInactiveTintColor: '#777777',
-        headerShown: false,
-        tabBarBackground: () => <BlurView intensity={60} tint="dark" style={StyleSheet.absoluteFill} />,
-        tabBarStyle: {
-          backgroundColor: 'rgba(0,0,0,0.94)',
-          borderTopColor: '#181818',
-          borderTopWidth: 1,
-          paddingTop: 8,
-          paddingBottom: Platform.OS === 'ios' ? 0 : 8,
-          height: Platform.OS === 'ios' ? 90 : 66,
-          ...Shadows.sm,
-        },
-        tabBarLabelStyle: {
-          fontFamily: FontFamily.sansMedium,
-          fontSize: 11,
-          marginTop: 1,
-        },
-      }}
-      screenListeners={{
-        tabPress: () => {
-          if (Platform.OS === 'ios') {
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-          }
-        },
-      }}
-    >
-      <Tabs.Screen
-        name="index"
-        options={{
-          title: 'Home',
-          tabBarIcon: ({ color, focused }) => (
-            renderTabIcon(focused, 'home', 'home-outline', color)
-          ),
+    <View style={styles.rootBackground}>
+      <Tabs
+        screenOptions={{
+          tabBarActiveTintColor: '#2DCE89',
+          tabBarInactiveTintColor: '#777777',
+          headerShown: false,
+          sceneStyle: { backgroundColor: 'transparent' },
+          tabBarBackground: () => <BlurView intensity={60} tint="dark" style={StyleSheet.absoluteFill} />,
+          tabBarStyle: {
+            backgroundColor: 'rgba(0,0,0,0.94)',
+            borderTopColor: '#181818',
+            borderTopWidth: 1,
+            paddingTop: 8,
+            paddingBottom: Platform.OS === 'ios' ? 0 : 8,
+            height: Platform.OS === 'ios' ? 90 : 66,
+            ...Shadows.sm,
+          },
+          tabBarLabelStyle: {
+            fontFamily: FontFamily.sansMedium,
+            fontSize: 11,
+            marginTop: 1,
+          },
         }}
-      />
-      <Tabs.Screen
-        name="checkin"
-        options={{
-          title: 'Check-in',
-          tabBarIcon: ({ color, focused }) => (
-            renderTabIcon(focused, 'body', 'body-outline', color)
-          ),
+        screenListeners={{
+          tabPress: () => {
+            if (Platform.OS === 'ios') {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            }
+          },
         }}
-      />
-      <Tabs.Screen
-        name="food"
-        options={{
-          title: 'Food',
-          tabBarIcon: ({ color, focused }) => (
-            renderTabIcon(focused, 'restaurant', 'restaurant-outline', color)
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="progress"
-        options={{
-          title: 'Progress',
-          tabBarIcon: ({ color, focused }) => (
-            renderTabIcon(focused, 'trending-up', 'trending-up-outline', color)
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="profile"
-        options={{
-          title: 'Profile',
-          tabBarIcon: ({ color, focused }) => (
-            renderTabIcon(focused, 'person', 'person-outline', color)
-          ),
-        }}
-      />
-    </Tabs>
+      >
+        <Tabs.Screen
+          name="index"
+          options={{
+            title: language === 'fa' ? 'خانه' : 'Home',
+            tabBarIcon: ({ color, focused }) => (
+              renderTabIcon(focused, 'home', 'home-outline', color)
+            ),
+          }}
+        />
+      </Tabs>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  rootBackground: {
+    flex: 1,
+    backgroundColor: '#F4F5F0',
+  },
   iconWrap: {
     width: 30,
     height: 30,

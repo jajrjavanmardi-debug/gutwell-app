@@ -11,17 +11,22 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { BorderRadius, FontFamily, FontSize, Spacing } from '../constants/theme';
-import { getPhotoAnalysisHistory, type PhotoAnalysisHistoryItem } from '../lib/photo-analysis-history';
+import { GutHealthChart } from '../../components/GutHealthChart';
+import { BorderRadius, FontFamily, FontSize, Spacing } from '../../constants/theme';
+import { useAuth } from '../../contexts/AuthContext';
+import { getPhotoAnalysisHistory, type PhotoAnalysisHistoryItem } from '../../lib/photo-analysis-history';
 
 export default function FoodHistoryScreen() {
+  const { user, loading } = useAuth();
   const [history, setHistory] = useState<PhotoAnalysisHistoryItem[]>([]);
 
   useEffect(() => {
-    getPhotoAnalysisHistory()
+    if (loading) return;
+
+    getPhotoAnalysisHistory(user?.id)
       .then(setHistory)
       .catch(console.warn);
-  }, []);
+  }, [loading, user?.id]);
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -35,7 +40,13 @@ export default function FoodHistoryScreen() {
         </View>
       </View>
 
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator
+      >
+        <GutHealthChart userId={user?.id} />
+
         {history.length > 0 ? (
           history.map((item) => (
             <Pressable
@@ -46,7 +57,13 @@ export default function FoodHistoryScreen() {
               })}
               style={({ pressed }) => [styles.card, pressed && styles.pressed]}
             >
-              <Image source={{ uri: item.imageUri }} style={styles.image} />
+              {item.imageUri ? (
+                <Image source={{ uri: item.imageUri }} style={styles.image} />
+              ) : (
+                <View style={[styles.image, styles.imagePlaceholder]}>
+                  <Ionicons name="restaurant" size={24} color="#2DCE89" />
+                </View>
+              )}
               <View style={styles.cardCopy}>
                 <Text style={styles.date}>{new Date(item.createdAt).toLocaleDateString()}</Text>
                 <Text numberOfLines={1} style={styles.mealName}>{item.mealName}</Text>
@@ -60,9 +77,9 @@ export default function FoodHistoryScreen() {
           ))
         ) : (
           <View style={styles.emptyCard}>
-            <Ionicons name="images-outline" size={28} color="#2DCE89" />
-            <Text style={styles.emptyTitle}>No meal scans yet</Text>
-            <Text style={styles.emptyText}>Your saved photo analyses will appear here after the first scan.</Text>
+            <Ionicons name="camera" size={30} color="#B2AC88" />
+            <Text style={styles.emptyTitle}>Your gut journey starts here!</Text>
+            <Text style={styles.emptyText}>Take your first photo. 📸</Text>
           </View>
         )}
       </ScrollView>
@@ -73,6 +90,9 @@ export default function FoodHistoryScreen() {
 const styles = StyleSheet.create({
   container: {
     backgroundColor: '#000000',
+    flex: 1,
+  },
+  scroll: {
     flex: 1,
   },
   header: {
@@ -111,7 +131,9 @@ const styles = StyleSheet.create({
   content: {
     gap: Spacing.md,
     padding: Spacing.lg,
+    paddingBottom: Spacing.xxl + 48,
     paddingTop: Spacing.sm,
+    width: '100%',
   },
   card: {
     alignItems: 'center',
@@ -121,6 +143,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     flexDirection: 'row',
     gap: Spacing.md,
+    marginBottom: Spacing.md,
+    minHeight: 112,
     padding: Spacing.md,
   },
   image: {
@@ -128,8 +152,14 @@ const styles = StyleSheet.create({
     height: 78,
     width: 78,
   },
+  imagePlaceholder: {
+    alignItems: 'center',
+    backgroundColor: '#102C20',
+    justifyContent: 'center',
+  },
   cardCopy: {
     flex: 1,
+    minWidth: 0,
   },
   date: {
     color: '#2DCE89',
@@ -160,22 +190,28 @@ const styles = StyleSheet.create({
   },
   emptyCard: {
     alignItems: 'center',
-    backgroundColor: '#0B0B0B',
-    borderColor: '#242424',
+    backgroundColor: '#FFFFFF',
+    borderColor: '#ECE7D9',
     borderRadius: BorderRadius.xl,
     borderWidth: 1,
     padding: Spacing.xl,
+    shadowColor: '#102018',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.08,
+    shadowRadius: 16,
+    elevation: 4,
   },
   emptyTitle: {
-    color: '#FFFFFF',
-    fontFamily: FontFamily.sansBold,
-    fontSize: FontSize.lg,
+    color: '#15212D',
+    fontFamily: FontFamily.sansExtraBold,
+    fontSize: FontSize.xl,
     marginTop: Spacing.md,
+    textAlign: 'center',
   },
   emptyText: {
-    color: '#A7A7A7',
-    fontFamily: FontFamily.sansRegular,
-    fontSize: FontSize.sm,
+    color: '#4E5B66',
+    fontFamily: FontFamily.sansSemiBold,
+    fontSize: FontSize.md,
     lineHeight: 21,
     marginTop: Spacing.sm,
     textAlign: 'center',

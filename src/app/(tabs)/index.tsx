@@ -20,36 +20,103 @@ import {
   View,
 } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Circle, Line, Path, Text as SvgText } from 'react-native-svg';
 
-import { GutScoreGauge } from '../../components/gut-score-gauge';
-import { BorderRadius, Colors, FontFamily, FontSize, Shadows, Spacing } from '../../constants/theme';
-import { getNutritionRecommendation, type NutritionRecommendationResult } from '../../lib/RecommendationEngine';
-import { getPhotoAnalysisHistory, type PhotoAnalysisHistoryItem } from '../../lib/photo-analysis-history';
+import { GutScoreGauge } from '../../../components/gut-score-gauge';
+import { useAuth } from '../../../contexts/AuthContext';
+import { BorderRadius, Colors, FontFamily, FontSize, Shadows, Spacing, Theme } from '../../../constants/theme';
+import { getNutritionRecommendation, type NutritionRecommendationResult } from '../../../lib/RecommendationEngine';
+import { getPhotoAnalysisHistory, type PhotoAnalysisHistoryItem } from '../../../lib/photo-analysis-history';
 import {
   getSupplementHistory,
   saveSupplementHistoryItem,
   type SupplementHistoryItem,
-} from '../../lib/supplement-history';
+} from '../../../lib/supplement-history';
 import {
   addXpForAction,
   getNextRankProgress,
   getUserProgressProfile,
   type UserProgressProfile,
-} from '../../lib/user-progress';
+} from '../../../lib/user-progress';
+import { fetchDailyGutScoreCardData, type DailyGutScoreCardData } from '../../../services/scoring';
+import {
+  APP_LANGUAGE_STORAGE_KEY,
+  isRtlLanguage,
+  parseStoredLanguage,
+  type AppLanguage,
+} from '../../../lib/app-language';
 
 const EXAMPLE_FEELINGS = [
   'lowEnergy',
   'bloated',
   'stressed',
 ] as const;
-const APP_LANGUAGE_STORAGE_KEY = 'gutwell_app_language';
 const COMMON_SUPPLEMENTS = ['Probiotic', 'Digestive Enzyme', 'Ginger', 'Vitamin D'] as const;
 
 const NUTRIENT_ICONS = ['leaf', 'water', 'sparkles', 'fitness', 'nutrition'] as const;
+const DS = Theme;
+const UI_COPY = {
+  en: {
+    analysis: 'Analysis',
+    history: 'History',
+    quickTips: 'Quick Tips',
+    welcomeMessageTitle: "How's your gut today?",
+    welcomeMessageSubtitle:
+      'Share your energy, digestion, cravings, or symptoms. We will look for supportive nutrients and turn trusted USDA data into a gentle nutrition idea.',
+    startScan: 'Start Scan',
+    viewDetails: 'View Details',
+    save: 'Save',
+    cancel: 'Cancel',
+    help: 'Help',
+    instantRelief: 'Instant Relief',
+    commonSymptoms: 'Common Symptoms',
+    version: 'Version',
+    rightsReserved: 'All rights reserved.',
+    profile: 'Profile',
+    login: 'Login',
+  },
+  de: {
+    analysis: 'Analyse',
+    history: 'Verlauf',
+    quickTips: 'Schnelle Tipps',
+    welcomeMessageTitle: "Wie geht's deinem Bauch?",
+    welcomeMessageSubtitle:
+      'Teile deine Energie, Verdauung, Gelüste oder Symptome. Wir finden unterstützende Nährstoffe und passende USDA-Lebensmittelideen.',
+    startScan: 'Scan starten',
+    viewDetails: 'Details anzeigen',
+    save: 'Speichern',
+    cancel: 'Abbrechen',
+    help: 'Hilfe',
+    instantRelief: 'Soforthilfe',
+    commonSymptoms: 'Häufige Symptome',
+    version: 'Version',
+    rightsReserved: 'Alle Rechte vorbehalten.',
+    profile: 'Profil',
+    login: 'Anmelden',
+  },
+  fa: {
+    analysis: 'تحلیل',
+    history: 'سوابق',
+    quickTips: 'نکات سریع',
+    welcomeMessageTitle: 'امروز حال گوارش شما چطور است؟',
+    welcomeMessageSubtitle:
+      'انرژی، هضم، میل غذایی یا علائم خود را ثبت کنید تا پیشنهادهای تغذیه ای مناسب دریافت کنید.',
+    startScan: 'شروع اسکن',
+    viewDetails: 'مشاهده جزئیات',
+    save: 'ذخیره',
+    cancel: 'لغو',
+    help: 'کمک',
+    instantRelief: 'تسکین فوری',
+    commonSymptoms: 'علائم رایج',
+    version: 'نسخه',
+    rightsReserved: 'تمامی حقوق محفوظ است.',
+    profile: 'پروفایل',
+    login: 'ورود',
+  },
+} as const;
 
-type Language = 'en' | 'de';
+type Language = AppLanguage;
 type Condition = 'ibs' | 'gastritis' | 'bloating' | 'celiac' | 'lactoseIntolerance';
 type ActivityLevel = 'sedentary' | 'moderate' | 'active' | 'athlete';
 type ScoreStatus = 'poor' | 'moderate' | 'excellent';
@@ -131,6 +198,7 @@ const translations = {
     languageButtons: {
       en: 'EN',
       de: 'DE',
+      fa: 'FA',
     },
     welcomeEmptyTitle: 'Tell me how you feel to start your nutrition journey.',
     welcomeEmptyText:
@@ -235,6 +303,7 @@ const translations = {
     languageButtons: {
       en: 'EN',
       de: 'DE',
+      fa: 'FA',
     },
     welcomeEmptyTitle: 'Sag mir, wie du dich fühlst, um deine Ernährungsreise zu starten.',
     welcomeEmptyText:
@@ -270,6 +339,7 @@ const ACTIVITY_LEVELS: ActivityLevel[] = ['sedentary', 'moderate', 'active', 'at
 const AI_LANGUAGE_LABELS: Record<Language, string> = {
   en: 'English',
   de: 'German',
+  fa: 'Persian',
 };
 
 const NUTRIENT_TRANSLATIONS: Record<Language, Record<string, string>> = {
@@ -476,6 +546,8 @@ function SevenDayProgressChart({
 }
 
 export default function HomeScreen() {
+  const { user: currentUser } = useAuth();
+  const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
   const scrollViewRef = useRef<ScrollView>(null);
   const previousLanguageRef = useRef<Language>('en');
@@ -504,9 +576,18 @@ export default function HomeScreen() {
   const [rankUpBadge, setRankUpBadge] = useState('');
   const [celebrationMessage, setCelebrationMessage] = useState('');
   const [selectedChartPoint, setSelectedChartPoint] = useState<ChartPoint | null>(null);
+  const [dailyGutScoreCard, setDailyGutScoreCard] = useState<DailyGutScoreCardData | null>(null);
+  const [dailyGutScoreLoading, setDailyGutScoreLoading] = useState(false);
 
-  const t = translations[language];
-  const isRtlLanguage = false;
+  const t = translations[language === 'fa' ? 'en' : language];
+  const isRtl = isRtlLanguage(language);
+  const ui = UI_COPY[language];
+  const localizedStaticLabels = {
+    profile: ui.profile,
+    login: ui.login,
+    history: ui.history,
+    sos: ui.instantRelief,
+  };
   const trimmedFeeling = useMemo(() => feeling.trim(), [feeling]);
   const hasFeelingInput = trimmedFeeling.length > 0;
   const isWideLayout = width >= 760;
@@ -554,11 +635,7 @@ export default function HomeScreen() {
   useEffect(() => {
     AsyncStorage.getItem(APP_LANGUAGE_STORAGE_KEY)
       .then((storedLanguage) => {
-        if (storedLanguage === 'en' || storedLanguage === 'de') {
-          setLanguage(storedLanguage);
-        } else {
-          setLanguage('en');
-        }
+        setLanguage(parseStoredLanguage(storedLanguage));
       })
       .catch(console.warn);
   }, []);
@@ -570,20 +647,30 @@ export default function HomeScreen() {
   useFocusEffect(
     useCallback(() => {
       let isActive = true;
+      setDailyGutScoreLoading(true);
 
-      Promise.all([getPhotoAnalysisHistory(), getSupplementHistory(), getUserProgressProfile()])
-        .then(([history, supplements, progress]) => {
+      Promise.all([
+        getPhotoAnalysisHistory(currentUser?.id),
+        getSupplementHistory(),
+        getUserProgressProfile(),
+        currentUser?.id ? fetchDailyGutScoreCardData(currentUser.id) : Promise.resolve(null),
+      ])
+        .then(([history, supplements, progress, dailyScore]) => {
           if (!isActive) return;
           setPhotoHistory(history);
           setSupplementHistory(supplements);
           setUserProgress(progress);
+          setDailyGutScoreCard(dailyScore);
         })
-        .catch(console.warn);
+        .catch(console.warn)
+        .finally(() => {
+          if (isActive) setDailyGutScoreLoading(false);
+        });
 
       return () => {
         isActive = false;
       };
-    }, [])
+    }, [currentUser?.id])
   );
 
   const localizedNutrients = useMemo(
@@ -781,17 +868,76 @@ export default function HomeScreen() {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
+          <View style={styles.languageTopWrap}>
+            <View style={[styles.languageRow, isRtl && styles.rtlRow]}>
+              {(['en', 'de', 'fa'] as Language[]).map((item) => (
+                <Pressable
+                  key={item}
+                  onPress={() => setLanguage(item)}
+                  style={[
+                    styles.languageButton,
+                    language === item && styles.languageButtonActive,
+                  ]}
+                >
+                  <Text style={[
+                    styles.languageButtonText,
+                    language === item && styles.languageButtonTextActive,
+                  ]}>
+                    {t.languageButtons[item]}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+          </View>
+
+          <View style={[styles.topActionsRow, isRtl && styles.rtlRow]}>
+            <Pressable
+              onPress={() => router.push('/settings')}
+              hitSlop={8}
+              accessibilityRole="button"
+              accessibilityLabel="Open profile settings"
+              style={({ pressed }) => [styles.settingsQuickButton, pressed && styles.pressed]}
+            >
+              <Ionicons name="settings-outline" size={18} color="#FFFFFF" />
+              <Text style={[styles.settingsQuickButtonText, isRtl && styles.rtlText]}>
+                {localizedStaticLabels.profile}
+              </Text>
+            </Pressable>
+            {currentUser ? (
+              <Pressable
+                onPress={() => router.push('/food-history')}
+                hitSlop={8}
+                style={({ pressed }) => [styles.historyQuickButton, pressed && styles.pressed]}
+              >
+                <Ionicons name="time-outline" size={18} color="#2DCE89" />
+                <Text style={[styles.historyQuickButtonText, isRtl && styles.rtlText]}>
+                  {localizedStaticLabels.history}
+                </Text>
+              </Pressable>
+            ) : (
+              <Pressable
+                onPress={() => router.push('/login')}
+                hitSlop={8}
+                style={({ pressed }) => [styles.loginQuickButton, pressed && styles.pressed]}
+              >
+                <Ionicons name="log-in-outline" size={18} color="#000000" />
+                <Text style={[styles.loginQuickButtonText, isRtl && styles.rtlText]}>
+                  {localizedStaticLabels.login}
+                </Text>
+              </Pressable>
+            )}
+          </View>
           <LinearGradient
-            colors={['#051A12', '#000000']}
+            colors={DS.gradients.surface}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
             style={styles.dashboardScoreCard}
           >
-            <View style={[styles.eyebrow, isRtlLanguage && styles.rtlRow]}>
+            <View style={[styles.eyebrow, isRtl && styles.rtlRow]}>
               <Ionicons name="leaf" size={14} color={Colors.accent} />
-              <Text style={[styles.eyebrowText, isRtlLanguage && styles.rtlText]}>{t.appEyebrow}</Text>
+              <Text style={[styles.eyebrowText, isRtl && styles.rtlText]}>{t.appEyebrow}</Text>
             </View>
-            <Text style={[styles.rankTitle, isRtlLanguage && styles.rtlText]}>
+            <Text style={[styles.rankTitle, isRtl && styles.rtlText]}>
               Gut {userProgress.rank}
             </Text>
             <View style={styles.xpPill}>
@@ -804,7 +950,7 @@ export default function HomeScreen() {
               <View style={[styles.xpFill, { width: `${rankProgress.percent}%` }]} />
             </View>
             {rankUpBadge ? (
-              <View style={[styles.rankUpBadge, isRtlLanguage && styles.rtlRow]}>
+              <View style={[styles.rankUpBadge, isRtl && styles.rtlRow]}>
                 <Ionicons name="trophy" size={15} color="#000000" />
                 <Text style={styles.rankUpBadgeText}>{rankUpBadge}</Text>
               </View>
@@ -825,7 +971,7 @@ export default function HomeScreen() {
                       }),
                     }],
                   },
-                  isRtlLanguage && styles.rtlRow,
+                  isRtl && styles.rtlRow,
                 ]}
               >
                 <Ionicons name="sparkles" size={15} color="#000000" />
@@ -838,7 +984,7 @@ export default function HomeScreen() {
               scoreLabel={t.score}
               statusLabel={t.statusLabels[gutScoreStatus]}
               color={gutScoreColor}
-              isRtl={isRtlLanguage}
+              isRtl={isRtl}
               size={Math.min(270, Math.max(210, width - 96))}
             />
 
@@ -859,12 +1005,12 @@ export default function HomeScreen() {
               </Pressable>
             </View>
 
-            <View style={[styles.todayStatusBar, isRtlLanguage && styles.rtlRow]}>
+            <View style={[styles.todayStatusBar, isRtl && styles.rtlRow]}>
               <View style={styles.todayStatusCopy}>
-                <Text style={[styles.todayStatusLabel, isRtlLanguage && styles.rtlText]}>
+                <Text style={[styles.todayStatusLabel, isRtl && styles.rtlText]}>
                   {t.todaysStatus}
                 </Text>
-                <Text style={[styles.todayStatusText, isRtlLanguage && styles.rtlText]}>
+                <Text style={[styles.todayStatusText, isRtl && styles.rtlText]}>
                   {todaysSupplements.length > 0
                     ? `${t.supplementTaken}: ${todaySupplementSummary}`
                     : t.noSupplementsLogged}
@@ -889,16 +1035,16 @@ export default function HomeScreen() {
               ]}
             >
               <LinearGradient
-                colors={['#0B5A3E', '#03120D']}
+                colors={DS.gradients.primary}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
-                style={[styles.primaryPhotoButton, isRtlLanguage && styles.rtlRow]}
+                style={[styles.primaryPhotoButton, isRtl && styles.rtlRow]}
               >
                 <View style={styles.primaryPhotoIcon}>
                   <Ionicons name="camera" size={26} color={Colors.textInverse} />
                 </View>
-                <Text style={[styles.primaryPhotoText, isRtlLanguage && styles.rtlText]}>
-                  {t.photoAnalysisButton}
+                <Text style={[styles.primaryPhotoText, isRtl && styles.rtlText]}>
+                  {`${ui.analysis}: ${ui.startScan}`}
                 </Text>
               </LinearGradient>
             </Pressable>
@@ -912,27 +1058,44 @@ export default function HomeScreen() {
               ]}
             >
               <LinearGradient
-                colors={['#12211B', '#000000']}
+                colors={DS.gradients.primary}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
-                style={[styles.primaryPhotoButton, isRtlLanguage && styles.rtlRow]}
+                style={[styles.primaryPhotoButton, isRtl && styles.rtlRow]}
               >
                 <View style={styles.primaryPhotoIcon}>
                   <Ionicons name="medkit" size={25} color={Colors.textInverse} />
                 </View>
-                <Text style={[styles.primaryPhotoText, isRtlLanguage && styles.rtlText]}>
+                <Text style={[styles.primaryPhotoText, isRtl && styles.rtlText]}>
                   {t.supplementLogTitle}
                 </Text>
               </LinearGradient>
             </Pressable>
           </LinearGradient>
 
+          <View style={styles.dailyScoreCard}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionKicker}>Daily Gut Score</Text>
+              <Text style={styles.sectionTitle}>
+                {dailyGutScoreCard ? `${dailyGutScoreCard.score}/100` : 'No score yet'}
+              </Text>
+            </View>
+            {dailyGutScoreLoading ? (
+              <ActivityIndicator color={DS.colors.sage} size="small" />
+            ) : (
+              <Text style={styles.dailyScoreSummary}>
+                {dailyGutScoreCard?.insight
+                  ?? 'Complete today\'s check-in to generate your personalized daily summary.'}
+              </Text>
+            )}
+          </View>
+
           <View style={styles.chartCard}>
             <View style={styles.sectionHeader}>
-              <Text style={[styles.sectionKicker, isRtlLanguage && styles.rtlText]}>
+              <Text style={[styles.sectionKicker, isRtl && styles.rtlText]}>
                 {t.progressChartSubtitle}
               </Text>
-              <Text style={[styles.sectionTitle, isRtlLanguage && styles.rtlText]}>
+              <Text style={[styles.sectionTitle, isRtl && styles.rtlText]}>
                 {t.progressChartTitle}
               </Text>
             </View>
@@ -966,10 +1129,10 @@ export default function HomeScreen() {
 
           <View style={styles.photoHistoryCard}>
             <View style={styles.sectionHeader}>
-              <Text style={[styles.sectionKicker, isRtlLanguage && styles.rtlText]}>
+              <Text style={[styles.sectionKicker, isRtl && styles.rtlText]}>
                 {t.photoHistorySubtitle}
               </Text>
-              <Text style={[styles.sectionTitle, isRtlLanguage && styles.rtlText]}>
+              <Text style={[styles.sectionTitle, isRtl && styles.rtlText]}>
                 {t.photoHistoryTitle}
               </Text>
             </View>
@@ -985,19 +1148,19 @@ export default function HomeScreen() {
                     })}
                     style={({ pressed }) => [
                       styles.photoHistoryItem,
-                      isRtlLanguage && styles.rtlRow,
+                      isRtl && styles.rtlRow,
                       pressed && styles.pressed,
                     ]}
                   >
                     <Image source={{ uri: item.imageUri }} style={styles.photoHistoryImage} />
                     <View style={styles.photoHistoryCopy}>
-                      <Text style={[styles.photoHistoryDate, isRtlLanguage && styles.rtlText]}>
+                      <Text style={[styles.photoHistoryDate, isRtl && styles.rtlText]}>
                         {new Date(item.createdAt).toLocaleDateString()}
                       </Text>
-                      <Text numberOfLines={1} style={[styles.photoHistoryMeal, isRtlLanguage && styles.rtlText]}>
+                      <Text numberOfLines={1} style={[styles.photoHistoryMeal, isRtl && styles.rtlText]}>
                         {item.mealName}
                       </Text>
-                      <View style={[styles.photoHistoryScoreBadge, isRtlLanguage && styles.rtlRow]}>
+                      <View style={[styles.photoHistoryScoreBadge, isRtl && styles.rtlRow]}>
                         <Ionicons name="speedometer" size={13} color="#2DCE89" />
                         <Text style={styles.photoHistoryText}>
                           {item.mealImpactScore ?? t.photoHistoryNoScore}
@@ -1005,7 +1168,7 @@ export default function HomeScreen() {
                       </View>
                     </View>
                     <Ionicons
-                      name={isRtlLanguage ? 'chevron-back' : 'chevron-forward'}
+                      name={isRtl ? 'chevron-back' : 'chevron-forward'}
                       size={18}
                       color="#777777"
                     />
@@ -1013,7 +1176,7 @@ export default function HomeScreen() {
                 ))}
               </View>
             ) : (
-              <Text style={[styles.emptyText, isRtlLanguage && styles.rtlText]}>
+              <Text style={[styles.emptyText, isRtl && styles.rtlText]}>
                 {t.photoHistoryEmpty}
               </Text>
             )}
@@ -1022,16 +1185,16 @@ export default function HomeScreen() {
               style={({ pressed }) => [styles.historyButton, pressed && styles.pressed]}
             >
               <Ionicons name="list" size={17} color="#000000" />
-              <Text style={styles.historyButtonText}>{t.historyButton}</Text>
+              <Text style={styles.historyButtonText}>{ui.viewDetails}</Text>
             </Pressable>
           </View>
 
           <View style={styles.heatmapCard}>
             <View style={styles.sectionHeader}>
-              <Text style={[styles.sectionKicker, isRtlLanguage && styles.rtlText]}>{t.heatmapSubtitle}</Text>
-              <Text style={[styles.sectionTitle, isRtlLanguage && styles.rtlText]}>{t.heatmapTitle}</Text>
+              <Text style={[styles.sectionKicker, isRtl && styles.rtlText]}>{t.heatmapSubtitle}</Text>
+              <Text style={[styles.sectionTitle, isRtl && styles.rtlText]}>{t.heatmapTitle}</Text>
             </View>
-            <View style={[styles.heatmapGrid, isRtlLanguage && styles.rtlRow]}>
+            <View style={[styles.heatmapGrid, isRtl && styles.rtlRow]}>
               {heatmapDays.map((day) => (
                 <View
                   key={day.key}
@@ -1046,45 +1209,25 @@ export default function HomeScreen() {
 
           <View style={[styles.hero, isWideLayout && styles.heroWide]}>
             <View style={styles.heroCopy}>
-              <View style={[styles.languageRow, isRtlLanguage && styles.rtlRow]}>
-                {(['en', 'de'] as Language[]).map((item) => (
-                  <Pressable
-                    key={item}
-                    onPress={() => setLanguage(item)}
-                    style={[
-                      styles.languageButton,
-                      language === item && styles.languageButtonActive,
-                    ]}
-                  >
-                    <Text style={[
-                      styles.languageButtonText,
-                      language === item && styles.languageButtonTextActive,
-                    ]}>
-                      {t.languageButtons[item]}
-                    </Text>
-                  </Pressable>
-                ))}
-              </View>
+              <Text style={[styles.heroTitle, isRtl && styles.rtlText]}>{ui.welcomeMessageTitle}</Text>
+              <Text style={[styles.heroSubtitle, isRtl && styles.rtlText]}>{ui.welcomeMessageSubtitle}</Text>
 
-              <Text style={[styles.heroTitle, isRtlLanguage && styles.rtlText]}>{t.welcome}</Text>
-              <Text style={[styles.heroSubtitle, isRtlLanguage && styles.rtlText]}>{t.heroSubtitle}</Text>
-
-              <View style={[styles.promptChips, isRtlLanguage && styles.rtlRow]}>
+              <View style={[styles.promptChips, isRtl && styles.rtlRow]}>
                 {EXAMPLE_FEELINGS.map((example) => (
                   <Pressable
                     key={example}
                     onPress={() => setFeeling(t.examples[example])}
                     style={({ pressed }) => [styles.promptChip, pressed && styles.pressed]}
                   >
-                    <Text style={[styles.promptChipText, isRtlLanguage && styles.rtlText]}>{t.examples[example]}</Text>
+                    <Text style={[styles.promptChipText, isRtl && styles.rtlText]}>{t.examples[example]}</Text>
                   </Pressable>
                 ))}
               </View>
             </View>
 
             <View style={styles.inputCard}>
-              <View style={[styles.inputHeader, isRtlLanguage && styles.rtlRow]}>
-                <Text style={[styles.inputLabel, isRtlLanguage && styles.rtlText]}>{t.inputLabel}</Text>
+              <View style={[styles.inputHeader, isRtl && styles.rtlRow]}>
+                <Text style={[styles.inputLabel, isRtl && styles.rtlText]}>{t.inputLabel}</Text>
                 <Pressable
                   disabled={isLoading || (!feeling && !result && !errorMessage)}
                   onPress={handleClearAnalysis}
@@ -1106,12 +1249,12 @@ export default function HomeScreen() {
                 placeholderTextColor="#777777"
                 multiline
                 textAlignVertical="top"
-                style={[styles.textArea, isRtlLanguage && styles.rtlText]}
+                style={[styles.textArea, isRtl && styles.rtlText]}
               />
 
               <View style={styles.profileControls}>
-                <Text style={[styles.controlLabel, isRtlLanguage && styles.rtlText]}>{t.conditions}</Text>
-                <View style={[styles.optionWrap, isRtlLanguage && styles.rtlRow]}>
+                <Text style={[styles.controlLabel, isRtl && styles.rtlText]}>{t.conditions}</Text>
+                <View style={[styles.optionWrap, isRtl && styles.rtlRow]}>
                   {CONDITION_OPTIONS.map((condition) => (
                     <Pressable
                       key={condition}
@@ -1124,7 +1267,7 @@ export default function HomeScreen() {
                       <Text style={[
                         styles.optionChipText,
                         conditions.includes(condition) && styles.optionChipTextActive,
-                        isRtlLanguage && styles.rtlText,
+                        isRtl && styles.rtlText,
                       ]}>
                         {t.diseases[condition]}
                       </Text>
@@ -1132,8 +1275,8 @@ export default function HomeScreen() {
                   ))}
                 </View>
 
-                <Text style={[styles.controlLabel, isRtlLanguage && styles.rtlText]}>{t.activity}</Text>
-                <View style={[styles.optionWrap, isRtlLanguage && styles.rtlRow]}>
+                <Text style={[styles.controlLabel, isRtl && styles.rtlText]}>{t.activity}</Text>
+                <View style={[styles.optionWrap, isRtl && styles.rtlRow]}>
                   {ACTIVITY_LEVELS.map((level) => (
                     <Pressable
                       key={level}
@@ -1146,7 +1289,7 @@ export default function HomeScreen() {
                       <Text style={[
                         styles.optionChipText,
                         activityLevel === level && styles.optionChipTextActive,
-                        isRtlLanguage && styles.rtlText,
+                        isRtl && styles.rtlText,
                       ]}>
                         {t.activityLevels[level]}
                       </Text>
@@ -1189,8 +1332,8 @@ export default function HomeScreen() {
               >
                 <View style={styles.modalBackdrop}>
                   <View style={styles.supplementModal}>
-                    <View style={[styles.modalHeader, isRtlLanguage && styles.rtlRow]}>
-                      <Text style={[styles.modalTitle, isRtlLanguage && styles.rtlText]}>
+                    <View style={[styles.modalHeader, isRtl && styles.rtlRow]}>
+                      <Text style={[styles.modalTitle, isRtl && styles.rtlText]}>
                         {t.supplementLogTitle}
                       </Text>
                       <Pressable onPress={() => setShowSupplementModal(false)} hitSlop={10}>
@@ -1198,7 +1341,7 @@ export default function HomeScreen() {
                       </Pressable>
                     </View>
 
-                    <View style={[styles.commonSupplementWrap, isRtlLanguage && styles.rtlRow]}>
+                    <View style={[styles.commonSupplementWrap, isRtl && styles.rtlRow]}>
                       {COMMON_SUPPLEMENTS.map((item) => (
                         <Pressable
                           key={item}
@@ -1226,14 +1369,14 @@ export default function HomeScreen() {
                         onChangeText={setSupplementName}
                         placeholder={t.supplementNamePlaceholder}
                         placeholderTextColor="#777777"
-                        style={[styles.supplementInput, isRtlLanguage && styles.rtlText]}
+                        style={[styles.supplementInput, isRtl && styles.rtlText]}
                       />
                       <TextInput
                         value={supplementDosage}
                         onChangeText={setSupplementDosage}
                         placeholder={t.supplementDosagePlaceholder}
                         placeholderTextColor="#777777"
-                        style={[styles.supplementInput, isRtlLanguage && styles.rtlText]}
+                        style={[styles.supplementInput, isRtl && styles.rtlText]}
                       />
                       <Pressable
                         onPress={handleSaveSupplement}
@@ -1253,23 +1396,23 @@ export default function HomeScreen() {
               {errorMessage ? (
                 <View style={styles.errorCard}>
                   <Ionicons name="alert-circle-outline" size={18} color={Colors.error} />
-                  <Text style={[styles.errorText, isRtlLanguage && styles.rtlText]}>{errorMessage}</Text>
+                  <Text style={[styles.errorText, isRtl && styles.rtlText]}>{errorMessage}</Text>
                 </View>
               ) : null}
 
               {languageRefreshMessage ? (
-                <View style={[styles.infoCard, isRtlLanguage && styles.rtlRow]}>
+                <View style={[styles.infoCard, isRtl && styles.rtlRow]}>
                     <Ionicons name="language" size={18} color="#2DCE89" />
-                  <Text style={[styles.infoText, isRtlLanguage && styles.rtlText]}>
+                  <Text style={[styles.infoText, isRtl && styles.rtlText]}>
                     {languageRefreshMessage}
                   </Text>
                 </View>
               ) : null}
 
               {showReadyMessage ? (
-                <View style={[styles.readyToast, isRtlLanguage && styles.rtlRow]}>
+                <View style={[styles.readyToast, isRtl && styles.rtlRow]}>
                   <Ionicons name="checkmark-circle" size={18} color={Colors.success} />
-                  <Text style={[styles.readyToastText, isRtlLanguage && styles.rtlText]}>
+                  <Text style={[styles.readyToastText, isRtl && styles.rtlText]}>
                     {t.recommendationReady}
                   </Text>
                 </View>
@@ -1279,20 +1422,20 @@ export default function HomeScreen() {
 
           {localizedResult ? (
             <>
-              <View style={[styles.resultContextCard, isRtlLanguage && styles.rtlRow]}>
+              <View style={[styles.resultContextCard, isRtl && styles.rtlRow]}>
                 <View style={styles.resultContextItem}>
-                  <Text style={[styles.resultContextLabel, isRtlLanguage && styles.rtlText]}>
+                  <Text style={[styles.resultContextLabel, isRtl && styles.rtlText]}>
                     {t.shareFeeling}
                   </Text>
-                  <Text style={[styles.resultContextValue, isRtlLanguage && styles.rtlText]}>
+                  <Text style={[styles.resultContextValue, isRtl && styles.rtlText]}>
                     {localizedResult.feeling}
                   </Text>
                 </View>
                 <View style={styles.resultContextItem}>
-                  <Text style={[styles.resultContextLabel, isRtlLanguage && styles.rtlText]}>
+                  <Text style={[styles.resultContextLabel, isRtl && styles.rtlText]}>
                     {t.conditions}
                   </Text>
-                  <Text style={[styles.resultContextValue, isRtlLanguage && styles.rtlText]}>
+                  <Text style={[styles.resultContextValue, isRtl && styles.rtlText]}>
                     {localizedConditionSummary}
                   </Text>
                 </View>
@@ -1301,11 +1444,11 @@ export default function HomeScreen() {
               <View style={[styles.resultsGrid, isWideLayout && styles.resultsGridWide]}>
               <View style={[styles.resultsPanel, isWideLayout && styles.nutrientsPanelWide]}>
                 <View style={styles.sectionHeader}>
-                  <Text style={[styles.sectionKicker, isRtlLanguage && styles.rtlText]}>{t.supportiveNutrients}</Text>
-                  <Text style={[styles.sectionTitle, isRtlLanguage && styles.rtlText]}>{t.nutrientBadges}</Text>
+                  <Text style={[styles.sectionKicker, isRtl && styles.rtlText]}>{t.supportiveNutrients}</Text>
+                  <Text style={[styles.sectionTitle, isRtl && styles.rtlText]}>{t.nutrientBadges}</Text>
                 </View>
 
-                <View style={[styles.nutrientBadgeWrap, isRtlLanguage && styles.rtlRow]}>
+                <View style={[styles.nutrientBadgeWrap, isRtl && styles.rtlRow]}>
                   {localizedNutrients.map((nutrient, index) => (
                     <View key={`${nutrient}-${index}`} style={styles.nutrientBadge}>
                       <Ionicons
@@ -1313,7 +1456,7 @@ export default function HomeScreen() {
                         size={16}
                         color="#2DCE89"
                       />
-                      <Text style={[styles.nutrientBadgeText, isRtlLanguage && styles.rtlText]}>
+                      <Text style={[styles.nutrientBadgeText, isRtl && styles.rtlText]}>
                         {nutrient}
                       </Text>
                     </View>
@@ -1322,23 +1465,23 @@ export default function HomeScreen() {
 
                 <View style={styles.foodsSection}>
                   <View style={styles.sectionHeader}>
-                    <Text style={[styles.sectionKicker, isRtlLanguage && styles.rtlText]}>{t.usdaMatches}</Text>
-                    <Text style={[styles.sectionTitle, isRtlLanguage && styles.rtlText]}>{t.recommendedFoods}</Text>
+                    <Text style={[styles.sectionKicker, isRtl && styles.rtlText]}>{t.usdaMatches}</Text>
+                    <Text style={[styles.sectionTitle, isRtl && styles.rtlText]}>{t.recommendedFoods}</Text>
                   </View>
 
                   {localizedResult.foods.length > 0 ? (
                     <View style={styles.foodList}>
                       {localizedResult.foods.slice(0, 5).map((food) => (
-                        <View key={food.description} style={[styles.foodItem, isRtlLanguage && styles.rtlRow]}>
+                        <View key={food.description} style={[styles.foodItem, isRtl && styles.rtlRow]}>
                           <View style={styles.foodIcon}>
                             <Ionicons name="restaurant" size={15} color="#2DCE89" />
                           </View>
-                          <Text style={[styles.foodItemText, isRtlLanguage && styles.rtlText]}>{food.description}</Text>
+                          <Text style={[styles.foodItemText, isRtl && styles.rtlText]}>{food.description}</Text>
                         </View>
                       ))}
                     </View>
                   ) : (
-                    <Text style={[styles.foodEmptyText, isRtlLanguage && styles.rtlText]}>
+                    <Text style={[styles.foodEmptyText, isRtl && styles.rtlText]}>
                       {t.noFoods}
                     </Text>
                   )}
@@ -1347,17 +1490,17 @@ export default function HomeScreen() {
 
               <View style={[styles.resultsPanel, styles.recommendationPanel]}>
                 <View style={styles.sectionHeader}>
-                  <Text style={[styles.sectionKicker, isRtlLanguage && styles.rtlText]}>{t.yourPlan}</Text>
-                  <Text style={[styles.sectionTitle, isRtlLanguage && styles.rtlText]}>{t.bigRecommendation}</Text>
+                  <Text style={[styles.sectionKicker, isRtl && styles.rtlText]}>{t.yourPlan}</Text>
+                  <Text style={[styles.sectionTitle, isRtl && styles.rtlText]}>{t.bigRecommendation}</Text>
                 </View>
 
                 <View style={styles.recommendationCard}>
                   <View style={styles.recommendationIcon}>
                     <Ionicons name="chatbubble-ellipses" size={22} color={Colors.textInverse} />
                   </View>
-                  <Text style={[styles.recommendationText, isRtlLanguage && styles.rtlText]}>{localizedResult.recommendation}</Text>
+                  <Text style={[styles.recommendationText, isRtl && styles.rtlText]}>{localizedResult.recommendation}</Text>
                   <View style={styles.medicalDisclaimerBox}>
-                    <Text style={[styles.medicalDisclaimerText, isRtlLanguage && styles.rtlText]}>
+                    <Text style={[styles.medicalDisclaimerText, isRtl && styles.rtlText]}>
                       {t.medicalDisclaimer}
                     </Text>
                   </View>
@@ -1378,21 +1521,192 @@ export default function HomeScreen() {
               <View style={styles.welcomeIcon}>
                 <Ionicons name="leaf" size={26} color="#2DCE89" />
               </View>
-              <Text style={[styles.welcomeTitle, isRtlLanguage && styles.rtlText]}>{t.welcomeEmptyTitle}</Text>
-              <Text style={[styles.welcomeText, isRtlLanguage && styles.rtlText]}>{t.welcomeEmptyText}</Text>
+              <Text style={[styles.welcomeTitle, isRtl && styles.rtlText]}>{t.welcomeEmptyTitle}</Text>
+              <Text style={[styles.welcomeText, isRtl && styles.rtlText]}>{t.welcomeEmptyText}</Text>
             </View>
           )}
+          <Text style={[styles.versionText, isRtl && styles.rtlText]}>{`${ui.version}: v1.1.0`}</Text>
+          <Text style={[styles.versionRightsText, isRtl && styles.rtlText]}>{ui.rightsReserved}</Text>
         </ScrollView>
       </KeyboardAvoidingView>
+      <Pressable
+        onPress={() => router.push('/relief')}
+        accessibilityRole="button"
+        accessibilityLabel="SOS Instant Relief"
+        style={({ pressed }) => [
+          styles.sosFab,
+          { bottom: Math.max(insets.bottom + 16, 28) },
+          pressed && styles.pressed,
+        ]}
+      >
+        <Ionicons name="warning" size={20} color="#FFFFFF" />
+        <Text style={[styles.sosFabText, isRtl && styles.rtlText]}>{`${ui.quickTips}: ${localizedStaticLabels.sos}`}</Text>
+      </Pressable>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: '#000000' },
+  safeArea: { flex: 1, backgroundColor: '#F4F5F0' },
   keyboardView: { flex: 1 },
-  content: { flexGrow: 1, padding: Spacing.lg, paddingBottom: Spacing.xxl + 28 },
+  content: {
+    backgroundColor: 'transparent',
+    borderColor: '#B2AC88',
+    borderRadius: 15,
+    borderWidth: 1,
+    flexGrow: 1,
+    gap: 24,
+    padding: 20,
+    paddingBottom: Spacing.xxl + 36,
+  },
   contentWide: { alignSelf: 'center', maxWidth: 1120, paddingHorizontal: Spacing.xl, width: '100%' },
+  sosFab: {
+    alignItems: 'center',
+    backgroundColor: '#D7263D',
+    borderColor: '#B91C2F',
+    borderRadius: 999,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: Spacing.xs,
+    justifyContent: 'center',
+    minHeight: 56,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    position: 'absolute',
+    right: 20,
+    shadowColor: '#D7263D',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.45,
+    shadowRadius: 16,
+    elevation: 16,
+    zIndex: 2000,
+  },
+  sosFabText: {
+    color: '#FFFFFF',
+    fontFamily: FontFamily.sansBold,
+    fontSize: FontSize.sm,
+  },
+  reliefMenuCard: {
+    backgroundColor: '#FFFFFF',
+    borderColor: '#ECE7D9',
+    borderRadius: 15,
+    borderWidth: 1,
+    gap: Spacing.md,
+    padding: 20,
+    shadowColor: '#102018',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.08,
+    shadowRadius: 16,
+    elevation: 4,
+  },
+  reliefSymptomRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Spacing.sm,
+  },
+  reliefSymptomChip: {
+    backgroundColor: '#F3F0E5',
+    borderColor: '#E2DBC6',
+    borderRadius: 15,
+    borderWidth: 1,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+  },
+  reliefSymptomChipSelected: {
+    backgroundColor: '#B2AC88',
+    borderColor: '#A39D7B',
+  },
+  reliefSymptomText: {
+    color: '#7E795D',
+    fontFamily: FontFamily.sansBold,
+    fontSize: FontSize.sm,
+  },
+  reliefSymptomTextSelected: {
+    color: '#FFFFFF',
+  },
+  reliefTipsBox: {
+    gap: Spacing.sm,
+  },
+  reliefTipRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: Spacing.sm,
+  },
+  reliefTipText: {
+    color: '#15212D',
+    flex: 1,
+    fontFamily: FontFamily.sansSemiBold,
+    fontSize: FontSize.sm,
+    lineHeight: 20,
+  },
+  reliefMoreButton: {
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    backgroundColor: '#B2AC88',
+    borderRadius: 15,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+  },
+  reliefMoreButtonText: {
+    color: '#FFFFFF',
+    fontFamily: FontFamily.sansBold,
+    fontSize: FontSize.sm,
+  },
+  topActionsRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: Spacing.sm,
+    justifyContent: 'flex-end',
+    marginBottom: Spacing.sm,
+  },
+  settingsQuickButton: {
+    alignItems: 'center',
+    backgroundColor: '#B2AC88',
+    borderColor: '#A39D7B',
+    borderRadius: 15,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: Spacing.xs,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: 8,
+  },
+  settingsQuickButtonText: {
+    color: '#FFFFFF',
+    fontFamily: FontFamily.sansSemiBold,
+    fontSize: FontSize.sm,
+  },
+  historyQuickButton: {
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderColor: '#E5E0D2',
+    borderRadius: 15,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: Spacing.xs,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: 8,
+  },
+  historyQuickButtonText: {
+    color: '#7E795D',
+    fontFamily: FontFamily.sansSemiBold,
+    fontSize: FontSize.sm,
+  },
+  loginQuickButton: {
+    alignItems: 'center',
+    backgroundColor: DS.colors.sage,
+    borderColor: DS.colors.sage,
+    borderRadius: DS.borderRadii.button,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: Spacing.xs,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: 8,
+  },
+  loginQuickButtonText: {
+    color: DS.colors.white,
+    fontFamily: FontFamily.sansSemiBold,
+    fontSize: FontSize.sm,
+  },
   rtlRow: {
     flexDirection: 'row-reverse',
   },
@@ -1405,11 +1719,11 @@ const styles = StyleSheet.create({
   heroCopy: { flex: 1, justifyContent: 'center' },
   dashboardScoreCard: {
     alignItems: 'center',
-    borderColor: '#123C2A',
-    borderRadius: BorderRadius.xl,
+    borderColor: '#E5E0D2',
+    borderRadius: 15,
     borderWidth: 1,
-    marginBottom: Spacing.lg,
-    padding: Spacing.lg,
+    marginBottom: 0,
+    padding: 24,
     ...Shadows.md,
   },
   eyebrow: {
@@ -1418,9 +1732,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row', gap: 6, marginBottom: Spacing.md, paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.sm,
   },
-  eyebrowText: { color: '#B7F7D6', fontFamily: FontFamily.sansSemiBold, fontSize: FontSize.xs },
+  eyebrowText: { color: DS.colors.sageDark, fontFamily: FontFamily.sansSemiBold, fontSize: FontSize.xs },
   rankTitle: {
-    color: '#FFFFFF',
+    color: DS.colors.navy,
     fontFamily: FontFamily.sansBold,
     fontSize: FontSize.xl,
     letterSpacing: -0.2,
@@ -1428,8 +1742,8 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   xpPill: {
-    backgroundColor: 'rgba(45,206,137,0.14)',
-    borderColor: 'rgba(45,206,137,0.28)',
+    backgroundColor: DS.colors.sageSoft,
+    borderColor: '#CFE0D6',
     borderRadius: BorderRadius.full,
     borderWidth: 1,
     marginBottom: Spacing.sm,
@@ -1437,27 +1751,27 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
   },
   xpPillText: {
-    color: '#B7F7D6',
+    color: DS.colors.sageDark,
     fontFamily: FontFamily.sansBold,
     fontSize: FontSize.xs,
   },
   xpTrack: {
     alignSelf: 'stretch',
-    backgroundColor: 'rgba(255,255,255,0.08)',
+    backgroundColor: DS.colors.creamTrack,
     borderRadius: BorderRadius.full,
     height: 8,
     marginBottom: Spacing.md,
     overflow: 'hidden',
   },
   xpFill: {
-    backgroundColor: '#2DCE89',
+    backgroundColor: DS.colors.sage,
     borderRadius: BorderRadius.full,
     height: '100%',
   },
   rankUpBadge: {
     alignItems: 'center',
-    backgroundColor: '#2DCE89',
-    borderRadius: BorderRadius.full,
+    backgroundColor: DS.colors.sage,
+    borderRadius: DS.borderRadii.button,
     flexDirection: 'row',
     gap: 6,
     marginBottom: Spacing.md,
@@ -1465,14 +1779,14 @@ const styles = StyleSheet.create({
     paddingVertical: 7,
   },
   rankUpBadgeText: {
-    color: '#000000',
+    color: DS.colors.white,
     fontFamily: FontFamily.sansBold,
     fontSize: FontSize.xs,
   },
   celebrationBadge: {
     alignItems: 'center',
     backgroundColor: '#D4A373',
-    borderRadius: BorderRadius.full,
+    borderRadius: 20,
     flexDirection: 'row',
     gap: 6,
     marginBottom: Spacing.md,
@@ -1485,46 +1799,55 @@ const styles = StyleSheet.create({
     fontSize: FontSize.xs,
   },
   heroTitle: {
-    color: '#FFFFFF', fontFamily: FontFamily.displayBold, fontSize: 44,
+    color: DS.colors.navy, fontFamily: FontFamily.displayBold, fontSize: 44,
     letterSpacing: -0.8, lineHeight: 48,
   },
   heroSubtitle: {
-    color: '#A7A7A7', fontFamily: FontFamily.sansRegular, fontSize: FontSize.md,
+    color: DS.colors.slate, fontFamily: FontFamily.sansRegular, fontSize: FontSize.md,
     lineHeight: 24, marginTop: Spacing.md, maxWidth: 560,
   },
   promptChips: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm, marginTop: Spacing.lg },
   promptChip: {
-    backgroundColor: '#101010', borderColor: '#242424', borderRadius: BorderRadius.full,
+    backgroundColor: DS.colors.white, borderColor: DS.colors.border, borderRadius: DS.borderRadii.button,
     borderWidth: 1, paddingHorizontal: Spacing.md, paddingVertical: Spacing.sm, ...Shadows.sm,
   },
-  promptChipText: { color: '#D8D8D8', fontFamily: FontFamily.sansMedium, fontSize: FontSize.sm },
+  promptChipText: { color: DS.colors.navy, fontFamily: FontFamily.sansMedium, fontSize: FontSize.sm },
+  languageTopWrap: {
+    alignSelf: 'stretch',
+    backgroundColor: '#FFFFFF',
+    borderColor: '#DADBCF',
+    borderRadius: 15,
+    borderWidth: 1,
+    marginBottom: Spacing.sm,
+    padding: Spacing.sm,
+  },
   languageRow: {
     flexDirection: 'row',
     gap: Spacing.sm,
-    marginBottom: Spacing.md,
+    justifyContent: 'center',
   },
   languageButton: {
-    backgroundColor: '#101010',
-    borderColor: '#242424',
-    borderRadius: BorderRadius.full,
+    backgroundColor: DS.colors.white,
+    borderColor: DS.colors.border,
+    borderRadius: DS.borderRadii.button,
     borderWidth: 1,
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.sm,
   },
   languageButtonActive: {
-    backgroundColor: '#2DCE89',
-    borderColor: '#2DCE89',
+    backgroundColor: DS.colors.sage,
+    borderColor: DS.colors.sage,
   },
   languageButtonText: {
-    color: '#C9C9C9',
+    color: DS.colors.slate,
     fontFamily: FontFamily.sansBold,
     fontSize: FontSize.xs,
   },
   languageButtonTextActive: {
-    color: '#000000',
+    color: DS.colors.white,
   },
   inputCard: {
-    backgroundColor: '#0B0B0B', borderColor: '#242424', borderRadius: BorderRadius.xl,
+    backgroundColor: DS.colors.white, borderColor: DS.colors.border, borderRadius: DS.borderRadii.card,
     borderWidth: 1, flex: 1, minWidth: 0, padding: Spacing.lg, ...Shadows.md,
   },
   inputHeader: {
@@ -1533,12 +1856,12 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginBottom: Spacing.sm,
   },
-  inputLabel: { color: '#F5F5F5', fontFamily: FontFamily.sansSemiBold, fontSize: FontSize.sm },
+  inputLabel: { color: DS.colors.navy, fontFamily: FontFamily.sansSemiBold, fontSize: FontSize.sm },
   clearButton: {
     alignItems: 'center',
-    backgroundColor: '#151515',
-    borderColor: '#2A2A2A',
-    borderRadius: BorderRadius.full,
+    backgroundColor: DS.colors.creamSoft,
+    borderColor: DS.colors.border,
+    borderRadius: DS.borderRadii.button,
     borderWidth: 1,
     flexDirection: 'row',
     gap: 4,
@@ -1547,13 +1870,13 @@ const styles = StyleSheet.create({
   },
   clearButtonDisabled: { opacity: 0.45 },
   clearButtonText: {
-    color: '#2DCE89',
+    color: DS.colors.sageDark,
     fontFamily: FontFamily.sansSemiBold,
     fontSize: FontSize.xs,
   },
   textArea: {
-    backgroundColor: '#111111', borderColor: '#242424', borderRadius: BorderRadius.lg,
-    borderWidth: 1, color: '#FFFFFF', fontFamily: FontFamily.sansRegular, fontSize: FontSize.md,
+    backgroundColor: '#FDFEFC', borderColor: DS.colors.border, borderRadius: DS.borderRadii.card,
+    borderWidth: 1, color: DS.colors.navy, fontFamily: FontFamily.sansRegular, fontSize: FontSize.md,
     lineHeight: 24, minHeight: 144, padding: Spacing.md,
   },
   profileControls: {
@@ -1570,7 +1893,7 @@ const styles = StyleSheet.create({
     padding: Spacing.md,
   },
   controlLabel: {
-    color: '#F4F4F4',
+    color: DS.colors.navy,
     fontFamily: FontFamily.sansSemiBold,
     fontSize: FontSize.sm,
   },
@@ -1580,8 +1903,8 @@ const styles = StyleSheet.create({
   },
   scoreButton: {
     alignItems: 'center',
-    backgroundColor: '#123C2A',
-    borderRadius: BorderRadius.full,
+    backgroundColor: DS.colors.sage,
+    borderRadius: DS.borderRadii.button,
     height: 32,
     justifyContent: 'center',
     width: 32,
@@ -1595,9 +1918,9 @@ const styles = StyleSheet.create({
   todayStatusBar: {
     alignItems: 'center',
     alignSelf: 'stretch',
-    backgroundColor: 'rgba(255,255,255,0.06)',
-    borderColor: 'rgba(255,255,255,0.11)',
-    borderRadius: BorderRadius.lg,
+    backgroundColor: DS.colors.creamSoft,
+    borderColor: DS.colors.border,
+    borderRadius: DS.borderRadii.card,
     borderWidth: 1,
     flexDirection: 'row',
     gap: Spacing.md,
@@ -1609,21 +1932,21 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   todayStatusLabel: {
-    color: '#2DCE89',
+    color: DS.colors.sageDark,
     fontFamily: FontFamily.sansBold,
     fontSize: FontSize.xs,
     marginBottom: 3,
     textTransform: 'uppercase',
   },
   todayStatusText: {
-    color: '#FFFFFF',
+    color: DS.colors.navy,
     fontFamily: FontFamily.sansSemiBold,
     fontSize: FontSize.sm,
   },
   todayStatusAddButton: {
     alignItems: 'center',
-    backgroundColor: '#2DCE89',
-    borderRadius: BorderRadius.full,
+    backgroundColor: DS.colors.sage,
+    borderRadius: DS.borderRadii.button,
     height: 42,
     justifyContent: 'center',
     width: 42,
@@ -1635,21 +1958,21 @@ const styles = StyleSheet.create({
   },
   primaryPhotoButton: {
     alignItems: 'center',
-    borderColor: 'rgba(255,255,255,0.12)',
-    borderRadius: BorderRadius.xl,
+    borderColor: '#A39D7B',
+    borderRadius: 15,
     borderWidth: 1,
     flexDirection: 'row',
     gap: Spacing.md,
     justifyContent: 'center',
-    minHeight: 72,
+    minHeight: 76,
     paddingHorizontal: Spacing.lg,
     paddingVertical: Spacing.md,
     ...Shadows.md,
   },
   primaryPhotoIcon: {
     alignItems: 'center',
-    backgroundColor: 'rgba(45,206,137,0.22)',
-    borderRadius: BorderRadius.full,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    borderRadius: 20,
     height: 46,
     justifyContent: 'center',
     width: 46,
@@ -1668,28 +1991,28 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.xs,
   },
   optionChip: {
-    backgroundColor: '#101010',
-    borderColor: '#242424',
-    borderRadius: BorderRadius.full,
+    backgroundColor: DS.colors.creamSoft,
+    borderColor: DS.colors.border,
+    borderRadius: DS.borderRadii.button,
     borderWidth: 1,
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.sm,
   },
   optionChipActive: {
-    backgroundColor: '#123C2A',
-    borderColor: '#2DCE89',
+    backgroundColor: DS.colors.sageSoft,
+    borderColor: DS.colors.sage,
   },
   optionChipText: {
-    color: '#BEBEBE',
+    color: DS.colors.slate,
     fontFamily: FontFamily.sansSemiBold,
     fontSize: FontSize.xs,
     textTransform: 'capitalize',
   },
   optionChipTextActive: {
-    color: '#FFFFFF',
+    color: DS.colors.navy,
   },
   generateButton: {
-    alignItems: 'center', backgroundColor: '#123C2A', borderRadius: BorderRadius.lg,
+    alignItems: 'center', backgroundColor: DS.colors.sage, borderRadius: DS.borderRadii.button,
     flexDirection: 'row', gap: Spacing.sm, justifyContent: 'center', marginTop: Spacing.md,
     minHeight: 54, paddingHorizontal: Spacing.lg, paddingVertical: Spacing.md, ...Shadows.md,
   },
@@ -1878,21 +2201,36 @@ const styles = StyleSheet.create({
     marginTop: Spacing.sm,
   },
   photoHistoryCard: {
-    backgroundColor: '#090909',
-    borderColor: '#242424',
-    borderRadius: BorderRadius.xl,
+    backgroundColor: DS.colors.white,
+    borderColor: '#E5E0D2',
+    borderRadius: 15,
     borderWidth: 1,
-    marginTop: Spacing.lg,
-    padding: Spacing.lg,
+    marginTop: 0,
+    padding: 24,
     ...Shadows.sm,
   },
   chartCard: {
-    backgroundColor: '#090909',
-    borderColor: '#242424',
-    borderRadius: BorderRadius.xl,
+    backgroundColor: DS.colors.white,
+    borderColor: '#E5E0D2',
+    borderRadius: 15,
     borderWidth: 1,
-    marginTop: Spacing.lg,
-    padding: Spacing.lg,
+    marginTop: 0,
+    padding: 24,
+  },
+  dailyScoreCard: {
+    backgroundColor: DS.colors.white,
+    borderColor: '#E5E0D2',
+    borderRadius: 15,
+    borderWidth: 1,
+    marginTop: 0,
+    padding: 24,
+    ...DS.shadows.soft,
+  },
+  dailyScoreSummary: {
+    color: DS.colors.slate,
+    fontFamily: FontFamily.sansMedium,
+    fontSize: FontSize.sm,
+    lineHeight: 22,
   },
   chartLegend: {
     flexDirection: 'row',
@@ -1917,14 +2255,14 @@ const styles = StyleSheet.create({
     backgroundColor: '#D4A373',
   },
   chartLegendText: {
-    color: '#CFCFCF',
+    color: DS.colors.slate,
     fontFamily: FontFamily.sansBold,
     fontSize: FontSize.xs,
   },
   chartPopup: {
-    backgroundColor: 'rgba(255,255,255,0.07)',
-    borderColor: 'rgba(255,255,255,0.13)',
-    borderRadius: BorderRadius.lg,
+    backgroundColor: DS.colors.creamSoft,
+    borderColor: DS.colors.border,
+    borderRadius: DS.borderRadii.card,
     borderWidth: 1,
     marginTop: Spacing.md,
     padding: Spacing.md,
@@ -1937,13 +2275,13 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.sm,
   },
   chartPopupTitle: {
-    color: '#FFFFFF',
+    color: DS.colors.navy,
     flex: 1,
     fontFamily: FontFamily.sansBold,
     fontSize: FontSize.sm,
   },
   chartPopupText: {
-    color: '#CFCFCF',
+    color: DS.colors.slate,
     fontFamily: FontFamily.sansMedium,
     fontSize: FontSize.sm,
     lineHeight: 21,
@@ -1953,9 +2291,9 @@ const styles = StyleSheet.create({
   },
   photoHistoryItem: {
     alignItems: 'center',
-    backgroundColor: '#101010',
-    borderColor: '#242424',
-    borderRadius: BorderRadius.xl,
+    backgroundColor: '#FDFEFC',
+    borderColor: DS.colors.border,
+    borderRadius: DS.borderRadii.card,
     borderWidth: 1,
     flexDirection: 'row',
     gap: Spacing.md,
@@ -1976,7 +2314,7 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   photoHistoryMeal: {
-    color: '#FFFFFF',
+    color: DS.colors.navy,
     fontFamily: FontFamily.sansBold,
     fontSize: FontSize.sm,
     marginBottom: 4,
@@ -2000,8 +2338,8 @@ const styles = StyleSheet.create({
   historyButton: {
     alignItems: 'center',
     alignSelf: 'stretch',
-    backgroundColor: '#2DCE89',
-    borderRadius: BorderRadius.full,
+    backgroundColor: DS.colors.sage,
+    borderRadius: DS.borderRadii.button,
     flexDirection: 'row',
     gap: Spacing.sm,
     justifyContent: 'center',
@@ -2009,17 +2347,17 @@ const styles = StyleSheet.create({
     minHeight: 46,
   },
   historyButtonText: {
-    color: '#000000',
+    color: DS.colors.white,
     fontFamily: FontFamily.sansBold,
     fontSize: FontSize.sm,
   },
   heatmapCard: {
-    backgroundColor: '#090909',
-    borderColor: '#242424',
-    borderRadius: BorderRadius.xl,
+    backgroundColor: DS.colors.white,
+    borderColor: '#E5E0D2',
+    borderRadius: 15,
     borderWidth: 1,
-    marginTop: Spacing.lg,
-    padding: Spacing.lg,
+    marginTop: 0,
+    padding: 24,
   },
   heatmapGrid: {
     flexDirection: 'row',
@@ -2027,8 +2365,8 @@ const styles = StyleSheet.create({
     gap: 7,
   },
   heatmapCell: {
-    backgroundColor: '#151515',
-    borderColor: '#242424',
+    backgroundColor: DS.colors.creamSoft,
+    borderColor: DS.colors.border,
     borderRadius: 5,
     borderWidth: 1,
     height: 18,
@@ -2042,7 +2380,7 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
   },
   emptyText: {
-    color: '#A7A7A7',
+    color: DS.colors.slate,
     fontFamily: FontFamily.sansMedium,
     fontSize: FontSize.sm,
     lineHeight: 20,
@@ -2088,9 +2426,9 @@ const styles = StyleSheet.create({
     fontSize: FontSize.sm,
   },
   resultContextCard: {
-    backgroundColor: '#090909',
-    borderColor: '#242424',
-    borderRadius: BorderRadius.xl,
+    backgroundColor: DS.colors.white,
+    borderColor: DS.colors.border,
+    borderRadius: DS.borderRadii.card,
     borderWidth: 1,
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -2104,14 +2442,14 @@ const styles = StyleSheet.create({
     minWidth: 140,
   },
   resultContextLabel: {
-    color: '#2DCE89',
+    color: DS.colors.sageDark,
     fontFamily: FontFamily.sansBold,
     fontSize: FontSize.xs,
     marginBottom: 3,
     textTransform: 'uppercase',
   },
   resultContextValue: {
-    color: '#FFFFFF',
+    color: DS.colors.navy,
     fontFamily: FontFamily.sansSemiBold,
     fontSize: FontSize.sm,
     lineHeight: 20,
@@ -2119,17 +2457,17 @@ const styles = StyleSheet.create({
   resultsGrid: { gap: Spacing.lg, marginTop: Spacing.lg },
   resultsGridWide: { alignItems: 'stretch', flexDirection: 'row' },
   resultsPanel: {
-    backgroundColor: '#090909', borderColor: '#242424', borderRadius: BorderRadius.xl,
+    backgroundColor: DS.colors.white, borderColor: DS.colors.border, borderRadius: DS.borderRadii.card,
     borderWidth: 1, padding: Spacing.lg, ...Shadows.sm,
   },
   nutrientsPanelWide: { flex: 0.9 },
   recommendationPanel: { flex: 1.1 },
   sectionHeader: { marginBottom: Spacing.md },
   sectionKicker: {
-    color: '#2DCE89', fontFamily: FontFamily.sansBold, fontSize: FontSize.xs,
+    color: DS.colors.sageDark, fontFamily: FontFamily.sansBold, fontSize: FontSize.xs,
     letterSpacing: 0.8, marginBottom: 2, textTransform: 'uppercase',
   },
-  sectionTitle: { color: '#FFFFFF', fontFamily: FontFamily.displaySemiBold, fontSize: FontSize.xl },
+  sectionTitle: { color: DS.colors.navy, fontFamily: FontFamily.sansExtraBold, fontSize: 25, letterSpacing: -0.3 },
   nutrientBadgeWrap: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -2139,7 +2477,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: '#102C20',
     borderColor: '#164934',
-    borderRadius: BorderRadius.full,
+    borderRadius: DS.borderRadii.button,
     borderWidth: 1,
     flexDirection: 'row',
     gap: 6,
@@ -2152,7 +2490,7 @@ const styles = StyleSheet.create({
     fontSize: FontSize.sm,
   },
   foodsSection: {
-    borderTopColor: '#242424',
+    borderTopColor: DS.colors.border,
     borderTopWidth: 1,
     marginTop: Spacing.lg,
     paddingTop: Spacing.lg,
@@ -2162,9 +2500,9 @@ const styles = StyleSheet.create({
   },
   foodItem: {
     alignItems: 'center',
-    backgroundColor: '#101010',
-    borderColor: '#242424',
-    borderRadius: BorderRadius.lg,
+    backgroundColor: '#FDFEFC',
+    borderColor: DS.colors.border,
+    borderRadius: DS.borderRadii.card,
     borderWidth: 1,
     flexDirection: 'row',
     gap: Spacing.sm,
@@ -2179,24 +2517,24 @@ const styles = StyleSheet.create({
     width: 32,
   },
   foodItemText: {
-    color: '#F5F5F5',
+    color: DS.colors.navy,
     flex: 1,
     fontFamily: FontFamily.sansMedium,
     fontSize: FontSize.sm,
     lineHeight: 20,
   },
   foodEmptyText: {
-    color: '#A7A7A7',
+    color: DS.colors.slate,
     fontFamily: FontFamily.sansRegular,
     fontSize: FontSize.sm,
     lineHeight: 20,
   },
-  recommendationCard: { backgroundColor: '#03120D', borderRadius: BorderRadius.xl, overflow: 'hidden', padding: Spacing.lg },
+  recommendationCard: { backgroundColor: DS.colors.sageSoft, borderRadius: DS.borderRadii.card, overflow: 'hidden', padding: Spacing.lg },
   recommendationIcon: {
     alignItems: 'center', backgroundColor: Colors.secondary + '55', borderRadius: BorderRadius.full,
     height: 46, justifyContent: 'center', marginBottom: Spacing.md, width: 46,
   },
-  recommendationText: { color: Colors.textInverse, fontFamily: FontFamily.displayMedium, fontSize: 25, lineHeight: 36 },
+  recommendationText: { color: DS.colors.navy, fontFamily: FontFamily.displayMedium, fontSize: 25, lineHeight: 36 },
   medicalDisclaimerBox: {
     backgroundColor: 'rgba(255,255,255,0.08)',
     borderColor: 'rgba(255,255,255,0.12)',
@@ -2215,8 +2553,8 @@ const styles = StyleSheet.create({
   shareButton: {
     alignItems: 'center',
     alignSelf: 'flex-start',
-    backgroundColor: '#2DCE89',
-    borderRadius: BorderRadius.full,
+    backgroundColor: DS.colors.sage,
+    borderRadius: DS.borderRadii.button,
     flexDirection: 'row',
     gap: Spacing.sm,
     marginTop: Spacing.lg,
@@ -2224,15 +2562,15 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.sm,
   },
   shareButtonText: {
-    color: '#000000',
+    color: DS.colors.white,
     fontFamily: FontFamily.sansBold,
     fontSize: FontSize.sm,
   },
   welcomeState: {
     alignItems: 'center',
-    backgroundColor: '#090909',
-    borderColor: '#242424',
-    borderRadius: BorderRadius.xl,
+    backgroundColor: DS.colors.white,
+    borderColor: DS.colors.border,
+    borderRadius: DS.borderRadii.card,
     borderWidth: 1,
     marginTop: Spacing.lg,
     padding: Spacing.xl,
@@ -2248,19 +2586,33 @@ const styles = StyleSheet.create({
     width: 56,
   },
   welcomeTitle: {
-    color: '#FFFFFF',
+    color: DS.colors.navy,
     fontFamily: FontFamily.displaySemiBold,
     fontSize: FontSize.xl,
     lineHeight: 30,
     textAlign: 'center',
   },
   welcomeText: {
-    color: '#A7A7A7',
+    color: DS.colors.slate,
     fontFamily: FontFamily.sansRegular,
     fontSize: FontSize.md,
     lineHeight: 24,
     marginTop: Spacing.sm,
     maxWidth: 560,
+    textAlign: 'center',
+  },
+  versionText: {
+    color: '#7E795D',
+    fontFamily: FontFamily.sansBold,
+    fontSize: FontSize.xs,
+    marginTop: Spacing.md,
+    textAlign: 'center',
+  },
+  versionRightsText: {
+    color: '#8B866A',
+    fontFamily: FontFamily.sansRegular,
+    fontSize: FontSize.xs,
+    marginTop: 4,
     textAlign: 'center',
   },
   pressed: { opacity: 0.78, transform: [{ scale: 0.99 }] },

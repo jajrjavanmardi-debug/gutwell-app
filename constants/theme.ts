@@ -1,13 +1,52 @@
+export const Theme = {
+  colors: {
+    sage: '#B2AC88',
+    sageDark: '#7E795D',
+    sageSoft: '#F3F0E5',
+    cream: '#FAF8F1',
+    creamSoft: '#FDFBF5',
+    creamTrack: '#ECE7D9',
+    navy: '#15212D',
+    slate: '#4E5B66',
+    white: '#FFFFFF',
+    border: '#DDE6DF',
+  },
+  borderRadii: {
+    card: 15,
+    button: 15,
+  },
+  shadows: {
+    card: {
+      shadowColor: '#102018',
+      shadowOpacity: 0.07,
+      shadowRadius: 14,
+      shadowOffset: { width: 0, height: 7 },
+      elevation: 4,
+    },
+    soft: {
+      shadowColor: '#102018',
+      shadowOpacity: 0.06,
+      shadowRadius: 10,
+      shadowOffset: { width: 0, height: 5 },
+      elevation: 3,
+    },
+  },
+  gradients: {
+    primary: ['#B2AC88', '#8E8868'] as const,
+    surface: ['#FFFFFF', '#F7F4EA'] as const,
+  },
+} as const;
+
 import { Platform } from 'react-native';
 
-// ─── Premium Dark Green Color Palette ───────────────────────────────────────
+// ─── Premium Sage Green Color Palette ───────────────────────────────────────
 export const Colors = {
-  // Brand — deep forest green
-  primary: '#1B4332',
-  primaryLight: '#2D6A4F',
-  primaryDark: '#0B2618',
-  secondary: '#52B788',
-  secondaryLight: '#74C69D',
+  // Brand — soft sage green
+  primary: '#B2AC88',
+  primaryLight: '#C7C1A0',
+  primaryDark: '#7E795D',
+  secondary: '#B2AC88',
+  secondaryLight: '#C7C1A0',
   accent: '#D4A373',
   accentLight: '#E6C9A8',
 
@@ -15,7 +54,7 @@ export const Colors = {
   background: '#000000',
   surface: '#0B0B0B',
   surfaceSecondary: '#111111',
-  surfaceDark: '#0B2618',
+  surfaceDark: '#7E795D',
 
   // Text
   text: '#FFFFFF',
@@ -24,22 +63,22 @@ export const Colors = {
   textInverse: '#FFFFFF',
 
   // Functional
-  success: '#2D6A4F',
+  success: '#B2AC88',
   warning: '#D4A373',
   error: '#C1444B',
   info: '#5B9BD5',
 
   // UI elements
   border: '#242424',
-  borderFocused: '#2D6A4F',
+  borderFocused: '#B2AC88',
   divider: '#181818',
   disabled: '#2A2A2A',
   tabInactive: '#777777',
 
   // Severity scale (1-5) for symptoms
   severity: {
-    1: '#52B788',
-    2: '#74C69D',
+    1: '#C7C1A0',
+    2: '#B2AC88',
     3: '#D4A373',
     4: '#E07A5F',
     5: '#C1444B',
@@ -49,8 +88,8 @@ export const Colors = {
   bristol: {
     1: '#8B6F47',
     2: '#A0845C',
-    3: '#52B788',
-    4: '#2D6A4F',
+    3: '#B2AC88',
+    4: '#7E795D',
     5: '#D4A373',
     6: '#E07A5F',
     7: '#C1444B',
@@ -61,31 +100,31 @@ export const Colors = {
     1: '#C1444B',   // Bad
     2: '#E07A5F',   // Low
     3: '#D4A373',   // Okay
-    4: '#52B788',   // Good
-    5: '#2D6A4F',   // Great
+    4: '#B2AC88',   // Good
+    5: '#7E795D',   // Great
   } as Record<number, string>,
 
   // Contribution calendar heatmap
   calendarEmpty: '#151515',
   calendarLevel1: '#D8F3DC',
   calendarLevel2: '#95D5B2',
-  calendarLevel3: '#52B788',
-  calendarLevel4: '#1B4332',
+  calendarLevel3: '#B2AC88',
+  calendarLevel4: '#7E795D',
 
   // Onboarding gradient
-  onboardingGradientStart: '#0B2618',
-  onboardingGradientEnd: '#1B4332',
-  onboardingProgressTrack: '#0B2618',
-  onboardingProgressFill: '#52B788',
+  onboardingGradientStart: '#7E795D',
+  onboardingGradientEnd: '#B2AC88',
+  onboardingProgressTrack: '#7E795D',
+  onboardingProgressFill: '#B2AC88',
   onboardingOptionBg: '#143728',
-  onboardingOptionBorder: '#52B788',
+  onboardingOptionBorder: '#B2AC88',
 
   // Level system
   level: {
     beginner: '#95D5B2',
-    explorer: '#74C69D',
-    tracker: '#52B788',
-    specialist: '#2D6A4F',
+    explorer: '#C7C1A0',
+    tracker: '#B2AC88',
+    specialist: '#7E795D',
     guru: '#D4A373',
   },
 };
@@ -122,11 +161,11 @@ export const FontSize = {
 
 // ─── Typography System (EB Garamond + Inter) ────────────────────────────────
 export const FontFamily = {
-  // Display / Headings — elegant serif
-  displayRegular: 'EBGaramond_400Regular',
-  displayMedium: 'EBGaramond_500Medium',
-  displaySemiBold: 'EBGaramond_600SemiBold',
-  displayBold: 'EBGaramond_700Bold',
+  // Display / Headings — clean premium sans-serif
+  displayRegular: 'Inter_400Regular',
+  displayMedium: 'Inter_500Medium',
+  displaySemiBold: 'Inter_700Bold',
+  displayBold: 'Inter_800ExtraBold',
   // UI / Body — clean sans-serif
   sansRegular: 'Inter_400Regular',
   sansMedium: 'Inter_500Medium',
@@ -198,21 +237,21 @@ export const Fonts = Platform.select({
 // ─── Shadows ────────────────────────────────────────────────────────────────
 export const Shadows = {
   sm: {
-    shadowColor: '#1B4332',
+    shadowColor: '#7E795D',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.08,
     shadowRadius: 8,
     elevation: 3,
   },
   md: {
-    shadowColor: '#1B4332',
+    shadowColor: '#7E795D',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.12,
     shadowRadius: 16,
     elevation: 6,
   },
   lg: {
-    shadowColor: '#1B4332',
+    shadowColor: '#7E795D',
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.16,
     shadowRadius: 24,
