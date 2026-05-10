@@ -4,7 +4,7 @@ export type AppLanguage = 'en' | 'de' | 'fa';
 
 export const APP_LANGUAGE_OPTIONS: Array<{ value: AppLanguage; label: string }> = [
   { value: 'en', label: 'English' },
-  { value: 'de', label: 'German' },
+  { value: 'de', label: 'Deutsch' },
   { value: 'fa', label: 'فارسی' },
 ];
 
