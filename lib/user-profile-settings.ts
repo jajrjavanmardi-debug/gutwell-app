@@ -23,39 +23,43 @@ export type UserProfileSettings = {
   preferredLanguage?: AppLanguage;
 };
 
+type ProfileSettingsRow = Record<string, unknown>;
+
 function isMedicalCondition(value: unknown): value is MedicalCondition {
   return typeof value === 'string' && MEDICAL_CONDITION_OPTIONS.includes(value as MedicalCondition);
 }
 
-export async function getUserProfileSettings(): Promise<UserProfileSettings> {
-  const { data: { user } } = await supabase.auth.getUser();
+function isProfileSchemaCompatibilityError(error: { code?: string; message?: string }): boolean {
+  const message = error.message?.toLowerCase() ?? '';
+  return (
+    error.code === 'PGRST204'
+    || error.code === '42703'
+    || message.includes('medical_conditions')
+    || message.includes('preferred_language')
+  );
+}
 
-  if (user?.id) {
-    const { data, error } = await supabase
-      .from('user_profiles')
-      .select('medical_conditions, preferred_language')
-      .eq('user_id', user.id)
-      .maybeSingle();
+function readProfileSettingsRow(
+  data: ProfileSettingsRow,
+  fallbackSettings: UserProfileSettings,
+): UserProfileSettings {
+  return {
+    conditions: Array.isArray(data.medical_conditions)
+      ? data.medical_conditions.filter(isMedicalCondition)
+      : fallbackSettings.conditions,
+    preferredLanguage: parseStoredLanguage(
+      typeof data.preferred_language === 'string'
+        ? data.preferred_language
+        : fallbackSettings.preferredLanguage ?? null
+    ),
+  };
+}
 
-    if (error) throw error;
-
-    if (data) {
-      const settings = {
-        conditions: Array.isArray(data.medical_conditions)
-          ? data.medical_conditions.filter(isMedicalCondition)
-          : [],
-        preferredLanguage: parseStoredLanguage(data.preferred_language),
-      };
-      await AsyncStorage.setItem(getProfileSettingsStorageKey(user.id), JSON.stringify(settings));
-      await AsyncStorage.setItem(USER_PROFILE_SETTINGS_KEY, JSON.stringify(settings));
-      await AsyncStorage.setItem(APP_LANGUAGE_STORAGE_KEY, settings.preferredLanguage);
-      return settings;
-    }
-  }
-
+async function readCachedProfileSettings(userId?: string): Promise<UserProfileSettings> {
   const raw = await AsyncStorage.getItem(
-    user?.id ? getProfileSettingsStorageKey(user.id) : USER_PROFILE_SETTINGS_KEY
+    userId ? getProfileSettingsStorageKey(userId) : USER_PROFILE_SETTINGS_KEY
   ) ?? await AsyncStorage.getItem(USER_PROFILE_SETTINGS_KEY);
+
   if (!raw) {
     const storedLanguage = await AsyncStorage.getItem(APP_LANGUAGE_STORAGE_KEY);
     return { conditions: [], preferredLanguage: parseStoredLanguage(storedLanguage) };
@@ -74,6 +78,35 @@ export async function getUserProfileSettings(): Promise<UserProfileSettings> {
     const storedLanguage = await AsyncStorage.getItem(APP_LANGUAGE_STORAGE_KEY);
     return { conditions: [], preferredLanguage: parseStoredLanguage(storedLanguage) };
   }
+}
+
+export async function getUserProfileSettings(): Promise<UserProfileSettings> {
+  const { data: { user } } = await supabase.auth.getUser();
+
+  if (user?.id) {
+    const { data, error } = await supabase
+      .from('user_profiles')
+      .select('*')
+      .eq('user_id', user.id)
+      .maybeSingle();
+
+    if (error) {
+      if (!isProfileSchemaCompatibilityError(error)) throw error;
+      return readCachedProfileSettings(user.id);
+    }
+
+    if (data) {
+      const cachedSettings = await readCachedProfileSettings(user.id);
+      const settings = readProfileSettingsRow(data as ProfileSettingsRow, cachedSettings);
+      const preferredLanguage = settings.preferredLanguage ?? 'en';
+      await AsyncStorage.setItem(getProfileSettingsStorageKey(user.id), JSON.stringify(settings));
+      await AsyncStorage.setItem(USER_PROFILE_SETTINGS_KEY, JSON.stringify(settings));
+      await AsyncStorage.setItem(APP_LANGUAGE_STORAGE_KEY, preferredLanguage);
+      return settings;
+    }
+  }
+
+  return readCachedProfileSettings(user?.id);
 }
 
 export async function saveUserProfileSettings(settings: UserProfileSettings): Promise<void> {
@@ -97,7 +130,20 @@ export async function saveUserProfileSettings(settings: UserProfileSettings): Pr
         },
         { onConflict: 'user_id' }
       );
-    if (error) throw error;
+    if (error) {
+      if (!isProfileSchemaCompatibilityError(error)) throw error;
+
+      const { error: fallbackError } = await supabase
+        .from('user_profiles')
+        .upsert(
+          {
+            user_id: user.id,
+            updated_at: new Date().toISOString(),
+          },
+          { onConflict: 'user_id' }
+        );
+      if (fallbackError && !isProfileSchemaCompatibilityError(fallbackError)) throw fallbackError;
+    }
   }
 }
 

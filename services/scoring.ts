@@ -1,5 +1,5 @@
 import { getLocalDateKey } from '../lib/date';
-import { generateDailyGutScoreInsight } from '../lib/gemini';
+import { generateDailyGutScoreInsight } from '../lib/groq';
 import { updateTodayScore } from '../lib/scoring';
 import { supabase } from '../lib/supabase';
 
@@ -39,8 +39,47 @@ export type DailyGutScoreCardData = {
   insight: string;
 };
 
+type UserProfileScoreRow = Record<string, unknown>;
+
 function clamp(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, value));
+}
+
+function readString(value: unknown, fallback = ''): string {
+  return typeof value === 'string' ? value : fallback;
+}
+
+function readStringArray(value: unknown): string[] {
+  return Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : [];
+}
+
+function buildDailyGutScoreFallbackInsight(score: number, mainGoal: string | null): string {
+  const goal = mainGoal?.trim();
+
+  if (score >= 75) {
+    return goal
+      ? `Your gut score is strong today; keep one steady habit supporting ${goal}.`
+      : 'Your gut score is strong today; keep meals simple, hydrated, and consistent.';
+  }
+
+  if (score >= 50) {
+    return goal
+      ? `Your gut score is moderate; choose one gentle meal or hydration step for ${goal}.`
+      : 'Your gut score is moderate; choose one gentle meal and track symptoms today.';
+  }
+
+  return goal
+    ? `Your gut score needs support; keep portions gentle and avoid likely triggers for ${goal}.`
+    : 'Your gut score needs support; keep portions gentle and avoid likely triggers today.';
+}
+
+async function getDailyGutScoreInsight(input: { score: number; mainGoal: string | null }): Promise<string> {
+  try {
+    const insight = await generateDailyGutScoreInsight(input);
+    return insight.trim() || buildDailyGutScoreFallbackInsight(input.score, input.mainGoal);
+  } catch {
+    return buildDailyGutScoreFallbackInsight(input.score, input.mainGoal);
+  }
 }
 
 /**
@@ -200,7 +239,7 @@ export async function fetchDailyGutScoreCardData(userId: string): Promise<DailyG
   const [{ data: profile }, { data: checkIn }] = await Promise.all([
     supabase
       .from('user_profiles')
-      .select('main_goal, focus_areas, stool_type_baseline, symptoms_baseline')
+      .select('*')
       .eq('user_id', userId)
       .maybeSingle(),
     supabase
@@ -213,11 +252,12 @@ export async function fetchDailyGutScoreCardData(userId: string): Promise<DailyG
       .maybeSingle(),
   ]);
 
+  const profileRow = (profile ?? {}) as UserProfileScoreRow;
   const scoreResult = calculateGutScore(
     {
-      mainGoal: profile?.main_goal ?? 'General health',
-      stoolTypeBaseline: profile?.stool_type_baseline ?? null,
-      symptomsBaseline: Array.isArray(profile?.symptoms_baseline) ? profile.symptoms_baseline : [],
+      mainGoal: readString(profileRow.main_goal, 'General health'),
+      stoolTypeBaseline: readString(profileRow.stool_type_baseline, '') || null,
+      symptomsBaseline: readStringArray(profileRow.symptoms_baseline),
     },
     {
       checkIn: {
@@ -231,9 +271,9 @@ export async function fetchDailyGutScoreCardData(userId: string): Promise<DailyG
     },
   );
 
-  const insight = await generateDailyGutScoreInsight({
+  const insight = await getDailyGutScoreInsight({
     score: scoreResult.score,
-    mainGoal: profile?.main_goal ?? null,
+    mainGoal: readString(profileRow.main_goal, '') || null,
   });
 
   return {

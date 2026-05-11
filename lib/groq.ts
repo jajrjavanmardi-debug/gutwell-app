@@ -453,13 +453,8 @@ export async function getHelpfulNutrientsForFeeling(userFeeling: string): Promis
     'The nutrients field must be an array of nutrient names as strings.',
   ].join('\n');
 
-  try {
-    const text = await callGroq(prompt, 'json');
-    return parseJsonList(text);
-  } catch (error) {
-    console.error('Groq nutrient extraction failed:', error);
-    throw error;
-  }
+  const text = await callGroq(prompt, 'json');
+  return parseJsonList(text);
 }
 
 export async function getFoodRecommendationFromNutrients(
@@ -513,6 +508,19 @@ export async function getFoodRecommendationFromNutrients(
       ? 'Mention USDA data only if it directly helps the practical answer; do not let generic USDA matches distract from the named food or symptom question.'
       : 'Because no USDA food matched, suggest general food categories or habits tied to the listed nutrients instead of inventing USDA facts.',
   ].filter(Boolean).join('\n');
+
+  return callGroq(prompt, 'text');
+}
+
+export async function generateDailyGutScoreInsight(input: {
+  score: number;
+  mainGoal: string | null;
+}): Promise<string> {
+  const prompt = [
+    `Based on a Gut Score of ${input.score}/100 and the goal of ${input.mainGoal ?? 'General gut health'}, give a 1-sentence coaching tip.`,
+    'Make it practical, specific, and supportive.',
+    'No diagnosis, no treatment claim, no emojis, max 20 words.',
+  ].join('\n');
 
   return callGroq(prompt, 'text');
 }
