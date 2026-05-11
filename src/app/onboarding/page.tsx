@@ -11,6 +11,7 @@ import {
   parseStoredLanguage,
   type AppLanguage,
 } from '../../../lib/app-language';
+import { useAuth } from '../../../contexts/AuthContext';
 import { supabase } from '../../../lib/supabase';
 
 type Question = {
@@ -32,6 +33,8 @@ type OnboardingCopy = {
   saving: string;
   startTracking: string;
   back: string;
+  signInRequired: string;
+  saveError: string;
   questions: Question[];
   focusLabels: Record<string, string>;
   habitLabels: Record<string, string>;
@@ -52,6 +55,8 @@ const ONBOARDING_COPY: Record<AppLanguage, OnboardingCopy> = {
     saving: 'Saving profile...',
     startTracking: 'Start tracking',
     back: 'Back',
+    signInRequired: 'Please sign in before saving your profile.',
+    saveError: 'Could not save your profile. Please try again.',
     questions: [
       { id: 'bowelFrequency', title: 'How often do you have a bowel movement?', helper: 'Tap one option to continue.', options: [
         { value: '2_3_per_day', label: '2–3 per day' },
@@ -142,6 +147,8 @@ const ONBOARDING_COPY: Record<AppLanguage, OnboardingCopy> = {
     saving: 'Profil wird gespeichert...',
     startTracking: 'Tracking starten',
     back: 'Zurück',
+    signInRequired: 'Bitte melde dich an, bevor du dein Profil speicherst.',
+    saveError: 'Dein Profil konnte nicht gespeichert werden. Bitte versuche es erneut.',
     questions: [
       { id: 'bowelFrequency', title: 'Wie oft hast du Stuhlgang?', helper: 'Tippe eine Option an, um fortzufahren.', options: [
         { value: '2_3_per_day', label: '2–3 Mal pro Tag' },
@@ -232,6 +239,8 @@ const ONBOARDING_COPY: Record<AppLanguage, OnboardingCopy> = {
     saving: 'در حال ذخیره پروفایل...',
     startTracking: 'شروع پیگیری',
     back: 'بازگشت',
+    signInRequired: 'برای ذخیره پروفایل، لطفاً وارد شوید.',
+    saveError: 'ذخیره پروفایل انجام نشد. لطفاً دوباره تلاش کنید.',
     questions: [
       { id: 'bowelFrequency', title: 'چند وقت یک‌بار اجابت مزاج داری؟', helper: 'برای ادامه، یک گزینه را انتخاب کن.', options: [
         { value: '2_3_per_day', label: '۲ تا ۳ بار در روز' },
@@ -354,10 +363,12 @@ function computeHabits(answers: Record<string, string>) {
 
 export default function OnboardingPage() {
   const router = useRouter();
+  const { user, loading: authLoading, refreshProfile } = useAuth();
   const [language, setLanguageState] = useState<AppLanguage>('en');
   const [step, setStep] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [isSaving, setIsSaving] = useState(false);
+  const [saveError, setSaveError] = useState('');
 
   const copy = ONBOARDING_COPY[language];
   const isRtl = isRtlLanguage(language);
@@ -386,40 +397,73 @@ export default function OnboardingPage() {
 
   const handleSelect = (value: string) => {
     if (!currentQuestion) return;
+    setSaveError('');
     setAnswers((prev) => ({ ...prev, [currentQuestion.id]: value }));
     setStep((prev) => Math.min(prev + 1, questions.length));
   };
 
   const handleStartTracking = async () => {
-    if (isSaving) return;
+    if (isSaving || authLoading) return;
+
+    if (!user?.id) {
+      setSaveError(copy.signInRequired);
+      router.push('/login');
+      return;
+    }
+
     setIsSaving(true);
+    setSaveError('');
     try {
-      const { data: userData } = await supabase.auth.getUser();
-      if (userData.user?.id) {
-        await supabase.from('user_profiles').upsert({
-          user_id: userData.user.id,
-          onboarding_answers: answers,
-          main_goal: answers.goal ?? 'general_health',
-          stool_frequency_baseline: answers.bowelFrequency ?? '',
-          stool_type_baseline: answers.stoolConsistency ?? '',
-          symptoms_baseline: answers.symptoms ? [answers.symptoms] : [],
-          diet_pattern_baseline: answers.diet ?? '',
-          fiber_intake_baseline: answers.fiber ?? '',
-          stress_impact_baseline: answers.stress ?? '',
-          sleep_quality_baseline: answers.sleep ?? '',
-          trigger_food_awareness: answers.triggers ?? '',
-          focus_areas: computeFocusAreas(answers),
-          first_habits: computeHabits(answers),
-          updated_at: new Date().toISOString(),
-        }, { onConflict: 'user_id' });
-      }
+      const completedAt = new Date().toISOString();
+      const { error: profileDetailsError } = await supabase
+        .from('user_profiles')
+        .upsert(
+          {
+            user_id: user.id,
+            onboarding_answers: answers,
+            main_goal: answers.goal ?? 'general_health',
+            stool_frequency_baseline: answers.bowelFrequency ?? '',
+            stool_type_baseline: answers.stoolConsistency ?? '',
+            symptoms_baseline: answers.symptoms ? [answers.symptoms] : [],
+            diet_pattern_baseline: answers.diet ?? '',
+            fiber_intake_baseline: answers.fiber ?? '',
+            stress_impact_baseline: answers.stress ?? '',
+            sleep_quality_baseline: answers.sleep ?? '',
+            trigger_food_awareness: answers.triggers ?? '',
+            focus_areas: computeFocusAreas(answers),
+            first_habits: computeHabits(answers),
+            preferred_language: language,
+            updated_at: completedAt,
+          },
+          { onConflict: 'user_id' }
+        );
+
+      if (profileDetailsError) throw profileDetailsError;
+
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .upsert(
+          {
+            id: user.id,
+            display_name: user.user_metadata?.display_name ?? user.email?.split('@')[0] ?? null,
+            onboarding_completed: true,
+            gut_concern: answers.symptoms ?? null,
+            symptom_frequency: answers.bowelFrequency ?? null,
+            goal: answers.goal ?? 'general_health',
+          },
+          { onConflict: 'id' }
+        );
+
+      if (profileError) throw profileError;
+
+      await refreshProfile();
+      router.replace('/(tabs)');
     } catch (error) {
       console.error('Failed to save onboarding profile:', error);
+      setSaveError(error instanceof Error ? error.message : copy.saveError);
     } finally {
       setIsSaving(false);
     }
-
-    router.replace('/(tabs)');
   };
 
   return (
@@ -491,8 +535,17 @@ export default function OnboardingPage() {
             {summary.habits.map((habit) => (
               <Text key={habit} style={[styles.sectionBody, isRtl && styles.rtlText]}>{`\u2022 ${habit}`}</Text>
             ))}
-            <Pressable onPress={handleStartTracking} disabled={isSaving} style={[styles.startButton, isSaving && styles.startButtonDisabled]}>
-              <Text style={styles.startButtonText}>{isSaving ? copy.saving : copy.startTracking}</Text>
+            {saveError ? (
+              <Text style={[styles.errorText, isRtl && styles.rtlText]}>{saveError}</Text>
+            ) : null}
+            <Pressable
+              onPress={handleStartTracking}
+              disabled={isSaving || authLoading}
+              style={[styles.startButton, (isSaving || authLoading) && styles.startButtonDisabled]}
+            >
+              <Text style={styles.startButtonText}>
+                {isSaving || authLoading ? copy.saving : copy.startTracking}
+              </Text>
             </Pressable>
           </View>
         )}
@@ -537,6 +590,7 @@ const styles = StyleSheet.create({
   startButton: { marginTop: 12, borderRadius: 16, backgroundColor: COLORS.accent, paddingVertical: 14, alignItems: 'center' },
   startButtonDisabled: { opacity: 0.8 },
   startButtonText: { color: '#FFFFFF', fontSize: 17, fontWeight: '700' },
+  errorText: { color: '#C1444B', fontSize: 14, fontWeight: '700', lineHeight: 20 },
   backButton: { borderRadius: 16, borderWidth: 1, borderColor: COLORS.border, backgroundColor: '#FFFFFF', paddingVertical: 10, paddingHorizontal: 16, alignSelf: 'flex-start' },
   backButtonText: { color: COLORS.textPrimary, fontSize: 16, fontWeight: '600' },
   rtlRow: { flexDirection: 'row-reverse' },

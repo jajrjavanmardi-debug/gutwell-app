@@ -1,5 +1,5 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
-import type { Session, User } from '@supabase/supabase-js';
+import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
+import type { AuthError, Session, User } from '@supabase/supabase-js';
 import { Platform } from 'react-native';
 import { supabase } from '../lib/supabase';
 
@@ -15,16 +15,20 @@ type Profile = {
   goal: string | null;
 };
 
+type AuthActionResult = {
+  error: AuthError | { message: string } | null;
+};
+
 type AuthContextType = {
   session: Session | null;
   user: User | null;
   profile: Profile | null;
   loading: boolean;
-  signUp: (email: string, password: string, displayName?: string) => Promise<{ error: any }>;
-  signIn: (email: string, password: string) => Promise<{ error: any }>;
+  signUp: (email: string, password: string, displayName?: string) => Promise<AuthActionResult>;
+  signIn: (email: string, password: string) => Promise<AuthActionResult>;
   signOut: () => Promise<void>;
-  resetPassword: (email: string) => Promise<{ error: any }>;
-  updatePassword: (newPassword: string) => Promise<{ error: any }>;
+  resetPassword: (email: string) => Promise<AuthActionResult>;
+  updatePassword: (newPassword: string) => Promise<AuthActionResult>;
   refreshProfile: () => Promise<void>;
 };
 
@@ -35,124 +39,149 @@ function getWebAuthRedirectUrl(): string | undefined {
   return window.location.origin;
 }
 
-/** Must be false for Supabase inserts/selects — RLS uses JWT `auth.uid()`; a fake session never matches `user_id` in rows. */
-const BYPASS_AUTH_FOR_NATIVE_TESTING = false;
-const MOCK_USER_ID = '00000000-0000-4000-8000-000000000001';
+function getDisplayName(user: User, fallback?: string): string {
+  const fromMetadata = typeof user.user_metadata?.display_name === 'string'
+    ? user.user_metadata.display_name.trim()
+    : '';
+  if (fromMetadata) return fromMetadata;
+  if (fallback?.trim()) return fallback.trim();
+  return user.email?.split('@')[0] ?? 'NutriFlow user';
+}
 
-const mockUser: User = {
-  id: MOCK_USER_ID,
-  aud: 'authenticated',
-  role: 'authenticated',
-  email: 'tester@gutwell.local',
-  app_metadata: {},
-  user_metadata: { display_name: 'NutriFlow Tester' },
-  created_at: new Date(0).toISOString(),
-};
-
-const mockSession = {
-  access_token: 'native-testing-token',
-  refresh_token: 'native-testing-refresh-token',
-  expires_in: 3600,
-  token_type: 'bearer',
-  user: mockUser,
-} as Session;
-
-const mockProfile: Profile = {
-  id: MOCK_USER_ID,
-  display_name: 'NutriFlow Tester',
-  avatar_url: null,
-  onboarding_completed: true,
-  total_points: 0,
-  level: 'beginner',
-  gut_concern: null,
-  symptom_frequency: null,
-  goal: null,
-};
+function normalizeProfile(data: Partial<Profile> & { id: string }): Profile {
+  return {
+    id: data.id,
+    display_name: data.display_name ?? null,
+    avatar_url: data.avatar_url ?? null,
+    onboarding_completed: data.onboarding_completed ?? false,
+    total_points: data.total_points ?? 0,
+    level: data.level ?? 'beginner',
+    gut_concern: data.gut_concern ?? null,
+    symptom_frequency: data.symptom_frequency ?? null,
+    goal: data.goal ?? null,
+  };
+}
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  if (BYPASS_AUTH_FOR_NATIVE_TESTING) {
-    return (
-      <AuthContext.Provider
-        value={{
-          session: mockSession,
-          user: mockUser,
-          profile: mockProfile,
-          loading: false,
-          signUp: async () => ({ error: null }),
-          signIn: async () => ({ error: null }),
-          signOut: async () => {},
-          resetPassword: async () => ({ error: null }),
-          updatePassword: async () => ({ error: null }),
-          refreshProfile: async () => {},
-        }}
-      >
-        {children}
-      </AuthContext.Provider>
-    );
-  }
-
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const fetchProfile = async (userId: string) => {
-    const { data } = await supabase
+  const fetchProfile = useCallback(async (authUser: User, displayName?: string) => {
+    const { data, error } = await supabase
       .from('profiles')
       .select('*')
-      .eq('id', userId)
-      .single();
+      .eq('id', authUser.id)
+      .maybeSingle();
+
+    if (error) throw error;
+
     if (data) {
-      setProfile({
-        id: data.id,
-        display_name: data.display_name,
-        avatar_url: data.avatar_url,
-        onboarding_completed: data.onboarding_completed ?? false,
-        total_points: data.total_points ?? 0,
-        level: data.level ?? 'beginner',
-        gut_concern: data.gut_concern ?? null,
-        symptom_frequency: data.symptom_frequency ?? null,
-        goal: data.goal ?? null,
-      });
+      setProfile(normalizeProfile(data));
+      return normalizeProfile(data);
     }
-  };
+
+    const { error: upsertError } = await supabase
+      .from('profiles')
+      .upsert(
+        {
+          id: authUser.id,
+          display_name: getDisplayName(authUser, displayName),
+          onboarding_completed: false,
+        },
+        { onConflict: 'id' }
+      );
+
+    if (upsertError) throw upsertError;
+
+    const { data: createdProfile, error: reloadError } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', authUser.id)
+      .single();
+
+    if (reloadError) throw reloadError;
+
+    const normalized = normalizeProfile(createdProfile);
+    setProfile(normalized);
+    return normalized;
+  }, []);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      if (session?.user) {
-        fetchProfile(session.user.id);
-      }
-      setLoading(false);
-    });
+    let isMounted = true;
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
-      if (session?.user) {
-        fetchProfile(session.user.id);
+    const hydrateSession = async () => {
+      try {
+        const { data: { session: initialSession } } = await supabase.auth.getSession();
+        if (!isMounted) return;
+        setSession(initialSession);
+        if (initialSession?.user) {
+          await fetchProfile(initialSession.user);
+        } else if (isMounted) {
+          setProfile(null);
+        }
+      } catch (error) {
+        console.error('Failed to restore auth session:', error);
+        if (isMounted) {
+          setSession(null);
+          setProfile(null);
+        }
+      } finally {
+        if (isMounted) setLoading(false);
+      }
+    };
+
+    void hydrateSession();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+      setSession(nextSession);
+      if (nextSession?.user) {
+        void fetchProfile(nextSession.user).catch((error) => {
+          console.error('Failed to load profile after auth change:', error);
+          setProfile(null);
+        });
       } else {
         setProfile(null);
       }
     });
 
-    return () => subscription.unsubscribe();
-  }, []);
+    return () => {
+      isMounted = false;
+      subscription.unsubscribe();
+    };
+  }, [fetchProfile]);
 
   const signUp = async (email: string, password: string, displayName?: string) => {
-    const emailRedirectTo = getWebAuthRedirectUrl();
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: { display_name: displayName },
-        ...(emailRedirectTo ? { emailRedirectTo } : {}),
-      },
-    });
-    return { error };
+    try {
+      const emailRedirectTo = getWebAuthRedirectUrl();
+      const { data, error } = await supabase.auth.signUp({
+        email: email.trim(),
+        password,
+        options: {
+          data: { display_name: displayName?.trim() },
+          ...(emailRedirectTo ? { emailRedirectTo } : {}),
+        },
+      });
+      if (error) return { error };
+      if (data.session?.user) {
+        await fetchProfile(data.session.user, displayName);
+      }
+      return { error: null };
+    } catch (e) {
+      const message = e instanceof Error ? e.message : 'Unable to create account';
+      return { error: { message } as { message: string } };
+    }
   };
 
   const signIn = async (email: string, password: string) => {
     try {
-      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: email.trim(),
+        password,
+      });
+      if (!error && data.user) {
+        await fetchProfile(data.user);
+      }
       return { error };
     } catch (e) {
       const message =
@@ -183,14 +212,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const { error } = await supabase.auth.updateUser({ password: newPassword });
       return { error };
-    } catch (e: any) {
-      return { error: { message: e?.message ?? 'Failed to update password' } };
+    } catch (e) {
+      const message = e instanceof Error ? e.message : 'Failed to update password';
+      return { error: { message } };
     }
   };
 
   const refreshProfile = async () => {
-    if (session?.user) {
-      await fetchProfile(session.user.id);
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      await fetchProfile(user);
     }
   };
 

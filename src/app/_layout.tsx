@@ -6,19 +6,20 @@ export default function RootLayout() {
   return (
     <AuthProvider>
       <View style={styles.rootBackground}>
-      <Stack
-        screenOptions={{
-          contentStyle: { backgroundColor: 'transparent' },
-        }}
-      >
-        <Stack.Screen name="index" options={{ headerShown: false }} />
-        <Stack.Screen name="onboarding/page" options={{ title: 'Welcome' }} />
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="photo-analysis" options={{ headerShown: false }} />
-        <Stack.Screen name="food-history" options={{ headerShown: false }} />
-        <Stack.Screen name="settings" options={{ headerShown: false }} />
-        <Stack.Screen name="relief" options={{ headerShown: false }} />
-      </Stack>
+        <Stack
+          screenOptions={{
+            contentStyle: { backgroundColor: 'transparent' },
+          }}
+        >
+          <Stack.Screen name="index" options={{ headerShown: false }} />
+          <Stack.Screen name="login" options={{ headerShown: false }} />
+          <Stack.Screen name="onboarding/page" options={{ title: 'Welcome' }} />
+          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+          <Stack.Screen name="photo-analysis" options={{ headerShown: false }} />
+          <Stack.Screen name="food-history" options={{ headerShown: false }} />
+          <Stack.Screen name="settings" options={{ headerShown: false }} />
+          <Stack.Screen name="relief" options={{ headerShown: false }} />
+        </Stack>
       </View>
     </AuthProvider>
   );

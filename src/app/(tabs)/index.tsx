@@ -46,6 +46,12 @@ import {
   parseStoredLanguage,
   type AppLanguage,
 } from '../../../lib/app-language';
+import {
+  getUserProfileSettings,
+  saveUserProfileSettings,
+  type MedicalCondition,
+  type UserProfileSettings,
+} from '../../../lib/user-profile-settings';
 
 const EXAMPLE_FEELINGS = [
   'lowEnergy',
@@ -336,6 +342,20 @@ const translations = {
 
 const CONDITION_OPTIONS: Condition[] = ['ibs', 'gastritis', 'bloating', 'celiac', 'lactoseIntolerance'];
 const ACTIVITY_LEVELS: ActivityLevel[] = ['sedentary', 'moderate', 'active', 'athlete'];
+const CONDITION_TO_PROFILE: Record<Condition, MedicalCondition> = {
+  ibs: 'IBS',
+  gastritis: 'Gastritis',
+  bloating: 'Bloating',
+  celiac: 'Celiac',
+  lactoseIntolerance: 'Lactose Intolerance',
+};
+const PROFILE_TO_CONDITION: Record<MedicalCondition, Condition> = {
+  IBS: 'ibs',
+  Gastritis: 'gastritis',
+  Bloating: 'bloating',
+  Celiac: 'celiac',
+  'Lactose Intolerance': 'lactoseIntolerance',
+};
 const AI_LANGUAGE_LABELS: Record<Language, string> = {
   en: 'English',
   de: 'German',
@@ -441,6 +461,16 @@ function translateNutrient(nutrient: string, language: Language): string {
   return NUTRIENT_TRANSLATIONS[language][key]
     ?? NUTRIENT_TRANSLATIONS[language][compactKey]
     ?? nutrient;
+}
+
+function toProfileConditions(conditions: Condition[]): MedicalCondition[] {
+  return conditions.map((condition) => CONDITION_TO_PROFILE[condition]);
+}
+
+function toHomeConditions(conditions: MedicalCondition[]): Condition[] {
+  return conditions
+    .map((condition) => PROFILE_TO_CONDITION[condition])
+    .filter((condition): condition is Condition => Boolean(condition));
 }
 
 function parseScoreValue(score: string | null): number | null {
@@ -581,6 +611,7 @@ export default function HomeScreen() {
   const celebrationPulse = useRef(new Animated.Value(0)).current;
   const [feeling, setFeeling] = useState('');
   const [language, setLanguage] = useState<Language>('en');
+  const [hasLoadedLanguage, setHasLoadedLanguage] = useState(false);
   const [gutScore, setGutScore] = useState(4);
   const [conditions, setConditions] = useState<Condition[]>([]);
   const [activityLevel, setActivityLevel] = useState<ActivityLevel>('moderate');
@@ -665,16 +696,19 @@ export default function HomeScreen() {
       .then((storedLanguage) => {
         setLanguage(parseStoredLanguage(storedLanguage));
       })
-      .catch(console.warn);
+      .catch(console.warn)
+      .finally(() => setHasLoadedLanguage(true));
   }, []);
 
   useEffect(() => {
+    if (!hasLoadedLanguage) return;
     AsyncStorage.setItem(APP_LANGUAGE_STORAGE_KEY, language).catch(console.warn);
-  }, [language]);
+  }, [hasLoadedLanguage, language]);
 
   useFocusEffect(
     useCallback(() => {
       let isActive = true;
+      const fallbackProfileSettings: UserProfileSettings = { conditions: [] };
       setDailyGutScoreLoading(true);
 
       Promise.all([
@@ -682,13 +716,22 @@ export default function HomeScreen() {
         getSupplementHistory(),
         getUserProgressProfile(),
         currentUser?.id ? fetchDailyGutScoreCardData(currentUser.id) : Promise.resolve(null),
+        getUserProfileSettings().catch((error) => {
+          console.warn('Profile settings load failed:', error);
+          return fallbackProfileSettings;
+        }),
       ])
-        .then(([history, supplements, progress, dailyScore]) => {
+        .then(([history, supplements, progress, dailyScore, profileSettings]) => {
           if (!isActive) return;
           setPhotoHistory(history);
           setSupplementHistory(supplements);
           setUserProgress(progress);
           setDailyGutScoreCard(dailyScore);
+          setConditions(toHomeConditions(profileSettings.conditions));
+          if (profileSettings.preferredLanguage) {
+            setLanguage(profileSettings.preferredLanguage);
+            setHasLoadedLanguage(true);
+          }
         })
         .catch(console.warn)
         .finally(() => {
@@ -828,12 +871,28 @@ export default function HomeScreen() {
     }
   };
 
+  const handleLanguageChange = (nextLanguage: Language) => {
+    setLanguage(nextLanguage);
+    setHasLoadedLanguage(true);
+    saveUserProfileSettings({
+      conditions: toProfileConditions(conditions),
+      preferredLanguage: nextLanguage,
+    }).catch((error) => console.warn('Preferred language save failed:', error));
+  };
+
   const toggleCondition = (condition: Condition) => {
-    setConditions((currentConditions) =>
-      currentConditions.includes(condition)
+    setConditions((currentConditions) => {
+      const nextConditions = currentConditions.includes(condition)
         ? currentConditions.filter((item) => item !== condition)
-        : [...currentConditions, condition]
-    );
+        : [...currentConditions, condition];
+
+      saveUserProfileSettings({
+        conditions: toProfileConditions(nextConditions),
+        preferredLanguage: language,
+      }).catch((error) => console.warn('Profile condition save failed:', error));
+
+      return nextConditions;
+    });
   };
 
   const handleSaveSupplement = async () => {
@@ -901,7 +960,7 @@ export default function HomeScreen() {
               {(['en', 'de', 'fa'] as Language[]).map((item) => (
                 <Pressable
                   key={item}
-                  onPress={() => setLanguage(item)}
+                  onPress={() => handleLanguageChange(item)}
                   style={[
                     styles.languageButton,
                     language === item && styles.languageButtonActive,

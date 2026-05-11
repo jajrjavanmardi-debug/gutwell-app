@@ -1,8 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { router, useFocusEffect } from 'expo-router';
+import { useCallback, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import {
@@ -41,6 +41,8 @@ const SETTINGS_COPY = {
     saved: 'Profile saved',
     saveFailed: 'Could not save profile',
     saving: 'Saving...',
+    loadingProfile: 'Loading profile...',
+    loadFailed: 'Could not load saved profile',
     proTitle: 'NutriFlow Pro',
     proPlan: 'Current Plan: Free Preview',
     proCta: 'Upgrade to Pro – 5 USD/month',
@@ -62,6 +64,8 @@ const SETTINGS_COPY = {
     saved: 'Profil gespeichert',
     saveFailed: 'Profil konnte nicht gespeichert werden',
     saving: 'Speichern...',
+    loadingProfile: 'Profil wird geladen...',
+    loadFailed: 'Gespeichertes Profil konnte nicht geladen werden',
     proTitle: 'NutriFlow Pro',
     proPlan: 'Aktueller Plan: Kostenlose Vorschau',
     proCta: 'Auf Pro upgraden – 5 USD/Monat',
@@ -83,6 +87,8 @@ const SETTINGS_COPY = {
     saved: 'پروفایل ذخیره شد',
     saveFailed: 'ذخیره پروفایل انجام نشد',
     saving: 'در حال ذخیره...',
+    loadingProfile: 'در حال بارگذاری پروفایل...',
+    loadFailed: 'بارگذاری پروفایل ذخیره شده انجام نشد',
     proTitle: 'NutriFlow Pro',
     proPlan: 'طرح فعلی: پیش نمایش رایگان',
     proCta: 'ارتقا به Pro – ماهانه ۵ دلار',
@@ -94,22 +100,40 @@ const SETTINGS_COPY = {
 export default function SettingsScreen() {
   const [selectedConditions, setSelectedConditions] = useState<MedicalCondition[]>([]);
   const [selectedLanguage, setSelectedLanguage] = useState<AppLanguage>('en');
+  const [isLoadingProfile, setIsLoadingProfile] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState('');
   const isRtl = isRtlLanguage(selectedLanguage);
   const t = SETTINGS_COPY[selectedLanguage];
 
-  useEffect(() => {
+  useFocusEffect(useCallback(() => {
+    let isActive = true;
+    setIsLoadingProfile(true);
+    setSaveMessage('');
+
     Promise.all([
       getUserProfileSettings(),
       AsyncStorage.getItem(APP_LANGUAGE_STORAGE_KEY),
     ])
       .then(([settings, storedLanguage]) => {
+        if (!isActive) return;
         setSelectedConditions(settings.conditions);
-        setSelectedLanguage(parseStoredLanguage(storedLanguage));
+        setSelectedLanguage(settings.preferredLanguage ?? parseStoredLanguage(storedLanguage));
       })
-      .catch(console.warn);
-  }, []);
+      .catch(async (error) => {
+        console.error('Profile load failed:', error);
+        const storedLanguage = await AsyncStorage.getItem(APP_LANGUAGE_STORAGE_KEY);
+        const messageLanguage = parseStoredLanguage(storedLanguage);
+        if (isActive) setSaveMessage(SETTINGS_COPY[messageLanguage].loadFailed);
+      })
+      .finally(() => {
+        if (isActive) setIsLoadingProfile(false);
+      });
+
+    return () => {
+      isActive = false;
+    };
+  }, []));
 
   const toggleCondition = (condition: MedicalCondition) => {
     setSelectedConditions((current) =>
@@ -123,7 +147,10 @@ export default function SettingsScreen() {
   const handleSaveProfile = async () => {
     setIsSaving(true);
     try {
-      await saveUserProfileSettings({ conditions: selectedConditions });
+      await saveUserProfileSettings({
+        conditions: selectedConditions,
+        preferredLanguage: selectedLanguage,
+      });
       await AsyncStorage.setItem(APP_LANGUAGE_STORAGE_KEY, selectedLanguage);
       setSaveMessage(t.saved);
     } catch (error) {
@@ -158,28 +185,35 @@ export default function SettingsScreen() {
             </View>
           </View>
 
-          <View style={[styles.chipWrap, isRtl && styles.rtlRow]}>
-            {MEDICAL_CONDITION_OPTIONS.map((condition) => {
-              const isSelected = selectedConditions.includes(condition);
-              return (
-                <Pressable
-                  key={condition}
-                  onPress={() => toggleCondition(condition)}
-                  accessibilityRole="button"
-                  accessibilityState={{ selected: isSelected }}
-                  style={({ pressed }) => [
-                    styles.chip,
-                    isSelected && styles.chipSelected,
-                    pressed && styles.pressed,
-                  ]}
-                >
-                  <Text style={[styles.chipText, isSelected && styles.chipTextSelected, isRtl && styles.rtlText]}>
-                    {condition}
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </View>
+          {isLoadingProfile ? (
+            <View style={[styles.loadingRow, isRtl && styles.rtlRow]}>
+              <ActivityIndicator color={MINT_DARK} size="small" />
+              <Text style={[styles.loadingText, isRtl && styles.rtlText]}>{t.loadingProfile}</Text>
+            </View>
+          ) : (
+            <View style={[styles.chipWrap, isRtl && styles.rtlRow]}>
+              {MEDICAL_CONDITION_OPTIONS.map((condition) => {
+                const isSelected = selectedConditions.includes(condition);
+                return (
+                  <Pressable
+                    key={condition}
+                    onPress={() => toggleCondition(condition)}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected: isSelected }}
+                    style={({ pressed }) => [
+                      styles.chip,
+                      isSelected && styles.chipSelected,
+                      pressed && styles.pressed,
+                    ]}
+                  >
+                    <Text style={[styles.chipText, isSelected && styles.chipTextSelected, isRtl && styles.rtlText]}>
+                      {condition}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          )}
         </View>
 
         <View style={styles.card}>
@@ -276,13 +310,13 @@ export default function SettingsScreen() {
           </Pressable>
           <Pressable
             onPress={handleSaveProfile}
-            disabled={isSaving}
+            disabled={isSaving || isLoadingProfile}
             accessibilityRole="button"
             style={({ pressed }) => [
               styles.saveButton,
               isRtl && styles.rtlRow,
-              isSaving && styles.saveButtonDisabled,
-              pressed && !isSaving && styles.pressed,
+              (isSaving || isLoadingProfile) && styles.saveButtonDisabled,
+              pressed && !isSaving && !isLoadingProfile && styles.pressed,
             ]}
           >
             <Ionicons name="save" size={20} color="#FFFFFF" />
@@ -396,6 +430,17 @@ const styles = StyleSheet.create({
   },
   chipTextSelected: {
     color: SLATE_DARK,
+  },
+  loadingRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 10,
+  },
+  loadingText: {
+    color: SLATE,
+    flex: 1,
+    fontSize: 14,
+    fontWeight: '700',
   },
   proCard: {
     backgroundColor: '#0F3D2E',
