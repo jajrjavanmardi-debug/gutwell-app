@@ -1,5 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import Constants from 'expo-constants';
 import * as ImagePicker from 'expo-image-picker';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -22,7 +23,14 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import { Toast } from '../../components/ui/Toast';
 import { useAuth } from '../../contexts/AuthContext';
-import { BorderRadius, Colors, FontFamily, FontSize, Shadows, Spacing } from '../../constants/theme';
+import {
+  BorderRadius as ImportedBorderRadius,
+  Colors as ImportedColors,
+  FontFamily as ImportedFontFamily,
+  FontSize as ImportedFontSize,
+  Shadows as ImportedShadows,
+  Spacing as ImportedSpacing,
+} from '../../constants/theme';
 import {
   parseRnVoiceError,
   teardownExpoSpeechRecognition,
@@ -58,9 +66,55 @@ import {
   type MedicalCondition,
 } from '../../lib/user-profile-settings';
 
+const Colors = ImportedColors ?? {
+  background: '#000000',
+  border: '#242424',
+  primary: '#B2AC88',
+  primaryLight: '#C7C1A0',
+  secondary: '#B2AC88',
+  secondaryLight: '#C7C1A0',
+  surface: '#0B0B0B',
+  text: '#FFFFFF',
+  textInverse: '#FFFFFF',
+  textSecondary: '#A7A7A7',
+  textTertiary: '#777777',
+};
+const Spacing = ImportedSpacing ?? { xs: 4, sm: 8, md: 16, lg: 24, xl: 32 };
+const BorderRadius = ImportedBorderRadius ?? { md: 12, lg: 20, xl: 24, full: 999 };
+const FontSize = ImportedFontSize ?? { xs: 12, sm: 14, md: 16, lg: 18, xl: 22 };
+const FontFamily = ImportedFontFamily ?? {
+  displaySemiBold: 'System',
+  sansRegular: 'System',
+  sansMedium: 'System',
+  sansSemiBold: 'System',
+  sansBold: 'System',
+};
+const Shadows = ImportedShadows ?? {
+  sm: {
+    shadowColor: '#7E795D',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  md: {
+    shadowColor: '#7E795D',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.12,
+    shadowRadius: 16,
+    elevation: 6,
+  },
+};
+
+const createStyles = <T extends Parameters<typeof StyleSheet.create>[0]>(styleSheet: T) =>
+  StyleSheet?.create ? StyleSheet.create(styleSheet) : styleSheet;
+
 type WizardStep = 1 | 2 | 3;
 /** When set to `Germany`, skips GPS and fixes AI context to Nürtingen (dev/testing only). */
-const DEV_LOCATION_OVERRIDE = process.env.EXPO_PUBLIC_DEV_LOCATION_OVERRIDE?.trim() ?? '';
+const DEV_LOCATION_OVERRIDE =
+  typeof process !== 'undefined' && process.env?.EXPO_PUBLIC_DEV_LOCATION_OVERRIDE
+    ? process.env.EXPO_PUBLIC_DEV_LOCATION_OVERRIDE.trim()
+    : '';
 
 const SYMPTOM_OPTIONS = [
   { key: 'bloating', promptLabel: 'Bloating', labels: { en: 'Bloating', de: 'Blähungen', fa: 'نفخ' } },
@@ -76,6 +130,51 @@ const SYMPTOM_OPTIONS = [
 ] as const;
 
 type SymptomKey = (typeof SYMPTOM_OPTIONS)[number]['key'];
+type DemoMealKey = 'salmonRiceBowl' | 'lentilSoup';
+
+const DEMO_SALMON_RICE_BOWL_BASE64 =
+  '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';
+const DEMO_LENTIL_SOUP_BASE64 =
+  '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';
+
+const DEMO_MEALS: Record<DemoMealKey, {
+  imageBase64: string;
+  imageUri: string;
+  symptomKeys: SymptomKey[];
+  title: Record<AppLanguage, string>;
+  note: Record<AppLanguage, string>;
+}> = {
+  salmonRiceBowl: {
+    imageBase64: DEMO_SALMON_RICE_BOWL_BASE64,
+    imageUri: `data:image/jpeg;base64,${DEMO_SALMON_RICE_BOWL_BASE64}`,
+    symptomKeys: ['bloating'],
+    title: {
+      en: 'Salmon rice bowl',
+      de: 'Lachs-Reis-Bowl',
+      fa: 'کاسه برنج و سالمون',
+    },
+    note: {
+      en: 'Demo meal: salmon, white rice, cooked greens, tomato, and lemon.',
+      de: 'Demo-Mahlzeit: Lachs, weißer Reis, gekochtes Grün, Tomate und Zitrone.',
+      fa: 'غذای نمونه: سالمون، برنج سفید، سبزی پخته، گوجه و لیمو.',
+    },
+  },
+  lentilSoup: {
+    imageBase64: DEMO_LENTIL_SOUP_BASE64,
+    imageUri: `data:image/jpeg;base64,${DEMO_LENTIL_SOUP_BASE64}`,
+    symptomKeys: ['gas', 'cramps'],
+    title: {
+      en: 'Lentil soup',
+      de: 'Linsensuppe',
+      fa: 'سوپ عدس',
+    },
+    note: {
+      en: 'Demo meal: lentil soup with herbs and a medium portion.',
+      de: 'Demo-Mahlzeit: Linsensuppe mit Kräutern und mittlerer Portion.',
+      fa: 'غذای نمونه: سوپ عدس با سبزی معطر و اندازه متوسط.',
+    },
+  },
+};
 
 const copy = {
   en: {
@@ -150,6 +249,12 @@ const copy = {
     photoUnavailableMessage: 'Could not read the photo data. Please try again.',
     cameraNeededTitle: 'Camera access needed',
     cameraNeededMessage: 'Please allow camera access to take a meal photo.',
+    demoMode: 'Demo Mode',
+    cameraUnavailableTitle: 'Camera unavailable in simulator.',
+    cameraUnavailableMessage: 'Use gallery upload or a built-in meal image to keep the demo flow moving.',
+    uploadImageFromGallery: 'Upload image from gallery',
+    useSampleMealImage: 'Use sample meal image',
+    demoMealHelper: 'Demo images continue through the same meal analysis flow as gallery uploads.',
     libraryNeededTitle: 'Photo library access needed',
     libraryNeededMessage: 'Please allow photo library access to choose a meal photo.',
     correctionFailedTitle: 'Correction failed',
@@ -247,6 +352,12 @@ const copy = {
     photoUnavailableMessage: 'Die Fotodaten konnten nicht gelesen werden. Bitte erneut versuchen.',
     cameraNeededTitle: 'Kamerazugriff nötig',
     cameraNeededMessage: 'Bitte erlaube den Kamerazugriff, um ein Mahlzeitenfoto aufzunehmen.',
+    demoMode: 'Demo-Modus',
+    cameraUnavailableTitle: 'Kamera im Simulator nicht verfügbar.',
+    cameraUnavailableMessage: 'Nutze den Galerie-Upload oder ein integriertes Mahlzeitenbild, damit die Demo sauber weiterläuft.',
+    uploadImageFromGallery: 'Bild aus Galerie hochladen',
+    useSampleMealImage: 'Beispiel-Mahlzeit verwenden',
+    demoMealHelper: 'Demo-Bilder laufen durch denselben Analysefluss wie Galerie-Uploads.',
     libraryNeededTitle: 'Fotomediathek-Zugriff nötig',
     libraryNeededMessage: 'Bitte erlaube den Zugriff auf die Fotomediathek, um ein Bild auszuwählen.',
     correctionFailedTitle: 'Korrektur fehlgeschlagen',
@@ -344,6 +455,12 @@ const copy = {
     photoUnavailableMessage: 'داده های عکس خوانده نشد. لطفا دوباره تلاش کنید.',
     cameraNeededTitle: 'دسترسی به دوربین لازم است',
     cameraNeededMessage: 'برای گرفتن عکس غذا، اجازه دسترسی به دوربین را بدهید.',
+    demoMode: 'حالت دمو',
+    cameraUnavailableTitle: 'دوربین در شبیه ساز در دسترس نیست.',
+    cameraUnavailableMessage: 'برای ادامه روان دمو، از گالری بارگذاری کنید یا یک تصویر غذای نمونه انتخاب کنید.',
+    uploadImageFromGallery: 'بارگذاری تصویر از گالری',
+    useSampleMealImage: 'استفاده از غذای نمونه',
+    demoMealHelper: 'تصاویر دمو مانند بارگذاری از گالری وارد همان جریان تحلیل غذا می شوند.',
     libraryNeededTitle: 'دسترسی به گالری لازم است',
     libraryNeededMessage: 'برای انتخاب عکس غذا، اجازه دسترسی به گالری را بدهید.',
     correctionFailedTitle: 'اصلاح ناموفق بود',
@@ -479,6 +596,21 @@ function formatRetailLocationHint(place?: {
   if (!place) return '';
   const parts = [place.city, place.region ?? place.subregion, place.country].filter(Boolean);
   return [...new Set(parts.map(String))].join(', ');
+}
+
+function isIosSimulatorRuntime(): boolean {
+  if (Platform.OS !== 'ios') return false;
+  if (Constants.isDevice === false) return true;
+
+  const executionEnvironment = String(Constants.executionEnvironment ?? '').toLowerCase();
+  const iosPlatform = Constants.platform?.ios?.platform?.toLowerCase() ?? '';
+  const iosModel = Constants.platform?.ios?.model?.toLowerCase() ?? '';
+  const deviceName = Constants.deviceName?.toLowerCase() ?? '';
+
+  return ['x86_64', 'i386', 'arm64'].includes(iosPlatform)
+    || iosModel.includes('simulator')
+    || deviceName.includes('simulator')
+    || (__DEV__ && executionEnvironment === 'storeclient');
 }
 
 function ensurePainApology(analysis: string, apology: string, hasPainSymptom: boolean): string {
@@ -651,6 +783,7 @@ export default function PhotoAnalysisScreen() {
   const params = useLocalSearchParams<{ historyId?: string }>();
   const [photoUri, setPhotoUri] = useState<string | null>(null);
   const [lastImageBase64, setLastImageBase64] = useState('');
+  const [cameraUnavailable, setCameraUnavailable] = useState(() => isIosSimulatorRuntime());
   const [analysis, setAnalysis] = useState('');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [isCorrecting, setIsCorrecting] = useState(false);
@@ -693,6 +826,7 @@ export default function PhotoAnalysisScreen() {
   const t = copy[language];
   /** Dev client / standalone only — Expo Go has no custom native STT modules. */
   const voiceNativeEnabled = canUseNativeSpeechToText();
+  const isSimulatorFallbackActive = isIosSimulatorRuntime() || cameraUnavailable;
   const isRtlLanguage = isAppRtlLanguage(language);
   const selectedSymptomLabels = selectedSymptoms.map((symptomKey) => {
     const option = SYMPTOM_OPTIONS.find((item) => item.key === symptomKey);
@@ -789,6 +923,13 @@ export default function PhotoAnalysisScreen() {
       }
 
       if (Platform.OS === 'web') {
+        setLocationContext('');
+        setRetailLocationHint('');
+        setIsLocationLoading(false);
+        return;
+      }
+
+      if (isIosSimulatorRuntime()) {
         setLocationContext('');
         setRetailLocationHint('');
         setIsLocationLoading(false);
@@ -1051,7 +1192,14 @@ export default function PhotoAnalysisScreen() {
     }
   };
 
-  const storeCapturedPhoto = (asset: ImagePicker.ImagePickerAsset) => {
+  const storeCapturedPhoto = (
+    asset: ImagePicker.ImagePickerAsset,
+    options: {
+      mealDescription?: string;
+      symptomKeys?: SymptomKey[];
+      nextStep?: WizardStep;
+    } = {},
+  ) => {
     if (!asset.base64) {
       Alert.alert(t.photoUnavailableTitle, t.photoUnavailableMessage);
       return;
@@ -1062,10 +1210,11 @@ export default function PhotoAnalysisScreen() {
     setAnalysis('');
     setPlanBMessage('');
     setUserFeedback([]);
-    setWizardStep(1);
+    setWizardStep(options.nextStep ?? 1);
     setAccuracyAnswer(null);
     setCorrectionDraft('');
-    setMealDescription('');
+    setMealDescription(options.mealDescription ?? '');
+    setSelectedSymptoms(options.symptomKeys ?? []);
   };
 
   const pickImageFileOnWeb = () => {
@@ -1222,6 +1371,24 @@ export default function PhotoAnalysisScreen() {
     });
   };
 
+  const selectDemoMeal = (demoMealKey: DemoMealKey) => {
+    const demoMeal = DEMO_MEALS[demoMealKey];
+
+    storeCapturedPhoto(
+      {
+        uri: demoMeal.imageUri,
+        base64: demoMeal.imageBase64,
+        width: 120,
+        height: 90,
+      } as ImagePicker.ImagePickerAsset,
+      {
+        mealDescription: demoMeal.note[language],
+        symptomKeys: demoMeal.symptomKeys,
+        nextStep: 2,
+      },
+    );
+  };
+
   const takePhoto = async () => {
     if (isAnalyzing) return;
 
@@ -1230,20 +1397,30 @@ export default function PhotoAnalysisScreen() {
       return;
     }
 
-    const permission = await ImagePicker.requestCameraPermissionsAsync();
-    if (!permission.granted) {
-      Alert.alert(t.cameraNeededTitle, t.cameraNeededMessage);
+    if (isSimulatorFallbackActive) {
+      setCameraUnavailable(true);
       return;
     }
 
-    const result = await ImagePicker.launchCameraAsync({
-      mediaTypes: ['images'],
-      quality: 0.72,
-      base64: true,
-    });
+    try {
+      const permission = await ImagePicker.requestCameraPermissionsAsync();
+      if (!permission.granted) {
+        Alert.alert(t.cameraNeededTitle, t.cameraNeededMessage);
+        return;
+      }
 
-    if (!result.canceled && result.assets[0]) {
-      storeCapturedPhoto(result.assets[0]);
+      const result = await ImagePicker.launchCameraAsync({
+        mediaTypes: ['images'],
+        quality: 0.72,
+        base64: true,
+      });
+
+      if (!result.canceled && result.assets[0]) {
+        storeCapturedPhoto(result.assets[0]);
+      }
+    } catch (error) {
+      console.warn('Camera unavailable, switching to simulator-safe demo flow:', error);
+      setCameraUnavailable(true);
     }
   };
 
@@ -1255,20 +1432,28 @@ export default function PhotoAnalysisScreen() {
       return;
     }
 
-    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!permission.granted) {
-      Alert.alert(t.libraryNeededTitle, t.libraryNeededMessage);
-      return;
-    }
+    try {
+      const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!permission.granted) {
+        Alert.alert(t.libraryNeededTitle, t.libraryNeededMessage);
+        return;
+      }
 
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['images'],
-      quality: 0.72,
-      base64: true,
-    });
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        quality: 0.72,
+        base64: true,
+      });
 
-    if (!result.canceled && result.assets[0]) {
-      storeCapturedPhoto(result.assets[0]);
+      if (!result.canceled && result.assets[0]) {
+        storeCapturedPhoto(result.assets[0]);
+      }
+    } catch (error) {
+      console.warn('Image picker failed:', error);
+      Alert.alert(
+        t.photoUnavailableTitle,
+        error instanceof Error ? error.message : t.photoUnavailableMessage,
+      );
     }
   };
 
@@ -1717,41 +1902,103 @@ export default function PhotoAnalysisScreen() {
           >
             {wizardStep === 1 ? (
               <>
-                <View style={styles.actionGrid}>
-                  <Pressable
-                    disabled={isAnalyzing}
-                    onPress={takePhoto}
-                    style={({ pressed }) => [
-                      styles.photoActionButton,
-                      styles.takePhotoButton,
-                      isAnalyzing && styles.disabledButton,
-                      pressed && !isAnalyzing && styles.pressed,
-                    ]}
-                  >
-                    <View style={styles.photoActionIcon}>
-                      <Ionicons name="camera" size={30} color={Colors.textInverse} />
+                {isSimulatorFallbackActive ? (
+                  <View style={styles.cameraFallbackCard}>
+                    <View style={[styles.demoModePill, isRtlLanguage && styles.rtlRow]}>
+                      <Ionicons name="phone-portrait" size={14} color="#D8FBEA" />
+                      <Text style={[styles.demoModePillText, isRtlLanguage && styles.rtlText]}>{t.demoMode}</Text>
                     </View>
-                    <Text style={[styles.photoActionTitle, isRtlLanguage && styles.rtlText]}>{t.takePhoto}</Text>
-                    <Text style={[styles.photoActionText, isRtlLanguage && styles.rtlText]}>{t.takePhotoText}</Text>
-                  </Pressable>
+                    <View style={[styles.cameraFallbackHeader, isRtlLanguage && styles.rtlRow]}>
+                      <View style={styles.cameraFallbackIcon}>
+                        <Ionicons name="camera-reverse-outline" size={24} color="#D8FBEA" />
+                      </View>
+                      <View style={styles.cameraFallbackCopy}>
+                        <Text style={[styles.cameraFallbackTitle, isRtlLanguage && styles.rtlText]}>
+                          {t.cameraUnavailableTitle}
+                        </Text>
+                        <Text style={[styles.cameraFallbackText, isRtlLanguage && styles.rtlText]}>
+                          {t.cameraUnavailableMessage}
+                        </Text>
+                      </View>
+                    </View>
+                    <Pressable
+                      disabled={isAnalyzing}
+                      onPress={pickImage}
+                      accessibilityRole="button"
+                      style={({ pressed }) => [
+                        styles.galleryFallbackButton,
+                        isRtlLanguage && styles.rtlRow,
+                        pressed && !isAnalyzing && styles.pressed,
+                      ]}
+                    >
+                      <Ionicons name="images" size={18} color="#000000" />
+                      <Text style={[styles.galleryFallbackButtonText, isRtlLanguage && styles.rtlText]}>
+                        {t.uploadImageFromGallery}
+                      </Text>
+                    </Pressable>
+                    <Text style={[styles.demoMealSectionTitle, isRtlLanguage && styles.rtlText]}>
+                      {t.useSampleMealImage}
+                    </Text>
+                    <Text style={[styles.demoMealHelper, isRtlLanguage && styles.rtlText]}>{t.demoMealHelper}</Text>
+                    <View style={styles.demoMealGrid}>
+                      {(Object.keys(DEMO_MEALS) as DemoMealKey[]).map((demoMealKey) => {
+                        const demoMeal = DEMO_MEALS[demoMealKey];
+                        return (
+                          <Pressable
+                            key={demoMealKey}
+                            onPress={() => selectDemoMeal(demoMealKey)}
+                            accessibilityRole="button"
+                            style={({ pressed }) => [styles.demoMealCard, pressed && styles.pressed]}
+                          >
+                            <Image source={{ uri: demoMeal.imageUri }} style={styles.demoMealImage} />
+                            <View style={[styles.demoMealCaptionRow, isRtlLanguage && styles.rtlRow]}>
+                              <Ionicons name="sparkles" size={14} color="#2DCE89" />
+                              <Text style={[styles.demoMealTitle, isRtlLanguage && styles.rtlText]}>
+                                {demoMeal.title[language]}
+                              </Text>
+                            </View>
+                          </Pressable>
+                        );
+                      })}
+                    </View>
+                  </View>
+                ) : (
+                  <View style={styles.actionGrid}>
+                    <Pressable
+                      disabled={isAnalyzing}
+                      onPress={takePhoto}
+                      style={({ pressed }) => [
+                        styles.photoActionButton,
+                        styles.takePhotoButton,
+                        isAnalyzing && styles.disabledButton,
+                        pressed && !isAnalyzing && styles.pressed,
+                      ]}
+                    >
+                      <View style={styles.photoActionIcon}>
+                        <Ionicons name="camera" size={30} color={Colors.textInverse} />
+                      </View>
+                      <Text style={[styles.photoActionTitle, isRtlLanguage && styles.rtlText]}>{t.takePhoto}</Text>
+                      <Text style={[styles.photoActionText, isRtlLanguage && styles.rtlText]}>{t.takePhotoText}</Text>
+                    </Pressable>
 
-                  <Pressable
-                    disabled={isAnalyzing}
-                    onPress={pickImage}
-                    style={({ pressed }) => [
-                      styles.photoActionButton,
-                      styles.galleryButton,
-                      isAnalyzing && styles.disabledButton,
-                      pressed && !isAnalyzing && styles.pressed,
-                    ]}
-                  >
-                    <View style={styles.photoActionIcon}>
-                      <Ionicons name="images" size={30} color={Colors.textInverse} />
-                    </View>
-                    <Text style={[styles.photoActionTitle, isRtlLanguage && styles.rtlText]}>{t.chooseGallery}</Text>
-                    <Text style={[styles.photoActionText, isRtlLanguage && styles.rtlText]}>{t.chooseGalleryText}</Text>
-                  </Pressable>
-                </View>
+                    <Pressable
+                      disabled={isAnalyzing}
+                      onPress={pickImage}
+                      style={({ pressed }) => [
+                        styles.photoActionButton,
+                        styles.galleryButton,
+                        isAnalyzing && styles.disabledButton,
+                        pressed && !isAnalyzing && styles.pressed,
+                      ]}
+                    >
+                      <View style={styles.photoActionIcon}>
+                        <Ionicons name="images" size={30} color={Colors.textInverse} />
+                      </View>
+                      <Text style={[styles.photoActionTitle, isRtlLanguage && styles.rtlText]}>{t.chooseGallery}</Text>
+                      <Text style={[styles.photoActionText, isRtlLanguage && styles.rtlText]}>{t.chooseGalleryText}</Text>
+                    </Pressable>
+                  </View>
+                )}
 
                 {photoUri ? <Image source={{ uri: photoUri }} style={styles.previewImage} /> : null}
 
@@ -2063,7 +2310,7 @@ export default function PhotoAnalysisScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = createStyles({
   container: {
     backgroundColor: '#000000',
     flex: 1,
@@ -2305,6 +2552,119 @@ const styles = StyleSheet.create({
   },
   actionGrid: {
     gap: Spacing.md,
+  },
+  cameraFallbackCard: {
+    backgroundColor: '#0F3D2E',
+    borderColor: '#2DCE8966',
+    borderRadius: 15,
+    borderWidth: 1,
+    gap: Spacing.md,
+    padding: Spacing.lg,
+    shadowColor: '#0F3D2E',
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.18,
+    shadowRadius: 22,
+    elevation: 4,
+  },
+  demoModePill: {
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    backgroundColor: '#2DCE8933',
+    borderColor: '#7DD9A866',
+    borderRadius: BorderRadius.full,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: 6,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical: 6,
+  },
+  demoModePillText: {
+    color: '#D8FBEA',
+    fontFamily: FontFamily.sansBold,
+    fontSize: FontSize.xs,
+  },
+  cameraFallbackHeader: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: Spacing.md,
+  },
+  cameraFallbackIcon: {
+    alignItems: 'center',
+    backgroundColor: '#2DCE8940',
+    borderRadius: 15,
+    height: 50,
+    justifyContent: 'center',
+    width: 50,
+  },
+  cameraFallbackCopy: {
+    flex: 1,
+  },
+  cameraFallbackTitle: {
+    color: '#FFFFFF',
+    fontFamily: FontFamily.displaySemiBold,
+    fontSize: FontSize.lg,
+  },
+  cameraFallbackText: {
+    color: '#D8FBEA',
+    fontFamily: FontFamily.sansMedium,
+    fontSize: FontSize.sm,
+    lineHeight: 20,
+    marginTop: 4,
+  },
+  galleryFallbackButton: {
+    alignItems: 'center',
+    backgroundColor: '#DFF5EA',
+    borderRadius: 15,
+    flexDirection: 'row',
+    gap: Spacing.sm,
+    justifyContent: 'center',
+    minHeight: 50,
+    paddingHorizontal: Spacing.md,
+  },
+  galleryFallbackButtonText: {
+    color: '#000000',
+    flexShrink: 1,
+    fontFamily: FontFamily.sansBold,
+    fontSize: FontSize.md,
+    textAlign: 'center',
+  },
+  demoMealHelper: {
+    color: '#B7F7D6',
+    fontFamily: FontFamily.sansMedium,
+    fontSize: FontSize.xs,
+    lineHeight: 18,
+  },
+  demoMealSectionTitle: {
+    color: '#FFFFFF',
+    fontFamily: FontFamily.sansBold,
+    fontSize: FontSize.sm,
+  },
+  demoMealGrid: {
+    gap: Spacing.sm,
+  },
+  demoMealCard: {
+    backgroundColor: '#F5FFF9',
+    borderColor: '#7DD9A866',
+    borderRadius: 15,
+    borderWidth: 1,
+    overflow: 'hidden',
+  },
+  demoMealImage: {
+    aspectRatio: 4 / 3,
+    width: '100%',
+  },
+  demoMealCaptionRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 8,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+  },
+  demoMealTitle: {
+    color: '#0F3D2E',
+    flex: 1,
+    fontFamily: FontFamily.sansBold,
+    fontSize: FontSize.sm,
   },
   photoActionButton: {
     borderRadius: BorderRadius.xl,
