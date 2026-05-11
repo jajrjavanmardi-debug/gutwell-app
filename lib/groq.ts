@@ -123,6 +123,48 @@ const MEAL_LANGUAGE_COPY: Record<AppLanguage, {
   },
 };
 
+const COACH_LANGUAGE_COPY: Record<AppLanguage, {
+  languageName: string;
+  languageRule: string;
+  quickAnswer: string;
+  startHere: string;
+  howOften: string;
+  symptomCheck: string;
+  coachTip: string;
+  footer: string;
+}> = {
+  en: {
+    languageName: 'English',
+    languageRule: 'Write the entire answer strictly in English.',
+    quickAnswer: 'Quick answer',
+    startHere: 'Start here',
+    howOften: 'How often',
+    symptomCheck: 'Symptom check',
+    coachTip: 'Coach tip',
+    footer: 'Info only, not medical advice. Seek care for severe or unusual symptoms.',
+  },
+  de: {
+    languageName: 'German (Deutsch)',
+    languageRule: 'Write the entire answer strictly in German.',
+    quickAnswer: 'Kurzantwort',
+    startHere: 'So startest du',
+    howOften: 'Wie oft',
+    symptomCheck: 'Symptom-Check',
+    coachTip: 'Coach-Tipp',
+    footer: 'Nur zur Information, keine medizinische Beratung. Suche Hilfe bei starken oder ungewöhnlichen Symptomen.',
+  },
+  fa: {
+    languageName: 'Persian (فارسی)',
+    languageRule: 'Write the entire answer strictly in Persian using Persian script. Use natural RTL-friendly phrasing and do not include English labels unless a food or brand has no natural Persian equivalent.',
+    quickAnswer: 'پاسخ کوتاه',
+    startHere: 'از اینجا شروع کن',
+    howOften: 'چند وقت یک بار',
+    symptomCheck: 'بررسی علائم',
+    coachTip: 'نکته مربی',
+    footer: 'فقط برای اطلاع است، نه توصیه پزشکی. در صورت علائم شدید یا غیرمعمول کمک پزشکی بگیرید.',
+  },
+};
+
 function wait(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
@@ -276,7 +318,11 @@ async function callGroq(prompt: string, responseType?: 'json' | 'text'): Promise
                 'The nutrients value must always be an array of strings.',
                 'Do not include Markdown, explanations, prose, comments, or code fences.',
               ].join(' ')
-              : 'Return concise, supportive nutrition guidance without medical claims.',
+              : [
+                'You are NutriFlow, a practical gut-health nutrition coach.',
+                'Answer like a real coach: concrete amounts, timing, symptom-aware cautions, and one small next step.',
+                'Avoid diagnosis, treatment claims, and vague generic nutrition advice.',
+              ].join(' '),
           },
           {
             role: 'user',
@@ -384,9 +430,24 @@ function summarizeFoodData(foodData: FoodNutrition): string {
   ].join('\n');
 }
 
+function getPreferredCoachLanguage(userFeeling: string): AppLanguage {
+  if (/preferred response language:\s*(persian|فارسی)|use persian only|فارسی/i.test(userFeeling)) {
+    return 'fa';
+  }
+
+  if (/preferred response language:\s*(german|deutsch)|use german only|deutsch/i.test(userFeeling)) {
+    return 'de';
+  }
+
+  return 'en';
+}
+
 export async function getHelpfulNutrientsForFeeling(userFeeling: string): Promise<string[]> {
   const prompt = [
     `Based on clinical nutrition research, which 3 specific nutrients are most helpful for someone feeling ${userFeeling}?`,
+    'If the user asks about a specific food amount or frequency, pick nutrients relevant to that practical food guidance rather than generic wellness nutrients.',
+    'Use common nutrient names likely to exist in USDA data, such as Fiber, Potassium, Magnesium, Calcium, Protein, Probiotics, or Vitamin C.',
+    'Do not return foods, symptoms, mechanisms, or supplement brands as nutrient names.',
     'Return exactly one JSON object and nothing else.',
     'Required format: {"nutrients":["Fiber","Probiotics","Magnesium"]}',
     'The nutrients field must be an array of nutrient names as strings.',
@@ -406,7 +467,16 @@ export async function getFoodRecommendationFromNutrients(
   nutrients: string[],
   foodData: FoodNutrition | null,
 ): Promise<string> {
+  const preferredLanguage = getPreferredCoachLanguage(userFeeling);
+  const copy = COACH_LANGUAGE_COPY[preferredLanguage];
   const prompt = [
+    'You are NutriFlow, a practical gut-health nutrition coach.',
+    `Selected app language: ${copy.languageName}.`,
+    `Language rule: ${copy.languageRule} Answer only in ${copy.languageName}.`,
+    preferredLanguage === 'fa'
+      ? 'Persian formatting rule: use natural Persian wording, right-to-left-friendly line breaks, and Persian labels.'
+      : '',
+    '',
     'User context:',
     userFeeling,
     `The clinically relevant nutrients are: ${nutrients.join(', ')}`,
@@ -417,21 +487,32 @@ export async function getFoodRecommendationFromNutrients(
       ? summarizeFoodData(foodData)
       : 'Generate a helpful response anyway using the nutrient list and user context. Do not say the analysis failed.',
     '',
-    'Write a warm, friendly recommendation in the preferred response language from the user context. If no preferred response language is provided, use English.',
-    'Language rule: supported app languages are English, German, and Persian. Write the entire answer only in the preferred app language.',
-    'Avoid medical claims and keep the tone practical, like a supportive friend.',
-    'Formatting rule: use plain text only. Do not use ASCII art, decorative boxes, Unicode box-drawing characters (corners or ruled lines), tables, or unusual symbols. Markdown headings using # or ## at line starts are allowed. Use plain-text section labels such as Dose, Duration, and Progress Tip.',
+    'Answer the person\'s actual question first. Do not start with generic nutrient education.',
+    'Behave like a practical gut-health advisor: give a safe starting amount, a realistic frequency, how to increase or pause, and what symptoms to watch.',
+    'When the user asks "how many", "can I eat this", "how often", or names a food, provide concrete food/intake guidance. Use ranges when exact dosing would be unsafe or uncertain.',
+    'Do not give a vague answer like "eat in moderation" unless it is paired with a specific starting amount and tracking instruction.',
+    'For plums/prunes guidance: mention that prunes can help constipation but may worsen gas, bloating, cramps, diarrhea, or IBS sensitivity because of sorbitol/fructose. A cautious start is 1 prune or 1 small fresh plum per day; if tolerated, increase prunes to 2-3 per day or fresh plums to 1-2 per day. Pair with water and avoid large portions at night if reflux is active.',
+    'For bloating guidance: favor smaller portions, cooked/peeled options, low-FODMAP swaps, slower eating, and avoiding carbonated drinks, onion/garlic, large legume portions, lactose, and large raw fruit portions when relevant.',
+    'For constipation guidance: increase fiber gradually with water; suggest kiwi, oats, chia/flax, cooked vegetables, or 1-2 prunes as a start, and track stool comfort for 2-3 days.',
+    'For reflux guidance: caution with acidic fruit, spicy/fatty meals, chocolate, mint if it worsens reflux, large late meals, and lying down soon after eating.',
+    'For cramps or abdominal pain: recommend pausing the suspected trigger, hydration, gentle warmth, and a bland option. Tell them to seek care if pain is severe, worsening, unusual, or with fever/blood.',
+    'For IBS: use a tolerance-first approach. Start low, change one food at a time, and avoid pushing high-FODMAP or high-fiber jumps during flares.',
+    `Use these plain-text labels exactly in the selected language: ${copy.quickAnswer}, ${copy.startHere}, ${copy.howOften}, ${copy.symptomCheck}, ${copy.coachTip}.`,
+    'Formatting rule: plain text only. No tables, decorative boxes, ASCII art, or unusual symbols. Short labeled sections and simple bullets are okay.',
+    'Keep the answer concrete and compact: 90-150 words unless the user asks for more detail.',
     'If a Gut score is present, frame the advice as a small step to help improve the Gut Score from the current score toward 10.',
-    'Always include these clearly labeled parts: Dose, Duration, and Progress Tip.',
-    'Dose should be a food or habit amount/frequency. Duration should be a practical timeframe. Progress Tip should tell the user what to track to see if their Gut Score improves.',
-    'Mandatory safety footer: end the analysis with a short safety footer in the same language as the rest of the answer.',
+    `${copy.startHere} must include a safe starting amount or starting habit.`,
+    `${copy.howOften} must include a practical frequency or timeframe.`,
+    `${copy.symptomCheck} must mention at least one relevant symptom from IBS, bloating, reflux, constipation, cramps, gas, diarrhea, or pain when applicable.`,
+    `${copy.coachTip} must tell the user what to track over the next 24-72 hours.`,
+    `Mandatory safety footer: end with this exact footer in the selected language: "${copy.footer}"`,
     'If the food is unhealthy for the user\'s gut condition, suggest 3 healthier alternatives that are commonly available in local grocery stores or restaurants.',
     'If IBS is listed as an underlying condition, never suggest high-sugar cookies, desserts, candy, sugary snacks, brown rice, barley bread, barley, or high-fiber whole grains. Prefer white rice, boiled potatoes, zucchini, carrots, ginger tea, peppermint tea, low-FODMAP soup, cooked vegetables, or plain yogurt when appropriate.',
     'When USDA results are generic, incomplete, or not clearly gut-supportive, do not overfit the recommendation to cookies or processed snacks. Suggest natural whole foods and practical habits tied to the nutrient list.',
     foodData
-      ? 'Mention whether the USDA food appears helpful for those nutrients based only on the provided USDA data.'
+      ? 'Mention USDA data only if it directly helps the practical answer; do not let generic USDA matches distract from the named food or symptom question.'
       : 'Because no USDA food matched, suggest general food categories or habits tied to the listed nutrients instead of inventing USDA facts.',
-  ].join('\n');
+  ].filter(Boolean).join('\n');
 
   return callGroq(prompt, 'text');
 }
