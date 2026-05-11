@@ -7,7 +7,6 @@ import type { AppLanguage } from '../lib/app-language';
 import { supabase } from '../lib/supabase';
 
 type HealthLogTrendRow = {
-  id: number | string;
   created_at: string;
   gut_score: number | null;
 };
@@ -28,33 +27,35 @@ const CHART_COPY: Record<AppLanguage, {
   caption: string;
 }> = {
   en: {
-    kicker: 'Date / Score',
+    kicker: 'Daily average',
     title: 'Gut Health Trend',
-    pill: 'Last 7 logs',
-    score: 'Score',
+    pill: 'Last 14 days',
+    score: 'Avg score',
     date: 'Date',
-    empty: 'Log more meals to see your trend chart!',
-    caption: 'Success green line tracks meal impact score from your latest analyses.',
+    empty: 'No meal scores logged in the last 14 days.',
+    caption: 'Shows daily average Gut Scores from food analyses over the last 14 days.',
   },
   de: {
-    kicker: 'Datum / Score',
+    kicker: 'Tagesdurchschnitt',
     title: 'Darmgesundheits-Trend',
-    pill: 'Letzte 7 Logs',
-    score: 'Score',
+    pill: 'Letzte 14 Tage',
+    score: 'Ø Score',
     date: 'Datum',
-    empty: 'Logge mehr Mahlzeiten, um deinen Trend zu sehen!',
-    caption: 'Die grüne Linie zeigt den Mahlzeiten-Impact-Score deiner neuesten Analysen.',
+    empty: 'Keine Mahlzeiten-Scores in den letzten 14 Tagen.',
+    caption: 'Zeigt den täglichen Durchschnitt deiner Darm-Scores aus Food-Analysen der letzten 14 Tage.',
   },
   fa: {
-    kicker: 'تاریخ / امتیاز',
+    kicker: 'میانگین روزانه',
     title: 'روند سلامت روده',
-    pill: '۷ ثبت آخر',
-    score: 'امتیاز',
+    pill: '۱۴ روز گذشته',
+    score: 'میانگین امتیاز',
     date: 'تاریخ',
-    empty: 'برای دیدن نمودار روند، غذاهای بیشتری ثبت کنید!',
-    caption: 'خط سبز، امتیاز تأثیر غذا را از آخرین تحلیل های شما نشان می دهد.',
+    empty: 'در ۱۴ روز گذشته امتیاز غذایی ثبت نشده است.',
+    caption: 'میانگین روزانه امتیازهای روده از تحلیل غذاها در ۱۴ روز گذشته را نشان می دهد.',
   },
 };
+
+const TREND_WINDOW_DAYS = 14;
 
 const LANGUAGE_LOCALES: Record<AppLanguage, string> = {
   en: 'en-US',
@@ -69,29 +70,47 @@ async function resolveUserId(userId?: string): Promise<string | undefined> {
   return (await supabase.auth.getUser()).data.user?.id;
 }
 
-function normalizeScore(value: number | null): number {
-  if (!Number.isFinite(value)) return 0;
-  return Math.max(0, Math.min(10, Math.round(value ?? 0)));
+function normalizeScore(value: number | null): number | null {
+  if (!Number.isFinite(value)) return null;
+  const score = value ?? 0;
+  if (score < 1 || score > 10) return null;
+  return score;
 }
 
-function formatDateLabel(value: string, language: AppLanguage): string {
-  const date = new Date(value);
+function clampAveragedScore(value: number): number {
+  return Math.max(1, Math.min(10, Number(value.toFixed(1))));
+}
+
+function formatCalendarKey(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function getTrendWindowStart(): Date {
+  const start = new Date();
+  start.setHours(0, 0, 0, 0);
+  start.setDate(start.getDate() - (TREND_WINDOW_DAYS - 1));
+  return start;
+}
+
+function formatDateLabel(value: Date, language: AppLanguage): string {
+  const date = value;
   if (Number.isNaN(date.getTime())) return '';
   return date.toLocaleDateString(LANGUAGE_LOCALES[language], { month: 'short', day: 'numeric' });
 }
 
-function formatTimeLabel(value: string, language: AppLanguage): string {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return '';
-  return date.toLocaleTimeString(LANGUAGE_LOCALES[language], { hour: '2-digit', minute: '2-digit' });
+function getPointX(index: number, totalPoints: number, width: number): number {
+  if (totalPoints <= 1) return width / 2;
+  return index * (width / (totalPoints - 1));
 }
 
 function buildSmoothPath(points: TrendPoint[], width: number, height: number): string {
   if (points.length === 0) return '';
 
-  const xStep = width / Math.max(points.length - 1, 1);
   const coords = points.map((point, index) => ({
-    x: index * xStep,
+    x: getPointX(index, points.length, width),
     y: height - (point.score / 10) * height,
   }));
 
@@ -101,6 +120,43 @@ function buildSmoothPath(points: TrendPoint[], width: number, height: number): s
     const controlX = (previous.x + point.x) / 2;
     return `${path} C ${controlX.toFixed(1)} ${previous.y.toFixed(1)}, ${controlX.toFixed(1)} ${point.y.toFixed(1)}, ${point.x.toFixed(1)} ${point.y.toFixed(1)}`;
   }, '');
+}
+
+function buildDailyAveragePoints(rows: HealthLogTrendRow[], language: AppLanguage): TrendPoint[] {
+  const dailyBuckets = new Map<string, { date: Date; total: number; count: number }>();
+
+  rows.forEach((row) => {
+    const score = normalizeScore(row.gut_score);
+    const date = new Date(row.created_at);
+    if (score === null || Number.isNaN(date.getTime())) return;
+
+    const key = formatCalendarKey(date);
+    const existing = dailyBuckets.get(key);
+    if (existing) {
+      existing.total += score;
+      existing.count += 1;
+      return;
+    }
+
+    dailyBuckets.set(key, {
+      date: new Date(date.getFullYear(), date.getMonth(), date.getDate()),
+      total: score,
+      count: 1,
+    });
+  });
+
+  return Array.from(dailyBuckets.entries())
+    .sort(([, a], [, b]) => a.date.getTime() - b.date.getTime())
+    .map(([dateKey, bucket]) => ({
+      id: dateKey,
+      label: formatDateLabel(bucket.date, language),
+      score: clampAveragedScore(bucket.total / bucket.count),
+    }));
+}
+
+function shouldShowDateLabel(index: number, totalPoints: number): boolean {
+  if (totalPoints <= 7) return true;
+  return index === 0 || index === totalPoints - 1 || index % 2 === 0;
 }
 
 export function GutHealthChart({ userId, language = 'en' }: { userId?: string; language?: AppLanguage }) {
@@ -123,11 +179,12 @@ export function GutHealthChart({ userId, language = 'en' }: { userId?: string; l
 
         const { data, error } = await supabase
           .from('health_logs')
-          .select('id, created_at, gut_score')
+          .select('created_at, gut_score')
           .eq('user_id', resolvedUserId)
           .not('gut_score', 'is', null)
-          .order('created_at', { ascending: false })
-          .limit(7);
+          .gte('created_at', getTrendWindowStart().toISOString())
+          .order('created_at', { ascending: true })
+          .limit(200);
 
         if (error) throw error;
         if (isActive) setRows(data ?? []);
@@ -146,19 +203,10 @@ export function GutHealthChart({ userId, language = 'en' }: { userId?: string; l
     };
   }, [userId]);
 
-  const points = useMemo<TrendPoint[]>(() => {
-    const chronologicalRows = [...rows].reverse();
-    const uniqueDayCount = new Set(
-      chronologicalRows.map((row) => new Date(row.created_at).toDateString())
-    ).size;
-    const useTimeLabels = chronologicalRows.length > 1 && uniqueDayCount === 1;
-
-    return chronologicalRows.map((row) => ({
-      id: String(row.id),
-      label: useTimeLabels ? formatTimeLabel(row.created_at, language) : formatDateLabel(row.created_at, language),
-      score: normalizeScore(row.gut_score),
-    }));
-  }, [language, rows]);
+  const points = useMemo<TrendPoint[]>(
+    () => buildDailyAveragePoints(rows, language),
+    [language, rows]
+  );
   const chartWidth = 320;
   const chartHeight = 140;
   const path = buildSmoothPath(points, chartWidth, chartHeight);
@@ -179,61 +227,70 @@ export function GutHealthChart({ userId, language = 'en' }: { userId?: string; l
         <View style={styles.placeholder}>
           <ActivityIndicator color="#4CAF50" />
         </View>
-      ) : points.length < 2 ? (
+      ) : points.length === 0 ? (
         <View style={styles.placeholder}>
           <Text style={[styles.placeholderText, isRtl && styles.rtlText]}>{copy.empty}</Text>
         </View>
       ) : (
-        <>
-          <Svg width="100%" height={205} viewBox={`0 0 ${chartWidth} 205`}>
-            {[0, 5, 10].map((score) => {
-              const y = chartHeight - (score / 10) * chartHeight;
-              return (
-                <Line
-                  key={score}
-                  x1="0"
-                  x2={chartWidth}
-                  y1={y}
-                  y2={y}
-                  stroke="#DDEFE4"
-                  strokeWidth="1"
-                />
-              );
-            })}
-            <SvgText x="0" y="14" fill="#52645A" fontSize="10" fontWeight="700">
-              {copy.score}
-            </SvgText>
-            <Path d={path} fill="none" stroke="#4CAF50" strokeLinecap="round" strokeLinejoin="round" strokeWidth="4" />
-            {points.map((point, index) => {
-              const x = index * (chartWidth / Math.max(points.length - 1, 1));
-              const y = chartHeight - (point.score / 10) * chartHeight;
-              return (
-                <Circle
-                  key={point.id}
-                  cx={x}
-                  cy={y}
-                  r="6"
-                  fill="#4CAF50"
-                  stroke="#FFFFFF"
-                  strokeWidth="2"
-                />
-              );
-            })}
-            {points.map((point, index) => {
-              const x = index * (chartWidth / Math.max(points.length - 1, 1));
-              return (
-                <SvgText key={`${point.id}-date`} x={x} y="172" fill="#52645A" fontSize="10" textAnchor="middle">
-                  {point.label}
-                </SvgText>
-              );
-            })}
-            <SvgText x={chartWidth / 2} y="200" fill="#52645A" fontSize="11" fontWeight="700" textAnchor="middle">
-              {copy.date}
-            </SvgText>
-          </Svg>
-          <Text style={[styles.caption, isRtl && styles.rtlText]}>{copy.caption}</Text>
-        </>
+        <Svg width="100%" height={205} viewBox={`0 0 ${chartWidth} 205`}>
+          {[0, 5, 10].map((score) => {
+            const y = chartHeight - (score / 10) * chartHeight;
+            return (
+              <Line
+                key={score}
+                x1="0"
+                x2={chartWidth}
+                y1={y}
+                y2={y}
+                stroke="#DDEFE4"
+                strokeWidth="1"
+              />
+            );
+          })}
+          <SvgText
+            x={isRtl ? chartWidth : 0}
+            y="14"
+            fill="#52645A"
+            fontSize="10"
+            fontWeight="700"
+            textAnchor={isRtl ? 'end' : 'start'}
+          >
+            {copy.score}
+          </SvgText>
+          <Path d={path} fill="none" stroke="#4CAF50" strokeLinecap="round" strokeLinejoin="round" strokeWidth="4" />
+          {points.map((point, index) => {
+            const x = getPointX(index, points.length, chartWidth);
+            const y = chartHeight - (point.score / 10) * chartHeight;
+            return (
+              <Circle
+                key={point.id}
+                cx={x}
+                cy={y}
+                r="6"
+                fill="#4CAF50"
+                stroke="#FFFFFF"
+                strokeWidth="2"
+              />
+            );
+          })}
+          {points.map((point, index) => {
+            if (!shouldShowDateLabel(index, points.length)) return null;
+            const x = getPointX(index, points.length, chartWidth);
+            return (
+              <SvgText key={`${point.id}-date`} x={x} y="172" fill="#52645A" fontSize="10" textAnchor="middle">
+                {point.label}
+              </SvgText>
+            );
+          })}
+          <SvgText x={chartWidth / 2} y="200" fill="#52645A" fontSize="11" fontWeight="700" textAnchor="middle">
+            {copy.date}
+          </SvgText>
+        </Svg>
       )}
+
+      {!isLoading ? (
+        <Text style={[styles.caption, isRtl && styles.rtlText]}>{copy.caption}</Text>
+      ) : null}
     </View>
   );
 }
