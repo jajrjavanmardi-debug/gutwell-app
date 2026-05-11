@@ -13,7 +13,7 @@ export default function RootLayout() {
         >
           <Stack.Screen name="index" options={{ headerShown: false }} />
           <Stack.Screen name="login" options={{ headerShown: false }} />
-          <Stack.Screen name="onboarding/page" options={{ title: 'Welcome' }} />
+          <Stack.Screen name="onboarding/page" options={{ headerShown: false }} />
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
           <Stack.Screen name="photo-analysis" options={{ headerShown: false }} />
           <Stack.Screen name="food-history" options={{ headerShown: false }} />

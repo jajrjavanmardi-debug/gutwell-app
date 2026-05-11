@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
 import {
@@ -14,11 +15,57 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { GutHealthChart } from '../../components/GutHealthChart';
 import { BorderRadius, FontFamily, FontSize, Spacing } from '../../constants/theme';
 import { useAuth } from '../../contexts/AuthContext';
+import { APP_LANGUAGE_STORAGE_KEY, isRtlLanguage, parseStoredLanguage, type AppLanguage } from '../../lib/app-language';
 import { getPhotoAnalysisHistory, type PhotoAnalysisHistoryItem } from '../../lib/photo-analysis-history';
+
+const HISTORY_COPY: Record<AppLanguage, {
+  kicker: string;
+  title: string;
+  scorePending: string;
+  emptyTitle: string;
+  emptyText: string;
+}> = {
+  en: {
+    kicker: 'Last 14 days',
+    title: 'Meal History',
+    scorePending: 'Score pending',
+    emptyTitle: 'Your gut journey starts here!',
+    emptyText: 'Take your first photo.',
+  },
+  de: {
+    kicker: 'Letzte 14 Tage',
+    title: 'Mahlzeitenverlauf',
+    scorePending: 'Score offen',
+    emptyTitle: 'Deine Darmreise beginnt hier!',
+    emptyText: 'Nimm dein erstes Foto auf.',
+  },
+  fa: {
+    kicker: '۱۴ روز گذشته',
+    title: 'سوابق غذا',
+    scorePending: 'امتیاز در انتظار',
+    emptyTitle: 'مسیر گوارش شما از اینجا شروع می شود!',
+    emptyText: 'اولین عکس غذای خود را بگیرید.',
+  },
+};
+
+const LANGUAGE_LOCALES: Record<AppLanguage, string> = {
+  en: 'en-US',
+  de: 'de-DE',
+  fa: 'fa-IR',
+};
 
 export default function FoodHistoryScreen() {
   const { user, loading } = useAuth();
+  const [language, setLanguage] = useState<AppLanguage>('en');
   const [history, setHistory] = useState<PhotoAnalysisHistoryItem[]>([]);
+  const isRtl = isRtlLanguage(language);
+  const copy = HISTORY_COPY[language];
+
+  useEffect(() => {
+    AsyncStorage.getItem(APP_LANGUAGE_STORAGE_KEY)
+      .then((storedLanguage) => setLanguage(parseStoredLanguage(storedLanguage)))
+      .catch(console.warn);
+  }, []);
 
   useEffect(() => {
     if (loading) return;
@@ -30,13 +77,13 @@ export default function FoodHistoryScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      <View style={styles.header}>
+      <View style={[styles.header, isRtl && styles.rtlRow]}>
         <Pressable onPress={() => router.back()} hitSlop={10} style={styles.backButton}>
-          <Ionicons name="chevron-back" size={20} color="#FFFFFF" />
+          <Ionicons name={isRtl ? 'chevron-forward' : 'chevron-back'} size={20} color="#FFFFFF" />
         </Pressable>
         <View style={styles.headerCopy}>
-          <Text style={styles.kicker}>Last 14 days</Text>
-          <Text style={styles.title}>Meal History</Text>
+          <Text style={[styles.kicker, isRtl && styles.rtlText]}>{copy.kicker}</Text>
+          <Text style={[styles.title, isRtl && styles.rtlText]}>{copy.title}</Text>
         </View>
       </View>
 
@@ -45,7 +92,7 @@ export default function FoodHistoryScreen() {
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator
       >
-        <GutHealthChart userId={user?.id} />
+        <GutHealthChart userId={user?.id} language={language} />
 
         {history.length > 0 ? (
           history.map((item) => (
@@ -55,7 +102,7 @@ export default function FoodHistoryScreen() {
                 pathname: '/photo-analysis',
                 params: { historyId: item.id },
               })}
-              style={({ pressed }) => [styles.card, pressed && styles.pressed]}
+              style={({ pressed }) => [styles.card, isRtl && styles.rtlRow, pressed && styles.pressed]}
             >
               {item.imageUri ? (
                 <Image source={{ uri: item.imageUri }} style={styles.image} />
@@ -65,21 +112,25 @@ export default function FoodHistoryScreen() {
                 </View>
               )}
               <View style={styles.cardCopy}>
-                <Text style={styles.date}>{new Date(item.createdAt).toLocaleDateString()}</Text>
-                <Text numberOfLines={1} style={styles.mealName}>{item.mealName}</Text>
-                <View style={styles.scoreBadge}>
+                <Text style={[styles.date, isRtl && styles.rtlText]}>
+                  {new Date(item.createdAt).toLocaleDateString(LANGUAGE_LOCALES[language])}
+                </Text>
+                <Text numberOfLines={1} style={[styles.mealName, isRtl && styles.rtlText]}>{item.mealName}</Text>
+                <View style={[styles.scoreBadge, isRtl && styles.rtlRow]}>
                   <Ionicons name="speedometer" size={13} color="#2DCE89" />
-                  <Text style={styles.scoreText}>{item.mealImpactScore ?? 'Score pending'}</Text>
+                  <Text style={[styles.scoreText, isRtl && styles.rtlText]}>
+                    {item.mealImpactScore ?? copy.scorePending}
+                  </Text>
                 </View>
               </View>
-              <Ionicons name="chevron-forward" size={18} color="#777777" />
+              <Ionicons name={isRtl ? 'chevron-back' : 'chevron-forward'} size={18} color="#777777" />
             </Pressable>
           ))
         ) : (
           <View style={styles.emptyCard}>
             <Ionicons name="camera" size={30} color="#B2AC88" />
-            <Text style={styles.emptyTitle}>Your gut journey starts here!</Text>
-            <Text style={styles.emptyText}>Take your first photo. 📸</Text>
+            <Text style={[styles.emptyTitle, isRtl && styles.rtlText]}>{copy.emptyTitle}</Text>
+            <Text style={[styles.emptyText, isRtl && styles.rtlText]}>{copy.emptyText}</Text>
           </View>
         )}
       </ScrollView>
@@ -219,5 +270,12 @@ const styles = StyleSheet.create({
   pressed: {
     opacity: 0.78,
     transform: [{ scale: 0.99 }],
+  },
+  rtlRow: {
+    flexDirection: 'row-reverse',
+  },
+  rtlText: {
+    textAlign: 'right',
+    writingDirection: 'rtl',
   },
 });

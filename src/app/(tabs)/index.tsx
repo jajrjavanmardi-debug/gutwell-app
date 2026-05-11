@@ -136,6 +136,9 @@ const translations = {
     inputLabel: 'Tell us what is going on',
     score: 'Gut Score: ',
     currentStatus: 'Current Status',
+    dailyGutScore: 'Daily Gut Score',
+    noScoreYet: 'No score yet',
+    dailyScoreFallback: "Complete today's check-in to generate your personalized daily summary.",
     dose: 'Dose',
     duration: 'Duration',
     progressTip: 'Progress Tip',
@@ -155,6 +158,7 @@ const translations = {
     errorTitle: 'Nutrition plan failed',
     genericErrorMessage: 'Something went wrong while generating your nutrition plan.',
     shareTitle: 'My NutriFlow recommendation',
+    shareSnapshot: 'NutriFlow Snapshot',
     shareFeeling: 'Feeling',
     shareNutrients: 'Helpful nutrients',
     shareButton: 'Share with friends',
@@ -194,7 +198,7 @@ const translations = {
     supplementTitle: "Today's Supplements",
     supplementLogTitle: 'Log Supplement & Probiotic',
     supplementSubtitle: 'Log supplements and probiotics for meal analysis context.',
-    supplementNamePlaceholder: 'Supplement name, e.g. Probiotic Kapsel',
+    supplementNamePlaceholder: 'Supplement name, e.g. probiotic capsule',
     supplementDosagePlaceholder: 'Dosage, e.g. 1 capsule',
     supplementSave: 'Save supplement',
     supplementHistoryTitle: 'Supplements History',
@@ -232,6 +236,21 @@ const translations = {
       moderate: 'Moderate',
       excellent: 'Healthy',
     },
+    chartFeeling: {
+      Good: 'Good',
+      Bad: 'Needs support',
+    },
+    rankNames: {
+      Initiate: 'Initiate',
+      Warrior: 'Warrior',
+      Apex: 'Apex',
+    },
+    commonSupplements: {
+      Probiotic: 'Probiotic',
+      'Digestive Enzyme': 'Digestive Enzyme',
+      Ginger: 'Ginger',
+      'Vitamin D': 'Vitamin D',
+    },
   },
   de: {
     appEyebrow: 'NutriFlow Ernährungsbegleiter',
@@ -241,6 +260,9 @@ const translations = {
     inputLabel: 'Erzähl uns, was los ist',
     score: 'Darm-Score: ',
     currentStatus: 'Aktueller Status',
+    dailyGutScore: 'Täglicher Darm-Score',
+    noScoreYet: 'Noch kein Score',
+    dailyScoreFallback: 'Schließe den heutigen Check-in ab, um deine persönliche Tageszusammenfassung zu erhalten.',
     dose: 'Dosis',
     duration: 'Dauer',
     progressTip: 'Fortschrittstipp',
@@ -260,6 +282,7 @@ const translations = {
     errorTitle: 'Empfehlung fehlgeschlagen',
     genericErrorMessage: 'Beim Erstellen deiner Ernährungsempfehlung ist etwas schiefgelaufen.',
     shareTitle: 'Meine NutriFlow-Empfehlung',
+    shareSnapshot: 'NutriFlow-Zusammenfassung',
     shareFeeling: 'Gefühl',
     shareNutrients: 'Hilfreiche Nährstoffe',
     shareButton: 'Mit Freunden teilen',
@@ -337,6 +360,145 @@ const translations = {
       moderate: 'Moderat',
       excellent: 'Gesund',
     },
+    chartFeeling: {
+      Good: 'Gut',
+      Bad: 'Braucht Unterstützung',
+    },
+    rankNames: {
+      Initiate: 'Start',
+      Warrior: 'Kämpfer',
+      Apex: 'Spitze',
+    },
+    commonSupplements: {
+      Probiotic: 'Probiotikum',
+      'Digestive Enzyme': 'Verdauungsenzym',
+      Ginger: 'Ingwer',
+      'Vitamin D': 'Vitamin D',
+    },
+  },
+  fa: {
+    appEyebrow: 'راهنمای تغذیه NutriFlow',
+    welcome: 'امروز حال گوارش شما چطور است؟',
+    heroSubtitle:
+      'انرژی، هضم، میل غذایی یا علائم خود را بنویسید. ما مواد مغذی حمایتی و ایده های غذایی ملایم بر پایه داده های USDA پیشنهاد می کنیم.',
+    inputLabel: 'بگویید چه چیزی در جریان است',
+    score: 'امتیاز روده: ',
+    currentStatus: 'وضعیت فعلی',
+    dailyGutScore: 'امتیاز روزانه روده',
+    noScoreYet: 'هنوز امتیازی نیست',
+    dailyScoreFallback: 'چک‌این امروز را کامل کنید تا خلاصه روزانه شخصی شما ساخته شود.',
+    dose: 'مقدار',
+    duration: 'مدت',
+    progressTip: 'نکته پیشرفت',
+    noConditions: 'موردی ثبت نشده',
+    conditions: 'شرایط زمینه ای',
+    activity: 'سطح فعالیت',
+    button: 'تحلیل دوستانه',
+    photoAnalysisButton: 'تحلیل عکس غذا',
+    placeholder: 'بگویید چه خورده اید یا چه احساسی دارید...',
+    clear: 'پاک کردن',
+    loading: 'در حال تحلیل مواد مغذی و داده های USDA...',
+    preparingHealthBuddy: 'در حال آماده سازی همراه سلامت شما...',
+    recommendationReady: 'پیشنهاد آماده است!',
+    reanalyzeMessage: 'برای دیدن نتیجه به فارسی، لطفاً دوباره تحلیل کنید.',
+    emptyAlertTitle: 'چه احساسی دارید؟',
+    emptyAlertMessage: 'قبل از ساخت برنامه تغذیه، لطفاً حال خود را توضیح دهید.',
+    errorTitle: 'برنامه تغذیه ناموفق بود',
+    genericErrorMessage: 'هنگام ساخت برنامه تغذیه مشکلی پیش آمد.',
+    shareTitle: 'پیشنهاد NutriFlow من',
+    shareSnapshot: 'خلاصه NutriFlow',
+    shareFeeling: 'احساس',
+    shareNutrients: 'مواد مغذی مفید',
+    shareButton: 'اشتراک گذاری با دوستان',
+    shareErrorTitle: 'اشتراک گذاری در دسترس نیست',
+    shareErrorMessage: 'اکنون امکان باز کردن اشتراک گذاری وجود ندارد.',
+    supportiveNutrients: 'مواد مغذی حمایتی',
+    nutrientBadges: 'نشان های مواد مغذی',
+    usdaMatches: 'موارد مطابق USDA',
+    recommendedFoods: 'غذاهای پیشنهادی',
+    noFoods: 'هنوز غذای مطابق USDA پیدا نشد، اما راهنمای مواد مغذی آماده است.',
+    yourPlan: 'برنامه شما',
+    bigRecommendation: 'پیشنهاد اصلی',
+    photoHistoryTitle: 'سوابق اخیر',
+    photoHistorySubtitle: 'اسکن های غذا در ۱۴ روز گذشته',
+    photoHistoryEmpty: 'هنوز تحلیل عکس غذا ندارید.',
+    photoHistoryNoScore: 'امتیاز در انتظار',
+    historyButton: 'مشاهده همه سوابق',
+    heatmapTitle: 'زنجیره اسکن غذا',
+    heatmapSubtitle: '۳۰ روز گذشته',
+    progressChartTitle: 'ریتم ۷ روزه بدن',
+    progressChartSubtitle: 'امتیاز روده + سطح انرژی',
+    gutScoreMetric: 'امتیاز روده',
+    energyMetric: 'انرژی',
+    xpLabel: 'امتیاز تجربه',
+    nextRank: 'رتبه بعدی',
+    rankUp: 'ارتقای رتبه',
+    goodFeelingCelebration: 'احساس خوب ثبت شد',
+    chartPopupDate: 'تاریخ',
+    chartPopupScore: 'امتیاز',
+    chartPopupFeeling: 'احساس',
+    medicalDisclaimer:
+      'نکته مهم: این تحلیل فقط برای اطلاع است و جایگزین تشخیص پزشکی نیست. اگر علائم شدید دارید، کمک پزشکی بگیرید.',
+    rankTitle: 'سطح ۱ همراه روده',
+    todaysStatus: 'وضعیت امروز',
+    supplementTaken: 'مکمل مصرف شده',
+    noSupplementsLogged: 'هنوز مکملی ثبت نشده',
+    supplementTitle: 'مکمل های امروز',
+    supplementLogTitle: 'ثبت مکمل و پروبیوتیک',
+    supplementSubtitle: 'مکمل ها و پروبیوتیک ها را برای زمینه دقیق تر تحلیل غذا ثبت کنید.',
+    supplementNamePlaceholder: 'نام مکمل، مثلاً پروبیوتیک',
+    supplementDosagePlaceholder: 'مقدار، مثلاً ۱ کپسول',
+    supplementSave: 'ذخیره مکمل',
+    supplementHistoryTitle: 'سوابق مکمل ها',
+    supplementEmpty: 'در ۱۴ روز گذشته مکملی ثبت نشده است.',
+    scoreDecrease: 'کاهش امتیاز روده',
+    scoreIncrease: 'افزایش امتیاز روده',
+    languageButtons: {
+      en: 'EN',
+      de: 'DE',
+      fa: 'FA',
+    },
+    welcomeEmptyTitle: 'برای شروع مسیر تغذیه، بگویید چه احساسی دارید.',
+    welcomeEmptyText:
+      'NutriFlow چک‌این شما را به مواد مغذی حمایتی، ایده های غذایی USDA و یک قدم بعدی ملایم تبدیل می کند.',
+    diseases: {
+      ibs: 'سندرم روده تحریک پذیر',
+      gastritis: 'گاستریت',
+      bloating: 'نفخ',
+      celiac: 'سلیاک',
+      lactoseIntolerance: 'عدم تحمل لاکتوز',
+    },
+    activityLevels: {
+      sedentary: 'کم تحرک',
+      moderate: 'متوسط',
+      active: 'فعال',
+      athlete: 'ورزشی',
+    },
+    examples: {
+      lowEnergy: 'انرژی کم و گرفتگی عضلات',
+      bloated: 'نفخ بعد از غذا',
+      stressed: 'استرس و میل به شیرینی',
+    },
+    statusLabels: {
+      poor: 'ضعیف',
+      moderate: 'متوسط',
+      excellent: 'سالم',
+    },
+    chartFeeling: {
+      Good: 'خوب',
+      Bad: 'نیازمند حمایت',
+    },
+    rankNames: {
+      Initiate: 'شروع',
+      Warrior: 'جنگجو',
+      Apex: 'اوج',
+    },
+    commonSupplements: {
+      Probiotic: 'پروبیوتیک',
+      'Digestive Enzyme': 'آنزیم گوارشی',
+      Ginger: 'زنجبیل',
+      'Vitamin D': 'ویتامین D',
+    },
   },
 } as const;
 
@@ -366,6 +528,12 @@ const SCIENTIFIC_SOURCE_COPY: Record<Language, string> = {
   en: 'Scientific Source: USDA FoodData Central & Localized AI Adaptation.',
   de: 'Wissenschaftliche Quelle: USDA FoodData Central & lokalisierte KI-Anpassung.',
   fa: 'منبع علمی: USDA FoodData Central و سازگاری محلی هوش مصنوعی.',
+};
+
+const LANGUAGE_LOCALES: Record<Language, string> = {
+  en: 'en-US',
+  de: 'de-DE',
+  fa: 'fa-IR',
 };
 
 const NUTRIENT_TRANSLATIONS: Record<Language, Record<string, string>> = {
@@ -493,7 +661,9 @@ function buildSevenDayChartData(
   photoHistory: PhotoAnalysisHistoryItem[],
   supplementHistory: SupplementHistoryItem[],
   fallbackGutScore: number,
+  language: Language,
 ): ChartPoint[] {
+  const locale = LANGUAGE_LOCALES[language];
   return Array.from({ length: 7 }, (_, index) => {
     const date = new Date();
     date.setDate(date.getDate() - (6 - index));
@@ -512,8 +682,8 @@ function buildSevenDayChartData(
     );
 
     return {
-      label: date.toLocaleDateString(undefined, { weekday: 'short' }).slice(0, 2),
-      dateLabel: date.toLocaleDateString(),
+      label: date.toLocaleDateString(locale, { weekday: 'short' }).slice(0, 2),
+      dateLabel: date.toLocaleDateString(locale),
       gutScore: averageGutScore,
       energy,
       feeling: averageGutScore >= 6 ? 'Good' : 'Bad',
@@ -637,7 +807,7 @@ export default function HomeScreen() {
   const [dailyGutScoreCard, setDailyGutScoreCard] = useState<DailyGutScoreCardData | null>(null);
   const [dailyGutScoreLoading, setDailyGutScoreLoading] = useState(false);
 
-  const t = translations[language === 'fa' ? 'en' : language];
+  const t = translations[language];
   const isRtl = isRtlLanguage(language);
   const ui = UI_COPY[language];
   const scientificSource = SCIENTIFIC_SOURCE_COPY[language];
@@ -670,8 +840,8 @@ export default function HomeScreen() {
     : t.noSupplementsLogged;
   const rankProgress = useMemo(() => getNextRankProgress(userProgress.xp), [userProgress.xp]);
   const chartData = useMemo(
-    () => buildSevenDayChartData(photoHistory, supplementHistory, gutScore),
-    [gutScore, photoHistory, supplementHistory]
+    () => buildSevenDayChartData(photoHistory, supplementHistory, gutScore, language),
+    [gutScore, language, photoHistory, supplementHistory]
   );
   const isGoodFeeling = useMemo(
     () => /\bgood\b|\bgreat\b|\bbetter\b|\bhappy\b|\bcalm\b|\bwonderful\b|\bfine\b|\bgut\b|\bbesser\b|\bgern\b/i.test(trimmedFeeling),
@@ -752,7 +922,7 @@ export default function HomeScreen() {
     if (!localizedResult) return '';
 
     return [
-      'NutriFlow Snapshot',
+      t.shareSnapshot,
       t.shareTitle,
       `${t.shareFeeling}: ${localizedResult.feeling}`,
       `${t.conditions}: ${localizedConditionSummary}`,
@@ -838,12 +1008,12 @@ export default function HomeScreen() {
       ].join('\n');
       const recommendation = await getNutritionRecommendation(analysisInput);
       const xpResult = await addXpForAction(10);
-      setResult(recommendation);
+      setResult({ ...recommendation, feeling: trimmedFeeling });
       setResultLanguage(language);
       setUserProgress(xpResult.profile);
       setShowReadyMessage(true);
       if (xpResult.leveledUp) {
-        setRankUpBadge(`${t.rankUp}: ${xpResult.profile.rank}`);
+        setRankUpBadge(`${t.rankUp}: ${t.rankNames[xpResult.profile.rank]}`);
         setTimeout(() => setRankUpBadge(''), 3200);
       }
       if (isGoodFeeling) {
@@ -910,7 +1080,7 @@ export default function HomeScreen() {
       setSupplementHistory(nextHistory);
       setUserProgress(xpResult.profile);
       if (xpResult.leveledUp) {
-        setRankUpBadge(`${t.rankUp}: ${xpResult.profile.rank}`);
+        setRankUpBadge(`${t.rankUp}: ${t.rankNames[xpResult.profile.rank]}`);
         setTimeout(() => setRankUpBadge(''), 3200);
       }
       setSupplementName('');
@@ -982,7 +1152,7 @@ export default function HomeScreen() {
               onPress={() => router.push('/settings')}
               hitSlop={8}
               accessibilityRole="button"
-              accessibilityLabel="Open profile settings"
+              accessibilityLabel={localizedStaticLabels.profile}
               style={({ pressed }) => [styles.settingsQuickButton, pressed && styles.pressed]}
             >
               <Ionicons name="settings-outline" size={18} color="#FFFFFF" />
@@ -1025,12 +1195,12 @@ export default function HomeScreen() {
               <Text style={[styles.eyebrowText, isRtl && styles.rtlText]}>{t.appEyebrow}</Text>
             </View>
             <Text style={[styles.rankTitle, isRtl && styles.rtlText]}>
-              Gut {userProgress.rank}
+              {t.rankTitle}: {t.rankNames[userProgress.rank]}
             </Text>
             <View style={styles.xpPill}>
               <Text style={styles.xpPillText}>
                 {userProgress.xp} {t.xpLabel}
-                {rankProgress.next ? ` · ${t.nextRank}: ${rankProgress.next}` : ''}
+                {rankProgress.next ? ` · ${t.nextRank}: ${t.rankNames[rankProgress.next]}` : ''}
               </Text>
             </View>
             <View style={styles.xpTrack}>
@@ -1162,17 +1332,17 @@ export default function HomeScreen() {
 
           <View style={styles.dailyScoreCard}>
             <View style={styles.sectionHeader}>
-              <Text style={styles.sectionKicker}>Daily Gut Score</Text>
-              <Text style={styles.sectionTitle}>
-                {dailyGutScoreCard ? `${dailyGutScoreCard.score}/100` : 'No score yet'}
+              <Text style={[styles.sectionKicker, isRtl && styles.rtlText]}>{t.dailyGutScore}</Text>
+              <Text style={[styles.sectionTitle, isRtl && styles.rtlText]}>
+                {dailyGutScoreCard ? `${dailyGutScoreCard.score}/100` : t.noScoreYet}
               </Text>
             </View>
             {dailyGutScoreLoading ? (
               <ActivityIndicator color={DS.colors.sage} size="small" />
             ) : (
-              <Text style={styles.dailyScoreSummary}>
+              <Text style={[styles.dailyScoreSummary, isRtl && styles.rtlText]}>
                 {dailyGutScoreCard?.insight
-                  ?? 'Complete today\'s check-in to generate your personalized daily summary.'}
+                  ?? t.dailyScoreFallback}
               </Text>
             )}
           </View>
@@ -1194,21 +1364,21 @@ export default function HomeScreen() {
             />
             {selectedChartPoint ? (
               <View style={styles.chartPopup}>
-                <View style={styles.chartPopupHeader}>
+                <View style={[styles.chartPopupHeader, isRtl && styles.rtlRow]}>
                   <Ionicons name="pulse" size={16} color="#2DCE89" />
-                  <Text style={styles.chartPopupTitle}>{selectedChartPoint.label}</Text>
+                  <Text style={[styles.chartPopupTitle, isRtl && styles.rtlText]}>{selectedChartPoint.label}</Text>
                   <Pressable onPress={() => setSelectedChartPoint(null)} hitSlop={8}>
                     <Ionicons name="close" size={16} color="#A7A7A7" />
                   </Pressable>
                 </View>
-                <Text style={styles.chartPopupText}>
+                <Text style={[styles.chartPopupText, isRtl && styles.rtlText]}>
                   {t.chartPopupDate}: {selectedChartPoint.dateLabel}
                 </Text>
-                <Text style={styles.chartPopupText}>
+                <Text style={[styles.chartPopupText, isRtl && styles.rtlText]}>
                   {t.chartPopupScore}: {selectedChartPoint.gutScore}/10
                 </Text>
-                <Text style={styles.chartPopupText}>
-                  {t.chartPopupFeeling}: {selectedChartPoint.feeling}
+                <Text style={[styles.chartPopupText, isRtl && styles.rtlText]}>
+                  {t.chartPopupFeeling}: {t.chartFeeling[selectedChartPoint.feeling]}
                 </Text>
               </View>
             ) : null}
@@ -1272,7 +1442,7 @@ export default function HomeScreen() {
               style={({ pressed }) => [styles.historyButton, pressed && styles.pressed]}
             >
               <Ionicons name="list" size={17} color="#000000" />
-              <Text style={styles.historyButtonText}>{ui.viewDetails}</Text>
+              <Text style={[styles.historyButtonText, isRtl && styles.rtlText]}>{t.historyButton}</Text>
             </Pressable>
           </View>
 
@@ -1326,7 +1496,7 @@ export default function HomeScreen() {
                   ]}
                 >
                   <Ionicons name="refresh" size={14} color="#2DCE89" />
-                  <Text style={styles.clearButtonText}>{t.clear}</Text>
+                  <Text style={[styles.clearButtonText, isRtl && styles.rtlText]}>{t.clear}</Text>
                 </Pressable>
               </View>
               <TextInput
@@ -1399,14 +1569,14 @@ export default function HomeScreen() {
                 {isLoading ? (
                   <>
                     <ActivityIndicator color={Colors.textInverse} size="small" />
-                    <Text style={styles.generateButtonText}>
+                    <Text style={[styles.generateButtonText, isRtl && styles.rtlText]}>
                       {t.loading}
                     </Text>
                   </>
                 ) : (
                   <>
                     <Ionicons name="nutrition" size={19} color={Colors.textInverse} />
-                    <Text style={styles.generateButtonText}>{t.button}</Text>
+                    <Text style={[styles.generateButtonText, isRtl && styles.rtlText]}>{t.button}</Text>
                   </>
                 )}
               </Pressable>
@@ -1432,19 +1602,20 @@ export default function HomeScreen() {
                       {COMMON_SUPPLEMENTS.map((item) => (
                         <Pressable
                           key={item}
-                          onPress={() => setSupplementName(item)}
+                          onPress={() => setSupplementName(t.commonSupplements[item])}
                           style={[
                             styles.commonSupplementChip,
-                            supplementName === item && styles.commonSupplementChipActive,
+                            (supplementName === item || supplementName === t.commonSupplements[item]) && styles.commonSupplementChipActive,
                           ]}
                         >
                           <Text
                             style={[
                               styles.commonSupplementText,
-                              supplementName === item && styles.commonSupplementTextActive,
+                              (supplementName === item || supplementName === t.commonSupplements[item]) && styles.commonSupplementTextActive,
+                              isRtl && styles.rtlText,
                             ]}
                           >
-                            {item}
+                            {t.commonSupplements[item]}
                           </Text>
                         </Pressable>
                       ))}
@@ -1473,7 +1644,7 @@ export default function HomeScreen() {
                         ]}
                       >
                         <Ionicons name="add-circle" size={18} color={Colors.textInverse} />
-                        <Text style={styles.supplementSaveText}>{t.supplementSave}</Text>
+                        <Text style={[styles.supplementSaveText, isRtl && styles.rtlText]}>{t.supplementSave}</Text>
                       </Pressable>
                     </View>
                   </View>
@@ -1603,7 +1774,7 @@ export default function HomeScreen() {
                     style={({ pressed }) => [styles.shareButton, pressed && styles.pressed]}
                   >
                     <Ionicons name="paper-plane" size={18} color="#000000" />
-                    <Text style={styles.shareButtonText}>{t.shareButton}</Text>
+                    <Text style={[styles.shareButtonText, isRtl && styles.rtlText]}>{t.shareButton}</Text>
                   </Pressable>
                 </View>
               </View>
@@ -1625,7 +1796,7 @@ export default function HomeScreen() {
       <Pressable
         onPress={() => router.push('/relief')}
         accessibilityRole="button"
-        accessibilityLabel="SOS Instant Relief"
+        accessibilityLabel={`${ui.quickTips}: ${localizedStaticLabels.sos}`}
         style={({ pressed }) => [
           styles.sosFab,
           { bottom: Math.max(insets.bottom + 16, 28) },

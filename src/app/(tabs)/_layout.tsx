@@ -2,26 +2,62 @@ import { Ionicons } from '@expo/vector-icons';
 import { Tabs, useFocusEffect } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Platform, StyleSheet, View, Text, TouchableOpacity } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { Colors, FontSize, FontFamily, Shadows, Spacing } from '../../../constants/theme';
-import { APP_LANGUAGE_STORAGE_KEY, parseStoredLanguage, type AppLanguage } from '../../../lib/app-language';
+import { APP_LANGUAGE_STORAGE_KEY, isRtlLanguage, parseStoredLanguage, type AppLanguage } from '../../../lib/app-language';
+
+const TAB_COPY: Record<AppLanguage, {
+  home: string;
+  errorTitle: string;
+  errorSubtitle: string;
+  tryAgain: string;
+}> = {
+  en: {
+    home: 'Home',
+    errorTitle: 'Something went wrong',
+    errorSubtitle: 'An unexpected error occurred. Please try again.',
+    tryAgain: 'Try Again',
+  },
+  de: {
+    home: 'Start',
+    errorTitle: 'Etwas ist schiefgelaufen',
+    errorSubtitle: 'Ein unerwarteter Fehler ist aufgetreten. Bitte versuche es erneut.',
+    tryAgain: 'Erneut versuchen',
+  },
+  fa: {
+    home: 'خانه',
+    errorTitle: 'مشکلی پیش آمد',
+    errorSubtitle: 'یک خطای غیرمنتظره رخ داد. لطفاً دوباره تلاش کنید.',
+    tryAgain: 'تلاش دوباره',
+  },
+};
 
 /** Expo Router error boundary for all tab screens */
 export function ErrorBoundary({ error, retry }: { error: Error; retry: () => void }) {
+  const [language, setLanguage] = useState<AppLanguage>('en');
+  const copy = TAB_COPY[language];
+  const isRtl = isRtlLanguage(language);
+
+  useEffect(() => {
+    AsyncStorage.getItem(APP_LANGUAGE_STORAGE_KEY)
+      .then((storedLanguage) => setLanguage(parseStoredLanguage(storedLanguage)))
+      .catch(console.warn);
+  }, []);
+
   return (
     <View style={ebStyles.container}>
       <View style={ebStyles.iconCircle}>
         <Ionicons name="leaf-outline" size={32} color={Colors.secondary} />
       </View>
-      <Text style={ebStyles.title}>Something went wrong</Text>
-      <Text style={ebStyles.subtitle}>
-        An unexpected error occurred. Please try again.
+      <Text style={[ebStyles.title, isRtl && ebStyles.rtlText]}>{copy.errorTitle}</Text>
+      <Text style={[ebStyles.subtitle, isRtl && ebStyles.rtlText]}>
+        {copy.errorSubtitle}
       </Text>
-      <TouchableOpacity style={ebStyles.retryButton} onPress={retry} activeOpacity={0.7}>
+      <TouchableOpacity style={[ebStyles.retryButton, isRtl && ebStyles.rtlRow]} onPress={retry} activeOpacity={0.7}>
         <Ionicons name="refresh" size={18} color="#FFFFFF" />
-        <Text style={ebStyles.retryText}>Try Again</Text>
+        <Text style={[ebStyles.retryText, isRtl && ebStyles.rtlText]}>{copy.tryAgain}</Text>
       </TouchableOpacity>
     </View>
   );
@@ -72,10 +108,18 @@ const ebStyles = StyleSheet.create({
     fontSize: FontSize.md,
     color: '#FFFFFF',
   },
+  rtlRow: {
+    flexDirection: 'row-reverse',
+  },
+  rtlText: {
+    textAlign: 'right',
+    writingDirection: 'rtl',
+  },
 });
 
 export default function TabLayout() {
   const [language, setLanguage] = useState<AppLanguage>('en');
+  const copy = TAB_COPY[language];
 
   useFocusEffect(
     useCallback(() => {
@@ -131,7 +175,7 @@ export default function TabLayout() {
         <Tabs.Screen
           name="index"
           options={{
-            title: language === 'fa' ? 'خانه' : 'Home',
+            title: copy.home,
             tabBarIcon: ({ color, focused }) => (
               renderTabIcon(focused, 'home', 'home-outline', color)
             ),

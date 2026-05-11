@@ -186,6 +186,8 @@ const copy = {
     wizardStep4Hint: 'Step 4 of 4 — Final check',
     wizardNext: 'Next',
     changePhoto: 'Change photo',
+    usePhoto: 'Use Photo',
+    cancel: 'Cancel',
     step2Prompt: 'What is this food? How do you feel?',
     generateAnalysis: 'Generate Analysis',
     isThisAccurate: 'Is this accurate?',
@@ -249,6 +251,7 @@ const copy = {
     photoUnavailableMessage: 'Could not read the photo data. Please try again.',
     cameraNeededTitle: 'Camera access needed',
     cameraNeededMessage: 'Please allow camera access to take a meal photo.',
+    browserCameraNeededMessage: 'Please allow camera access in your browser, then try again.',
     demoMode: 'Demo Mode',
     cameraUnavailableTitle: 'Camera unavailable in simulator.',
     cameraUnavailableMessage: 'Use gallery upload or a built-in meal image to keep the demo flow moving.',
@@ -289,6 +292,8 @@ const copy = {
     wizardStep4Hint: 'Schritt 4 von 4 — Abschluss',
     wizardNext: 'Weiter',
     changePhoto: 'Foto ändern',
+    usePhoto: 'Foto verwenden',
+    cancel: 'Abbrechen',
     step2Prompt: 'Was ist das für Essen? Wie fühlst du dich?',
     generateAnalysis: 'Analyse erstellen',
     isThisAccurate: 'Stimmt das so?',
@@ -352,6 +357,7 @@ const copy = {
     photoUnavailableMessage: 'Die Fotodaten konnten nicht gelesen werden. Bitte erneut versuchen.',
     cameraNeededTitle: 'Kamerazugriff nötig',
     cameraNeededMessage: 'Bitte erlaube den Kamerazugriff, um ein Mahlzeitenfoto aufzunehmen.',
+    browserCameraNeededMessage: 'Bitte erlaube den Kamerazugriff im Browser und versuche es erneut.',
     demoMode: 'Demo-Modus',
     cameraUnavailableTitle: 'Kamera im Simulator nicht verfügbar.',
     cameraUnavailableMessage: 'Nutze den Galerie-Upload oder ein integriertes Mahlzeitenbild, damit die Demo sauber weiterläuft.',
@@ -392,6 +398,8 @@ const copy = {
     wizardStep4Hint: 'مرحله ۴ از ۴ - بررسی نهایی',
     wizardNext: 'بعدی',
     changePhoto: 'تغییر عکس',
+    usePhoto: 'استفاده از عکس',
+    cancel: 'لغو',
     step2Prompt: 'این غذا چیست؟ چه احساسی دارید؟',
     generateAnalysis: 'ایجاد تحلیل',
     isThisAccurate: 'این تحلیل درست است؟',
@@ -444,7 +452,7 @@ const copy = {
     voiceUnavailableMessage:
       'تبدیل گفتار به متن شروع نشد. همچنان می توانید تایپ کنید. اگر ادامه داشت، مجوزهای میکروفون و تشخیص گفتار NutriFlow را بررسی کنید.',
     microphoneDisabledToast:
-      'میکروفون غیرفعال است. لطفا مجوز میکروفون را در تنظیمات گوشی فعال کنید (Settings > NutriFlow > Microphone).',
+      'میکروفون غیرفعال است. لطفاً مجوز میکروفون را در تنظیمات گوشی فعال کنید (تنظیمات > NutriFlow > میکروفون).',
     voiceInputA11yLabel: 'ورودی صوتی',
     voiceInputA11yHint: 'برای ضبط نگه دارید؛ برای پایان رها کنید.',
     correcting: 'در حال به روزرسانی با اصلاح شما...',
@@ -455,6 +463,7 @@ const copy = {
     photoUnavailableMessage: 'داده های عکس خوانده نشد. لطفا دوباره تلاش کنید.',
     cameraNeededTitle: 'دسترسی به دوربین لازم است',
     cameraNeededMessage: 'برای گرفتن عکس غذا، اجازه دسترسی به دوربین را بدهید.',
+    browserCameraNeededMessage: 'لطفاً دسترسی دوربین را در مرورگر فعال کنید و دوباره تلاش کنید.',
     demoMode: 'حالت دمو',
     cameraUnavailableTitle: 'دوربین در شبیه ساز در دسترس نیست.',
     cameraUnavailableMessage: 'برای ادامه روان دمو، از گالری بارگذاری کنید یا یک تصویر غذای نمونه انتخاب کنید.',
@@ -1285,7 +1294,7 @@ export default function PhotoAnalysisScreen() {
       });
     } catch (error) {
       console.error('Web camera permission failed:', error);
-      Alert.alert(t.cameraNeededTitle, 'Please allow camera access in your browser, then try again.');
+      Alert.alert(t.cameraNeededTitle, t.browserCameraNeededMessage);
       return;
     }
 
@@ -1316,8 +1325,8 @@ export default function PhotoAnalysisScreen() {
       'width:100%',
       'max-width:520px',
     ].join(';');
-    captureButton.textContent = 'Use Photo';
-    cancelButton.textContent = 'Cancel';
+    captureButton.textContent = t.usePhoto;
+    cancelButton.textContent = t.cancel;
     [captureButton, cancelButton].forEach((button) => {
       button.type = 'button';
       button.style.cssText = [

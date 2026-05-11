@@ -43,6 +43,13 @@ const SETTINGS_COPY = {
     saving: 'Saving...',
     loadingProfile: 'Loading profile...',
     loadFailed: 'Could not load saved profile',
+    conditionLabels: {
+      IBS: 'IBS',
+      Gastritis: 'Gastritis',
+      Bloating: 'Bloating',
+      'Lactose Intolerance': 'Lactose Intolerance',
+      Celiac: 'Celiac',
+    },
     proTitle: 'NutriFlow Pro',
     proPlan: 'Current Plan: Free Preview',
     proCta: 'Upgrade to Pro – 5 USD/month',
@@ -66,6 +73,13 @@ const SETTINGS_COPY = {
     saving: 'Speichern...',
     loadingProfile: 'Profil wird geladen...',
     loadFailed: 'Gespeichertes Profil konnte nicht geladen werden',
+    conditionLabels: {
+      IBS: 'Reizdarmsyndrom',
+      Gastritis: 'Gastritis',
+      Bloating: 'Blähungen',
+      'Lactose Intolerance': 'Laktoseintoleranz',
+      Celiac: 'Zöliakie',
+    },
     proTitle: 'NutriFlow Pro',
     proPlan: 'Aktueller Plan: Kostenlose Vorschau',
     proCta: 'Auf Pro upgraden – 5 USD/Monat',
@@ -89,6 +103,13 @@ const SETTINGS_COPY = {
     saving: 'در حال ذخیره...',
     loadingProfile: 'در حال بارگذاری پروفایل...',
     loadFailed: 'بارگذاری پروفایل ذخیره شده انجام نشد',
+    conditionLabels: {
+      IBS: 'سندرم روده تحریک پذیر',
+      Gastritis: 'گاستریت',
+      Bloating: 'نفخ',
+      'Lactose Intolerance': 'عدم تحمل لاکتوز',
+      Celiac: 'سلیاک',
+    },
     proTitle: 'NutriFlow Pro',
     proPlan: 'طرح فعلی: پیش نمایش رایگان',
     proCta: 'ارتقا به Pro – ماهانه ۵ دلار',
@@ -207,7 +228,7 @@ export default function SettingsScreen() {
                     ]}
                   >
                     <Text style={[styles.chipText, isSelected && styles.chipTextSelected, isRtl && styles.rtlText]}>
-                      {condition}
+                      {t.conditionLabels[condition]}
                     </Text>
                   </Pressable>
                 );
@@ -294,7 +315,7 @@ export default function SettingsScreen() {
           <Text style={[styles.cardTitle, isRtl && styles.rtlText]}>{t.aiPersonalization}</Text>
           <Text style={[styles.cardSubtitle, isRtl && styles.rtlText]}>
             {selectedConditions.length > 0
-              ? `${t.currentFocus}: ${selectedConditions.join(', ')}`
+              ? `${t.currentFocus}: ${selectedConditions.map((condition) => t.conditionLabels[condition]).join(', ')}`
               : `${t.currentFocus}: ${t.generalGutHealth}`}
           </Text>
         </View>

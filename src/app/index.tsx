@@ -1,18 +1,36 @@
 import { Redirect } from 'expo-router';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useEffect, useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useAuth } from '../../contexts/AuthContext';
+import { APP_LANGUAGE_STORAGE_KEY, isRtlLanguage, parseStoredLanguage, type AppLanguage } from '../../lib/app-language';
+
+const ENTRY_COPY: Record<AppLanguage, { loading: string }> = {
+  en: { loading: 'Loading your profile...' },
+  de: { loading: 'Profil wird geladen...' },
+  fa: { loading: 'در حال بارگذاری پروفایل...' },
+};
 
 export default function AppEntry() {
   const { user, profile, loading } = useAuth();
+  const [language, setLanguage] = useState<AppLanguage>('en');
+  const isRtl = isRtlLanguage(language);
+  const copy = ENTRY_COPY[language];
+
+  useEffect(() => {
+    AsyncStorage.getItem(APP_LANGUAGE_STORAGE_KEY)
+      .then((storedLanguage) => setLanguage(parseStoredLanguage(storedLanguage)))
+      .catch(console.warn);
+  }, []);
 
   if (loading) {
     return (
       <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
         <View style={styles.loadingState}>
           <ActivityIndicator color="#4CAF50" size="large" />
-          <Text style={styles.loadingText}>Loading your profile...</Text>
+          <Text style={[styles.loadingText, isRtl && styles.rtlText]}>{copy.loading}</Text>
         </View>
       </SafeAreaView>
     );
@@ -39,5 +57,9 @@ const styles = StyleSheet.create({
     color: '#53616D',
     fontSize: 15,
     fontWeight: '700',
+  },
+  rtlText: {
+    textAlign: 'right',
+    writingDirection: 'rtl',
   },
 });
