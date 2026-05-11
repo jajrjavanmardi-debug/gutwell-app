@@ -2,7 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import {
@@ -55,6 +55,24 @@ const SETTINGS_COPY = {
     proCta: 'Upgrade to Pro – 5 USD/month',
     proBenefits: ['Unlimited Scans', 'Detailed 30-day Progress Charts', 'Priority SOS Support'],
     proComingSoon: 'Pro checkout preview selected',
+    shareFeedbackTitle: 'Share App for Feedback',
+    shareFeedbackHint: 'Invite a tester to try NutriFlow in Expo Go and send practical demo feedback.',
+    shareFeedbackButton: 'Open share sheet',
+    shareFeedbackOpened: 'Share sheet opened',
+    shareFeedbackFailed: 'Could not open sharing right now',
+    shareMessage: [
+      'NutriFlow',
+      '',
+      'A mobile gut-health nutrition assistant for meal photo analysis, symptom-aware Gut Scores, quick relief tips, and daily food-history trends.',
+      '',
+      'How to test with Expo Go:',
+      '1. Install Expo Go from the App Store or Google Play.',
+      '2. Ask me for the current Expo QR code or development link.',
+      '3. Open Expo Go, scan the QR code, and test onboarding, language switching, meal photo/demo analysis, SOS relief, history, and settings.',
+      '',
+      'Feedback request:',
+      'Please share what feels confusing, what looks demo-ready, any crashes or slow screens, and whether the Gut Score/results feel useful.',
+    ].join('\n'),
   },
   de: {
     personalizedProfile: 'Personalisiertes Profil',
@@ -85,6 +103,24 @@ const SETTINGS_COPY = {
     proCta: 'Auf Pro upgraden – 5 USD/Monat',
     proBenefits: ['Unbegrenzte Scans', 'Detaillierte 30-Tage-Verlaufsgrafiken', 'Priorisierter SOS-Support'],
     proComingSoon: 'Pro-Checkout-Vorschau ausgewählt',
+    shareFeedbackTitle: 'App für Feedback teilen',
+    shareFeedbackHint: 'Lade Tester ein, NutriFlow in Expo Go auszuprobieren und Demo-Feedback zu senden.',
+    shareFeedbackButton: 'Teilen öffnen',
+    shareFeedbackOpened: 'Teilen geöffnet',
+    shareFeedbackFailed: 'Teilen kann gerade nicht geöffnet werden',
+    shareMessage: [
+      'NutriFlow',
+      '',
+      'Eine mobile Darmgesundheits-App mit Fotoanalyse für Mahlzeiten, symptombezogenen Darm-Scores, schnellen SOS-Tipps und täglichen Food-History-Trends.',
+      '',
+      'So testest du mit Expo Go:',
+      '1. Installiere Expo Go aus dem App Store oder Google Play.',
+      '2. Frag mich nach dem aktuellen Expo-QR-Code oder Entwicklungslink.',
+      '3. Öffne Expo Go, scanne den QR-Code und teste Onboarding, Sprachwechsel, Foto-/Demoanalyse, SOS-Hilfe, Verlauf und Einstellungen.',
+      '',
+      'Feedback-Wunsch:',
+      'Bitte teile, was unklar wirkt, was präsentationsreif aussieht, ob es Abstürze oder langsame Screens gibt und ob Gut Score/Ergebnisse hilfreich wirken.',
+    ].join('\n'),
   },
   fa: {
     personalizedProfile: 'پروفایل شخصی سازی شده',
@@ -115,6 +151,24 @@ const SETTINGS_COPY = {
     proCta: 'ارتقا به Pro – ماهانه ۵ دلار',
     proBenefits: ['اسکن نامحدود', 'نمودارهای پیشرفت دقیق ۳۰ روزه', 'پشتیبانی SOS با اولویت'],
     proComingSoon: 'پیش نمایش پرداخت Pro انتخاب شد',
+    shareFeedbackTitle: 'اشتراک گذاری برنامه برای بازخورد',
+    shareFeedbackHint: 'یک تستر را دعوت کنید تا NutriFlow را در Expo Go امتحان کند و بازخورد دمو بدهد.',
+    shareFeedbackButton: 'باز کردن اشتراک گذاری',
+    shareFeedbackOpened: 'صفحه اشتراک گذاری باز شد',
+    shareFeedbackFailed: 'اکنون امکان باز کردن اشتراک گذاری وجود ندارد',
+    shareMessage: [
+      'NutriFlow',
+      '',
+      'یک دستیار موبایل برای سلامت گوارش با تحلیل عکس غذا، امتیاز گوارش بر اساس علائم، راهنمای سریع SOS و روند روزانه سوابق غذا.',
+      '',
+      'روش تست با Expo Go:',
+      '۱. Expo Go را از App Store یا Google Play نصب کنید.',
+      '۲. از من QR code فعلی Expo یا لینک توسعه را بگیرید.',
+      '۳. Expo Go را باز کنید، QR code را اسکن کنید و آنبوردینگ، تغییر زبان، تحلیل عکس یا غذای دمو، SOS، سوابق و تنظیمات را تست کنید.',
+      '',
+      'درخواست بازخورد:',
+      'لطفا بگویید چه بخش هایی گیج کننده است، چه چیزهایی برای دمو آماده به نظر می رسد، آیا کرش یا کندی وجود دارد و آیا Gut Score و نتایج مفید هستند.',
+    ].join('\n'),
   },
 } as const;
 
@@ -179,6 +233,19 @@ export default function SettingsScreen() {
       setSaveMessage(t.saveFailed);
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const handleShareForFeedback = async () => {
+    try {
+      await Share.share({
+        title: t.shareFeedbackTitle,
+        message: t.shareMessage,
+      });
+      setSaveMessage(t.shareFeedbackOpened);
+    } catch (error) {
+      console.error('App feedback share failed:', error);
+      setSaveMessage(t.shareFeedbackFailed);
     }
   };
 
@@ -309,6 +376,27 @@ export default function SettingsScreen() {
               </View>
             ))}
           </View>
+        </View>
+
+        <View style={styles.card}>
+          <View style={[styles.cardHeader, isRtl && styles.rtlRow]}>
+            <View style={styles.iconCircle}>
+              <Ionicons name="share-social" size={22} color={MINT_DARK} />
+            </View>
+            <View style={styles.cardHeaderCopy}>
+              <Text style={[styles.cardTitle, isRtl && styles.rtlText]}>{t.shareFeedbackTitle}</Text>
+              <Text style={[styles.cardSubtitle, isRtl && styles.rtlText]}>{t.shareFeedbackHint}</Text>
+            </View>
+          </View>
+
+          <Pressable
+            onPress={handleShareForFeedback}
+            accessibilityRole="button"
+            style={({ pressed }) => [styles.shareFeedbackButton, isRtl && styles.rtlRow, pressed && styles.pressed]}
+          >
+            <Ionicons name="share-outline" size={18} color={SLATE_DARK} />
+            <Text style={[styles.shareFeedbackButtonText, isRtl && styles.rtlText]}>{t.shareFeedbackButton}</Text>
+          </Pressable>
         </View>
 
         <View style={styles.card}>
@@ -542,6 +630,26 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '700',
     lineHeight: 20,
+  },
+  shareFeedbackButton: {
+    alignItems: 'center',
+    backgroundColor: MINT,
+    borderColor: '#BFE5CB',
+    borderRadius: CARD_RADIUS,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: 8,
+    justifyContent: 'center',
+    minHeight: 50,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+  },
+  shareFeedbackButtonText: {
+    color: SLATE_DARK,
+    flexShrink: 1,
+    fontSize: 15,
+    fontWeight: '900',
+    textAlign: 'center',
   },
   saveButton: {
     flex: 1,
