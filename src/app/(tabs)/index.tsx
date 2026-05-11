@@ -27,7 +27,11 @@ import { GutScoreGauge } from '../../../components/gut-score-gauge';
 import { useAuth } from '../../../contexts/AuthContext';
 import { BorderRadius, Colors, FontFamily, FontSize, Shadows, Spacing, Theme } from '../../../constants/theme';
 import { getNutritionRecommendation, type NutritionRecommendationResult } from '../../../lib/RecommendationEngine';
-import { getPhotoAnalysisHistory, type PhotoAnalysisHistoryItem } from '../../../lib/photo-analysis-history';
+import {
+  estimateMealImpactScore,
+  getPhotoAnalysisHistory,
+  type PhotoAnalysisHistoryItem,
+} from '../../../lib/photo-analysis-history';
 import {
   getSupplementHistory,
   saveSupplementHistoryItem,
@@ -664,6 +668,8 @@ function buildSevenDayChartData(
   language: Language,
 ): ChartPoint[] {
   const locale = LANGUAGE_LOCALES[language];
+  let previousScore: number | null = null;
+
   return Array.from({ length: 7 }, (_, index) => {
     const date = new Date();
     date.setDate(date.getDate() - (6 - index));
@@ -671,22 +677,50 @@ function buildSevenDayChartData(
     const dayScans = photoHistory.filter((item) => new Date(item.createdAt).toDateString() === dateKey);
     const daySupplements = supplementHistory.filter((item) => new Date(item.createdAt).toDateString() === dateKey);
     const scanScores = dayScans
-      .map((item) => parseScoreValue(item.mealImpactScore))
+      .map((item) =>
+        parseScoreValue(estimateMealImpactScore(item.aiText, item.symptoms, item.mealName))
+          ?? parseScoreValue(item.mealImpactScore)
+      )
       .filter((score): score is number => score !== null);
+    const daySymptomLoad = dayScans.reduce((sum, item) => sum + item.symptoms.length, 0);
     const averageGutScore = scanScores.length > 0
       ? Math.round(scanScores.reduce((sum, score) => sum + score, 0) / scanScores.length)
-      : fallbackGutScore;
+      : Math.round(
+          previousScore === null
+            ? fallbackGutScore
+            : previousScore * 0.68 + fallbackGutScore * 0.32 + Math.min(daySupplements.length, 2) * 0.25
+        );
+    const adjustedGutScore = Math.max(
+      1,
+      Math.min(
+        10,
+        Math.round(
+          averageGutScore
+            - Math.min(daySymptomLoad, 4) * 0.28
+            + (scanScores.length > 0 && daySupplements.length > 0 ? 0.35 : 0)
+        ),
+      ),
+    );
+    previousScore = adjustedGutScore;
     const energy = Math.max(
       1,
-      Math.min(10, Math.round(averageGutScore * 0.7 + Math.min(daySupplements.length, 3) * 1.2 + (dayScans.length > 0 ? 0.8 : 0))),
+      Math.min(
+        10,
+        Math.round(
+          adjustedGutScore * 0.68
+            + Math.min(daySupplements.length, 3) * 1.05
+            + (scanScores.length > 0 ? 0.6 : 0)
+            - Math.min(daySymptomLoad, 5) * 0.22
+        ),
+      ),
     );
 
     return {
       label: date.toLocaleDateString(locale, { weekday: 'short' }).slice(0, 2),
       dateLabel: date.toLocaleDateString(locale),
-      gutScore: averageGutScore,
+      gutScore: adjustedGutScore,
       energy,
-      feeling: averageGutScore >= 6 ? 'Good' : 'Bad',
+      feeling: adjustedGutScore >= 6 ? 'Good' : 'Bad',
     };
   });
 }

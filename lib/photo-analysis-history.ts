@@ -89,78 +89,155 @@ function hasAnyText(value: string, patterns: RegExp[]): boolean {
   return patterns.some((pattern) => pattern.test(value));
 }
 
+function parseScoreNumber(score: string | null): number | null {
+  if (!score) return null;
+  const value = Number(normalizeDigits(score).match(/\d{1,2}/)?.[0]);
+  return Number.isFinite(value) ? Math.max(1, Math.min(10, value)) : null;
+}
+
+function countMatches(value: string, patterns: RegExp[]): number {
+  return patterns.reduce((count, pattern) => count + (pattern.test(value) ? 1 : 0), 0);
+}
+
+const FOOD_SIGNALS = {
+  highFodmap: [
+    /\bonions?\b/, /\bgarlic\b/, /\bwheat\b/, /\bbarley\b/, /\brye\b/, /\bbeans?\b/,
+    /\blentils?\b/, /\bchickpeas?\b/, /\bcabbage\b/, /\bcauliflower\b/, /\bmushrooms?\b/,
+    /\bapples?\b/, /\bpears?\b/, /\bdried figs?\b/, /\bdates?\b/, /\bhoney\b/,
+    /\bhigh[-\s]?fodmap\b/, /\bfodmap\b/, /پیاز/, /سیر/, /گندم/, /جو\b/, /حبوبات/, /عدس/, /نخود/,
+    /کلم/, /قارچ/, /سیب/, /گلابی/, /انجیر خشک/, /خرما/, /عسل/, /فودمپ/,
+    /zwiebel/, /knoblauch/, /weizen/, /gerste/, /roggen/, /bohnen/, /linsen/, /kichererbsen/,
+  ],
+  onion: [/\bonions?\b/, /پیاز/, /zwiebel/],
+  garlic: [/\bgarlic\b/, /سیر/, /knoblauch/],
+  spicy: [
+    /\bspicy\b/, /\bchili\b/, /\bchilli\b/, /\bhot sauce\b/, /\bjalape/, /\bpeppery\b/,
+    /تند/, /فلفل/, /چیلی/, /scharf/, /chili/,
+  ],
+  greasy: [
+    /\bfried\b/, /\bdeep[-\s]?fried\b/, /\bgreasy\b/, /\bfries?\b/, /\bchips\b/,
+    /\bhigh[-\s]?fat\b/, /\bbutter\b/, /\bmayonnaise\b/, /سرخ/, /سوخاری/, /چرب/, /سیب زمینی سرخ/,
+    /frittiert/, /fettig/, /pommes/, /butter/, /mayonnaise/,
+  ],
+  creamyDairy: [
+    /\bcream\b/, /\bcreamy\b/, /\bcheese\b/, /\bmilk\b/, /\blactose\b/, /\bice cream\b/,
+    /خامه/, /خامه ای/, /پنیر/, /شیر/, /لاکتوز/, /بستنی/,
+    /sahne/, /cremig/, /käse/, /kaese/, /milch/, /laktose/, /eiscreme/,
+  ],
+  acidic: [
+    /\btomato sauce\b/, /\btomatoes?\b/, /\bcitrus\b/, /\borange\b/, /\blemon\b/, /\bcoffee\b/,
+    /\bchocolate\b/, /\balcohol\b/, /گوجه/, /مرکبات/, /پرتقال/, /لیمو/, /قهوه/, /شکلات/, /الکل/,
+    /tomate/, /tomatensauce/, /zitrus/, /orange/, /zitrone/, /kaffee/, /schokolade/, /alkohol/,
+  ],
+  ultraProcessed: [
+    /\bburger\b/, /\bfast food\b/, /\bpizza\b/, /\bnuggets?\b/, /\bsausage\b/, /\bbacon\b/,
+    /\bcookies?\b/, /\bcakes?\b/, /\bcandy\b/, /\bsoda\b/, /\bcola\b/, /\bsugary\b/,
+    /\bprocessed\b/, /فست فود/, /برگر/, /پیتزا/, /ناگت/, /سوسیس/, /کالباس/, /بیکن/, /کیک/,
+    /بیسکویت/, /شیرینی/, /نوشابه/, /قندی/, /فرآوری/, /fastfood/, /burger/, /pizza/, /wurst/,
+    /speck/, /kuchen/, /keks/, /süß/, /suess/, /limonade/, /verarbeitet/,
+  ],
+  refinedLowFiber: [
+    /\bwhite bread\b/, /\brefined\b/, /\bpastry\b/, /\bcroissant\b/, /\bdonut\b/, /\bplain pasta\b/,
+    /\blow fiber\b/, /نان سفید/, /تصفيه/, /تصفیه/, /شیرینی/, /دونات/, /پاستا ساده/, /کم فیبر/,
+    /weißbrot/, /weissbrot/, /raffiniert/, /croissant/, /donut/, /wenig ballast/,
+  ],
+  constipationFiber: [
+    /\boats?\b/, /\boatmeal\b/, /\bchia\b/, /\bflax\b/, /\bkiwi\b/, /\bprunes?\b/, /\bplums?\b/,
+    /\bberries\b/, /\bvegetables?\b/, /\blegumes?\b/, /\bbeans?\b/, /\blentils?\b/, /\bwhole grains?\b/,
+    /\bfiber[-\s]?rich\b/, /\bhigh fiber\b/, /جو دوسر/, /چیا/, /کتان/, /کیوی/, /آلو/, /آلو خشک/,
+    /توت/, /سبزی/, /حبوبات/, /عدس/, /غلات کامل/, /فیبر بالا/, /پر فیبر/,
+    /hafer/, /chia/, /leinsamen/, /kiwi/, /pflaume/, /beeren/, /gemüse/, /gemuese/,
+    /hülsenfrüchte/, /huelsenfruechte/, /vollkorn/, /ballaststoff/,
+  ],
+  gentle: [
+    /\bwhite rice\b/, /\bboiled potatoes?\b/, /\bpotatoes?\b/, /\bzucchini\b/, /\bcarrots?\b/,
+    /\bsoup\b/, /\bginger\b/, /\bpeppermint\b/, /\bbanana\b/, /\bplain yogurt\b/,
+    /\bcooked vegetables?\b/, /\blean protein\b/, /\bchicken\b/, /\bfish\b/, /\bsalmon\b/,
+    /\beggs?\b/, /\btofu\b/, /\beasy to digest\b/, /\bgentle\b/, /\bgut-friendly\b/,
+    /برنج سفید/, /سیب زمینی/, /کدو/, /هویج/, /سوپ/, /زنجبیل/, /نعناع/, /موز/, /ماست ساده/,
+    /سبزی پخته/, /پروتئین کم چرب/, /مرغ/, /ماهی/, /سالمون/, /تخم مرغ/, /توفو/, /ملایم/,
+    /reis/, /kartoffel/, /zucchini/, /karotte/, /suppe/, /ingwer/, /pfefferminz/, /banane/,
+    /naturjoghurt/, /gekochtes gemüse/, /gekochtes gemuese/, /hähnchen/, /haehnchen/, /fisch/,
+    /lachs/, /ei\b/, /tofu/, /sanft/, /verträglich/, /vertraeglich/,
+  ],
+  balancedPlate: [
+    /\bsalmon\b/, /\bfish\b/, /\bchicken\b/, /\bturkey\b/, /\btofu\b/, /\beggs?\b/,
+    /\bquinoa\b/, /\brice\b/, /\bpotatoes?\b/, /\boats?\b/, /\bvegetables?\b/, /\bgreens?\b/,
+    /\bzucchini\b/, /\bcarrots?\b/, /\bolive oil\b/, /سالمون/, /ماهی/, /مرغ/, /بوقلمون/, /توفو/,
+    /تخم مرغ/, /کینوا/, /برنج/, /سیب زمینی/, /جو دوسر/, /سبزی/, /کدو/, /هویج/, /روغن زیتون/,
+    /lachs/, /fisch/, /hähnchen/, /haehnchen/, /pute/, /tofu/, /ei\b/, /quinoa/, /reis/,
+    /kartoffel/, /hafer/, /gemüse/, /gemuese/, /grün/, /gruen/, /zucchini/, /karotte/, /olivenöl/,
+  ],
+};
+
+const SYMPTOM_SIGNALS = {
+  bloating: [/\bbloating\b/, /\bbloated\b/, /\bgas\b/, /\bheaviness\b/, /نفخ/, /گاز/, /سنگینی/, /bläh/, /blaeh/, /gas/, /schweregefühl/],
+  constipation: [/\bconstipation\b/, /\bconstipated\b/, /یبوست/, /verstopfung/],
+  reflux: [/\breflux\b/, /\bheartburn\b/, /\bacid\b/, /\bGERD\b/i, /ریفلاکس/, /رفلاکس/, /سوزش معده/, /reflux/, /sodbrennen/],
+  pain: [/\bpain\b/, /\bcramps?\b/, /\bstomach ache\b/, /\babdominal\b/, /درد/, /گرفتگی/, /دل درد/, /schmerz/, /krampf/],
+  ibs: [/\bibs\b/, /\birritable bowel\b/, /سندرم روده تحریک پذیر/, /روده تحریک پذیر/, /reizdarm/],
+  celiac: [/\bceliac\b/, /\bcoeliac\b/, /سلیاک/, /zöliakie/, /zoeliakie/],
+  lactose: [/\blactose intolerance\b/, /عدم تحمل لاکتوز/, /laktoseintoleranz/],
+};
+
 export function estimateMealImpactScore(
   aiText: string,
   symptoms: string[] = [],
   mealNotes = '',
 ): string {
-  const combinedText = `${aiText} ${mealNotes} ${symptoms.join(' ')}`.toLowerCase();
-  let score = 6;
+  const combinedText = normalizeDigits(`${aiText} ${mealNotes} ${symptoms.join(' ')}`).toLocaleLowerCase();
+  const symptomText = normalizeDigits(symptoms.join(' ')).toLocaleLowerCase();
+  let score = 6.2;
 
-  const severeSymptoms = ['pain', 'cramps', 'reflux', 'nausea', 'diarrhea'];
-  const moderateSymptoms = ['bloating', 'gas', 'heaviness', 'constipation', 'low energy'];
-  score -= symptoms.filter((symptom) => severeSymptoms.some((item) => symptom.toLowerCase().includes(item))).length * 1.5;
-  score -= symptoms.filter((symptom) => moderateSymptoms.some((item) => symptom.toLowerCase().includes(item))).length * 0.75;
+  const hasBloating = hasAnyText(symptomText, SYMPTOM_SIGNALS.bloating);
+  const hasConstipation = hasAnyText(symptomText, SYMPTOM_SIGNALS.constipation);
+  const hasReflux = hasAnyText(symptomText, SYMPTOM_SIGNALS.reflux);
+  const hasPain = hasAnyText(symptomText, SYMPTOM_SIGNALS.pain);
+  const hasIbs = hasAnyText(combinedText, SYMPTOM_SIGNALS.ibs);
+  const hasCeliac = hasAnyText(combinedText, SYMPTOM_SIGNALS.celiac);
+  const hasLactose = hasAnyText(combinedText, SYMPTOM_SIGNALS.lactose);
+  const highFodmapCount = countMatches(combinedText, FOOD_SIGNALS.highFodmap);
+  const gentleCount = countMatches(combinedText, FOOD_SIGNALS.gentle);
+  const balancedCount = countMatches(combinedText, FOOD_SIGNALS.balancedPlate);
+  const constipationFiberCount = countMatches(combinedText, FOOD_SIGNALS.constipationFiber);
+  const hasOnionOrGarlic = hasAnyText(combinedText, [...FOOD_SIGNALS.onion, ...FOOD_SIGNALS.garlic]);
+  const hasSpicy = hasAnyText(combinedText, FOOD_SIGNALS.spicy);
+  const hasGreasy = hasAnyText(combinedText, FOOD_SIGNALS.greasy);
+  const hasCreamyDairy = hasAnyText(combinedText, FOOD_SIGNALS.creamyDairy);
+  const hasAcidic = hasAnyText(combinedText, FOOD_SIGNALS.acidic);
+  const hasUltraProcessed = hasAnyText(combinedText, FOOD_SIGNALS.ultraProcessed);
+  const hasRefinedLowFiber = hasAnyText(combinedText, FOOD_SIGNALS.refinedLowFiber);
 
-  if (hasAnyText(combinedText, [
-    /\bfried\b/,
-    /\bgreasy\b/,
-    /\bspicy\b/,
-    /\bchili\b/,
-    /\bcream\b/,
-    /\bmilk\b/,
-    /\bcheese\b/,
-    /\bonion\b/,
-    /\bgarlic\b/,
-    /\bbeans?\b/,
-    /\blentils?\b/,
-    /\bwheat\b/,
-    /\bbarley\b/,
-    /\bcookie\b/,
-    /\bcake\b/,
-    /\bcandy\b/,
-    /\bsoda\b/,
-    /\bcarbonated\b/,
-    /\balcohol\b/,
-    /\bcoffee\b/,
-  ])) {
-    score -= 2;
-  }
+  if (hasBloating) score -= 0.7;
+  if (hasReflux) score -= 0.8;
+  if (hasConstipation) score -= 0.4;
+  if (hasPain) score -= 1.0;
 
-  if (hasAnyText(combinedText, [
-    /\blikely (?:worsen|trigger|irritate)\b/,
-    /\bmay (?:worsen|trigger|irritate)\b/,
-    /\bnot ideal\b/,
-    /\bhigh-fodmap\b/,
-    /\bflare\b/,
-  ])) {
-    score -= 1.5;
-  }
+  if (highFodmapCount > 0) score -= Math.min(2.4, 0.85 + highFodmapCount * 0.45);
+  if (hasGreasy) score -= 1.4;
+  if (hasSpicy) score -= 1.1;
+  if (hasCreamyDairy) score -= 1.0;
+  if (hasAcidic) score -= 0.8;
+  if (hasUltraProcessed) score -= 1.7;
+  if (hasRefinedLowFiber) score -= 0.9;
 
-  if (hasAnyText(combinedText, [
-    /\bboiled potatoes?\b/,
-    /\bwhite rice\b/,
-    /\bzucchini\b/,
-    /\bcarrots?\b/,
-    /\bsoup\b/,
-    /\bginger\b/,
-    /\bpeppermint\b/,
-    /\bplain yogurt\b/,
-    /\bcooked vegetables?\b/,
-    /\blean protein\b/,
-  ])) {
-    score += 1.5;
-  }
+  if (gentleCount > 0) score += Math.min(2.0, 0.85 + gentleCount * 0.25);
+  if (balancedCount >= 3) score += 1.5;
+  else if (balancedCount >= 2) score += 0.8;
+  if (constipationFiberCount > 0) score += Math.min(1.7, 0.6 + constipationFiberCount * 0.25);
 
-  if (hasAnyText(combinedText, [
-    /\bgut-friendly\b/,
-    /\bgentle\b/,
-    /\bsupportive\b/,
-    /\blower risk\b/,
-    /\beasy to digest\b/,
-  ])) {
-    score += 1;
-  }
+  if ((hasBloating || hasIbs) && hasOnionOrGarlic) score -= 2.2;
+  if ((hasBloating || hasIbs) && hasSpicy) score -= 1.4;
+  if ((hasBloating || hasIbs) && highFodmapCount >= 2) score -= 1.2;
+  if (hasReflux && (hasGreasy || hasSpicy || hasCreamyDairy || hasAcidic)) score -= 2.2;
+  if (hasConstipation && constipationFiberCount >= 2 && !hasBloating) score += 1.7;
+  if (hasConstipation && (hasUltraProcessed || hasRefinedLowFiber || hasGreasy)) score -= 1.8;
+  if (hasIbs && highFodmapCount > 0) score -= 1.5;
+  if (hasIbs && gentleCount >= 2 && highFodmapCount === 0) score += 1.1;
+  if (hasCeliac && hasAnyText(combinedText, [/\bwheat\b/, /\bbarley\b/, /\brye\b/, /گندم/, /جو\b/, /weizen/, /gerste/, /roggen/])) score -= 3.0;
+  if (hasLactose && hasCreamyDairy) score -= 2.0;
+  if (hasUltraProcessed && (hasGreasy || hasCreamyDairy || hasSpicy)) score -= 0.9;
+  if (balancedCount >= 4 && !hasUltraProcessed && highFodmapCount === 0 && !hasGreasy) score += 0.9;
 
   return `${clampMealImpactScore(score)}/10`;
 }
@@ -171,10 +248,16 @@ export function resolveMealImpactScore(
   mealNotes = '',
   _language: AppLanguage = 'en',
 ): string | null {
+  const estimatedScore = estimateMealImpactScore(aiText, symptoms, mealNotes);
+  const estimatedValue = parseScoreNumber(estimatedScore);
   const extractedScore = extractMealImpactScore(aiText);
-  if (!extractedScore) return estimateMealImpactScore(aiText, symptoms, mealNotes);
-  if (extractedScore !== '4/10') return extractedScore;
-  return estimateMealImpactScore(aiText, symptoms, mealNotes);
+  const extractedValue = parseScoreNumber(extractedScore);
+
+  if (!extractedScore || !extractedValue || !estimatedValue) return estimatedScore;
+  if (extractedScore === '4/10') return estimatedScore;
+  if (extractedValue >= 5 && extractedValue <= 7 && Math.abs(extractedValue - estimatedValue) >= 1) return estimatedScore;
+  if (Math.abs(extractedValue - estimatedValue) >= 2) return estimatedScore;
+  return extractedScore;
 }
 
 export function applyDynamicMealImpactScore(
@@ -183,7 +266,7 @@ export function applyDynamicMealImpactScore(
   mealNotes = '',
   language: AppLanguage = 'en',
 ): string {
-  const dynamicScore = resolveMealImpactScore(aiText, symptoms, mealNotes);
+  const dynamicScore = resolveMealImpactScore(aiText, symptoms, mealNotes, language);
   if (!dynamicScore) return aiText;
 
   const [scoreNumber] = dynamicScore.split('/');
@@ -223,12 +306,6 @@ export function extractMealName(aiText: string, language: AppLanguage = 'en'): s
     .trim();
 
   return rawMealName.slice(0, 80) || SCORE_LABELS[language].fallbackMeal;
-}
-
-function parseScoreNumber(score: string | null): number | null {
-  if (!score) return null;
-  const value = Number(score.match(/\d{1,2}/)?.[0]);
-  return Number.isFinite(value) ? Math.max(1, Math.min(10, value)) : null;
 }
 
 function parseHealthLogNutrients(value: unknown): { imageUri?: string; symptoms?: string[] } {

@@ -272,6 +272,18 @@ const copy = {
     analysisInsightTitle: 'Analysis Insight',
     scientificSource: 'Scientific Source: USDA FoodData Central & Localized AI Adaptation.',
     insightFallbacks: {
+      onionBloating: 'High onion load may worsen bloating',
+      garlicBloating: 'Garlic may add a high-FODMAP bloating load',
+      spicyBloating: 'Spice load may amplify bloating or cramps',
+      creamyReflux: 'Creamy sauce may trigger reflux',
+      greasyReflux: 'Greasy fat load may worsen reflux',
+      acidicReflux: 'Acidic ingredients may aggravate reflux',
+      constipationFiber: 'Fiber-rich ingredients support constipation relief',
+      constipationLowFiber: 'Low fiber density may slow bowel rhythm',
+      lowFiberDiversity: 'Low fiber diversity limits gut support',
+      processedFat: 'Processed high-fat combination lowers gut support',
+      balancedDiversity: 'Balanced protein and cooked plants support gut stability',
+      fodmapIbs: 'High-FODMAP load may be risky for IBS',
       fructan: 'High fructan content detected',
       ibsTrigger: 'Potential IBS trigger identified',
       lowFiber: 'Low fiber density for your gut profile',
@@ -378,6 +390,18 @@ const copy = {
     analysisInsightTitle: 'Analyse-Einblick',
     scientificSource: 'Wissenschaftliche Quelle: USDA FoodData Central & lokalisierte KI-Anpassung.',
     insightFallbacks: {
+      onionBloating: 'Hohe Zwiebelmenge kann Blähungen verstärken',
+      garlicBloating: 'Knoblauch kann die FODMAP-Belastung erhöhen',
+      spicyBloating: 'Schärfe kann Blähungen oder Krämpfe verstärken',
+      creamyReflux: 'Cremige Sauce kann Reflux auslösen',
+      greasyReflux: 'Fettige Speisen können Reflux verschlimmern',
+      acidicReflux: 'Säurehaltige Zutaten können Reflux reizen',
+      constipationFiber: 'Ballaststoffreiche Zutaten unterstützen die Regelmäßigkeit',
+      constipationLowFiber: 'Geringe Ballaststoffdichte kann den Darmrhythmus bremsen',
+      lowFiberDiversity: 'Wenig Ballaststoffvielfalt begrenzt die Darmunterstützung',
+      processedFat: 'Verarbeitete fettreiche Kombination senkt die Darmverträglichkeit',
+      balancedDiversity: 'Ausgewogenes Protein und gegartes Gemüse stabilisieren den Darm',
+      fodmapIbs: 'Hohe FODMAP-Belastung kann bei Reizdarm riskant sein',
       fructan: 'Hoher Fruktangehalt erkannt',
       ibsTrigger: 'Möglicher Reizdarm-Trigger identifiziert',
       lowFiber: 'Geringe Ballaststoffdichte für dein Darmprofil',
@@ -484,6 +508,18 @@ const copy = {
     analysisInsightTitle: 'بینش تحلیل',
     scientificSource: 'منبع علمی: USDA FoodData Central و سازگاری محلی هوش مصنوعی.',
     insightFallbacks: {
+      onionBloating: 'بار بالای پیاز ممکن است نفخ را بدتر کند',
+      garlicBloating: 'سیر می تواند بار FODMAP و نفخ را بیشتر کند',
+      spicyBloating: 'غذای تند ممکن است نفخ یا گرفتگی را تشدید کند',
+      creamyReflux: 'سس خامه ای ممکن است ریفلاکس را تحریک کند',
+      greasyReflux: 'چربی زیاد می تواند ریفلاکس را بدتر کند',
+      acidicReflux: 'مواد اسیدی ممکن است ریفلاکس را تحریک کنند',
+      constipationFiber: 'مواد پرفیبر به بهبود یبوست کمک می کنند',
+      constipationLowFiber: 'فیبر کم ممکن است ریتم روده را کند کند',
+      lowFiberDiversity: 'تنوع کم فیبر، حمایت گوارشی را محدود می کند',
+      processedFat: 'ترکیب پرچرب و فرآوری شده امتیاز گوارش را پایین می آورد',
+      balancedDiversity: 'پروتئین متعادل و سبزی پخته به ثبات گوارش کمک می کند',
+      fodmapIbs: 'بار بالای FODMAP برای IBS می تواند پرریسک باشد',
       fructan: 'محتوای بالای فروکتان شناسایی شد',
       ibsTrigger: 'محرک احتمالی IBS شناسایی شد',
       lowFiber: 'تراکم فیبر برای پروفایل گوارش شما پایین است',
@@ -708,6 +744,33 @@ function extractAnalysisInsightBullets(aiText: string, language: AppLanguage): s
   return insights;
 }
 
+function isGenericAnalysisInsight(value: string): boolean {
+  const normalized = cleanMarkdownLine(value).toLocaleLowerCase();
+
+  return [
+    /\bvegetables?\s+(?:are|is)\s+healthy\b/,
+    /\bprotein\s+(?:is|supports|helps)\b/,
+    /\bhealthy\s+(?:meal|choice|food)\b/,
+    /\bgood\s+source\s+of\s+protein\b/,
+    /\bbalanced\s+meal\b/,
+    /gemüse.*gesund/,
+    /protein.*(?:gut|hilft|unterstützt)/,
+    /غذا.*سالم/,
+    /سبزی.*سالم/,
+    /پروتئین.*(?:خوب|مفید)/,
+  ].some((pattern) => pattern.test(normalized));
+}
+
+function mergeAnalysisInsights(primary: string[], fallback: string[]): string[] {
+  const merged: string[] = [];
+
+  [...primary.filter((insight) => !isGenericAnalysisInsight(insight)), ...fallback].forEach((insight) => {
+    if (!merged.includes(insight) && merged.length < 3) merged.push(insight);
+  });
+
+  return merged;
+}
+
 function stripAnalysisInsightSection(aiText: string, language: AppLanguage): string {
   const lines = aiText.split('\n');
   const keptLines: string[] = [];
@@ -753,6 +816,35 @@ function buildFallbackAnalysisInsights(
   const addInsight = (value: string) => {
     if (!insights.includes(value) && insights.length < 3) insights.push(value);
   };
+  const has = (patterns: RegExp[]) => patterns.some((pattern) => pattern.test(combinedText));
+  const hasBloating = has([/\bbloating\b/, /\bbloated\b/, /\bgas\b/, /\bheaviness\b/, /bläh/, /blaeh/, /نفخ/, /گاز/, /سنگینی/]);
+  const hasConstipation = has([/\bconstipation\b/, /\bconstipated\b/, /verstopfung/, /یبوست/]);
+  const hasReflux = has([/\breflux\b/, /\bheartburn\b/, /\bacid\b/, /sodbrennen/, /ریفلاکس/, /رفلاکس/, /سوزش معده/]);
+  const hasIbs = has([/\bibs\b/, /\birritable bowel\b/, /reizdarm/, /سندرم روده تحریک پذیر/, /روده تحریک پذیر/]);
+  const hasOnion = has([/\bonions?\b/, /zwiebel/, /پیاز/]);
+  const hasGarlic = has([/\bgarlic\b/, /knoblauch/, /سیر/]);
+  const hasSpicy = has([/\bspicy\b/, /\bchili\b/, /\bhot sauce\b/, /scharf/, /تند/, /فلفل/]);
+  const hasCreamy = has([/\bcream\b/, /\bcreamy\b/, /\bcheese\b/, /\bmilk\b/, /\blactose\b/, /sahne/, /cremig/, /käse/, /milch/, /خامه/, /پنیر/, /شیر/, /لاکتوز/]);
+  const hasGreasy = has([/\bfried\b/, /\bgreasy\b/, /\bfries?\b/, /\bhigh[-\s]?fat\b/, /frittiert/, /fettig/, /pommes/, /سرخ/, /چرب/]);
+  const hasAcidic = has([/\btomato\b/, /\bcitrus\b/, /\bcoffee\b/, /\bchocolate\b/, /\balcohol\b/, /tomate/, /zitrus/, /kaffee/, /schokolade/, /گوجه/, /مرکبات/, /قهوه/, /شکلات/]);
+  const hasFiberRich = has([/\boats?\b/, /\bchia\b/, /\bflax\b/, /\bkiwi\b/, /\bprunes?\b/, /\bplums?\b/, /\bberries\b/, /\bvegetables?\b/, /\blegumes?\b/, /\bhigh fiber\b/, /hafer/, /leinsamen/, /pflaume/, /ballaststoff/, /جو دوسر/, /چیا/, /کتان/, /کیوی/, /آلو/, /سبزی/, /فیبر/]);
+  const hasProcessed = has([/\bburger\b/, /\bfast food\b/, /\bpizza\b/, /\bnuggets?\b/, /\bcookies?\b/, /\bcakes?\b/, /\bcandy\b/, /\bsoda\b/, /\bprocessed\b/, /burger/, /pizza/, /fastfood/, /kuchen/, /keks/, /limonade/, /فست فود/, /برگر/, /پیتزا/, /کیک/, /شیرینی/, /نوشابه/]);
+  const hasLowFiber = has([/\blow fiber\b/, /\brefined\b/, /\bwhite bread\b/, /\bpastry\b/, /\bdonut\b/, /wenig ballast/, /weißbrot/, /weissbrot/, /raffiniert/, /کم فیبر/, /نان سفید/, /تصفیه/]);
+  const highFodmap = has([/\bonions?\b/, /\bgarlic\b/, /\bwheat\b/, /\bbarley\b/, /\bbeans?\b/, /\blentils?\b/, /\bhigh[-\s]?fodmap\b/, /zwiebel/, /knoblauch/, /weizen/, /gerste/, /bohnen/, /linsen/, /پیاز/, /سیر/, /گندم/, /حبوبات/, /عدس/, /فودمپ/]);
+  const balanced = has([/\bsalmon\b/, /\bfish\b/, /\bchicken\b/, /\btofu\b/, /\beggs?\b/, /\brice\b/, /\bpotatoes?\b/, /\bzucchini\b/, /\bcarrots?\b/, /\bcooked vegetables?\b/, /lachs/, /fisch/, /hähnchen/, /haehnchen/, /reis/, /kartoffel/, /zucchini/, /karotte/, /سالمون/, /ماهی/, /مرغ/, /برنج/, /سیب زمینی/, /کدو/, /هویج/, /سبزی پخته/]);
+
+  if (hasBloating && hasOnion) addInsight(insightCopy.onionBloating);
+  if (hasBloating && hasGarlic) addInsight(insightCopy.garlicBloating);
+  if ((hasBloating || hasIbs) && hasSpicy) addInsight(insightCopy.spicyBloating);
+  if (hasReflux && hasCreamy) addInsight(insightCopy.creamyReflux);
+  if (hasReflux && hasGreasy) addInsight(insightCopy.greasyReflux);
+  if (hasReflux && hasAcidic) addInsight(insightCopy.acidicReflux);
+  if (hasConstipation && hasFiberRich && !hasBloating) addInsight(insightCopy.constipationFiber);
+  if (hasConstipation && (hasLowFiber || hasProcessed || hasGreasy)) addInsight(insightCopy.constipationLowFiber);
+  if ((hasIbs || hasBloating) && highFodmap) addInsight(insightCopy.fodmapIbs);
+  if (hasProcessed || (hasGreasy && hasCreamy)) addInsight(insightCopy.processedFat);
+  if (hasLowFiber || hasProcessed) addInsight(insightCopy.lowFiberDiversity);
+  if (balanced && !hasProcessed && !hasGreasy) addInsight(insightCopy.balancedDiversity);
 
   if (/onion|garlic|wheat|barley|beans?|lentils?|high-fodmap|fodmap|پیاز|سیر|گندم|حبوبات|عدس/i.test(combinedText)) {
     addInsight(insightCopy.fructan);
@@ -861,9 +953,10 @@ export default function PhotoAnalysisScreen() {
   );
   const mealImpactScore = resolveMealImpactScore(analysis, currentSymptoms, mealDescriptionText, language);
   const extractedAnalysisInsights = extractAnalysisInsightBullets(analysis, language);
-  const analysisInsights = extractedAnalysisInsights.length > 0
-    ? extractedAnalysisInsights
-    : buildFallbackAnalysisInsights(analysis, currentSymptoms, promptConditions, language);
+  const analysisInsights = mergeAnalysisInsights(
+    extractedAnalysisInsights,
+    buildFallbackAnalysisInsights(analysis, currentSymptoms, promptConditions, language),
+  );
   const displayAnalysisText = stripAnalysisInsightSection(analysis, language);
   const wizardSubtitle =
     wizardStep === 1 ? t.wizardStep1Subtitle : wizardStep === 2 ? t.wizardStep2Subtitle : t.wizardStep3Subtitle;
