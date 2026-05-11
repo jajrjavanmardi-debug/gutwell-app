@@ -1,4 +1,5 @@
 import sharp from 'sharp';
+import { mkdir } from 'fs/promises';
 import { resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
 
@@ -215,6 +216,8 @@ async function generateFavicon() {
 async function main() {
   console.log('\nNutriFlow Asset Generator');
   console.log('=======================\n');
+
+  await mkdir(ASSETS_DIR, { recursive: true });
 
   await Promise.all([
     generateIcon(),
