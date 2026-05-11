@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { router } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { router, useFocusEffect } from 'expo-router';
+import { useCallback, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { APP_LANGUAGE_STORAGE_KEY, isRtlLanguage, parseStoredLanguage, type AppLanguage } from '../../lib/app-language';
@@ -9,7 +9,6 @@ import { APP_LANGUAGE_STORAGE_KEY, isRtlLanguage, parseStoredLanguage, type AppL
 const SAGE = '#B2AC88';
 const SAGE_DARK = '#7E795D';
 const SAGE_SOFT = '#F3F0E5';
-const CREAM = '#FAF8F1';
 const SLATE = '#4E5B66';
 const NAVY = '#15212D';
 const RADIUS = 15;
@@ -23,8 +22,11 @@ const RELIEF_COPY = {
     chooseSymptom: 'Choose a symptom',
     comfortIdeas: 'These are simple comfort ideas, not medical advice.',
     quickTips: 'Your quick tips',
+    quickTipsFor: 'Quick tips for',
     selectHint: 'Select a symptom above to see 3 quick comfort tips.',
-    footer: 'If symptoms are severe, unusual, or worsening, seek medical care.',
+    emergencyTitle: 'When to get medical help',
+    emergencyGuidance:
+      'If symptoms are severe, unusual, worsening, or include chest pain, fainting, blood, or trouble breathing, seek urgent medical care.',
   },
   de: {
     help: 'Hilfe',
@@ -34,8 +36,11 @@ const RELIEF_COPY = {
     chooseSymptom: 'Wähle ein Symptom',
     comfortIdeas: 'Dies sind einfache Linderungsideen, keine medizinische Beratung.',
     quickTips: 'Deine schnellen Tipps',
+    quickTipsFor: 'Schnelle Hilfe bei',
     selectHint: 'Wähle oben ein Symptom aus, um 3 schnelle Tipps zu sehen.',
-    footer: 'Bei starken, ungewöhnlichen oder zunehmenden Symptomen medizinische Hilfe suchen.',
+    emergencyTitle: 'Wann du medizinische Hilfe holen solltest',
+    emergencyGuidance:
+      'Wenn Symptome stark, ungewöhnlich oder zunehmend sind oder Brustschmerz, Ohnmacht, Blut oder Atemnot auftreten, suche dringend medizinische Hilfe.',
   },
   fa: {
     help: 'کمک',
@@ -45,19 +50,50 @@ const RELIEF_COPY = {
     chooseSymptom: 'یک علامت انتخاب کنید',
     comfortIdeas: 'این ها فقط پیشنهادهای ساده برای آرامش هستند و توصیه پزشکی نیستند.',
     quickTips: 'نکات سریع شما',
+    quickTipsFor: 'نکات سریع برای',
     selectHint: 'برای دیدن ۳ نکته سریع، یک علامت را انتخاب کنید.',
-    footer: 'اگر علائم شدید، غیرمعمول یا رو به بدتر شدن هستند، به پزشک مراجعه کنید.',
+    emergencyTitle: 'چه زمانی کمک پزشکی بگیرید',
+    emergencyGuidance:
+      'اگر علائم شدید، غیرمعمول یا رو به بدتر شدن هستند، یا درد قفسه سینه، غش، خون‌ریزی یا تنگی نفس دارید، فوراً کمک پزشکی بگیرید.',
   },
 } as const;
 
-const RELIEF_TIPS = {
-  Bloating: ['Try a 5-minute walk', 'Sip peppermint tea', 'Deep diaphragmatic breathing'],
-  Reflux: ['Sit upright for a while', 'Take small sips of water', 'Loosen tight waistbands'],
-  Cramps: ['Use a warm compress', 'Try slow belly breathing', 'Rest in a comfortable position'],
-  Nausea: ['Sip ginger tea slowly', 'Try fresh air near a window', 'Eat bland food only if you feel ready'],
+const RELIEF_SYMPTOMS = {
+  bloating: {
+    label: { en: 'Bloating', de: 'Blähungen', fa: 'نفخ' },
+    tips: {
+      en: ['Try a 5-minute walk', 'Sip peppermint tea', 'Deep diaphragmatic breathing'],
+      de: ['Mache einen 5-minütigen Spaziergang', 'Trinke langsam Pfefferminztee', 'Atme tief in den Bauch'],
+      fa: ['۵ دقیقه آرام قدم بزنید', 'چای نعناع را آرام بنوشید', 'تنفس عمیق دیافراگمی انجام دهید'],
+    },
+  },
+  reflux: {
+    label: { en: 'Reflux', de: 'Reflux', fa: 'ریفلاکس' },
+    tips: {
+      en: ['Sit upright for a while', 'Take small sips of water', 'Loosen tight waistbands'],
+      de: ['Bleibe eine Weile aufrecht sitzen', 'Trinke Wasser in kleinen Schlucken', 'Lockere enge Kleidung am Bauch'],
+      fa: ['مدتی صاف بنشینید', 'آب را جرعه جرعه بنوشید', 'لباس تنگ دور کمر را شل کنید'],
+    },
+  },
+  cramps: {
+    label: { en: 'Cramps', de: 'Krämpfe', fa: 'گرفتگی شکم' },
+    tips: {
+      en: ['Use a warm compress', 'Try slow belly breathing', 'Rest in a comfortable position'],
+      de: ['Nutze eine warme Kompresse', 'Atme langsam in den Bauch', 'Ruhe dich in einer bequemen Position aus'],
+      fa: ['از کمپرس گرم استفاده کنید', 'تنفس آرام شکمی انجام دهید', 'در وضعیت راحت استراحت کنید'],
+    },
+  },
+  nausea: {
+    label: { en: 'Nausea', de: 'Übelkeit', fa: 'تهوع' },
+    tips: {
+      en: ['Sip ginger tea slowly', 'Try fresh air near a window', 'Eat bland food only if you feel ready'],
+      de: ['Trinke Ingwertee langsam', 'Atme frische Luft am Fenster', 'Iss nur leichte Kost, wenn du dich bereit fühlst'],
+      fa: ['چای زنجبیل را آرام بنوشید', 'کنار پنجره کمی هوای تازه بگیرید', 'فقط اگر آماده هستید غذای ساده بخورید'],
+    },
+  },
 } as const;
 
-type ReliefSymptom = keyof typeof RELIEF_TIPS;
+type ReliefSymptom = keyof typeof RELIEF_SYMPTOMS;
 
 export default function ReliefScreen() {
   const [language, setLanguage] = useState<AppLanguage>('en');
@@ -65,20 +101,30 @@ export default function ReliefScreen() {
   const isRtl = isRtlLanguage(language);
   const copy = RELIEF_COPY[language];
 
-  useEffect(() => {
-    AsyncStorage.getItem(APP_LANGUAGE_STORAGE_KEY)
-      .then((storedLanguage) => setLanguage(parseStoredLanguage(storedLanguage)))
-      .catch(console.warn);
-  }, []);
+  useFocusEffect(useCallback(() => {
+    let isActive = true;
 
-  const tips = selectedSymptom ? RELIEF_TIPS[selectedSymptom] : [];
+    AsyncStorage.getItem(APP_LANGUAGE_STORAGE_KEY)
+      .then((storedLanguage) => {
+        if (isActive) setLanguage(parseStoredLanguage(storedLanguage));
+      })
+      .catch(console.warn);
+
+    return () => {
+      isActive = false;
+    };
+  }, []));
+
+  const selectedSymptomConfig = selectedSymptom ? RELIEF_SYMPTOMS[selectedSymptom] : null;
+  const selectedSymptomLabel = selectedSymptomConfig?.label[language] ?? '';
+  const tips = selectedSymptomConfig?.tips[language] ?? [];
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={[styles.header, isRtl && styles.rtlRow]}>
           <Pressable onPress={() => router.back()} hitSlop={10} style={styles.backButton}>
-            <Ionicons name="chevron-back" size={22} color={NAVY} />
+            <Ionicons name={isRtl ? 'chevron-forward' : 'chevron-back'} size={22} color={NAVY} />
           </Pressable>
           <View style={styles.headerCopy}>
             <Text style={[styles.kicker, isRtl && styles.rtlText]}>{copy.instantRelief}</Text>
@@ -91,9 +137,10 @@ export default function ReliefScreen() {
           <Text style={[styles.cardTitle, isRtl && styles.rtlText]}>{copy.chooseSymptom}</Text>
           <Text style={[styles.cardSubtitle, isRtl && styles.rtlText]}>{copy.comfortIdeas}</Text>
 
-          <View style={[styles.buttonGrid, isRtl && styles.rtlRow]}>
-            {(Object.keys(RELIEF_TIPS) as ReliefSymptom[]).map((symptom) => {
+          <View style={styles.buttonGrid}>
+            {(Object.keys(RELIEF_SYMPTOMS) as ReliefSymptom[]).map((symptom) => {
               const isSelected = selectedSymptom === symptom;
+              const symptomLabel = RELIEF_SYMPTOMS[symptom].label[language];
               return (
                 <Pressable
                   key={symptom}
@@ -102,13 +149,13 @@ export default function ReliefScreen() {
                   accessibilityState={{ selected: isSelected }}
                   style={({ pressed }) => [
                     styles.symptomButton,
-                    isRtl && styles.rtlRow,
+                    isRtl && styles.rtlSymptomButton,
                     isSelected && styles.symptomButtonSelected,
                     pressed && styles.pressed,
                   ]}
                 >
                   <Text style={[styles.symptomButtonText, isSelected && styles.symptomButtonTextSelected, isRtl && styles.rtlText]}>
-                    {symptom}
+                    {symptomLabel}
                   </Text>
                 </Pressable>
               );
@@ -118,7 +165,7 @@ export default function ReliefScreen() {
 
         <View style={styles.tipsCard}>
           <Text style={[styles.cardTitle, isRtl && styles.rtlText]}>
-            {selectedSymptom ? `${selectedSymptom} ${copy.quickTips}` : copy.quickTips}
+            {selectedSymptom ? `${copy.quickTipsFor} ${selectedSymptomLabel}` : copy.quickTips}
           </Text>
           {selectedSymptom ? (
             tips.map((tip, index) => (
@@ -134,7 +181,15 @@ export default function ReliefScreen() {
           )}
         </View>
 
-        <Text style={[styles.footerNote, isRtl && styles.rtlText]}>{copy.footer}</Text>
+        <View style={[styles.emergencyCard, isRtl && styles.rtlRow]}>
+          <View style={styles.emergencyIcon}>
+            <Ionicons name="medkit" size={18} color={SAGE_DARK} />
+          </View>
+          <View style={styles.emergencyCopy}>
+            <Text style={[styles.emergencyTitle, isRtl && styles.rtlText]}>{copy.emergencyTitle}</Text>
+            <Text style={[styles.emergencyGuidance, isRtl && styles.rtlText]}>{copy.emergencyGuidance}</Text>
+          </View>
+        </View>
       </ScrollView>
     </SafeAreaView>
   );
@@ -235,6 +290,7 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 19,
     fontWeight: '800',
+    textAlign: 'center',
   },
   symptomButtonTextSelected: {
     color: '#FFFFFF',
@@ -265,11 +321,38 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     lineHeight: 22,
   },
-  footerNote: {
+  emergencyCard: {
+    alignItems: 'flex-start',
+    backgroundColor: '#FFFFFF',
+    borderColor: '#E5E0D2',
+    borderRadius: RADIUS,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: 12,
+    padding: 16,
+  },
+  emergencyIcon: {
+    alignItems: 'center',
+    backgroundColor: SAGE_SOFT,
+    borderRadius: 14,
+    height: 36,
+    justifyContent: 'center',
+    width: 36,
+  },
+  emergencyCopy: {
+    flex: 1,
+  },
+  emergencyTitle: {
+    color: NAVY,
+    fontSize: 15,
+    fontWeight: '800',
+    lineHeight: 20,
+  },
+  emergencyGuidance: {
     color: SLATE,
     fontSize: 13,
     lineHeight: 20,
-    textAlign: 'center',
+    marginTop: 4,
   },
   pressed: {
     opacity: 0.78,
@@ -281,5 +364,8 @@ const styles = StyleSheet.create({
   },
   rtlRow: {
     flexDirection: 'row-reverse',
+  },
+  rtlSymptomButton: {
+    alignItems: 'flex-end',
   },
 });
