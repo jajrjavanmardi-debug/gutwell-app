@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
 
@@ -140,40 +141,133 @@ function assertRealSupabaseCredentials(url: string, key: string): void {
 
 assertRealSupabaseCredentials(supabaseUrl, supabaseKey);
 
+const SECURE_STORE_SAFE_VALUE_LENGTH = 1900;
+const ASYNC_STORAGE_POINTER = '__gutwell_async_storage_v1__';
+
+function canUseLocalStorage(): boolean {
+  return typeof window !== 'undefined' && typeof window.localStorage !== 'undefined';
+}
+
+function warnAuthStorage(message: string, error: unknown): void {
+  if (__DEV__) {
+    console.warn(`[supabase auth storage] ${message}`, error);
+  }
+}
+
+async function getNativeAuthItem(key: string): Promise<string | null> {
+  try {
+    const secureValue = await SecureStore.getItemAsync(key);
+    if (secureValue === ASYNC_STORAGE_POINTER) {
+      return await AsyncStorage.getItem(key);
+    }
+    if (secureValue !== null) {
+      if (secureValue.length > SECURE_STORE_SAFE_VALUE_LENGTH) {
+        await migrateOversizedSecureStoreValue(key, secureValue);
+      }
+      return secureValue;
+    }
+  } catch (error) {
+    warnAuthStorage(`SecureStore read failed for ${key}; trying AsyncStorage fallback.`, error);
+  }
+
+  try {
+    return await AsyncStorage.getItem(key);
+  } catch (error) {
+    warnAuthStorage(`AsyncStorage read failed for ${key}.`, error);
+    return null;
+  }
+}
+
+async function setNativeAuthItem(key: string, value: string): Promise<void> {
+  if (value.length > SECURE_STORE_SAFE_VALUE_LENGTH) {
+    await setLargeNativeAuthItem(key, value);
+    return;
+  }
+
+  try {
+    await SecureStore.setItemAsync(key, value);
+    await AsyncStorage.removeItem(key).catch((error) => {
+      warnAuthStorage(`AsyncStorage cleanup failed for ${key}.`, error);
+    });
+    return;
+  } catch (error) {
+    warnAuthStorage(`SecureStore write failed for ${key}; using AsyncStorage fallback.`, error);
+  }
+
+  try {
+    await AsyncStorage.setItem(key, value);
+  } catch (error) {
+    warnAuthStorage(`AsyncStorage fallback write failed for ${key}.`, error);
+  }
+}
+
+async function setLargeNativeAuthItem(key: string, value: string): Promise<void> {
+  try {
+    await AsyncStorage.setItem(key, value);
+  } catch (error) {
+    warnAuthStorage(`AsyncStorage write failed for oversized auth item ${key}.`, error);
+    return;
+  }
+
+  try {
+    await SecureStore.setItemAsync(key, ASYNC_STORAGE_POINTER);
+  } catch (error) {
+    warnAuthStorage(`SecureStore pointer write failed for oversized auth item ${key}.`, error);
+  }
+}
+
+async function migrateOversizedSecureStoreValue(key: string, value: string): Promise<void> {
+  try {
+    await AsyncStorage.setItem(key, value);
+    await SecureStore.setItemAsync(key, ASYNC_STORAGE_POINTER);
+  } catch (error) {
+    warnAuthStorage(`Could not migrate oversized SecureStore auth item ${key}.`, error);
+  }
+}
+
+async function removeNativeAuthItem(key: string): Promise<void> {
+  await Promise.all([
+    SecureStore.deleteItemAsync(key).catch((error) => {
+      warnAuthStorage(`SecureStore delete failed for ${key}.`, error);
+    }),
+    AsyncStorage.removeItem(key).catch((error) => {
+      warnAuthStorage(`AsyncStorage delete failed for ${key}.`, error);
+    }),
+  ]);
+}
+
 /**
- * Auth persistence (mobile): tokens live in SecureStore; web uses localStorage.
- * - persistSession: restored on cold start
- * - autoRefreshToken: keeps JWT valid without re-login
- * - detectSessionInUrl: enabled only on web so Supabase email/reset redirects complete on hosted domains
- * - flowType: pkce — recommended for native deep links / OAuth
+ * Auth persistence:
+ * - web uses localStorage for browser sessions
+ * - native stores small auth values in SecureStore
+ * - oversized Supabase session JSON is stored in AsyncStorage with a tiny SecureStore pointer
  */
-const SecureStoreAdapter = {
-  getItem: (key: string) => {
+const AuthStorageAdapter = {
+  getItem: async (key: string): Promise<string | null> => {
     if (Platform.OS === 'web') {
-      if (typeof window !== 'undefined') return localStorage.getItem(key);
-      return null;
+      return canUseLocalStorage() ? window.localStorage.getItem(key) : null;
     }
-    return SecureStore.getItemAsync(key);
+    return getNativeAuthItem(key);
   },
-  setItem: (key: string, value: string) => {
+  setItem: async (key: string, value: string): Promise<void> => {
     if (Platform.OS === 'web') {
-      if (typeof window !== 'undefined') localStorage.setItem(key, value);
+      if (canUseLocalStorage()) window.localStorage.setItem(key, value);
       return;
     }
-    return SecureStore.setItemAsync(key, value);
+    await setNativeAuthItem(key, value);
   },
-  removeItem: (key: string) => {
+  removeItem: async (key: string): Promise<void> => {
     if (Platform.OS === 'web') {
-      if (typeof window !== 'undefined') localStorage.removeItem(key);
+      if (canUseLocalStorage()) window.localStorage.removeItem(key);
       return;
     }
-    return SecureStore.deleteItemAsync(key);
+    await removeNativeAuthItem(key);
   },
 };
 
 export const supabase = createClient(supabaseUrl, supabaseKey, {
   auth: {
-    storage: SecureStoreAdapter as any,
+    storage: AuthStorageAdapter as any,
     autoRefreshToken: true,
     persistSession: true,
     detectSessionInUrl: Platform.OS === 'web',
