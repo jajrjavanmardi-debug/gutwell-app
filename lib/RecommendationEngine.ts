@@ -17,7 +17,60 @@ export type NutritionRecommendationResult = {
   recommendation: string;
 };
 
+type NutritionRecommendationOptions = {
+  hasSpecificFood?: boolean;
+};
+
 const nutrientCache = new Map<string, string[]>();
+
+const SPECIFIC_FOOD_PATTERNS = [
+  /\b(pizza|burger|fries|kebab|sandwich|salad|soup|pasta|noodles|rice|bread|toast|oats?|cereal|egg|eggs|chicken|beef|fish|tuna|salmon|shrimp|tofu|beans?|lentils?|chickpeas?|onion|garlic|tomato|pepper|potato|carrot|zucchini|apple|banana|berries|strawberr(?:y|ies)|kiwi|plums?|prunes?|figs?|raisins?|yogurt|milk|cheese|cream|coffee|tea|chocolate|sauce|curry)\b/i,
+  /\b(pflaume|pflaumen|trockenpflaume|trockenpflaumen|pizza|burger|pommes|kebab|sandwich|salat|suppe|nudeln|reis|brot|toast|hafer|ei|eier|huhn|rind|fisch|thunfisch|lachs|tofu|bohnen|linsen|kichererbsen|zwiebel|knoblauch|tomate|paprika|kartoffel|karotte|zucchini|apfel|banane|beeren|erdbeeren|kiwi|joghurt|milch|käse|kaese|sahne|kaffee|tee|schokolade|sauce|soße|sosse|curry)\b/i,
+  /(پیتزا|برگر|سیب زمینی|ساندویچ|سالاد|سوپ|پاستا|ماکارونی|برنج|نان|جو دوسر|تخم مرغ|مرغ|گوشت|ماهی|تن|سالمون|میگو|توفو|لوبیا|عدس|نخود|پیاز|سیر|گوجه|فلفل|هویج|کدو|سیب|موز|توت|توت فرنگی|کیوی|آلو|آلو خشک|انجیر|کشمش|ماست|شیر|پنیر|خامه|قهوه|چای|شکلات|سس|کاری)/,
+];
+
+const FOOD_ACTION_PATTERNS = [
+  /\b(i\s+)?(ate|eat|eating|had|drank|drink|drinking|cooked|made|ordered)\b/i,
+  /\b(gegessen|getrunken|gekocht|bestellt|essen|trinken)\b/i,
+  /(خوردم|خورده|می‌خورم|میخورم|بخورم|خوردن|نوشیدم|نوشیده|بنوشم|درست کردم|سفارش دادم)/,
+];
+
+const SYMPTOM_OR_GENERIC_FOOD_WORDS = new Set([
+  'i', 'am', 'feel', 'feeling', 'have', 'has', 'with', 'after', 'before', 'and', 'or', 'the', 'a', 'an',
+  'can', 'could', 'should', 'would', 'how', 'many', 'much', 'often', 'per', 'day', 'it',
+  'ate', 'eat', 'eating', 'had', 'drank', 'drink', 'drinking', 'cooked', 'made', 'ordered',
+  'meal', 'meals', 'food', 'foods', 'something', 'anything', 'this', 'that', 'today', 'now',
+  'bloated', 'bloating', 'gas', 'gassy', 'cramps', 'cramp', 'pain', 'reflux', 'heartburn', 'constipation',
+  'constipated', 'diarrhea', 'nausea', 'tired', 'energy', 'low', 'stressed', 'stress', 'craving', 'sugar',
+  'ich', 'bin', 'habe', 'hatte', 'mit', 'nach', 'vor', 'und', 'oder', 'gegessen', 'getrunken',
+  'gekocht', 'bestellt', 'kann', 'koennte', 'könnte', 'soll', 'sollte', 'wie', 'oft', 'viel', 'tag',
+  'das', 'dies', 'dieses', 'mahlzeit', 'mahlzeiten', 'essen',
+  'lebensmittel', 'etwas', 'heute', 'jetzt', 'blähungen', 'blaehungen', 'blähbauch', 'schmerzen',
+  'krämpfe', 'kraempfe', 'reflux', 'sodbrennen', 'verstopfung', 'durchfall', 'übelkeit', 'uebelkeit',
+  'آیا', 'توانم', 'میتوانم', 'می‌توانم', 'چقدر', 'چند', 'بار', 'روز', 'این', 'آن', 'را', 'با', 'بعد',
+  'قبل', 'غذا', 'وعده', 'چیزی', 'خوراکی', 'بخورم', 'خوردن', 'بنوشم', 'نفخ', 'درد', 'گرفتگی',
+  'ریفلاکس', 'رفلاکس', 'یبوست', 'اسهال', 'تهوع', 'انرژی', 'استرس',
+]);
+
+export function hasSpecificFoodReference(input: string): boolean {
+  const normalized = input.trim().toLocaleLowerCase();
+  if (!normalized) return false;
+
+  if (SPECIFIC_FOOD_PATTERNS.some((pattern) => pattern.test(normalized))) {
+    return true;
+  }
+
+  if (!FOOD_ACTION_PATTERNS.some((pattern) => pattern.test(normalized))) {
+    return false;
+  }
+
+  const remainingWords = normalized
+    .replace(/[^\p{L}\p{N}\s]/gu, ' ')
+    .split(/\s+/)
+    .filter((word) => word.length > 2 && !SYMPTOM_OR_GENERIC_FOOD_WORDS.has(word));
+
+  return remainingWords.length > 0;
+}
 
 function getFallbackLanguage(userFeeling: string): 'en' | 'de' | 'fa' {
   if (/preferred response language:\s*(persian|فارسی)|use persian only|فارسی/i.test(userFeeling)) return 'fa';
@@ -55,9 +108,37 @@ function buildFallbackRecommendation(
   userFeeling: string,
   nutrients: string[],
   foodData: FoodNutrition | null,
+  hasSpecificFood: boolean,
 ): string {
   const language = getFallbackLanguage(userFeeling);
-  const foodName = foodData?.description;
+  const foodName = hasSpecificFood ? foodData?.description : undefined;
+
+  if (!hasSpecificFood) {
+    if (language === 'fa') {
+      return [
+        'پاسخ کوتاه: هیچ غذای مشخصی گفته نشده است، بنابراین این راهنما فقط بر اساس علائم شماست.',
+        'از اینجا شروع کن: آب بنوش، آرام نفس بکش، در صورت درد از گرمای ملایم استفاده کن و فعلاً محرک های نامشخص را اضافه نکن.',
+        'چند وقت یک بار: علائم را 24 تا 72 ساعت دنبال کن و دفعه بعد اگر تحلیل غذایی می خواهی، نام غذا یا ماده اصلی را هم بنویس.',
+        'فقط برای اطلاع است، نه توصیه پزشکی. در صورت علائم شدید یا غیرمعمول کمک پزشکی بگیرید.',
+      ].join('\n');
+    }
+
+    if (language === 'de') {
+      return [
+        'Kurzantwort: Es wurde keine konkrete Mahlzeit genannt, daher basiert diese Empfehlung nur auf deinen Symptomen.',
+        'So startest du: Trinke Wasser, atme langsam in den Bauch, nutze bei Krämpfen sanfte Wärme und füge vorerst keinen unklaren Trigger hinzu.',
+        'Wie oft: Beobachte die Symptome 24-72 Stunden und nenne beim nächsten Mal das konkrete Lebensmittel, wenn du eine Mahlzeitenanalyse möchtest.',
+        'Nur zur Information, keine medizinische Beratung. Suche Hilfe bei starken oder ungewöhnlichen Symptomen.',
+      ].join('\n');
+    }
+
+    return [
+      'Quick answer: No specific meal was provided, so this guidance is based on your symptoms only.',
+      'Start here: Sip water, slow your breathing, use gentle warmth for cramps, and avoid adding an unclear trigger right now.',
+      'How often: Track symptoms for 24-72 hours and include the exact food or ingredient next time if you want meal-level analysis.',
+      'Info only, not medical advice. Seek care for severe or unusual symptoms.',
+    ].join('\n');
+  }
 
   if (language === 'fa') {
     return [
@@ -100,8 +181,9 @@ const AnalysisService = {
     userFeeling: string,
     nutrients: string[],
     foods: FoodNutrition[],
+    options: NutritionRecommendationOptions,
   ): Promise<string> {
-    return getFoodRecommendationFromNutrients(userFeeling, nutrients, foods[0] ?? null);
+    return getFoodRecommendationFromNutrients(userFeeling, nutrients, foods[0] ?? null, options);
   },
 };
 
@@ -119,11 +201,14 @@ const FoodService = {
 
 export async function getNutritionRecommendation(
   userFeeling: string,
+  options: NutritionRecommendationOptions = {},
 ): Promise<NutritionRecommendationResult> {
   const feeling = userFeeling.trim();
   if (!feeling) {
     throw new Error('User feeling is required to generate a nutrition recommendation.');
   }
+
+  const hasSpecificFood = options.hasSpecificFood ?? hasSpecificFoodReference(feeling);
 
   let nutrients: string[];
   try {
@@ -133,13 +218,13 @@ export async function getNutritionRecommendation(
     nutrients = getFallbackNutrients(feeling);
   }
 
-  const foods = await FoodService.findMatchingFoodsForNutrients(nutrients);
+  const foods = hasSpecificFood ? await FoodService.findMatchingFoodsForNutrients(nutrients) : [];
   let recommendation: string;
   try {
-    recommendation = await AnalysisService.generateRecommendation(feeling, nutrients, foods);
+    recommendation = await AnalysisService.generateRecommendation(feeling, nutrients, foods, { hasSpecificFood });
   } catch (error) {
     if (!isMissingAiProviderKey(error)) throw error;
-    recommendation = buildFallbackRecommendation(feeling, nutrients, foods[0] ?? null);
+    recommendation = buildFallbackRecommendation(feeling, nutrients, foods[0] ?? null, hasSpecificFood);
   }
 
   return {

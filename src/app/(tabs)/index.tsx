@@ -26,7 +26,11 @@ import Svg, { Circle, Line, Path, Text as SvgText } from 'react-native-svg';
 import { GutScoreGauge } from '../../../components/gut-score-gauge';
 import { useAuth } from '../../../contexts/AuthContext';
 import { BorderRadius, Colors, FontFamily, FontSize, Shadows, Spacing, Theme } from '../../../constants/theme';
-import { getNutritionRecommendation, type NutritionRecommendationResult } from '../../../lib/RecommendationEngine';
+import {
+  getNutritionRecommendation,
+  hasSpecificFoodReference,
+  type NutritionRecommendationResult,
+} from '../../../lib/RecommendationEngine';
 import {
   estimateMealImpactScore,
   getPhotoAnalysisHistory,
@@ -1034,8 +1038,10 @@ export default function HomeScreen() {
     setLanguageRefreshMessage('');
 
     try {
+      const hasSpecificFood = hasSpecificFoodReference(trimmedFeeling);
       const analysisInput = [
         `${t.shareFeeling}: ${trimmedFeeling}`,
+        `Specific food, meal, or ingredient provided: ${hasSpecificFood ? 'yes' : 'no'}`,
         `${t.score}${gutScore}/10`,
         `${t.conditions}: ${localizedConditionSummary}`,
         `${t.activity}: ${localizedActivityLevel}`,
@@ -1043,7 +1049,7 @@ export default function HomeScreen() {
         `Use ${AI_LANGUAGE_LABELS[language]} only. Do not respond in any other language.`,
         'For IBS/bloating, do not suggest brown rice, barley bread, barley, or high-fiber whole grains. Prefer white rice, boiled potatoes, zucchini, carrots, peppermint tea, ginger tea, or low-FODMAP soup.',
       ].join('\n');
-      const recommendation = await getNutritionRecommendation(analysisInput);
+      const recommendation = await getNutritionRecommendation(analysisInput, { hasSpecificFood });
       const xpResult = await addXpForAction(10);
       setResult({ ...recommendation, feeling: trimmedFeeling });
       setResultLanguage(language);

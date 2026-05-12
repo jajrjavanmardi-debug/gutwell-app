@@ -127,6 +127,7 @@ const COACH_LANGUAGE_COPY: Record<AppLanguage, {
   languageName: string;
   languageRule: string;
   quickAnswer: string;
+  noSpecificMeal: string;
   startHere: string;
   howOften: string;
   symptomCheck: string;
@@ -137,6 +138,7 @@ const COACH_LANGUAGE_COPY: Record<AppLanguage, {
     languageName: 'English',
     languageRule: 'Write the entire answer strictly in English.',
     quickAnswer: 'Quick answer',
+    noSpecificMeal: 'No specific meal was provided, so this guidance is based on your symptoms only.',
     startHere: 'Start here',
     howOften: 'How often',
     symptomCheck: 'Symptom check',
@@ -147,6 +149,7 @@ const COACH_LANGUAGE_COPY: Record<AppLanguage, {
     languageName: 'German (Deutsch)',
     languageRule: 'Write the entire answer strictly in German.',
     quickAnswer: 'Kurzantwort',
+    noSpecificMeal: 'Es wurde keine konkrete Mahlzeit genannt, daher basiert diese Empfehlung nur auf deinen Symptomen.',
     startHere: 'So startest du',
     howOften: 'Wie oft',
     symptomCheck: 'Symptom-Check',
@@ -157,6 +160,7 @@ const COACH_LANGUAGE_COPY: Record<AppLanguage, {
     languageName: 'Persian (فارسی)',
     languageRule: 'Write the entire answer strictly in Persian using Persian script. Use natural RTL-friendly phrasing and do not include English labels unless a food or brand has no natural Persian equivalent.',
     quickAnswer: 'پاسخ کوتاه',
+    noSpecificMeal: 'هیچ غذای مشخصی گفته نشده است، بنابراین این راهنما فقط بر اساس علائم شماست.',
     startHere: 'از اینجا شروع کن',
     howOften: 'چند وقت یک بار',
     symptomCheck: 'بررسی علائم',
@@ -461,9 +465,12 @@ export async function getFoodRecommendationFromNutrients(
   userFeeling: string,
   nutrients: string[],
   foodData: FoodNutrition | null,
+  options: { hasSpecificFood?: boolean } = {},
 ): Promise<string> {
   const preferredLanguage = getPreferredCoachLanguage(userFeeling);
   const copy = COACH_LANGUAGE_COPY[preferredLanguage];
+  const hasSpecificFood = options.hasSpecificFood ?? true;
+  const usableFoodData = hasSpecificFood ? foodData : null;
   const prompt = [
     'You are NutriFlow, a practical gut-health nutrition coach.',
     `Selected app language: ${copy.languageName}.`,
@@ -474,13 +481,26 @@ export async function getFoodRecommendationFromNutrients(
     '',
     'User context:',
     userFeeling,
+    hasSpecificFood
+      ? 'Food context: the user provided a specific food, meal, or ingredient. You may answer about that provided item.'
+      : [
+          'Food context: the user did not provide a specific food, meal, or ingredient. Their input is symptoms/feelings only.',
+          `You must explicitly include this sentence near the start: "${copy.noSpecificMeal}"`,
+          'Do not invent, assume, or imply any specific food, meal, ingredient, snack, drink, or restaurant item.',
+          'Do not analyze "this meal", do not say the person ate any food, and do not provide a meal impact score.',
+          'Give symptom-based guidance only: practical next steps, symptom watch-outs, and what detail to add next time if they want meal-level analysis.',
+        ].join('\n'),
     `The clinically relevant nutrients are: ${nutrients.join(', ')}`,
-    foodData
+    usableFoodData
       ? 'USDA food data:'
-      : 'USDA food data: no matching USDA food was found for these nutrients.',
-    foodData
-      ? summarizeFoodData(foodData)
-      : 'Generate a helpful response anyway using the nutrient list and user context. Do not say the analysis failed.',
+      : hasSpecificFood
+        ? 'USDA food data: no matching USDA food was found for these nutrients.'
+        : 'USDA food data: intentionally omitted because no specific food was provided.',
+    usableFoodData
+      ? summarizeFoodData(usableFoodData)
+      : hasSpecificFood
+        ? 'Generate a helpful response anyway using the nutrient list and user context. Do not say the analysis failed.'
+        : 'Generate a helpful symptom-only response. Do not introduce foods as if they were provided by the user.',
     '',
     'Answer the person\'s actual question first. Do not start with generic nutrient education.',
     'Behave like a practical gut-health advisor: give a safe starting amount, a realistic frequency, how to increase or pause, and what symptoms to watch.',
@@ -501,12 +521,16 @@ export async function getFoodRecommendationFromNutrients(
     `${copy.symptomCheck} must mention at least one relevant symptom from IBS, bloating, reflux, constipation, cramps, gas, diarrhea, or pain when applicable.`,
     `${copy.coachTip} must tell the user what to track over the next 24-72 hours.`,
     `Mandatory safety footer: end with this exact footer in the selected language: "${copy.footer}"`,
-    'If the food is unhealthy for the user\'s gut condition, suggest 3 healthier alternatives that are commonly available in local grocery stores or restaurants.',
+    hasSpecificFood
+      ? 'If the food is unhealthy for the user\'s gut condition, suggest 3 healthier alternatives that are commonly available in local grocery stores or restaurants.'
+      : 'Do not suggest healthier alternatives for an unnamed food. If examples are useful, keep them broad and optional, not framed as foods the user ate.',
     'If IBS is listed as an underlying condition, never suggest high-sugar cookies, desserts, candy, sugary snacks, brown rice, barley bread, barley, or high-fiber whole grains. Prefer white rice, boiled potatoes, zucchini, carrots, ginger tea, peppermint tea, low-FODMAP soup, cooked vegetables, or plain yogurt when appropriate.',
     'When USDA results are generic, incomplete, or not clearly gut-supportive, do not overfit the recommendation to cookies or processed snacks. Suggest natural whole foods and practical habits tied to the nutrient list.',
-    foodData
+    usableFoodData
       ? 'Mention USDA data only if it directly helps the practical answer; do not let generic USDA matches distract from the named food or symptom question.'
-      : 'Because no USDA food matched, suggest general food categories or habits tied to the listed nutrients instead of inventing USDA facts.',
+      : hasSpecificFood
+        ? 'Because no USDA food matched, suggest general food categories or habits tied to the listed nutrients instead of inventing USDA facts.'
+        : 'Because this is symptom-only, do not mention USDA matches or invented food facts.',
   ].filter(Boolean).join('\n');
 
   return callGroq(prompt, 'text');
