@@ -11,6 +11,8 @@
     "ios": "expo start --ios",
     "web": "expo start --web",
     "build:web": "npx expo export --platform web",
+    "preview:web": "npx serve dist",
+    "deploy:web": "npx vercel --prod",
     "lint": "expo lint"
   },
   "dependencies": {

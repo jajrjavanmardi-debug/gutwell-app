@@ -2,7 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { ActivityIndicator, Pressable, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Platform, Pressable, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import {
@@ -25,6 +25,13 @@ const SLATE = '#53616D';
 const SLATE_DARK = '#15212D';
 const CARD_RADIUS = 15;
 const SCREEN_PADDING = 20;
+type WebShareNavigator = Navigator & {
+  share?: (data: { title?: string; text?: string }) => Promise<void>;
+  clipboard?: {
+    writeText?: (text: string) => Promise<void>;
+  };
+};
+
 const SETTINGS_COPY = {
   en: {
     personalizedProfile: 'Personalized Profile',
@@ -59,6 +66,7 @@ const SETTINGS_COPY = {
     shareFeedbackHint: 'Invite a tester to try NutriFlow in Expo Go and send practical demo feedback.',
     shareFeedbackButton: 'Open share sheet',
     shareFeedbackOpened: 'Share sheet opened',
+    shareFeedbackCopied: 'Feedback invite copied',
     shareFeedbackFailed: 'Could not open sharing right now',
     shareMessage: [
       'NutriFlow',
@@ -107,6 +115,7 @@ const SETTINGS_COPY = {
     shareFeedbackHint: 'Lade Tester ein, NutriFlow in Expo Go auszuprobieren und Demo-Feedback zu senden.',
     shareFeedbackButton: 'Teilen öffnen',
     shareFeedbackOpened: 'Teilen geöffnet',
+    shareFeedbackCopied: 'Feedback-Einladung kopiert',
     shareFeedbackFailed: 'Teilen kann gerade nicht geöffnet werden',
     shareMessage: [
       'NutriFlow',
@@ -155,6 +164,7 @@ const SETTINGS_COPY = {
     shareFeedbackHint: 'یک تستر را دعوت کنید تا NutriFlow را در Expo Go امتحان کند و بازخورد دمو بدهد.',
     shareFeedbackButton: 'باز کردن اشتراک گذاری',
     shareFeedbackOpened: 'صفحه اشتراک گذاری باز شد',
+    shareFeedbackCopied: 'دعوت بازخورد کپی شد',
     shareFeedbackFailed: 'اکنون امکان باز کردن اشتراک گذاری وجود ندارد',
     shareMessage: [
       'NutriFlow',
@@ -238,6 +248,24 @@ export default function SettingsScreen() {
 
   const handleShareForFeedback = async () => {
     try {
+      if (Platform.OS === 'web' && typeof navigator !== 'undefined') {
+        const webNavigator = navigator as WebShareNavigator;
+        if (typeof webNavigator.share === 'function') {
+          await webNavigator.share({
+            title: t.shareFeedbackTitle,
+            text: t.shareMessage,
+          });
+          setSaveMessage(t.shareFeedbackOpened);
+          return;
+        }
+
+        if (typeof webNavigator.clipboard?.writeText === 'function') {
+          await webNavigator.clipboard.writeText(t.shareMessage);
+          setSaveMessage(t.shareFeedbackCopied);
+          return;
+        }
+      }
+
       await Share.share({
         title: t.shareFeedbackTitle,
         message: t.shareMessage,

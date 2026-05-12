@@ -251,10 +251,11 @@ const copy = {
     photoUnavailableMessage: 'Could not read the photo data. Please try again.',
     cameraNeededTitle: 'Camera access needed',
     cameraNeededMessage: 'Please allow camera access to take a meal photo.',
-    browserCameraNeededMessage: 'Please allow camera access in your browser, then try again.',
     demoMode: 'Demo Mode',
     cameraUnavailableTitle: 'Camera unavailable in simulator.',
     cameraUnavailableMessage: 'Use gallery upload or a built-in meal image to keep the demo flow moving.',
+    webDemoTitle: 'Web feedback demo',
+    webDemoMessage: 'Browser testing uses gallery upload or built-in meal images instead of camera capture.',
     uploadImageFromGallery: 'Upload image from gallery',
     useSampleMealImage: 'Use sample meal image',
     demoMealHelper: 'Demo images continue through the same meal analysis flow as gallery uploads.',
@@ -369,10 +370,11 @@ const copy = {
     photoUnavailableMessage: 'Die Fotodaten konnten nicht gelesen werden. Bitte erneut versuchen.',
     cameraNeededTitle: 'Kamerazugriff nötig',
     cameraNeededMessage: 'Bitte erlaube den Kamerazugriff, um ein Mahlzeitenfoto aufzunehmen.',
-    browserCameraNeededMessage: 'Bitte erlaube den Kamerazugriff im Browser und versuche es erneut.',
     demoMode: 'Demo-Modus',
     cameraUnavailableTitle: 'Kamera im Simulator nicht verfügbar.',
     cameraUnavailableMessage: 'Nutze den Galerie-Upload oder ein integriertes Mahlzeitenbild, damit die Demo sauber weiterläuft.',
+    webDemoTitle: 'Web-Feedback-Demo',
+    webDemoMessage: 'Der Browser-Test nutzt Galerie-Upload oder integrierte Beispielbilder statt Kameraaufnahme.',
     uploadImageFromGallery: 'Bild aus Galerie hochladen',
     useSampleMealImage: 'Beispiel-Mahlzeit verwenden',
     demoMealHelper: 'Demo-Bilder laufen durch denselben Analysefluss wie Galerie-Uploads.',
@@ -487,10 +489,11 @@ const copy = {
     photoUnavailableMessage: 'داده های عکس خوانده نشد. لطفا دوباره تلاش کنید.',
     cameraNeededTitle: 'دسترسی به دوربین لازم است',
     cameraNeededMessage: 'برای گرفتن عکس غذا، اجازه دسترسی به دوربین را بدهید.',
-    browserCameraNeededMessage: 'لطفاً دسترسی دوربین را در مرورگر فعال کنید و دوباره تلاش کنید.',
     demoMode: 'حالت دمو',
     cameraUnavailableTitle: 'دوربین در شبیه ساز در دسترس نیست.',
     cameraUnavailableMessage: 'برای ادامه روان دمو، از گالری بارگذاری کنید یا یک تصویر غذای نمونه انتخاب کنید.',
+    webDemoTitle: 'دموی وب برای بازخورد',
+    webDemoMessage: 'در مرورگر به جای دوربین، از بارگذاری تصویر یا تصاویر نمونه غذا استفاده می شود.',
     uploadImageFromGallery: 'بارگذاری تصویر از گالری',
     useSampleMealImage: 'استفاده از غذای نمونه',
     demoMealHelper: 'تصاویر دمو مانند بارگذاری از گالری وارد همان جریان تحلیل غذا می شوند.',
@@ -927,7 +930,8 @@ export default function PhotoAnalysisScreen() {
   const t = copy[language];
   /** Dev client / standalone only — Expo Go has no custom native STT modules. */
   const voiceNativeEnabled = canUseNativeSpeechToText();
-  const isSimulatorFallbackActive = isIosSimulatorRuntime() || cameraUnavailable;
+  const isWebFeedbackDemo = Platform.OS === 'web';
+  const isCameraFallbackActive = isWebFeedbackDemo || isIosSimulatorRuntime() || cameraUnavailable;
   const isRtlLanguage = isAppRtlLanguage(language);
   const selectedSymptomLabels = selectedSymptoms.map((symptomKey) => {
     const option = SYMPTOM_OPTIONS.find((item) => item.key === symptomKey);
@@ -961,6 +965,8 @@ export default function PhotoAnalysisScreen() {
   const wizardSubtitle =
     wizardStep === 1 ? t.wizardStep1Subtitle : wizardStep === 2 ? t.wizardStep2Subtitle : t.wizardStep3Subtitle;
   const canRecordFeelings = wizardStep === 2 && Boolean(photoUri && lastImageBase64);
+  const cameraFallbackTitle = isWebFeedbackDemo ? t.webDemoTitle : t.cameraUnavailableTitle;
+  const cameraFallbackMessage = isWebFeedbackDemo ? t.webDemoMessage : t.cameraUnavailableMessage;
 
   useEffect(() => {
     getUserProfileSettings()
@@ -1355,124 +1361,6 @@ export default function PhotoAnalysisScreen() {
     input.click();
   };
 
-  const takePhotoOnWeb = async () => {
-    if (typeof document === 'undefined' || typeof navigator === 'undefined') return;
-
-    if (!navigator.mediaDevices?.getUserMedia) {
-      Alert.alert(t.cameraNeededTitle, 'Camera access is not available in this browser. Please use Safari/Chrome on HTTPS or choose from gallery.');
-      pickImageFileOnWeb();
-      return;
-    }
-
-    let stream: MediaStream | null = null;
-    const overlay = document.createElement('div');
-    const video = document.createElement('video');
-    const actions = document.createElement('div');
-    const captureButton = document.createElement('button');
-    const cancelButton = document.createElement('button');
-
-    const cleanup = () => {
-      stream?.getTracks().forEach((track) => track.stop());
-      overlay.remove();
-    };
-
-    try {
-      stream = await navigator.mediaDevices.getUserMedia({
-        video: {
-          facingMode: { ideal: 'environment' },
-          width: { ideal: 1280 },
-          height: { ideal: 960 },
-        },
-        audio: false,
-      });
-    } catch (error) {
-      console.error('Web camera permission failed:', error);
-      Alert.alert(t.cameraNeededTitle, t.browserCameraNeededMessage);
-      return;
-    }
-
-    overlay.style.cssText = [
-      'position:fixed',
-      'inset:0',
-      'z-index:99999',
-      'background:#000',
-      'display:flex',
-      'flex-direction:column',
-      'align-items:center',
-      'justify-content:center',
-      'padding:16px',
-      'box-sizing:border-box',
-    ].join(';');
-    video.style.cssText = [
-      'width:100%',
-      'max-width:520px',
-      'max-height:75vh',
-      'border-radius:20px',
-      'object-fit:cover',
-      'background:#111',
-    ].join(';');
-    actions.style.cssText = [
-      'display:flex',
-      'gap:12px',
-      'margin-top:16px',
-      'width:100%',
-      'max-width:520px',
-    ].join(';');
-    captureButton.textContent = t.usePhoto;
-    cancelButton.textContent = t.cancel;
-    [captureButton, cancelButton].forEach((button) => {
-      button.type = 'button';
-      button.style.cssText = [
-        'flex:1',
-        'min-height:48px',
-        'border:0',
-        'border-radius:16px',
-        'font:600 16px system-ui,-apple-system,BlinkMacSystemFont,sans-serif',
-      ].join(';');
-    });
-    captureButton.style.background = '#2DCE89';
-    captureButton.style.color = '#000';
-    cancelButton.style.background = '#1F2937';
-    cancelButton.style.color = '#FFF';
-
-    video.autoplay = true;
-    video.playsInline = true;
-    video.muted = true;
-    video.srcObject = stream;
-
-    captureButton.onclick = () => {
-      const width = video.videoWidth || 1280;
-      const height = video.videoHeight || 960;
-      const canvas = document.createElement('canvas');
-      canvas.width = width;
-      canvas.height = height;
-      const context = canvas.getContext('2d');
-      if (!context) {
-        cleanup();
-        Alert.alert(t.photoUnavailableTitle, t.photoUnavailableMessage);
-        return;
-      }
-      context.drawImage(video, 0, 0, width, height);
-      const dataUrl = canvas.toDataURL('image/jpeg', 0.82);
-      const [, base64 = ''] = dataUrl.split(',');
-      cleanup();
-      storeCapturedPhoto({
-        uri: dataUrl,
-        base64,
-        width,
-        height,
-      } as ImagePicker.ImagePickerAsset);
-    };
-    cancelButton.onclick = cleanup;
-
-    actions.append(captureButton, cancelButton);
-    overlay.append(video, actions);
-    document.body.appendChild(overlay);
-    await video.play().catch((error) => {
-      console.error('Web camera preview failed:', error);
-    });
-  };
-
   const selectDemoMeal = (demoMealKey: DemoMealKey) => {
     const demoMeal = DEMO_MEALS[demoMealKey];
 
@@ -1495,11 +1383,11 @@ export default function PhotoAnalysisScreen() {
     if (isAnalyzing) return;
 
     if (Platform.OS === 'web') {
-      takePhotoOnWeb();
+      pickImageFileOnWeb();
       return;
     }
 
-    if (isSimulatorFallbackActive) {
+    if (isCameraFallbackActive) {
       setCameraUnavailable(true);
       return;
     }
@@ -2004,7 +1892,7 @@ export default function PhotoAnalysisScreen() {
           >
             {wizardStep === 1 ? (
               <>
-                {isSimulatorFallbackActive ? (
+                {isCameraFallbackActive ? (
                   <View style={styles.cameraFallbackCard}>
                     <View style={[styles.demoModePill, isRtlLanguage && styles.rtlRow]}>
                       <Ionicons name="phone-portrait" size={14} color="#D8FBEA" />
@@ -2016,10 +1904,10 @@ export default function PhotoAnalysisScreen() {
                       </View>
                       <View style={styles.cameraFallbackCopy}>
                         <Text style={[styles.cameraFallbackTitle, isRtlLanguage && styles.rtlText]}>
-                          {t.cameraUnavailableTitle}
+                          {cameraFallbackTitle}
                         </Text>
                         <Text style={[styles.cameraFallbackText, isRtlLanguage && styles.rtlText]}>
-                          {t.cameraUnavailableMessage}
+                          {cameraFallbackMessage}
                         </Text>
                       </View>
                     </View>
