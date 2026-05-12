@@ -267,6 +267,7 @@ const copy = {
     logMealSuccess: 'Meal logged!',
     logMealFailed: 'Could not save meal',
     logMealOffline: 'Saved offline — will sync when connected',
+    logMealLocal: 'Saved locally in demo mode',
     loginRequired: 'Please sign in to log meals.',
     pendingScore: 'Pending',
     photoMealDefault: 'Photo meal',
@@ -386,6 +387,7 @@ const copy = {
     logMealSuccess: 'Mahlzeit gespeichert!',
     logMealFailed: 'Mahlzeit konnte nicht gespeichert werden',
     logMealOffline: 'Offline gespeichert — Synchronisation folgt bei Verbindung',
+    logMealLocal: 'Lokal im Demo-Modus gespeichert',
     loginRequired: 'Bitte melde dich an, um Mahlzeiten zu speichern.',
     pendingScore: 'Ausstehend',
     photoMealDefault: 'Mahlzeit (Foto)',
@@ -505,6 +507,7 @@ const copy = {
     logMealSuccess: 'غذا ثبت شد!',
     logMealFailed: 'ذخیره غذا ممکن نبود',
     logMealOffline: 'آفلاین ذخیره شد - پس از اتصال همگام می شود',
+    logMealLocal: 'در حالت دمو به صورت محلی ذخیره شد',
     loginRequired: 'برای ثبت غذا وارد شوید.',
     pendingScore: 'در انتظار',
     photoMealDefault: 'غذای عکس',
@@ -920,7 +923,7 @@ export default function PhotoAnalysisScreen() {
   const voiceHoldActiveRef = useRef(false);
   /** Pulse scale + glow opacity while the mic is actively listening. */
   const recordingPulse = useRef(new Animated.Value(1)).current;
-  const { user } = useAuth();
+  const { user, isGuest } = useAuth();
   const [toast, setToast] = useState({
     visible: false,
     message: '',
@@ -1183,7 +1186,16 @@ export default function PhotoAnalysisScreen() {
   };
 
   const handleLogPhotoAnalysis = async () => {
-    if (!analysis || !user) {
+    if (!analysis) {
+      return;
+    }
+
+    if (isGuest) {
+      setToast({ visible: true, message: t.logMealLocal, type: 'success' });
+      return;
+    }
+
+    if (!user) {
       setToast({ visible: true, message: t.loginRequired, type: 'error' });
       return;
     }

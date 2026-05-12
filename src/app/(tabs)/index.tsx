@@ -85,6 +85,7 @@ const UI_COPY = {
     rightsReserved: 'All rights reserved.',
     profile: 'Profile',
     login: 'Login',
+    demoMode: 'Demo Mode – data stored locally',
   },
   de: {
     analysis: 'Analyse',
@@ -104,6 +105,7 @@ const UI_COPY = {
     rightsReserved: 'Alle Rechte vorbehalten.',
     profile: 'Profil',
     login: 'Anmelden',
+    demoMode: 'Demo-Modus – Daten werden lokal gespeichert',
   },
   fa: {
     analysis: 'تحلیل',
@@ -123,6 +125,7 @@ const UI_COPY = {
     rightsReserved: 'تمامی حقوق محفوظ است.',
     profile: 'پروفایل',
     login: 'ورود',
+    demoMode: 'حالت دمو – داده ها فقط محلی ذخیره می شوند',
   },
 } as const;
 
@@ -807,7 +810,7 @@ function SevenDayProgressChart({
 }
 
 export default function HomeScreen() {
-  const { user: currentUser } = useAuth();
+  const { user: currentUser, isGuest } = useAuth();
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
   const scrollViewRef = useRef<ScrollView>(null);
@@ -1194,7 +1197,7 @@ export default function HomeScreen() {
                 {localizedStaticLabels.profile}
               </Text>
             </Pressable>
-            {currentUser ? (
+            {currentUser || isGuest ? (
               <Pressable
                 onPress={() => router.push('/food-history')}
                 hitSlop={8}
@@ -1218,6 +1221,12 @@ export default function HomeScreen() {
               </Pressable>
             )}
           </View>
+          {isGuest ? (
+            <View style={[styles.demoModeBadge, isRtl && styles.rtlRow]}>
+              <Ionicons name="phone-portrait-outline" size={13} color="#276E3A" />
+              <Text style={[styles.demoModeBadgeText, isRtl && styles.rtlText]}>{ui.demoMode}</Text>
+            </View>
+          ) : null}
           <LinearGradient
             colors={DS.gradients.surface}
             start={{ x: 0, y: 0 }}
@@ -1956,6 +1965,25 @@ const styles = StyleSheet.create({
     gap: Spacing.sm,
     justifyContent: 'flex-end',
     marginBottom: Spacing.sm,
+  },
+  demoModeBadge: {
+    alignItems: 'center',
+    alignSelf: 'flex-end',
+    backgroundColor: '#E8F5EC',
+    borderColor: '#BFE5CB',
+    borderRadius: 999,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: 6,
+    marginBottom: Spacing.sm,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: 7,
+  },
+  demoModeBadgeText: {
+    color: '#276E3A',
+    flexShrink: 1,
+    fontFamily: FontFamily.sansBold,
+    fontSize: FontSize.xs,
   },
   settingsQuickButton: {
     alignItems: 'center',

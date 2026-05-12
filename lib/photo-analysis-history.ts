@@ -4,6 +4,7 @@
  */
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { AppLanguage } from './app-language';
+import { isGuestModeActive } from './guest-mode';
 import { supabase } from './supabase';
 
 export type PhotoAnalysisHistoryItem = {
@@ -371,6 +372,8 @@ async function getLocalPhotoAnalysisHistory(): Promise<PhotoAnalysisHistoryItem[
 
 export async function getPhotoAnalysisHistory(userId?: string): Promise<PhotoAnalysisHistoryItem[]> {
   const localHistory = await getLocalPhotoAnalysisHistory();
+  if (await isGuestModeActive()) return localHistory;
+
   const resolvedUserId =
     userId ??
     (await supabase.auth.getSession()).data.session?.user.id ??
@@ -429,6 +432,7 @@ export async function savePhotoAnalysisHistoryItem(payload: {
     JSON.stringify([newItem, ...existing]),
   );
 
+  if (await isGuestModeActive()) return;
   if (!payload.userId) return;
 
   const { error } = await supabase.from('health_logs').insert({

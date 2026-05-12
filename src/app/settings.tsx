@@ -18,6 +18,7 @@ import {
   parseStoredLanguage,
   type AppLanguage,
 } from '../../lib/app-language';
+import { useAuth } from '../../contexts/AuthContext';
 
 const MINT = '#DFF5EA';
 const MINT_DARK = '#4CAF50';
@@ -50,6 +51,9 @@ const SETTINGS_COPY = {
     saving: 'Saving...',
     loadingProfile: 'Loading profile...',
     loadFailed: 'Could not load saved profile',
+    demoMode: 'Demo Mode – data stored locally',
+    signInForSync: 'Sign in for cloud sync',
+    signInForSyncHint: 'Create or use an account to sync profile and history across devices.',
     conditionLabels: {
       IBS: 'IBS',
       Gastritis: 'Gastritis',
@@ -99,6 +103,9 @@ const SETTINGS_COPY = {
     saving: 'Speichern...',
     loadingProfile: 'Profil wird geladen...',
     loadFailed: 'Gespeichertes Profil konnte nicht geladen werden',
+    demoMode: 'Demo-Modus – Daten werden lokal gespeichert',
+    signInForSync: 'Für Cloud-Sync anmelden',
+    signInForSyncHint: 'Erstelle oder nutze ein Konto, um Profil und Verlauf geräteübergreifend zu synchronisieren.',
     conditionLabels: {
       IBS: 'Reizdarmsyndrom',
       Gastritis: 'Gastritis',
@@ -148,6 +155,9 @@ const SETTINGS_COPY = {
     saving: 'در حال ذخیره...',
     loadingProfile: 'در حال بارگذاری پروفایل...',
     loadFailed: 'بارگذاری پروفایل ذخیره شده انجام نشد',
+    demoMode: 'حالت دمو – داده ها فقط محلی ذخیره می شوند',
+    signInForSync: 'ورود برای همگام سازی ابری',
+    signInForSyncHint: 'برای همگام سازی پروفایل و سوابق بین دستگاه ها، حساب بسازید یا وارد شوید.',
     conditionLabels: {
       IBS: 'سندرم روده تحریک پذیر',
       Gastritis: 'گاستریت',
@@ -183,6 +193,7 @@ const SETTINGS_COPY = {
 } as const;
 
 export default function SettingsScreen() {
+  const { isGuest, signOut } = useAuth();
   const [selectedConditions, setSelectedConditions] = useState<MedicalCondition[]>([]);
   const [selectedLanguage, setSelectedLanguage] = useState<AppLanguage>('en');
   const [isLoadingProfile, setIsLoadingProfile] = useState(true);
@@ -277,6 +288,13 @@ export default function SettingsScreen() {
     }
   };
 
+  const handleSignInForSync = async () => {
+    await signOut().catch((error) => {
+      console.warn('Leaving guest mode failed:', error);
+    });
+    router.replace('/login');
+  };
+
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
@@ -289,6 +307,35 @@ export default function SettingsScreen() {
             <Text style={[styles.title, isRtl && styles.rtlText]}>{t.settings}</Text>
           </View>
         </View>
+
+        {isGuest ? (
+          <View style={[styles.demoBadge, isRtl && styles.rtlRow]}>
+            <Ionicons name="phone-portrait-outline" size={14} color={MINT_DARK} />
+            <Text style={[styles.demoBadgeText, isRtl && styles.rtlText]}>{t.demoMode}</Text>
+          </View>
+        ) : null}
+
+        {isGuest ? (
+          <View style={styles.card}>
+            <View style={[styles.cardHeader, isRtl && styles.rtlRow]}>
+              <View style={styles.iconCircle}>
+                <Ionicons name="cloud-upload-outline" size={22} color={MINT_DARK} />
+              </View>
+              <View style={styles.cardHeaderCopy}>
+                <Text style={[styles.cardTitle, isRtl && styles.rtlText]}>{t.signInForSync}</Text>
+                <Text style={[styles.cardSubtitle, isRtl && styles.rtlText]}>{t.signInForSyncHint}</Text>
+              </View>
+            </View>
+            <Pressable
+              onPress={handleSignInForSync}
+              accessibilityRole="button"
+              style={({ pressed }) => [styles.shareFeedbackButton, isRtl && styles.rtlRow, pressed && styles.pressed]}
+            >
+              <Ionicons name="log-in-outline" size={18} color={SLATE_DARK} />
+              <Text style={[styles.shareFeedbackButtonText, isRtl && styles.rtlText]}>{t.signInForSync}</Text>
+            </Pressable>
+          </View>
+        ) : null}
 
         <View style={styles.card}>
           <View style={[styles.cardHeader, isRtl && styles.rtlRow]}>
@@ -507,6 +554,24 @@ const styles = StyleSheet.create({
     fontSize: 34,
     fontWeight: '800',
     marginTop: 2,
+  },
+  demoBadge: {
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    backgroundColor: '#E8F5EC',
+    borderColor: '#BFE5CB',
+    borderRadius: 999,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: 7,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  demoBadgeText: {
+    color: '#276E3A',
+    flexShrink: 1,
+    fontSize: 12,
+    fontWeight: '800',
   },
   card: {
     backgroundColor: '#FFFFFF',

@@ -4,6 +4,7 @@ import {
   parseStoredLanguage,
   type AppLanguage,
 } from './app-language';
+import { isGuestModeActive } from './guest-mode';
 import { supabase } from './supabase';
 
 export const USER_PROFILE_SETTINGS_KEY = 'gutwell_user_profile_settings';
@@ -81,6 +82,10 @@ async function readCachedProfileSettings(userId?: string): Promise<UserProfileSe
 }
 
 export async function getUserProfileSettings(): Promise<UserProfileSettings> {
+  if (await isGuestModeActive()) {
+    return readCachedProfileSettings();
+  }
+
   const { data: { user } } = await supabase.auth.getUser();
 
   if (user?.id) {
@@ -113,10 +118,13 @@ export async function saveUserProfileSettings(settings: UserProfileSettings): Pr
   const uniqueConditions = Array.from(new Set(settings.conditions)).filter(isMedicalCondition);
   const preferredLanguage = parseStoredLanguage(settings.preferredLanguage ?? null);
   const payload = { conditions: uniqueConditions, preferredLanguage };
-  const { data: { user } } = await supabase.auth.getUser();
 
   await AsyncStorage.setItem(USER_PROFILE_SETTINGS_KEY, JSON.stringify(payload));
   await AsyncStorage.setItem(APP_LANGUAGE_STORAGE_KEY, preferredLanguage);
+  if (await isGuestModeActive()) return;
+
+  const { data: { user } } = await supabase.auth.getUser();
+
   if (user?.id) {
     await AsyncStorage.setItem(getProfileSettingsStorageKey(user.id), JSON.stringify(payload));
     const { error } = await supabase

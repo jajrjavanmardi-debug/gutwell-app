@@ -12,7 +12,9 @@ import {
   type AppLanguage,
 } from '../../../lib/app-language';
 import { useAuth } from '../../../contexts/AuthContext';
+import { saveGuestOnboarding } from '../../../lib/guest-mode';
 import { supabase } from '../../../lib/supabase';
+import { saveUserProfileSettings } from '../../../lib/user-profile-settings';
 
 type Question = {
   id: string;
@@ -33,6 +35,7 @@ type OnboardingCopy = {
   saving: string;
   startTracking: string;
   back: string;
+  demoMode: string;
   signInRequired: string;
   saveError: string;
   questions: Question[];
@@ -55,6 +58,7 @@ const ONBOARDING_COPY: Record<AppLanguage, OnboardingCopy> = {
     saving: 'Saving profile...',
     startTracking: 'Start tracking',
     back: 'Back',
+    demoMode: 'Demo Mode – data stored locally',
     signInRequired: 'Please sign in before saving your profile.',
     saveError: 'Could not save your profile. Please try again.',
     questions: [
@@ -147,6 +151,7 @@ const ONBOARDING_COPY: Record<AppLanguage, OnboardingCopy> = {
     saving: 'Profil wird gespeichert...',
     startTracking: 'Tracking starten',
     back: 'Zurück',
+    demoMode: 'Demo-Modus – Daten werden lokal gespeichert',
     signInRequired: 'Bitte melde dich an, bevor du dein Profil speicherst.',
     saveError: 'Dein Profil konnte nicht gespeichert werden. Bitte versuche es erneut.',
     questions: [
@@ -239,6 +244,7 @@ const ONBOARDING_COPY: Record<AppLanguage, OnboardingCopy> = {
     saving: 'در حال ذخیره پروفایل...',
     startTracking: 'شروع پیگیری',
     back: 'بازگشت',
+    demoMode: 'حالت دمو – داده ها فقط محلی ذخیره می شوند',
     signInRequired: 'برای ذخیره پروفایل، لطفاً وارد شوید.',
     saveError: 'ذخیره پروفایل انجام نشد. لطفاً دوباره تلاش کنید.',
     questions: [
@@ -363,7 +369,7 @@ function computeHabits(answers: Record<string, string>) {
 
 export default function OnboardingPage() {
   const router = useRouter();
-  const { user, loading: authLoading, refreshProfile } = useAuth();
+  const { user, isGuest, loading: authLoading, refreshProfile } = useAuth();
   const [language, setLanguageState] = useState<AppLanguage>('en');
   const [step, setStep] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string>>({});
@@ -405,7 +411,8 @@ export default function OnboardingPage() {
   const handleStartTracking = async () => {
     if (isSaving || authLoading) return;
 
-    if (!user?.id) {
+    const authUser = user;
+    if (!authUser?.id && !isGuest) {
       setSaveError(copy.signInRequired);
       router.push('/login');
       return;
@@ -415,11 +422,32 @@ export default function OnboardingPage() {
     setSaveError('');
     try {
       const completedAt = new Date().toISOString();
+      if (isGuest) {
+        await saveGuestOnboarding({
+          answers,
+          language,
+          focusAreas: computeFocusAreas(answers),
+          habits: computeHabits(answers),
+          completedAt,
+        });
+        await saveUserProfileSettings({
+          conditions: [],
+          preferredLanguage: language,
+        });
+        await refreshProfile();
+        router.replace('/(tabs)');
+        return;
+      }
+
+      if (!authUser?.id) {
+        throw new Error(copy.signInRequired);
+      }
+
       const { error: profileDetailsError } = await supabase
         .from('user_profiles')
         .upsert(
           {
-            user_id: user.id,
+            user_id: authUser.id,
             onboarding_answers: answers,
             main_goal: answers.goal ?? 'general_health',
             stool_frequency_baseline: answers.bowelFrequency ?? '',
@@ -444,8 +472,8 @@ export default function OnboardingPage() {
         .from('profiles')
         .upsert(
           {
-            id: user.id,
-            display_name: user.user_metadata?.display_name ?? user.email?.split('@')[0] ?? null,
+            id: authUser.id,
+            display_name: authUser.user_metadata?.display_name ?? authUser.email?.split('@')[0] ?? null,
             onboarding_completed: true,
             gut_concern: answers.symptoms ?? null,
             symptom_frequency: answers.bowelFrequency ?? null,
@@ -489,6 +517,13 @@ export default function OnboardingPage() {
             })}
           </View>
         </View>
+
+        {isGuest ? (
+          <View style={[styles.demoBadge, isRtl && styles.rtlRow]}>
+            <Text style={[styles.demoBadgeDot, isRtl && styles.rtlText]}>•</Text>
+            <Text style={[styles.demoBadgeText, isRtl && styles.rtlText]}>{copy.demoMode}</Text>
+          </View>
+        ) : null}
 
         <View style={styles.progressWrap}>
           <View style={[styles.progressTrack, isRtl && styles.progressTrackRtl]}>
@@ -571,6 +606,29 @@ const styles = StyleSheet.create({
   languageButtonSelected: { borderColor: COLORS.accent, backgroundColor: COLORS.cardSelected },
   languageButtonText: { color: COLORS.textPrimary, fontSize: 15, fontWeight: '700' },
   languageButtonTextSelected: { color: '#245A3F' },
+  demoBadge: {
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    backgroundColor: '#E8F5EC',
+    borderColor: '#BFE5CB',
+    borderRadius: 999,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+  },
+  demoBadgeDot: {
+    color: COLORS.accent,
+    fontSize: 18,
+    fontWeight: '800',
+    lineHeight: 18,
+  },
+  demoBadgeText: {
+    color: '#276E3A',
+    fontSize: 12,
+    fontWeight: '700',
+  },
   progressWrap: { gap: 10 },
   progressTrack: { height: 10, borderRadius: 999, backgroundColor: '#E8EDE9', overflow: 'hidden', alignItems: 'flex-start' },
   progressTrackRtl: { alignItems: 'flex-end' },

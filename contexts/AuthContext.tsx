@@ -1,6 +1,12 @@
 import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import type { AuthError, Session, User } from '@supabase/supabase-js';
 import { Platform } from 'react-native';
+import {
+  disableGuestMode,
+  enableGuestMode,
+  getGuestProfile,
+  type GuestProfile,
+} from '../lib/guest-mode';
 import { supabase } from '../lib/supabase';
 
 type Profile = {
@@ -23,9 +29,11 @@ type AuthContextType = {
   session: Session | null;
   user: User | null;
   profile: Profile | null;
+  isGuest: boolean;
   loading: boolean;
   signUp: (email: string, password: string, displayName?: string) => Promise<AuthActionResult>;
   signIn: (email: string, password: string) => Promise<AuthActionResult>;
+  continueAsGuest: () => Promise<AuthActionResult & { profile: Profile | null }>;
   signOut: () => Promise<void>;
   resetPassword: (email: string) => Promise<AuthActionResult>;
   updatePassword: (newPassword: string) => Promise<AuthActionResult>;
@@ -62,9 +70,24 @@ function normalizeProfile(data: Partial<Profile> & { id: string }): Profile {
   };
 }
 
+function normalizeGuestAuthProfile(profile: GuestProfile): Profile {
+  return {
+    id: profile.id,
+    display_name: profile.display_name,
+    avatar_url: null,
+    onboarding_completed: profile.onboarding_completed,
+    total_points: 0,
+    level: 'guest',
+    gut_concern: profile.gut_concern,
+    symptom_frequency: profile.symptom_frequency,
+    goal: profile.goal,
+  };
+}
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
+  const [isGuest, setIsGuest] = useState(false);
   const [loading, setLoading] = useState(true);
 
   const fetchProfile = useCallback(async (authUser: User, displayName?: string) => {
@@ -112,8 +135,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const hydrateSession = async () => {
       try {
+        const guestProfile = await getGuestProfile();
+        if (!isMounted) return;
+
+        if (guestProfile) {
+          setIsGuest(true);
+          setSession(null);
+          setProfile(normalizeGuestAuthProfile(guestProfile));
+          return;
+        }
+
         const { data: { session: initialSession } } = await supabase.auth.getSession();
         if (!isMounted) return;
+        setIsGuest(false);
         setSession(initialSession);
         if (initialSession?.user) {
           await fetchProfile(initialSession.user);
@@ -134,15 +168,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     void hydrateSession();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, nextSession) => {
-      setSession(nextSession);
-      if (nextSession?.user) {
-        void fetchProfile(nextSession.user).catch((error) => {
-          console.error('Failed to load profile after auth change:', error);
-          setProfile(null);
+      void getGuestProfile()
+        .then((guestProfile) => {
+          if (!isMounted) return;
+
+          if (guestProfile) {
+            setIsGuest(true);
+            setSession(null);
+            setProfile(normalizeGuestAuthProfile(guestProfile));
+            return;
+          }
+
+          setIsGuest(false);
+          setSession(nextSession);
+          if (nextSession?.user) {
+            void fetchProfile(nextSession.user).catch((error) => {
+              console.error('Failed to load profile after auth change:', error);
+              setProfile(null);
+            });
+          } else {
+            setProfile(null);
+          }
+        })
+        .catch((error) => {
+          console.error('Failed to check guest mode after auth change:', error);
         });
-      } else {
-        setProfile(null);
-      }
     });
 
     return () => {
@@ -153,6 +203,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signUp = async (email: string, password: string, displayName?: string) => {
     try {
+      await disableGuestMode();
+      setIsGuest(false);
       const emailRedirectTo = getWebAuthRedirectUrl();
       const { data, error } = await supabase.auth.signUp({
         email: email.trim(),
@@ -175,6 +227,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signIn = async (email: string, password: string) => {
     try {
+      await disableGuestMode();
+      setIsGuest(false);
       const { data, error } = await supabase.auth.signInWithPassword({
         email: email.trim(),
         password,
@@ -194,8 +248,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const continueAsGuest = async () => {
+    try {
+      const guestProfile = await enableGuestMode();
+      const normalized = normalizeGuestAuthProfile(guestProfile);
+      setIsGuest(true);
+      setSession(null);
+      setProfile(normalized);
+      await supabase.auth.signOut().catch((error) => {
+        console.warn('Supabase sign-out while entering guest mode failed:', error);
+      });
+      return { error: null, profile: normalized };
+    } catch (e) {
+      const message = e instanceof Error ? e.message : 'Unable to start guest mode';
+      return { error: { message }, profile: null };
+    }
+  };
+
   const signOut = async () => {
-    await supabase.auth.signOut();
+    await disableGuestMode();
+    setIsGuest(false);
+    await supabase.auth.signOut().catch((error) => {
+      console.warn('Supabase sign-out failed:', error);
+    });
+    setSession(null);
     setProfile(null);
   };
 
@@ -219,8 +295,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const refreshProfile = async () => {
+    const guestProfile = await getGuestProfile();
+    if (guestProfile) {
+      setIsGuest(true);
+      setSession(null);
+      setProfile(normalizeGuestAuthProfile(guestProfile));
+      return;
+    }
+
     const { data: { user } } = await supabase.auth.getUser();
     if (user) {
+      setIsGuest(false);
       await fetchProfile(user);
     }
   };
@@ -231,9 +316,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         session,
         user: session?.user ?? null,
         profile,
+        isGuest,
         loading,
         signUp,
         signIn,
+        continueAsGuest,
         signOut,
         resetPassword,
         updatePassword,

@@ -14,7 +14,7 @@ const ENTRY_COPY: Record<AppLanguage, { loading: string }> = {
 };
 
 export default function AppEntry() {
-  const { user, profile, loading } = useAuth();
+  const { user, profile, isGuest, loading } = useAuth();
   const [language, setLanguage] = useState<AppLanguage>('en');
   const isRtl = isRtlLanguage(language);
   const copy = ENTRY_COPY[language];
@@ -36,7 +36,7 @@ export default function AppEntry() {
     );
   }
 
-  if (!user) return <Redirect href="/login" />;
+  if (!user && !isGuest) return <Redirect href="/login" />;
 
   return <Redirect href={profile?.onboarding_completed ? '/(tabs)' : '/onboarding/page'} />;
 }

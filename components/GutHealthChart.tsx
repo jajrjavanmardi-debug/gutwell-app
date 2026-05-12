@@ -4,6 +4,8 @@ import Svg, { Circle, Line, Path, Text as SvgText } from 'react-native-svg';
 
 import { BorderRadius, FontFamily, FontSize, Spacing } from '../constants/theme';
 import type { AppLanguage } from '../lib/app-language';
+import { isGuestModeActive } from '../lib/guest-mode';
+import { getPhotoAnalysisHistory, type PhotoAnalysisHistoryItem } from '../lib/photo-analysis-history';
 import { supabase } from '../lib/supabase';
 
 type HealthLogTrendRow = {
@@ -65,6 +67,7 @@ const LANGUAGE_LOCALES: Record<AppLanguage, string> = {
 
 async function resolveUserId(userId?: string): Promise<string | undefined> {
   if (userId) return userId;
+  if (await isGuestModeActive()) return undefined;
   const sessionUserId = (await supabase.auth.getSession()).data.session?.user.id;
   if (sessionUserId) return sessionUserId;
   return (await supabase.auth.getUser()).data.user?.id;
@@ -75,6 +78,21 @@ function normalizeScore(value: number | null): number | null {
   const score = value ?? 0;
   if (score < 1 || score > 10) return null;
   return score;
+}
+
+function parseHistoryScore(item: PhotoAnalysisHistoryItem): number | null {
+  const rawScore = item.mealImpactScore?.match(/\d{1,2}/)?.[0];
+  const score = rawScore ? Number(rawScore) : null;
+  return normalizeScore(score);
+}
+
+function mapLocalHistoryToTrendRows(history: PhotoAnalysisHistoryItem[]): HealthLogTrendRow[] {
+  return history
+    .map((item) => ({
+      created_at: item.createdAt,
+      gut_score: parseHistoryScore(item),
+    }))
+    .filter((row): row is HealthLogTrendRow => row.gut_score !== null);
 }
 
 function clampAveragedScore(value: number): number {
@@ -173,7 +191,8 @@ export function GutHealthChart({ userId, language = 'en' }: { userId?: string; l
       try {
         const resolvedUserId = await resolveUserId(userId);
         if (!resolvedUserId) {
-          if (isActive) setRows([]);
+          const localHistory = await getPhotoAnalysisHistory();
+          if (isActive) setRows(mapLocalHistoryToTrendRows(localHistory));
           return;
         }
 

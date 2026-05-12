@@ -29,6 +29,8 @@ const COPY = {
     eyebrow: 'NutriFlow account',
     title: 'Save your gut profile',
     subtitle: 'Create an account or sign in to sync your profile, onboarding answers, and meal history.',
+    guestTitle: 'Continue as Guest',
+    guestSubtitle: 'Demo Mode – data stored locally',
     signIn: 'Sign in',
     signUp: 'Create account',
     name: 'Display name',
@@ -45,11 +47,14 @@ const COPY = {
     switchToSignIn: 'Sign in',
     checkEmail: 'Account created. If your project requires email confirmation, verify your email, then sign in.',
     genericError: 'Authentication failed. Please try again.',
+    guestError: 'Could not start guest mode. Please try again.',
   },
   de: {
     eyebrow: 'NutriFlow Konto',
     title: 'Speichere dein Darmprofil',
     subtitle: 'Erstelle ein Konto oder melde dich an, um Profil, Onboarding-Antworten und Mahlzeitenverlauf zu synchronisieren.',
+    guestTitle: 'Als Gast fortfahren',
+    guestSubtitle: 'Demo-Modus – Daten werden lokal gespeichert',
     signIn: 'Anmelden',
     signUp: 'Konto erstellen',
     name: 'Anzeigename',
@@ -66,11 +71,14 @@ const COPY = {
     switchToSignIn: 'Anmelden',
     checkEmail: 'Konto erstellt. Falls E-Mail-Bestätigung aktiv ist, bestätige deine E-Mail und melde dich dann an.',
     genericError: 'Authentifizierung fehlgeschlagen. Bitte erneut versuchen.',
+    guestError: 'Gastmodus konnte nicht gestartet werden. Bitte erneut versuchen.',
   },
   fa: {
     eyebrow: 'حساب NutriFlow',
     title: 'پروفایل گوارش خود را ذخیره کنید',
     subtitle: 'حساب بسازید یا وارد شوید تا پروفایل، پاسخ‌های شروع برنامه و تاریخچه غذاها همگام شوند.',
+    guestTitle: 'ادامه به عنوان مهمان',
+    guestSubtitle: 'حالت دمو – داده ها فقط محلی ذخیره می شوند',
     signIn: 'ورود',
     signUp: 'ساخت حساب',
     name: 'نام نمایشی',
@@ -87,11 +95,12 @@ const COPY = {
     switchToSignIn: 'وارد شوید',
     checkEmail: 'حساب ساخته شد. اگر تأیید ایمیل فعال است، ایمیل خود را تأیید کنید و سپس وارد شوید.',
     genericError: 'احراز هویت ناموفق بود. لطفاً دوباره تلاش کنید.',
+    guestError: 'شروع حالت مهمان انجام نشد. لطفاً دوباره تلاش کنید.',
   },
 } as const;
 
 export default function LoginScreen() {
-  const { user, profile, loading, signIn, signUp, resetPassword, refreshProfile } = useAuth();
+  const { user, profile, isGuest, loading, signIn, signUp, continueAsGuest, resetPassword, refreshProfile } = useAuth();
   const [language, setLanguage] = useState<AppLanguage>('en');
   const [mode, setMode] = useState<'signIn' | 'signUp'>('signIn');
   const [displayName, setDisplayName] = useState('');
@@ -110,10 +119,10 @@ export default function LoginScreen() {
   }, []);
 
   useEffect(() => {
-    if (!loading && user) {
+    if (!loading && (user || isGuest)) {
       router.replace(profile?.onboarding_completed ? '/(tabs)' : '/onboarding/page');
     }
-  }, [loading, profile?.onboarding_completed, user]);
+  }, [isGuest, loading, profile?.onboarding_completed, user]);
 
   const redirectAfterAuth = async () => {
     await refreshProfile();
@@ -178,6 +187,27 @@ export default function LoginScreen() {
     }
   };
 
+  const handleContinueAsGuest = async () => {
+    if (isSubmitting) return;
+    setErrorMessage('');
+    setMessage('');
+    setIsSubmitting(true);
+
+    try {
+      const result = await continueAsGuest();
+      if (result.error) {
+        setErrorMessage(result.error.message ?? t.guestError);
+        return;
+      }
+
+      router.replace(result.profile?.onboarding_completed ? '/(tabs)' : '/onboarding/page');
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : t.guestError);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   if (loading) {
     return (
       <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
@@ -211,6 +241,27 @@ export default function LoginScreen() {
           </View>
 
           <Text style={[styles.subtitle, isRtl && styles.rtlText]}>{t.subtitle}</Text>
+
+          <Pressable
+            onPress={handleContinueAsGuest}
+            disabled={isSubmitting}
+            accessibilityRole="button"
+            style={({ pressed }) => [
+              styles.guestButton,
+              isRtl && styles.rtlRow,
+              isSubmitting && styles.guestButtonDisabled,
+              pressed && !isSubmitting && styles.pressed,
+            ]}
+          >
+            <View style={styles.guestIconCircle}>
+              <Ionicons name="phone-portrait-outline" size={20} color="#2F7D45" />
+            </View>
+            <View style={styles.guestCopy}>
+              <Text style={[styles.guestTitle, isRtl && styles.rtlText]}>{t.guestTitle}</Text>
+              <Text style={[styles.guestSubtitle, isRtl && styles.rtlText]}>{t.guestSubtitle}</Text>
+            </View>
+            <Ionicons name={isRtl ? 'chevron-back' : 'chevron-forward'} size={20} color="#2F7D45" />
+          </Pressable>
 
           <View style={[styles.modeRow, isRtl && styles.rtlRow]}>
             {(['signIn', 'signUp'] as const).map((item) => (
@@ -383,6 +434,48 @@ const styles = StyleSheet.create({
     color: '#53616D',
     fontSize: 15,
     lineHeight: 22,
+  },
+  guestButton: {
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderColor: '#BFE5CB',
+    borderRadius: 15,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: 12,
+    padding: 16,
+    shadowColor: '#102018',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.08,
+    shadowRadius: 18,
+    elevation: 3,
+  },
+  guestButtonDisabled: {
+    opacity: 0.65,
+  },
+  guestIconCircle: {
+    alignItems: 'center',
+    backgroundColor: '#DFF5EA',
+    borderRadius: 15,
+    height: 44,
+    justifyContent: 'center',
+    width: 44,
+  },
+  guestCopy: {
+    flex: 1,
+    minWidth: 0,
+  },
+  guestTitle: {
+    color: '#15212D',
+    fontSize: 17,
+    fontWeight: '900',
+  },
+  guestSubtitle: {
+    color: '#53616D',
+    fontSize: 13,
+    fontWeight: '700',
+    lineHeight: 18,
+    marginTop: 3,
   },
   modeRow: {
     backgroundColor: '#E8EFEA',
