@@ -858,6 +858,7 @@ export default function HomeScreen() {
     history: ui.history,
     sos: ui.instantRelief,
   };
+  const sosAccessibilityLabel = `${ui.quickTips}: ${localizedStaticLabels.sos}`;
   const trimmedFeeling = useMemo(() => feeling.trim(), [feeling]);
   const hasFeelingInput = trimmedFeeling.length > 0;
   const isWideLayout = width >= 760;
@@ -1191,6 +1192,27 @@ export default function HomeScreen() {
           </View>
 
           <View style={[styles.topActionsRow, isRtl && styles.rtlRow]}>
+            {!isWideLayout ? (
+              <Pressable
+                onPress={() => router.push('/relief')}
+                hitSlop={8}
+                accessibilityRole="button"
+                accessibilityLabel={sosAccessibilityLabel}
+                style={({ pressed }) => [
+                  styles.sosInlineButton,
+                  isRtl && styles.rtlRow,
+                  pressed && styles.pressed,
+                ]}
+              >
+                <Ionicons name="medical-outline" size={17} color="#276E3A" />
+                <Text
+                  numberOfLines={1}
+                  style={[styles.sosInlineButtonText, isRtl && styles.rtlText]}
+                >
+                  {localizedStaticLabels.sos}
+                </Text>
+              </Pressable>
+            ) : null}
             <Pressable
               onPress={() => router.push('/settings')}
               hitSlop={8}
@@ -1842,19 +1864,21 @@ export default function HomeScreen() {
           <Text style={[styles.versionRightsText, isRtl && styles.rtlText]}>{ui.rightsReserved}</Text>
         </ScrollView>
       </KeyboardAvoidingView>
-      <Pressable
-        onPress={() => router.push('/relief')}
-        accessibilityRole="button"
-        accessibilityLabel={`${ui.quickTips}: ${localizedStaticLabels.sos}`}
-        style={({ pressed }) => [
-          styles.sosFab,
-          { bottom: Math.max(insets.bottom + 16, 28) },
-          pressed && styles.pressed,
-        ]}
-      >
-        <Ionicons name="warning" size={20} color="#FFFFFF" />
-        <Text style={[styles.sosFabText, isRtl && styles.rtlText]}>{`${ui.quickTips}: ${localizedStaticLabels.sos}`}</Text>
-      </Pressable>
+      {isWideLayout ? (
+        <Pressable
+          onPress={() => router.push('/relief')}
+          accessibilityRole="button"
+          accessibilityLabel={sosAccessibilityLabel}
+          style={({ pressed }) => [
+            styles.sosFab,
+            { bottom: Math.max(insets.bottom + 16, 28) },
+            pressed && styles.pressed,
+          ]}
+        >
+          <Ionicons name="medical" size={19} color="#FFFFFF" />
+          <Text style={[styles.sosFabText, isRtl && styles.rtlText]}>{sosAccessibilityLabel}</Text>
+        </Pressable>
+      ) : null}
     </SafeAreaView>
   );
 }
@@ -1875,29 +1899,49 @@ const styles = StyleSheet.create({
   contentWide: { alignSelf: 'center', maxWidth: 1120, paddingHorizontal: Spacing.xl, width: '100%' },
   sosFab: {
     alignItems: 'center',
-    backgroundColor: '#D7263D',
-    borderColor: '#B91C2F',
+    backgroundColor: '#276E3A',
+    borderColor: '#1F5A30',
     borderRadius: 999,
     borderWidth: 1,
     flexDirection: 'row',
     gap: Spacing.xs,
     justifyContent: 'center',
-    minHeight: 56,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    minHeight: 48,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
     position: 'absolute',
     right: 20,
-    shadowColor: '#D7263D',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.45,
-    shadowRadius: 16,
-    elevation: 16,
+    shadowColor: '#102018',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.2,
+    shadowRadius: 12,
+    elevation: 8,
     zIndex: 2000,
   },
   sosFabText: {
     color: '#FFFFFF',
     fontFamily: FontFamily.sansBold,
-    fontSize: FontSize.sm,
+    fontSize: FontSize.xs,
+  },
+  sosInlineButton: {
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    backgroundColor: '#E8F5EC',
+    borderColor: '#BFE5CB',
+    borderRadius: 999,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: 6,
+    maxWidth: '100%',
+    minHeight: 38,
+    paddingHorizontal: 11,
+    paddingVertical: 7,
+  },
+  sosInlineButtonText: {
+    color: '#276E3A',
+    flexShrink: 1,
+    fontFamily: FontFamily.sansBold,
+    fontSize: FontSize.xs,
   },
   reliefMenuCard: {
     backgroundColor: '#FFFFFF',
@@ -1968,6 +2012,7 @@ const styles = StyleSheet.create({
   topActionsRow: {
     alignItems: 'center',
     flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: Spacing.sm,
     justifyContent: 'flex-end',
     marginBottom: Spacing.sm,
