@@ -761,7 +761,7 @@ function SevenDayProgressChart({
   const energyPath = getLinePath(data.map((point) => point.energy), chartWidth, chartHeight);
 
   return (
-    <View>
+    <View style={styles.chartInner}>
       <Svg width="100%" height={178} viewBox={`0 0 ${chartWidth} 178`}>
         {[1, 2, 3].map((line) => (
           <Line
@@ -862,6 +862,7 @@ export default function HomeScreen() {
   const trimmedFeeling = useMemo(() => feeling.trim(), [feeling]);
   const hasFeelingInput = trimmedFeeling.length > 0;
   const isWideLayout = width >= 760;
+  const isCompactMobile = width < 430;
   const gutScoreColor = getGutScoreColor(gutScore);
   const gutScoreStatus = getGutScoreStatus(gutScore);
   const localizedResult = resultLanguage === language ? result : null;
@@ -1191,7 +1192,7 @@ export default function HomeScreen() {
             </View>
           </View>
 
-          <View style={[styles.topActionsRow, isRtl && styles.rtlRow]}>
+          <View style={[styles.topActionsRow, isCompactMobile && styles.topActionsRowCompact, isRtl && styles.rtlRow]}>
             {!isWideLayout ? (
               <Pressable
                 onPress={() => router.push('/relief')}
@@ -1259,7 +1260,7 @@ export default function HomeScreen() {
             colors={DS.gradients.surface}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
-            style={styles.dashboardScoreCard}
+            style={[styles.dashboardScoreCard, isCompactMobile && styles.mobileCard]}
           >
             <View style={[styles.eyebrow, isRtl && styles.rtlRow]}>
               <Ionicons name="leaf" size={14} color={Colors.accent} />
@@ -1313,7 +1314,7 @@ export default function HomeScreen() {
               statusLabel={t.statusLabels[gutScoreStatus]}
               color={gutScoreColor}
               isRtl={isRtl}
-              size={Math.min(270, Math.max(210, width - 96))}
+              size={Math.min(isCompactMobile ? 238 : 270, Math.max(190, width - 112))}
             />
 
             <View style={styles.scoreButtons}>
@@ -1401,7 +1402,7 @@ export default function HomeScreen() {
             </Pressable>
           </LinearGradient>
 
-          <View style={styles.dailyScoreCard}>
+          <View style={[styles.dailyScoreCard, isCompactMobile && styles.mobileCard]}>
             <View style={styles.sectionHeader}>
               <Text style={[styles.sectionKicker, isRtl && styles.rtlText]}>{t.dailyGutScore}</Text>
               <Text style={[styles.sectionTitle, isRtl && styles.rtlText]}>
@@ -1418,7 +1419,7 @@ export default function HomeScreen() {
             )}
           </View>
 
-          <View style={styles.chartCard}>
+          <View style={[styles.chartCard, isCompactMobile && styles.mobileCard]}>
             <View style={styles.sectionHeader}>
               <Text style={[styles.sectionKicker, isRtl && styles.rtlText]}>
                 {t.progressChartSubtitle}
@@ -1455,7 +1456,7 @@ export default function HomeScreen() {
             ) : null}
           </View>
 
-          <View style={styles.photoHistoryCard}>
+          <View style={[styles.photoHistoryCard, isCompactMobile && styles.mobileCard]}>
             <View style={styles.sectionHeader}>
               <Text style={[styles.sectionKicker, isRtl && styles.rtlText]}>
                 {t.photoHistorySubtitle}
@@ -1517,7 +1518,7 @@ export default function HomeScreen() {
             </Pressable>
           </View>
 
-          <View style={styles.heatmapCard}>
+          <View style={[styles.heatmapCard, isCompactMobile && styles.mobileCard]}>
             <View style={styles.sectionHeader}>
               <Text style={[styles.sectionKicker, isRtl && styles.rtlText]}>{t.heatmapSubtitle}</Text>
               <Text style={[styles.sectionTitle, isRtl && styles.rtlText]}>{t.heatmapTitle}</Text>
@@ -1537,7 +1538,9 @@ export default function HomeScreen() {
 
           <View style={[styles.hero, isWideLayout && styles.heroWide]}>
             <View style={styles.heroCopy}>
-              <Text style={[styles.heroTitle, isRtl && styles.rtlText]}>{ui.welcomeMessageTitle}</Text>
+              <Text style={[styles.heroTitle, isCompactMobile && styles.heroTitleCompact, isRtl && styles.rtlText]}>
+                {ui.welcomeMessageTitle}
+              </Text>
               <Text style={[styles.heroSubtitle, isRtl && styles.rtlText]}>{ui.welcomeMessageSubtitle}</Text>
 
               <View style={[styles.promptChips, isRtl && styles.rtlRow]}>
@@ -1553,7 +1556,7 @@ export default function HomeScreen() {
               </View>
             </View>
 
-            <View style={styles.inputCard}>
+            <View style={[styles.inputCard, isCompactMobile && styles.mobileCard]}>
               <View style={[styles.inputHeader, isRtl && styles.rtlRow]}>
                 <Text style={[styles.inputLabel, isRtl && styles.rtlText]}>{t.inputLabel}</Text>
                 <Pressable
@@ -1751,7 +1754,7 @@ export default function HomeScreen() {
 
           {localizedResult ? (
             <>
-              <View style={[styles.resultContextCard, isRtl && styles.rtlRow]}>
+              <View style={[styles.resultContextCard, isCompactMobile && styles.mobileCard, isRtl && styles.rtlRow]}>
                 <View style={styles.resultContextItem}>
                   <Text style={[styles.resultContextLabel, isRtl && styles.rtlText]}>
                     {t.shareFeeling}
@@ -1771,7 +1774,7 @@ export default function HomeScreen() {
               </View>
 
               <View style={[styles.resultsGrid, isWideLayout && styles.resultsGridWide]}>
-              <View style={[styles.resultsPanel, isWideLayout && styles.nutrientsPanelWide]}>
+              <View style={[styles.resultsPanel, isCompactMobile && styles.mobileCard, isWideLayout && styles.nutrientsPanelWide]}>
                 <View style={styles.sectionHeader}>
                   <Text style={[styles.sectionKicker, isRtl && styles.rtlText]}>{t.supportiveNutrients}</Text>
                   <Text style={[styles.sectionTitle, isRtl && styles.rtlText]}>{t.nutrientBadges}</Text>
@@ -1823,13 +1826,13 @@ export default function HomeScreen() {
                 </View>
               </View>
 
-              <View style={[styles.resultsPanel, styles.recommendationPanel]}>
+              <View style={[styles.resultsPanel, styles.recommendationPanel, isCompactMobile && styles.mobileCard]}>
                 <View style={styles.sectionHeader}>
                   <Text style={[styles.sectionKicker, isRtl && styles.rtlText]}>{t.yourPlan}</Text>
                   <Text style={[styles.sectionTitle, isRtl && styles.rtlText]}>{t.bigRecommendation}</Text>
                 </View>
 
-                <View style={styles.recommendationCard}>
+                <View style={[styles.recommendationCard, isCompactMobile && styles.recommendationCardCompact]}>
                   <View style={styles.recommendationIcon}>
                     <Ionicons name="chatbubble-ellipses" size={22} color={Colors.textInverse} />
                   </View>
@@ -1852,7 +1855,7 @@ export default function HomeScreen() {
               </View>
             </>
           ) : (
-            <View style={styles.welcomeState}>
+            <View style={[styles.welcomeState, isCompactMobile && styles.mobileCard]}>
               <View style={styles.welcomeIcon}>
                 <Ionicons name="leaf" size={26} color="#2DCE89" />
               </View>
@@ -1893,10 +1896,15 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     flexGrow: 1,
     gap: 24,
+    minWidth: 0,
     padding: 20,
     paddingBottom: Spacing.xxl + 36,
+    width: '100%',
   },
   contentWide: { alignSelf: 'center', maxWidth: 1120, paddingHorizontal: Spacing.xl, width: '100%' },
+  mobileCard: {
+    padding: Spacing.md,
+  },
   sosFab: {
     alignItems: 'center',
     backgroundColor: '#276E3A',
@@ -1931,6 +1939,7 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     borderWidth: 1,
     flexDirection: 'row',
+    flexShrink: 1,
     gap: 6,
     maxWidth: '100%',
     minHeight: 38,
@@ -2016,6 +2025,10 @@ const styles = StyleSheet.create({
     gap: Spacing.sm,
     justifyContent: 'flex-end',
     marginBottom: Spacing.sm,
+    minWidth: 0,
+  },
+  topActionsRowCompact: {
+    justifyContent: 'flex-start',
   },
   demoModeBadge: {
     alignItems: 'center',
@@ -2043,12 +2056,14 @@ const styles = StyleSheet.create({
     borderRadius: 15,
     borderWidth: 1,
     flexDirection: 'row',
+    flexShrink: 1,
     gap: Spacing.xs,
     paddingHorizontal: Spacing.md,
     paddingVertical: 8,
   },
   settingsQuickButtonText: {
     color: '#FFFFFF',
+    flexShrink: 1,
     fontFamily: FontFamily.sansSemiBold,
     fontSize: FontSize.sm,
   },
@@ -2059,12 +2074,14 @@ const styles = StyleSheet.create({
     borderRadius: 15,
     borderWidth: 1,
     flexDirection: 'row',
+    flexShrink: 1,
     gap: Spacing.xs,
     paddingHorizontal: Spacing.md,
     paddingVertical: 8,
   },
   historyQuickButtonText: {
     color: '#7E795D',
+    flexShrink: 1,
     fontFamily: FontFamily.sansSemiBold,
     fontSize: FontSize.sm,
   },
@@ -2075,12 +2092,14 @@ const styles = StyleSheet.create({
     borderRadius: DS.borderRadii.button,
     borderWidth: 1,
     flexDirection: 'row',
+    flexShrink: 1,
     gap: Spacing.xs,
     paddingHorizontal: Spacing.md,
     paddingVertical: 8,
   },
   loginQuickButtonText: {
     color: DS.colors.white,
+    flexShrink: 1,
     fontFamily: FontFamily.sansSemiBold,
     fontSize: FontSize.sm,
   },
@@ -2179,6 +2198,14 @@ const styles = StyleSheet.create({
     color: DS.colors.navy, fontFamily: FontFamily.displayBold, fontSize: 44,
     letterSpacing: -0.8, lineHeight: 48,
   },
+  heroTitleCompact: {
+    fontSize: 34,
+    lineHeight: 39,
+  },
+  chartInner: {
+    maxWidth: '100%',
+    minWidth: 0,
+  },
   heroSubtitle: {
     color: DS.colors.slate, fontFamily: FontFamily.sansRegular, fontSize: FontSize.md,
     lineHeight: 24, marginTop: Spacing.md, maxWidth: 560,
@@ -2186,7 +2213,7 @@ const styles = StyleSheet.create({
   promptChips: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm, marginTop: Spacing.lg },
   promptChip: {
     backgroundColor: DS.colors.white, borderColor: DS.colors.border, borderRadius: DS.borderRadii.button,
-    borderWidth: 1, paddingHorizontal: Spacing.md, paddingVertical: Spacing.sm, ...Shadows.sm,
+    borderWidth: 1, flexShrink: 1, maxWidth: '100%', paddingHorizontal: Spacing.md, paddingVertical: Spacing.sm, ...Shadows.sm,
   },
   promptChipText: { color: DS.colors.navy, fontFamily: FontFamily.sansMedium, fontSize: FontSize.sm },
   languageTopWrap: {
@@ -2200,6 +2227,7 @@ const styles = StyleSheet.create({
   },
   languageRow: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: Spacing.sm,
     justifyContent: 'center',
   },
@@ -2230,6 +2258,8 @@ const styles = StyleSheet.create({
   inputHeader: {
     alignItems: 'center',
     flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Spacing.sm,
     justifyContent: 'space-between',
     marginBottom: Spacing.sm,
   },
@@ -2307,6 +2337,7 @@ const styles = StyleSheet.create({
   },
   todayStatusCopy: {
     flex: 1,
+    minWidth: 0,
   },
   todayStatusLabel: {
     color: DS.colors.sageDark,
@@ -2317,6 +2348,7 @@ const styles = StyleSheet.create({
   },
   todayStatusText: {
     color: DS.colors.navy,
+    flexShrink: 1,
     fontFamily: FontFamily.sansSemiBold,
     fontSize: FontSize.sm,
   },
@@ -2618,6 +2650,7 @@ const styles = StyleSheet.create({
   chartLegendItem: {
     alignItems: 'center',
     flexDirection: 'row',
+    flexShrink: 1,
     gap: 7,
   },
   chartLegendDot: {
@@ -2633,6 +2666,7 @@ const styles = StyleSheet.create({
   },
   chartLegendText: {
     color: DS.colors.slate,
+    flexShrink: 1,
     fontFamily: FontFamily.sansBold,
     fontSize: FontSize.xs,
   },
@@ -2835,7 +2869,7 @@ const styles = StyleSheet.create({
   resultsGridWide: { alignItems: 'stretch', flexDirection: 'row' },
   resultsPanel: {
     backgroundColor: DS.colors.white, borderColor: DS.colors.border, borderRadius: DS.borderRadii.card,
-    borderWidth: 1, padding: Spacing.lg, ...Shadows.sm,
+    borderWidth: 1, minWidth: 0, padding: Spacing.lg, ...Shadows.sm,
   },
   nutrientsPanelWide: { flex: 0.9 },
   recommendationPanel: { flex: 1.1 },
@@ -2857,12 +2891,14 @@ const styles = StyleSheet.create({
     borderRadius: DS.borderRadii.button,
     borderWidth: 1,
     flexDirection: 'row',
+    flexShrink: 1,
     gap: 6,
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.sm,
   },
   nutrientBadgeText: {
     color: '#D8FBEA',
+    flexShrink: 1,
     fontFamily: FontFamily.sansBold,
     fontSize: FontSize.sm,
   },
@@ -2921,6 +2957,9 @@ const styles = StyleSheet.create({
     opacity: 0.78,
   },
   recommendationCard: { backgroundColor: DS.colors.sageSoft, borderRadius: DS.borderRadii.card, overflow: 'hidden', padding: Spacing.lg },
+  recommendationCardCompact: {
+    padding: Spacing.md,
+  },
   recommendationIcon: {
     alignItems: 'center', backgroundColor: Colors.secondary + '55', borderRadius: BorderRadius.full,
     height: 46, justifyContent: 'center', marginBottom: Spacing.md, width: 46,
@@ -2947,6 +2986,7 @@ const styles = StyleSheet.create({
     backgroundColor: DS.colors.sage,
     borderRadius: DS.borderRadii.button,
     flexDirection: 'row',
+    flexShrink: 1,
     gap: Spacing.sm,
     marginTop: Spacing.lg,
     paddingHorizontal: Spacing.md,
@@ -2954,6 +2994,7 @@ const styles = StyleSheet.create({
   },
   shareButtonText: {
     color: DS.colors.white,
+    flexShrink: 1,
     fontFamily: FontFamily.sansBold,
     fontSize: FontSize.sm,
   },

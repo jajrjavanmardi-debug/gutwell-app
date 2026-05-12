@@ -1,7 +1,7 @@
 import { Redirect, router } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Platform, Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useAuth } from '../../contexts/AuthContext';
@@ -58,6 +58,8 @@ export default function AppEntry() {
   const [language, setLanguage] = useState<AppLanguage>('en');
   const [isStartingGuest, setIsStartingGuest] = useState(false);
   const [guestError, setGuestError] = useState('');
+  const { width } = useWindowDimensions();
+  const isCompact = width < 430;
   const isRtl = isRtlLanguage(language);
   const copy = ENTRY_COPY[language];
 
@@ -89,10 +91,12 @@ export default function AppEntry() {
   if (Platform.OS === 'web' && !user && !isGuest) {
     return (
       <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
-        <View style={styles.publicShell}>
-          <View style={styles.publicCard}>
+        <View style={[styles.publicShell, isCompact && styles.publicShellCompact]}>
+          <View style={[styles.publicCard, isCompact && styles.publicCardCompact]}>
             <Text style={[styles.eyebrow, isRtl && styles.rtlText]}>{copy.eyebrow}</Text>
-            <Text style={[styles.publicTitle, isRtl && styles.rtlText]}>{copy.title}</Text>
+            <Text style={[styles.publicTitle, isCompact && styles.publicTitleCompact, isRtl && styles.rtlText]}>
+              {copy.title}
+            </Text>
             <Text style={[styles.publicSubtitle, isRtl && styles.rtlText]}>{copy.subtitle}</Text>
 
             <Pressable
@@ -164,6 +168,10 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     padding: 20,
+    width: '100%',
+  },
+  publicShellCompact: {
+    padding: 16,
   },
   publicCard: {
     alignSelf: 'center',
@@ -172,12 +180,16 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     borderWidth: 1,
     maxWidth: 520,
+    minWidth: 0,
     padding: 24,
     shadowColor: '#102018',
     shadowOffset: { width: 0, height: 14 },
     shadowOpacity: 0.1,
     shadowRadius: 24,
     width: '100%',
+  },
+  publicCardCompact: {
+    padding: 18,
   },
   eyebrow: {
     color: '#4CAF50',
@@ -192,6 +204,10 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     lineHeight: 40,
     marginTop: 8,
+  },
+  publicTitleCompact: {
+    fontSize: 29,
+    lineHeight: 35,
   },
   publicSubtitle: {
     color: '#53616D',
@@ -227,6 +243,7 @@ const styles = StyleSheet.create({
     marginTop: 14,
     paddingHorizontal: 12,
     paddingVertical: 7,
+    maxWidth: '100%',
   },
   errorText: {
     color: '#C1444B',
