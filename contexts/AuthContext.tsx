@@ -147,6 +147,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         const { data: { session: initialSession } } = await supabase.auth.getSession();
         if (!isMounted) return;
+
+        const guestProfileAfterSessionCheck = await getGuestProfile();
+        if (!isMounted) return;
+        if (guestProfileAfterSessionCheck) {
+          setIsGuest(true);
+          setSession(null);
+          setProfile(normalizeGuestAuthProfile(guestProfileAfterSessionCheck));
+          return;
+        }
+
         setIsGuest(false);
         setSession(initialSession);
         if (initialSession?.user) {

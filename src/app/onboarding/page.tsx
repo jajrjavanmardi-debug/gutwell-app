@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'expo-router';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import {
@@ -383,6 +383,7 @@ export default function OnboardingPage() {
   const currentQuestion = questions[step];
   const currentAnswer = currentQuestion ? answers[currentQuestion.id] : undefined;
   const progressPercent = isSummary ? 100 : Math.round(((step + 1) / questions.length) * 100);
+  const isPublicWebGuestFlow = isGuest || (!user?.id && Platform.OS === 'web');
 
   useEffect(() => {
     AsyncStorage.getItem(APP_LANGUAGE_STORAGE_KEY)
@@ -412,7 +413,7 @@ export default function OnboardingPage() {
     if (isSaving || authLoading) return;
 
     const authUser = user;
-    if (!authUser?.id && !isGuest) {
+    if (!authUser?.id && !isPublicWebGuestFlow) {
       setSaveError(copy.signInRequired);
       router.push('/login');
       return;
@@ -422,7 +423,7 @@ export default function OnboardingPage() {
     setSaveError('');
     try {
       const completedAt = new Date().toISOString();
-      if (isGuest) {
+      if (isPublicWebGuestFlow) {
         await saveGuestOnboarding({
           answers,
           language,
@@ -518,7 +519,7 @@ export default function OnboardingPage() {
           </View>
         </View>
 
-        {isGuest ? (
+        {isPublicWebGuestFlow ? (
           <View style={[styles.demoBadge, isRtl && styles.rtlRow]}>
             <Text style={[styles.demoBadgeDot, isRtl && styles.rtlText]}>•</Text>
             <Text style={[styles.demoBadgeText, isRtl && styles.rtlText]}>{copy.demoMode}</Text>

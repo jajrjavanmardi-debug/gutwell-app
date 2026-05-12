@@ -208,7 +208,7 @@ export default function LoginScreen() {
     }
   };
 
-  if (loading) {
+  if (loading && Platform.OS !== 'web') {
     return (
       <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
         <View style={styles.loadingState}>
