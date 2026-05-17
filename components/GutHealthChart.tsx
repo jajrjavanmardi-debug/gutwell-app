@@ -30,30 +30,30 @@ const CHART_COPY: Record<AppLanguage, {
 }> = {
   en: {
     kicker: 'Daily average',
-    title: 'Gut Health Trend',
+    title: 'Gut Wellness Trend',
     pill: 'Last 14 days',
     score: 'Avg score',
     date: 'Date',
     empty: 'No meal scores logged in the last 14 days.',
-    caption: 'Shows daily average Gut Scores from food analyses over the last 14 days.',
+    caption: 'Shows daily average Gut Scores from meal insights over the last 14 days.',
   },
   de: {
     kicker: 'Tagesdurchschnitt',
-    title: 'Darmgesundheits-Trend',
+    title: 'Darmwohlbefinden-Trend',
     pill: 'Letzte 14 Tage',
     score: 'Ø Score',
     date: 'Datum',
     empty: 'Keine Mahlzeiten-Scores in den letzten 14 Tagen.',
-    caption: 'Zeigt den täglichen Durchschnitt deiner Darm-Scores aus Food-Analysen der letzten 14 Tage.',
+    caption: 'Zeigt den täglichen Durchschnitt deiner Darm-Scores aus Mahlzeiten-Einblicken der letzten 14 Tage.',
   },
   fa: {
     kicker: 'میانگین روزانه',
-    title: 'روند سلامت روده',
+    title: 'روند تندرستی گوارش',
     pill: '۱۴ روز گذشته',
     score: 'میانگین امتیاز',
     date: 'تاریخ',
     empty: 'در ۱۴ روز گذشته امتیاز غذایی ثبت نشده است.',
-    caption: 'میانگین روزانه امتیازهای روده از تحلیل غذاها در ۱۴ روز گذشته را نشان می دهد.',
+    caption: 'میانگین روزانه امتیازهای گوارش از بینش‌های غذایی ۱۴ روز گذشته را نشان می‌دهد.',
   },
 };
 

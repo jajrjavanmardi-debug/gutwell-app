@@ -121,52 +121,52 @@ function buildFallbackRecommendation(
     if (language === 'fa') {
       return [
         'پاسخ کوتاه: هیچ غذای مشخصی گفته نشده است، بنابراین این راهنما فقط بر اساس علائم شماست.',
-        'از اینجا شروع کن: آب بنوش، آرام نفس بکش، در صورت درد از گرمای ملایم استفاده کن و فعلاً محرک های نامشخص را اضافه نکن.',
+        'از اینجا شروع کن: آب بنوش، آرام نفس بکش، در صورت درد از گرمای ملایم استفاده کن و فعلاً خوراکی‌های مشکوک را اضافه نکن.',
         'چند وقت یک بار: علائم را 24 تا 72 ساعت دنبال کن و دفعه بعد اگر تحلیل غذایی می خواهی، نام غذا یا ماده اصلی را هم بنویس.',
-        'فقط برای اطلاع است، نه توصیه پزشکی. در صورت علائم شدید یا غیرمعمول کمک پزشکی بگیرید.',
+        'این یک بینش آموزشی است، نه تشخیص یا توصیه پزشکی. در صورت علائم شدید یا غیرمعمول کمک پزشکی بگیرید.',
       ].join('\n');
     }
 
     if (language === 'de') {
       return [
         'Kurzantwort: Es wurde keine konkrete Mahlzeit genannt, daher basiert diese Empfehlung nur auf deinen Symptomen.',
-        'So startest du: Trinke Wasser, atme langsam in den Bauch, nutze bei Krämpfen sanfte Wärme und füge vorerst keinen unklaren Trigger hinzu.',
+        'So startest du: Trinke Wasser, atme langsam in den Bauch, nutze bei Krämpfen sanfte Wärme und füge vorerst kein unklar verdächtiges Lebensmittel hinzu.',
         'Wie oft: Beobachte die Symptome 24-72 Stunden und nenne beim nächsten Mal das konkrete Lebensmittel, wenn du eine Mahlzeitenanalyse möchtest.',
-        'Nur zur Information, keine medizinische Beratung. Suche Hilfe bei starken oder ungewöhnlichen Symptomen.',
+        'Bildender Einblick, keine Diagnose und keine medizinische Beratung. Suche Hilfe bei starken oder ungewöhnlichen Symptomen.',
       ].join('\n');
     }
 
     return [
       'Quick answer: No specific meal was provided, so this guidance is based on your symptoms only.',
-      'Start here: Sip water, slow your breathing, use gentle warmth for cramps, and avoid adding an unclear trigger right now.',
+      'Start here: Sip water, slow your breathing, use gentle warmth for cramps, and avoid adding a food you suspect right now.',
       'How often: Track symptoms for 24-72 hours and include the exact food or ingredient next time if you want meal-level analysis.',
-      'Info only, not medical advice. Seek care for severe or unusual symptoms.',
+      'Educational insight only, not a diagnosis or medical advice. Seek care for severe or unusual symptoms.',
     ].join('\n');
   }
 
   if (language === 'fa') {
     return [
-      'پاسخ سریع: الان هوش مصنوعی در دسترس نیست، اما می توانی با یک قدم ساده شروع کنی.',
+      'پاسخ کوتاه: الان هوش مصنوعی در دسترس نیست، اما می‌توانید با یک قدم ساده برای پیگیری الگوها شروع کنید.',
       `شروع: یک وعده ملایم با ${nutrients.slice(0, 2).join(' و ')} انتخاب کن${foodName ? `؛ مثل ${foodName}` : ''}.`,
       'چند وقت یک بار: امروز یک تغییر کوچک انجام بده و 24 تا 72 ساعت نفخ، ریفلاکس، یبوست یا درد را دنبال کن.',
-      'این فقط راهنمای عمومی است و جایگزین توصیه پزشکی نیست.',
+      'این یک بینش آموزشی عمومی است، نه تشخیص یا توصیه پزشکی.',
     ].join('\n');
   }
 
   if (language === 'de') {
     return [
-      'Schnelle Antwort: Die KI ist gerade nicht verfügbar, aber du kannst mit einem kleinen Schritt starten.',
+      'Kurzantwort: Die KI ist gerade nicht verfügbar, aber du kannst mit einem kleinen Schritt zur Musterbeobachtung starten.',
       `Start: Wähle eine sanfte Mahlzeit mit ${nutrients.slice(0, 2).join(' und ')}${foodName ? `, zum Beispiel ${foodName}` : ''}.`,
       'Häufigkeit: Probiere heute eine kleine Änderung und beobachte Blähungen, Reflux, Verstopfung oder Schmerzen für 24-72 Stunden.',
-      'Nur zur Orientierung, keine medizinische Beratung.',
+      'Bildender Einblick, keine Diagnose und keine medizinische Beratung.',
     ].join('\n');
   }
 
   return [
-    'Quick answer: AI guidance is unavailable right now, but you can still start with one small step.',
+    'Quick answer: AI insight is unavailable right now, but you can still start with one small pattern-tracking step.',
     `Start here: Choose a gentle meal focused on ${nutrients.slice(0, 2).join(' and ')}${foodName ? `, such as ${foodName}` : ''}.`,
     'How often: Try one small change today and track bloating, reflux, constipation, or pain for 24-72 hours.',
-    'Info only, not medical advice.',
+    'Educational insight only, not a diagnosis or medical advice.',
   ].join('\n');
 }
 

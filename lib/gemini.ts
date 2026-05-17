@@ -143,7 +143,7 @@ function summarizeFoodData(foodData: FoodNutrition): string {
 }
 
 export async function getHelpfulNutrientsForFeeling(userFeeling: string): Promise<string[]> {
-  const prompt = `Based on clinical nutrition research, which 3 specific nutrients are most helpful for someone feeling ${userFeeling}? Return only a simple JSON list of nutrient names.`;
+  const prompt = `Using practical nutrition knowledge and food-data context, which 3 specific nutrients are most relevant for someone feeling ${userFeeling}? Return only a simple JSON list of nutrient names.`;
   const text = await callGemini(prompt, 'application/json');
   return parseJsonList(text);
 }
@@ -155,13 +155,13 @@ export async function getFoodRecommendationFromNutrients(
 ): Promise<string> {
   const prompt = [
     `The user is feeling: ${userFeeling}`,
-    `The clinically relevant nutrients are: ${nutrients.join(', ')}`,
+    `Nutrients to consider for this educational insight: ${nutrients.join(', ')}`,
     'USDA food data:',
     summarizeFoodData(foodData),
     '',
-    'Write a short, supportive recommendation for the user in 2-3 sentences.',
-    'Mention whether this food appears helpful for those nutrients based only on the provided USDA data.',
-    'Avoid medical claims and keep the tone warm and practical.',
+    'Write a short, supportive educational insight for the user in 2-3 sentences.',
+    'Mention whether this food appears relevant to those nutrients based only on the provided USDA data.',
+    'Avoid diagnosis, treatment, cure, or certainty claims and keep the tone warm and practical.',
   ].join('\n');
 
   return callGemini(prompt, 'text/plain');
@@ -172,9 +172,9 @@ export async function generateDailyGutScoreInsight(input: {
   mainGoal: string | null;
 }): Promise<string> {
   const prompt = [
-    `Based on a Gut Score of ${input.score} and the goal of ${input.mainGoal ?? 'General health'}, give a 1-sentence tip.`,
+    `Based on a Gut Score of ${input.score} and the goal of ${input.mainGoal ?? 'General wellness'}, give a 1-sentence pattern-tracking tip.`,
     'Tone: supportive and practical.',
-    'No medical diagnosis, no emojis, max 20 words.',
+    'No diagnosis, treatment, cure, or certainty claims; no emojis; max 20 words.',
   ].join('\n');
 
   return callGemini(prompt, 'text/plain');

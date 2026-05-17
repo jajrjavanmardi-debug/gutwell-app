@@ -36,10 +36,10 @@ const MILESTONE_THRESHOLDS = [0, 7, 30, 100, 180, 366];
 const DAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
 const STATE_MESSAGES: Record<string, string> = {
-  active:  'Your gut is thriving!',
+  active:  'Your tracking rhythm looks strong!',
   at_risk: 'Keep your streak alive!',
   broken:  'Every day is a fresh start.',
-  new:     'Begin your gut health journey!',
+  new:     'Begin your gut wellness tracking journey!',
 };
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');

@@ -16,8 +16,8 @@
       "buildNumber": "1",
       "infoPlist": {
         "NSPhotoLibraryUsageDescription": "NutriFlow uses your photo library to let you attach photos to your food logs.",
-        "NSCameraUsageDescription": "This app uses the camera to take meal photos for gut-health analysis.",
-        "NSLocationWhenInUseUsageDescription": "This app needs location to find healthy food nearby.",
+        "NSCameraUsageDescription": "NutriFlow uses the camera to add meal photos for educational food insights.",
+        "NSLocationWhenInUseUsageDescription": "NutriFlow uses approximate location to suggest nearby food options.",
         "NSMicrophoneUsageDescription": "NutriFlow uses the microphone to turn your voice corrections into text.",
         "NSSpeechRecognitionUsageDescription": "NutriFlow uses speech recognition so you can correct meal analysis by voice."
       }
@@ -45,7 +45,7 @@
         "expo-image-picker",
         {
           "photosPermission": "NutriFlow uses your photo library to let you attach photos to your food logs.",
-          "cameraPermission": "NutriFlow uses your camera to let you photograph meals for your food log."
+          "cameraPermission": "NutriFlow uses your camera to add meal photos to your food log."
         }
       ],
       [
@@ -73,7 +73,7 @@
       [
         "expo-location",
         {
-          "locationWhenInUsePermission": "NutriFlow uses your approximate location to suggest healthier food alternatives available near you."
+          "locationWhenInUsePermission": "NutriFlow uses your approximate location to suggest nearby food options and gentler alternatives."
         }
       ],
       [

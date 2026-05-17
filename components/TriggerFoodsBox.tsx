@@ -17,7 +17,7 @@ type TriggerFoodsBoxProps = {
 export default function TriggerFoodsBox({ triggerFoods }: TriggerFoodsBoxProps) {
   return (
     <>
-      <Text style={styles.sectionTitle}>Trigger Foods</Text>
+      <Text style={styles.sectionTitle}>Possible Food Patterns</Text>
       {triggerFoods.length > 0 ? (
         <>
           {triggerFoods.map((item, i) => {
@@ -34,7 +34,7 @@ export default function TriggerFoodsBox({ triggerFoods }: TriggerFoodsBoxProps) 
                   <View style={styles.correlationBarTrack}>
                     <View style={[styles.correlationBarFill, { width: `${item.correlationPct}%`, backgroundColor: riskColor }]} />
                   </View>
-                  <Text style={styles.correlationPctText}>{item.correlationPct}% correlation</Text>
+                  <Text style={styles.correlationPctText}>{item.correlationPct}% pattern match</Text>
                 </View>
                 {item.topSymptom ? (
                   <Text style={styles.topSymptomText}>→ {item.topSymptom.replace(/_/g, ' ')}</Text>
@@ -46,8 +46,8 @@ export default function TriggerFoodsBox({ triggerFoods }: TriggerFoodsBoxProps) 
       ) : (
         <View style={styles.insufficientCard}>
           <Ionicons name="analytics-outline" size={28} color={Colors.textTertiary} />
-          <Text style={styles.insufficientTitle}>No Trigger Foods Yet</Text>
-          <Text style={styles.insufficientText}>Log 2+ weeks of meals to detect trigger foods.</Text>
+          <Text style={styles.insufficientTitle}>No Food Patterns Yet</Text>
+          <Text style={styles.insufficientText}>Log 2+ weeks of meals to observe possible food patterns.</Text>
         </View>
       )}
     </>

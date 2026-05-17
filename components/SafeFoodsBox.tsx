@@ -16,11 +16,11 @@ export default function SafeFoodsBox({ safeFoods }: SafeFoodsBoxProps) {
 
   return (
     <>
-      <Text style={styles.sectionTitle}>Safe Foods</Text>
+      <Text style={styles.sectionTitle}>Comfortable Foods</Text>
       <View style={styles.safeFoodsRow}>
         {safeFoods.map((item, i) => (
           <View key={i} style={styles.safeFoodChip}>
-            <Text style={styles.safeFoodText}>✓ {item.foodName} · {item.symptomFreeRate}% symptom-free</Text>
+            <Text style={styles.safeFoodText}>✓ {item.foodName} · {item.symptomFreeRate}% logged comfortably</Text>
           </View>
         ))}
       </View>

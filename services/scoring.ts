@@ -69,8 +69,8 @@ function buildDailyGutScoreFallbackInsight(score: number, mainGoal: string | nul
   }
 
   return goal
-    ? `Your gut score needs support; keep portions gentle and avoid likely triggers for ${goal}.`
-    : 'Your gut score needs support; keep portions gentle and avoid likely triggers today.';
+    ? `Your Gut Score is lower today; keep portions gentle and observe possible patterns for ${goal}.`
+    : 'Your Gut Score is lower today; keep portions gentle and observe possible food patterns.';
 }
 
 async function getDailyGutScoreInsight(input: { score: number; mainGoal: string | null }): Promise<string> {
@@ -174,7 +174,7 @@ export function calculateGutScore(
 
   if (mainGoal.includes('reduce bloating')) {
     score = 20 + symptomScore * 2.4 + water * 1.2 + (6 - pain) * 2;
-    focusAreas.add('symptom relief');
+    focusAreas.add('symptom pattern support');
   } else if (mainGoal.includes('improve regularity')) {
     score = 18 + stoolScore * 2.5 + consistencyScore + water * 1.4;
     focusAreas.add('regularity');
@@ -183,7 +183,7 @@ export function calculateGutScore(
     focusAreas.add('stool consistency');
   } else if (mainGoal.includes('identify triggers')) {
     score = 22 + triggerSignalScore * 3 + mood * 2 + energy * 2;
-    focusAreas.add('trigger discovery');
+    focusAreas.add('possible trigger pattern tracking');
   } else {
     score = 15 + generalScore * 1.35;
     focusAreas.add('daily balance');

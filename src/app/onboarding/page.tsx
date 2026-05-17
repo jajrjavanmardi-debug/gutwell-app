@@ -85,7 +85,7 @@ const ONBOARDING_COPY: Record<AppLanguage, OnboardingCopy> = {
         { value: 'none', label: 'None' },
       ] },
       { id: 'diet', title: 'How would you describe your current diet?', helper: 'No judgement. This helps personalize your first plan.', options: [
-        { value: 'very_healthy', label: 'Very healthy' },
+        { value: 'very_healthy', label: 'Very balanced' },
         { value: 'mostly_balanced', label: 'Mostly balanced' },
         { value: 'inconsistent', label: 'Inconsistent' },
         { value: 'processed', label: 'Processed' },
@@ -102,14 +102,14 @@ const ONBOARDING_COPY: Record<AppLanguage, OnboardingCopy> = {
         { value: 'moderately', label: 'Moderately' },
         { value: 'strongly', label: 'Strongly' },
       ] },
-      { id: 'sleep', title: 'How would you rate your sleep quality?', helper: 'Sleep helps your gut recover and regulate.', options: [
+      { id: 'sleep', title: 'How would you rate your sleep quality?', helper: 'Sleep supports your gut rhythm and daily consistency.', options: [
         { value: 'excellent', label: 'Excellent' },
         { value: 'good', label: 'Good' },
         { value: 'fair', label: 'Fair' },
         { value: 'poor', label: 'Poor' },
       ] },
-      { id: 'triggers', title: 'Have you identified any trigger foods?', helper: 'This can be refined later as you log meals.', options: [
-        { value: 'yes_clearly', label: 'Yes clearly' },
+      { id: 'triggers', title: 'Have you noticed any possible food patterns?', helper: 'This can be refined later as you log meals and symptoms.', options: [
+        { value: 'yes_clearly', label: 'Yes, a clear pattern' },
         { value: 'sometimes', label: 'Sometimes' },
         { value: 'rarely', label: 'Rarely' },
         { value: 'dont_know', label: "Don't know" },
@@ -118,8 +118,8 @@ const ONBOARDING_COPY: Record<AppLanguage, OnboardingCopy> = {
         { value: 'reduce_bloating', label: 'Reduce bloating' },
         { value: 'improve_regularity', label: 'Improve regularity' },
         { value: 'improve_consistency', label: 'Improve consistency' },
-        { value: 'identify_triggers', label: 'Identify triggers' },
-        { value: 'general_health', label: 'General health' },
+        { value: 'identify_triggers', label: 'Track possible triggers' },
+        { value: 'general_health', label: 'General wellness' },
       ] },
     ],
     focusLabels: {
@@ -131,7 +131,7 @@ const ONBOARDING_COPY: Record<AppLanguage, OnboardingCopy> = {
       stressSupport: 'Stress support',
       sleepRoutine: 'Sleep routine',
       fiberQuality: 'Fiber quality',
-      triggerDiscovery: 'Trigger discovery',
+      triggerDiscovery: 'Possible trigger tracking',
     },
     habitLabels: {
       mealRoutine: 'Start with one simple, repeatable meal routine each day.',
@@ -179,7 +179,7 @@ const ONBOARDING_COPY: Record<AppLanguage, OnboardingCopy> = {
         { value: 'none', label: 'Keine' },
       ] },
       { id: 'diet', title: 'Wie würdest du deine aktuelle Ernährung beschreiben?', helper: 'Ohne Bewertung. So wird dein erster Plan passender.', options: [
-        { value: 'very_healthy', label: 'Sehr gesund' },
+        { value: 'very_healthy', label: 'Sehr ausgewogen' },
         { value: 'mostly_balanced', label: 'Meist ausgewogen' },
         { value: 'inconsistent', label: 'Unregelmäßig' },
         { value: 'processed', label: 'Viele Fertigprodukte' },
@@ -196,24 +196,24 @@ const ONBOARDING_COPY: Record<AppLanguage, OnboardingCopy> = {
         { value: 'moderately', label: 'Mäßig' },
         { value: 'strongly', label: 'Stark' },
       ] },
-      { id: 'sleep', title: 'Wie würdest du deine Schlafqualität bewerten?', helper: 'Schlaf unterstützt Erholung und Rhythmus deines Darms.', options: [
+      { id: 'sleep', title: 'Wie würdest du deine Schlafqualität bewerten?', helper: 'Schlaf unterstützt deinen Darmrhythmus und tägliche Konstanz.', options: [
         { value: 'excellent', label: 'Ausgezeichnet' },
         { value: 'good', label: 'Gut' },
         { value: 'fair', label: 'Okay' },
         { value: 'poor', label: 'Schlecht' },
       ] },
-      { id: 'triggers', title: 'Hast du bereits Auslöser beim Essen erkannt?', helper: 'Das lässt sich später mit deinen Mahlzeiten weiter verfeinern.', options: [
-        { value: 'yes_clearly', label: 'Ja, eindeutig' },
+      { id: 'triggers', title: 'Hast du mögliche Essensmuster bemerkt?', helper: 'Das lässt sich später mit Mahlzeiten und Symptomen weiter verfeinern.', options: [
+        { value: 'yes_clearly', label: 'Ja, ein klares Muster' },
         { value: 'sometimes', label: 'Manchmal' },
         { value: 'rarely', label: 'Selten' },
         { value: 'dont_know', label: 'Weiß ich nicht' },
       ] },
       { id: 'goal', title: 'Was ist gerade dein wichtigstes Ziel?', helper: 'Dein erster GutWell-Plan baut darauf auf.', options: [
-        { value: 'reduce_bloating', label: 'Blähungen reduzieren' },
+        { value: 'reduce_bloating', label: 'Blähungen besser einordnen' },
         { value: 'improve_regularity', label: 'Regelmäßigkeit verbessern' },
         { value: 'improve_consistency', label: 'Konsistenz verbessern' },
-        { value: 'identify_triggers', label: 'Trigger erkennen' },
-        { value: 'general_health', label: 'Allgemeine Gesundheit' },
+        { value: 'identify_triggers', label: 'Mögliche Auslöser beobachten' },
+        { value: 'general_health', label: 'Allgemeines Wohlbefinden' },
       ] },
     ],
     focusLabels: {
@@ -225,7 +225,7 @@ const ONBOARDING_COPY: Record<AppLanguage, OnboardingCopy> = {
       stressSupport: 'Stress gezielt entlasten',
       sleepRoutine: 'Schlafroutine',
       fiberQuality: 'Ballaststoffqualität',
-      triggerDiscovery: 'Auslöser erkennen',
+      triggerDiscovery: 'Mögliche Auslöser beobachten',
     },
     habitLabels: {
       mealRoutine: 'Starte jeden Tag mit einer einfachen, gut wiederholbaren Mahlzeitenroutine.',
@@ -273,7 +273,7 @@ const ONBOARDING_COPY: Record<AppLanguage, OnboardingCopy> = {
         { value: 'none', label: 'هیچ‌کدام' },
       ] },
       { id: 'diet', title: 'رژیم غذایی فعلی خود را چطور توصیف می‌کنید؟', helper: 'بدون قضاوت؛ این پاسخ به شخصی‌سازی برنامه کمک می‌کند.', options: [
-        { value: 'very_healthy', label: 'خیلی سالم' },
+        { value: 'very_healthy', label: 'خیلی متعادل' },
         { value: 'mostly_balanced', label: 'اغلب متعادل' },
         { value: 'inconsistent', label: 'نامنظم' },
         { value: 'processed', label: 'غذاهای فرآوری‌شده' },
@@ -290,24 +290,24 @@ const ONBOARDING_COPY: Record<AppLanguage, OnboardingCopy> = {
         { value: 'moderately', label: 'متوسط' },
         { value: 'strongly', label: 'زیاد' },
       ] },
-      { id: 'sleep', title: 'کیفیت خواب خود را چطور ارزیابی می‌کنید؟', helper: 'خواب به تنظیم و بازسازی دستگاه گوارش کمک می‌کند.', options: [
+      { id: 'sleep', title: 'کیفیت خواب خود را چطور ارزیابی می‌کنید؟', helper: 'خواب از ریتم گوارش و ثبات روزانه پشتیبانی می‌کند.', options: [
         { value: 'excellent', label: 'عالی' },
         { value: 'good', label: 'خوب' },
         { value: 'fair', label: 'قابل قبول' },
         { value: 'poor', label: 'ضعیف' },
       ] },
-      { id: 'triggers', title: 'آیا غذاهای محرک خود را شناسایی کرده‌اید؟', helper: 'بعداً با ثبت وعده‌ها می‌توانید آن را دقیق‌تر کنید.', options: [
-        { value: 'yes_clearly', label: 'بله، کاملاً' },
+      { id: 'triggers', title: 'آیا الگوی غذایی احتمالی برای خود دیده‌اید؟', helper: 'بعداً با ثبت وعده‌ها و علائم می‌توانید آن را دقیق‌تر کنید.', options: [
+        { value: 'yes_clearly', label: 'بله، یک الگوی روشن' },
         { value: 'sometimes', label: 'گاهی' },
         { value: 'rarely', label: 'به ندرت' },
         { value: 'dont_know', label: 'نمی‌دانم' },
       ] },
       { id: 'goal', title: 'هدف اصلی شما در حال حاضر چیست؟', helper: 'اولین برنامه GutWell شما از همین پاسخ شروع می‌شود.', options: [
-        { value: 'reduce_bloating', label: 'کاهش نفخ' },
+        { value: 'reduce_bloating', label: 'مدیریت بهتر نفخ' },
         { value: 'improve_regularity', label: 'بهبود نظم دفع' },
         { value: 'improve_consistency', label: 'بهبود قوام' },
-        { value: 'identify_triggers', label: 'شناخت محرک‌ها' },
-        { value: 'general_health', label: 'سلامت عمومی' },
+        { value: 'identify_triggers', label: 'پیگیری محرک‌های احتمالی' },
+        { value: 'general_health', label: 'تندرستی عمومی' },
       ] },
     ],
     focusLabels: {
@@ -319,7 +319,7 @@ const ONBOARDING_COPY: Record<AppLanguage, OnboardingCopy> = {
       stressSupport: 'کاهش فشار استرس',
       sleepRoutine: 'برنامه خواب',
       fiberQuality: 'کیفیت فیبر',
-      triggerDiscovery: 'شناخت محرک‌ها',
+      triggerDiscovery: 'پیگیری محرک‌های احتمالی',
     },
     habitLabels: {
       mealRoutine: 'هر روز با یک روتین غذایی ساده و قابل تکرار شروع کنید.',

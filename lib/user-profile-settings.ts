@@ -156,7 +156,7 @@ export async function saveUserProfileSettings(settings: UserProfileSettings): Pr
 }
 
 export function getPromptConditions(conditions: MedicalCondition[]): string[] {
-  return conditions.length > 0 ? conditions : ['General Gut Health'];
+  return conditions.length > 0 ? conditions : ['General Gut Wellness'];
 }
 
 function getProfileSettingsStorageKey(userId: string): string {
