@@ -8,6 +8,10 @@ import {
   type MealCorrectionContext,
   type MealPhotoAnalysisContext,
 } from './groq';
+import {
+  detectRedFlagSymptoms,
+  RedFlagTriageError,
+} from './red-flag-triage';
 import { fetchFoodNutrition, type FoodNutrition } from './usda';
 
 export type NutritionRecommendationResult = {
@@ -208,6 +212,11 @@ export async function getNutritionRecommendation(
     throw new Error('User feeling is required to generate a nutrition recommendation.');
   }
 
+  const triage = detectRedFlagSymptoms(feeling);
+  if (triage.hasRedFlag) {
+    throw new RedFlagTriageError(getFallbackLanguage(feeling), triage);
+  }
+
   const hasSpecificFood = options.hasSpecificFood ?? hasSpecificFoodReference(feeling);
 
   let nutrients: string[];
@@ -244,6 +253,15 @@ export async function analyzeMealPhoto(
     throw new Error('Image data is required to analyze a meal photo.');
   }
 
+  const triage = detectRedFlagSymptoms([
+    analysisContext.userFeelingsNarrative,
+    ...(analysisContext.userEnteredSymptoms ?? []),
+    ...(analysisContext.symptoms ?? []),
+  ]);
+  if (triage.hasRedFlag) {
+    throw new RedFlagTriageError(analysisContext.preferredLanguage ?? 'en', triage);
+  }
+
   return analyzeMealPhotoWithGroq(imageBase64, mimeType, analysisContext);
 }
 
@@ -252,6 +270,14 @@ export async function reviseMealAnalysis(
 ): Promise<string> {
   if (!correctionContext.correction.trim()) {
     throw new Error('Correction text is required to revise the meal analysis.');
+  }
+
+  const triage = detectRedFlagSymptoms([
+    correctionContext.correction,
+    ...(correctionContext.symptoms ?? []),
+  ]);
+  if (triage.hasRedFlag) {
+    throw new RedFlagTriageError(correctionContext.preferredLanguage ?? 'en', triage);
   }
 
   return reviseMealAnalysisWithGroq(correctionContext);

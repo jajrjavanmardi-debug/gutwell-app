@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'expo-router';
-import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import {
@@ -15,6 +15,7 @@ import { useAuth } from '../../../contexts/AuthContext';
 import { saveGuestOnboarding } from '../../../lib/guest-mode';
 import { supabase } from '../../../lib/supabase';
 import { saveUserProfileSettings } from '../../../lib/user-profile-settings';
+import { detectRedFlagSymptoms, getRedFlagWarning, type RedFlagWarningCopy } from '../../../lib/red-flag-triage';
 
 type Question = {
   id: string;
@@ -80,6 +81,7 @@ const ONBOARDING_COPY: Record<AppLanguage, OnboardingCopy> = {
         { value: 'constipation', label: 'Constipation' },
         { value: 'diarrhea', label: 'Diarrhea' },
         { value: 'pain', label: 'Pain' },
+        { value: 'red_flag_symptom', label: 'Severe pain, blood, fever, or fainting' },
         { value: 'none', label: 'None' },
       ] },
       { id: 'diet', title: 'How would you describe your current diet?', helper: 'No judgement. This helps personalize your first plan.', options: [
@@ -173,6 +175,7 @@ const ONBOARDING_COPY: Record<AppLanguage, OnboardingCopy> = {
         { value: 'constipation', label: 'Verstopfung' },
         { value: 'diarrhea', label: 'Durchfall' },
         { value: 'pain', label: 'Schmerzen' },
+        { value: 'red_flag_symptom', label: 'Starke Schmerzen, Blut, Fieber oder Ohnmacht' },
         { value: 'none', label: 'Keine' },
       ] },
       { id: 'diet', title: 'Wie würdest du deine aktuelle Ernährung beschreiben?', helper: 'Ohne Bewertung. So wird dein erster Plan passender.', options: [
@@ -266,6 +269,7 @@ const ONBOARDING_COPY: Record<AppLanguage, OnboardingCopy> = {
         { value: 'constipation', label: 'یبوست' },
         { value: 'diarrhea', label: 'اسهال' },
         { value: 'pain', label: 'درد' },
+        { value: 'red_flag_symptom', label: 'درد شدید، خون، تب یا غش' },
         { value: 'none', label: 'هیچ‌کدام' },
       ] },
       { id: 'diet', title: 'رژیم غذایی فعلی خود را چطور توصیف می‌کنید؟', helper: 'بدون قضاوت؛ این پاسخ به شخصی‌سازی برنامه کمک می‌کند.', options: [
@@ -373,6 +377,7 @@ export default function OnboardingPage() {
   const [language, setLanguageState] = useState<AppLanguage>('en');
   const [step, setStep] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string>>({});
+  const [redFlagWarning, setRedFlagWarning] = useState<RedFlagWarningCopy | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState('');
 
@@ -402,9 +407,21 @@ export default function OnboardingPage() {
     habits: computeHabits(answers).map((habit) => copy.habitLabels[habit]),
   }), [answers, copy, language]);
 
+  const showRedFlagWarning = (warning: RedFlagWarningCopy) => {
+    setRedFlagWarning(warning);
+    Alert.alert(warning.title, warning.message, [{ text: warning.actionLabel }]);
+  };
+
   const handleSelect = (value: string) => {
     if (!currentQuestion) return;
     setSaveError('');
+    const selectedOption = currentQuestion.options.find((option) => option.value === value);
+    const triage = detectRedFlagSymptoms([currentQuestion.title, selectedOption?.label, value]);
+    if (triage.hasRedFlag) {
+      showRedFlagWarning(getRedFlagWarning(language));
+      return;
+    }
+    setRedFlagWarning(null);
     setAnswers((prev) => ({ ...prev, [currentQuestion.id]: value }));
     setStep((prev) => Math.min(prev + 1, questions.length));
   };
@@ -419,8 +436,18 @@ export default function OnboardingPage() {
       return;
     }
 
+    const answerLabels = Object.entries(answers).map(([questionId, value]) =>
+      getAnswerLabel(language, questionId, value)
+    );
+    const triage = detectRedFlagSymptoms(answerLabels);
+    if (triage.hasRedFlag) {
+      showRedFlagWarning(getRedFlagWarning(language));
+      return;
+    }
+
     setIsSaving(true);
     setSaveError('');
+    setRedFlagWarning(null);
     try {
       const completedAt = new Date().toISOString();
       if (isPublicWebGuestFlow) {
@@ -541,6 +568,15 @@ export default function OnboardingPage() {
               <Text style={[styles.questionTitle, isRtl && styles.rtlText]}>{currentQuestion.title}</Text>
               <Text style={[styles.questionSubtitle, isRtl && styles.rtlText]}>{currentQuestion.helper}</Text>
             </View>
+            {redFlagWarning ? (
+              <View style={[styles.safetyCard, isRtl && styles.rtlRow]}>
+                <Text style={[styles.safetyIcon, isRtl && styles.rtlText]}>!</Text>
+                <View style={styles.safetyCopy}>
+                  <Text style={[styles.safetyTitle, isRtl && styles.rtlText]}>{redFlagWarning.title}</Text>
+                  <Text style={[styles.safetyText, isRtl && styles.rtlText]}>{redFlagWarning.message}</Text>
+                </View>
+              </View>
+            ) : null}
             <View style={styles.optionList}>
               {currentQuestion.options.map((option) => {
                 const selected = currentAnswer === option.value;
@@ -636,6 +672,30 @@ const styles = StyleSheet.create({
   progressFill: { height: '100%', backgroundColor: COLORS.accent },
   progressText: { color: COLORS.textSecondary, fontSize: 15, fontWeight: '500' },
   card: { backgroundColor: COLORS.card, borderRadius: 20, borderWidth: 1, borderColor: COLORS.border, padding: 20, gap: 10 },
+  safetyCard: {
+    alignItems: 'flex-start',
+    backgroundColor: '#FFF7ED',
+    borderColor: '#FDBA74',
+    borderRadius: 18,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: 12,
+    padding: 16,
+  },
+  safetyIcon: {
+    backgroundColor: '#FED7AA',
+    borderRadius: 999,
+    color: '#9A3412',
+    fontSize: 16,
+    fontWeight: '800',
+    height: 26,
+    lineHeight: 26,
+    textAlign: 'center',
+    width: 26,
+  },
+  safetyCopy: { flex: 1 },
+  safetyTitle: { color: '#7C2D12', fontSize: 16, fontWeight: '800' },
+  safetyText: { color: '#7C2D12', fontSize: 14, lineHeight: 20, marginTop: 4 },
   questionTitle: { color: COLORS.textPrimary, fontSize: 28, lineHeight: 34, fontWeight: '700' },
   questionSubtitle: { color: COLORS.textSecondary, fontSize: 16, lineHeight: 22 },
   optionList: { gap: 12 },

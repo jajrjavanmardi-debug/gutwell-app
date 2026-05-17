@@ -60,6 +60,7 @@ import {
   type MedicalCondition,
   type UserProfileSettings,
 } from '../../../lib/user-profile-settings';
+import { detectRedFlagSymptoms, getRedFlagWarning, type RedFlagWarningCopy } from '../../../lib/red-flag-triage';
 
 const EXAMPLE_FEELINGS = [
   'lowEnergy',
@@ -830,6 +831,7 @@ export default function HomeScreen() {
   const [resultLanguage, setResultLanguage] = useState<Language | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+  const [redFlagWarning, setRedFlagWarning] = useState<RedFlagWarningCopy | null>(null);
   const [showReadyMessage, setShowReadyMessage] = useState(false);
   const [languageRefreshMessage, setLanguageRefreshMessage] = useState('');
   const [photoHistory, setPhotoHistory] = useState<PhotoAnalysisHistoryItem[]>([]);
@@ -1014,6 +1016,7 @@ export default function HomeScreen() {
     setResult(null);
     setResultLanguage(null);
     setErrorMessage('');
+    setRedFlagWarning(null);
     setShowReadyMessage(false);
     setLanguageRefreshMessage('');
   };
@@ -1033,9 +1036,23 @@ export default function HomeScreen() {
       return;
     }
 
+    const triage = detectRedFlagSymptoms(trimmedFeeling);
+    if (triage.hasRedFlag) {
+      const warning = getRedFlagWarning(language);
+      setResult(null);
+      setResultLanguage(null);
+      setErrorMessage('');
+      setShowReadyMessage(false);
+      setLanguageRefreshMessage('');
+      setRedFlagWarning(warning);
+      Alert.alert(warning.title, warning.message, [{ text: warning.actionLabel }]);
+      return;
+    }
+
     setIsLoading(true);
     console.log('Nutrition plan loading state set to true');
     setErrorMessage('');
+    setRedFlagWarning(null);
     setShowReadyMessage(false);
     setLanguageRefreshMessage('');
 
@@ -1560,12 +1577,12 @@ export default function HomeScreen() {
               <View style={[styles.inputHeader, isRtl && styles.rtlRow]}>
                 <Text style={[styles.inputLabel, isRtl && styles.rtlText]}>{t.inputLabel}</Text>
                 <Pressable
-                  disabled={isLoading || (!feeling && !result && !errorMessage)}
+                  disabled={isLoading || (!feeling && !result && !errorMessage && !redFlagWarning)}
                   onPress={handleClearAnalysis}
                   hitSlop={8}
                   style={({ pressed }) => [
                     styles.clearButton,
-                    (isLoading || (!feeling && !result && !errorMessage)) && styles.clearButtonDisabled,
+                    (isLoading || (!feeling && !result && !errorMessage && !redFlagWarning)) && styles.clearButtonDisabled,
                     pressed && !isLoading && styles.pressed,
                   ]}
                 >
@@ -1575,7 +1592,10 @@ export default function HomeScreen() {
               </View>
               <TextInput
                 value={feeling}
-                onChangeText={setFeeling}
+                onChangeText={(nextValue) => {
+                  setFeeling(nextValue);
+                  if (redFlagWarning) setRedFlagWarning(null);
+                }}
                 placeholder={t.placeholder}
                 placeholderTextColor="#777777"
                 multiline
@@ -1724,6 +1744,16 @@ export default function HomeScreen() {
                   </View>
                 </View>
               </Modal>
+
+              {redFlagWarning ? (
+                <View style={[styles.safetyCard, isRtl && styles.rtlRow]}>
+                  <Ionicons name="medical-outline" size={19} color="#9A3412" />
+                  <View style={styles.safetyCopy}>
+                    <Text style={[styles.safetyTitle, isRtl && styles.rtlText]}>{redFlagWarning.title}</Text>
+                    <Text style={[styles.safetyText, isRtl && styles.rtlText]}>{redFlagWarning.message}</Text>
+                  </View>
+                </View>
+              ) : null}
 
               {errorMessage ? (
                 <View style={styles.errorCard}>
@@ -2795,6 +2825,31 @@ const styles = StyleSheet.create({
     fontFamily: FontFamily.sansMedium,
     fontSize: FontSize.sm,
     lineHeight: 20,
+  },
+  safetyCard: {
+    alignItems: 'flex-start',
+    backgroundColor: '#FFF7ED',
+    borderColor: '#FDBA74',
+    borderRadius: BorderRadius.md,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: Spacing.sm,
+    marginTop: Spacing.md,
+    padding: Spacing.md,
+  },
+  safetyCopy: { flex: 1, minWidth: 0 },
+  safetyTitle: {
+    color: '#7C2D12',
+    fontFamily: FontFamily.sansBold,
+    fontSize: FontSize.sm,
+    lineHeight: 20,
+  },
+  safetyText: {
+    color: '#7C2D12',
+    fontFamily: FontFamily.sansMedium,
+    fontSize: FontSize.sm,
+    lineHeight: 20,
+    marginTop: 4,
   },
   errorCard: {
     alignItems: 'flex-start', backgroundColor: Colors.error + '10', borderColor: Colors.error + '30',

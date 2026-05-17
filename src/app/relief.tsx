@@ -2,9 +2,10 @@ import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { APP_LANGUAGE_STORAGE_KEY, isRtlLanguage, parseStoredLanguage, type AppLanguage } from '../../lib/app-language';
+import { detectRedFlagSymptoms, getRedFlagWarning, type RedFlagWarningCopy } from '../../lib/red-flag-triage';
 
 const SAGE = '#B2AC88';
 const SAGE_DARK = '#7E795D';
@@ -24,6 +25,8 @@ const RELIEF_COPY = {
     quickTips: 'Your quick tips',
     quickTipsFor: 'Quick tips for',
     selectHint: 'Select a symptom above to see 3 quick comfort tips.',
+    safetySymptomsTitle: 'Symptoms that need medical care',
+    safetySymptomsHint: 'If any of these apply, NutriFlow will pause tips and show a medical-care message.',
     emergencyTitle: 'When to get medical help',
     emergencyGuidance:
       'If symptoms are severe, unusual, worsening, or include chest pain, fainting, blood, or trouble breathing, seek urgent medical care.',
@@ -38,6 +41,8 @@ const RELIEF_COPY = {
     quickTips: 'Schnelle Hilfe',
     quickTipsFor: 'Schnelle Hilfe bei',
     selectHint: 'Wähle oben ein Symptom aus, um drei kurze Tipps zu sehen.',
+    safetySymptomsTitle: 'Symptome für ärztliche Abklärung',
+    safetySymptomsHint: 'Wenn eines davon zutrifft, pausiert NutriFlow die Tipps und zeigt einen medizinischen Sicherheitshinweis.',
     emergencyTitle: 'Wann medizinische Hilfe wichtig ist',
     emergencyGuidance:
       'Wenn Symptome stark, ungewöhnlich oder zunehmend sind oder Brustschmerz, Ohnmacht, Blut oder Atemnot auftreten, suche dringend medizinische Hilfe.',
@@ -52,6 +57,8 @@ const RELIEF_COPY = {
     quickTips: 'راهنمای فوری شما',
     quickTipsFor: 'راهنمای فوری برای',
     selectHint: 'برای دیدن سه راهکار کوتاه، یک علامت را انتخاب کنید.',
+    safetySymptomsTitle: 'علائمی که نیاز به بررسی پزشکی دارند',
+    safetySymptomsHint: 'اگر هرکدام صدق می‌کند، NutriFlow نکات معمول را متوقف می‌کند و پیام مراقبت پزشکی نشان می‌دهد.',
     emergencyTitle: 'چه زمانی کمک پزشکی لازم است',
     emergencyGuidance:
       'اگر علائم شدید، غیرمعمول یا رو به بدتر شدن هستند، یا درد قفسه سینه، غش، خون‌ریزی یا تنگی نفس دارید، فوراً کمک پزشکی بگیرید.',
@@ -93,11 +100,25 @@ const RELIEF_SYMPTOMS = {
   },
 } as const;
 
+const RED_FLAG_RELIEF_OPTIONS = [
+  { key: 'bloodInStool', labels: { en: 'Blood in stool', de: 'Blut im Stuhl', fa: 'خون در مدفوع' } },
+  { key: 'unexplainedWeightLoss', labels: { en: 'Unexplained weight loss', de: 'Unerklärlicher Gewichtsverlust', fa: 'کاهش وزن بی‌دلیل' } },
+  { key: 'severePain', labels: { en: 'Severe abdominal pain', de: 'Starke Bauchschmerzen', fa: 'درد شدید شکم' } },
+  { key: 'persistentFever', labels: { en: 'Persistent fever', de: 'Anhaltendes Fieber', fa: 'تب مداوم' } },
+  { key: 'nighttimeDiarrhea', labels: { en: 'Nighttime diarrhea', de: 'Nächtlicher Durchfall', fa: 'اسهال شبانه' } },
+  { key: 'repeatedVomiting', labels: { en: 'Repeated vomiting', de: 'Wiederholtes Erbrechen', fa: 'استفراغ مکرر' } },
+  { key: 'allergicReaction', labels: { en: 'Severe allergic reaction', de: 'Schwere allergische Reaktion', fa: 'واکنش آلرژیک شدید' } },
+  { key: 'troubleBreathing', labels: { en: 'Trouble breathing', de: 'Atemnot', fa: 'تنگی نفس' } },
+  { key: 'faintingWeakness', labels: { en: 'Fainting or severe weakness', de: 'Ohnmacht oder starke Schwäche', fa: 'غش یا ضعف شدید' } },
+] as const;
+
 type ReliefSymptom = keyof typeof RELIEF_SYMPTOMS;
+type RedFlagReliefSymptom = (typeof RED_FLAG_RELIEF_OPTIONS)[number];
 
 export default function ReliefScreen() {
   const [language, setLanguage] = useState<AppLanguage>('en');
   const [selectedSymptom, setSelectedSymptom] = useState<ReliefSymptom | null>(null);
+  const [redFlagWarning, setRedFlagWarning] = useState<RedFlagWarningCopy | null>(null);
   const isRtl = isRtlLanguage(language);
   const copy = RELIEF_COPY[language];
 
@@ -114,6 +135,22 @@ export default function ReliefScreen() {
       isActive = false;
     };
   }, []));
+
+  const handleComfortSymptomSelect = (symptom: ReliefSymptom) => {
+    setRedFlagWarning(null);
+    setSelectedSymptom(symptom);
+  };
+
+  const handleRedFlagSymptomSelect = (symptom: RedFlagReliefSymptom) => {
+    const triage = detectRedFlagSymptoms([symptom.key, symptom.labels[language]]);
+    const warning = getRedFlagWarning(language);
+    setSelectedSymptom(null);
+    setRedFlagWarning(warning);
+    if (triage.hasRedFlag) {
+      // Keep the shared detector on the path so SOS uses the same triage layer as analysis screens.
+      Alert.alert(warning.title, warning.message, [{ text: warning.actionLabel }]);
+    }
+  };
 
   const selectedSymptomConfig = selectedSymptom ? RELIEF_SYMPTOMS[selectedSymptom] : null;
   const selectedSymptomLabel = selectedSymptomConfig?.label[language] ?? '';
@@ -144,7 +181,7 @@ export default function ReliefScreen() {
               return (
                 <Pressable
                   key={symptom}
-                  onPress={() => setSelectedSymptom(symptom)}
+                  onPress={() => handleComfortSymptomSelect(symptom)}
                   accessibilityRole="button"
                   accessibilityState={{ selected: isSelected }}
                   style={({ pressed }) => [
@@ -163,6 +200,40 @@ export default function ReliefScreen() {
           </View>
         </View>
 
+        <View style={styles.card}>
+          <Text style={[styles.cardKicker, isRtl && styles.rtlText]}>{copy.safetySymptomsTitle}</Text>
+          <Text style={[styles.cardSubtitle, isRtl && styles.rtlText]}>{copy.safetySymptomsHint}</Text>
+          <View style={styles.buttonGrid}>
+            {RED_FLAG_RELIEF_OPTIONS.map((symptom) => (
+              <Pressable
+                key={symptom.key}
+                onPress={() => handleRedFlagSymptomSelect(symptom)}
+                accessibilityRole="button"
+                style={({ pressed }) => [
+                  styles.redFlagButton,
+                  isRtl && styles.rtlSymptomButton,
+                  pressed && styles.pressed,
+                ]}
+              >
+                <Text style={[styles.redFlagButtonText, isRtl && styles.rtlText]}>{symptom.labels[language]}</Text>
+              </Pressable>
+            ))}
+          </View>
+        </View>
+
+        {redFlagWarning ? (
+          <View style={[styles.safetyCard, isRtl && styles.rtlRow]}>
+            <View style={styles.safetyIcon}>
+              <Ionicons name="medical-outline" size={18} color="#9A3412" />
+            </View>
+            <View style={styles.emergencyCopy}>
+              <Text style={[styles.safetyTitle, isRtl && styles.rtlText]}>{redFlagWarning.title}</Text>
+              <Text style={[styles.safetyText, isRtl && styles.rtlText]}>{redFlagWarning.message}</Text>
+            </View>
+          </View>
+        ) : null}
+
+        {!redFlagWarning ? (
         <View style={styles.tipsCard}>
           <Text style={[styles.cardTitle, isRtl && styles.rtlText]}>
             {selectedSymptom ? `${copy.quickTipsFor} ${selectedSymptomLabel}` : copy.quickTips}
@@ -180,6 +251,7 @@ export default function ReliefScreen() {
             <Text style={[styles.cardSubtitle, isRtl && styles.rtlText]}>{copy.selectHint}</Text>
           )}
         </View>
+        ) : null}
 
         <View style={[styles.emergencyCard, isRtl && styles.rtlRow]}>
           <View style={styles.emergencyIcon}>
@@ -294,6 +366,48 @@ const styles = StyleSheet.create({
   },
   symptomButtonTextSelected: {
     color: '#FFFFFF',
+  },
+  redFlagButton: {
+    backgroundColor: '#FFF7ED',
+    borderColor: '#FDBA74',
+    borderRadius: RADIUS,
+    borderWidth: 1,
+    paddingHorizontal: 13,
+    paddingVertical: 11,
+  },
+  redFlagButtonText: {
+    color: '#9A3412',
+    fontSize: 14,
+    fontWeight: '800',
+  },
+  safetyCard: {
+    alignItems: 'flex-start',
+    backgroundColor: '#FFF7ED',
+    borderColor: '#FDBA74',
+    borderRadius: RADIUS,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: 12,
+    padding: 18,
+  },
+  safetyIcon: {
+    alignItems: 'center',
+    backgroundColor: '#FED7AA',
+    borderRadius: RADIUS,
+    height: 40,
+    justifyContent: 'center',
+    width: 40,
+  },
+  safetyTitle: {
+    color: '#7C2D12',
+    fontSize: 17,
+    fontWeight: '800',
+  },
+  safetyText: {
+    color: '#7C2D12',
+    fontSize: 14,
+    lineHeight: 21,
+    marginTop: 5,
   },
   tipRow: {
     alignItems: 'center',

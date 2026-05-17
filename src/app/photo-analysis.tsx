@@ -65,6 +65,7 @@ import {
   getUserProfileSettings,
   type MedicalCondition,
 } from '../../lib/user-profile-settings';
+import { detectRedFlagSymptoms, getRedFlagWarning, type RedFlagWarningCopy } from '../../lib/red-flag-triage';
 
 const Colors = ImportedColors ?? {
   background: '#000000',
@@ -912,6 +913,7 @@ export default function PhotoAnalysisScreen() {
   const [todaysSupplements, setTodaysSupplements] = useState<SupplementHistoryItem[]>([]);
   const [triggerMemories, setTriggerMemories] = useState<TriggerFeedbackItem[]>([]);
   const [planBMessage, setPlanBMessage] = useState('');
+  const [redFlagWarning, setRedFlagWarning] = useState<RedFlagWarningCopy | null>(null);
   const [rankUpBadge, setRankUpBadge] = useState('');
   /** Remount results ScrollView after a fresh analysis so the pane scrolls cleanly away from prior inputs. */
   const [resultsScrollKey, setResultsScrollKey] = useState(0);
@@ -1139,6 +1141,7 @@ export default function PhotoAnalysisScreen() {
         setWizardStep(3);
         setAccuracyAnswer(null);
         setCorrectionDraft('');
+        setRedFlagWarning(null);
         const savedUserSymptoms = savedAnalysis.symptoms.filter(
           (symptom) => !promptConditions.includes(symptom as MedicalCondition) && symptom !== 'General Gut Health'
         );
@@ -1233,7 +1236,13 @@ export default function PhotoAnalysisScreen() {
     setToast({ visible: true, message: t.logMealSuccess, type: 'success' });
   };
 
+  const showRedFlagWarning = (warning: RedFlagWarningCopy) => {
+    setRedFlagWarning(warning);
+    Alert.alert(warning.title, warning.message, [{ text: warning.actionLabel }]);
+  };
+
   const toggleSymptom = (symptomKey: SymptomKey) => {
+    setRedFlagWarning(null);
     setSelectedSymptoms((current) =>
       current.includes(symptomKey)
         ? current.filter((item) => item !== symptomKey)
@@ -1247,6 +1256,17 @@ export default function PhotoAnalysisScreen() {
       Alert.alert(t.feelingsRequiredTitle, t.feelingsRequiredMessage);
       return;
     }
+
+    const triage = detectRedFlagSymptoms([mealDescriptionText, ...currentSymptoms]);
+    if (triage.hasRedFlag) {
+      setAnalysis('');
+      setPlanBMessage('');
+      setAccuracyAnswer(null);
+      setCorrectionDraft('');
+      showRedFlagWarning(getRedFlagWarning(language));
+      return;
+    }
+
     void runPhotoAnalysis(lastImageBase64, photoUri, analysisInputSummary);
   };
 
@@ -1255,10 +1275,17 @@ export default function PhotoAnalysisScreen() {
     uri: string,
     feelingsNarrative: string,
   ) => {
+    const triage = detectRedFlagSymptoms([feelingsNarrative, ...currentSymptoms]);
+    if (triage.hasRedFlag) {
+      showRedFlagWarning(getRedFlagWarning(language));
+      return;
+    }
+
     setIsAnalyzing(true);
     setPhotoUri(uri);
     setLastImageBase64(imageBase64);
     setPlanBMessage('');
+    setRedFlagWarning(null);
     setUserFeedback([]);
 
     try {
@@ -1462,6 +1489,17 @@ export default function PhotoAnalysisScreen() {
   const submitChatCorrection = async (rawCorrection: string) => {
     const correction = rawCorrection.trim();
     if (!correction || !analysis || isCorrecting) return;
+
+    const triage = detectRedFlagSymptoms(correction);
+    if (triage.hasRedFlag) {
+      setAnalysis('');
+      setPlanBMessage('');
+      setAccuracyAnswer(null);
+      setCorrectionDraft('');
+      showRedFlagWarning(getRedFlagWarning(language));
+      return;
+    }
+
     const correctionIsDifferentFood = isDifferentFoodCorrection(correction);
 
     setIsCorrecting(true);
@@ -1530,6 +1568,7 @@ export default function PhotoAnalysisScreen() {
   const applyVoiceTranscript = (destination: 'feelings' | 'correction', text: string) => {
     const trimmed = text.trim();
     if (!trimmed) return;
+    setRedFlagWarning(null);
     if (destination === 'feelings') setMealDescription(trimmed);
     else setCorrectionDraft(trimmed);
   };
@@ -1677,6 +1716,7 @@ export default function PhotoAnalysisScreen() {
     setAnalysis('');
     setPlanBMessage('');
     setRankUpBadge('');
+    setRedFlagWarning(null);
     setMealDescription('');
     setSelectedSymptoms([]);
     setUserFeedback([]);
@@ -1692,6 +1732,7 @@ export default function PhotoAnalysisScreen() {
     setPhotoUri(null);
     setLastImageBase64('');
     setAnalysis('');
+    setRedFlagWarning(null);
     setMealDescription('');
     setSelectedSymptoms([]);
     setWizardStep(1);
@@ -1839,7 +1880,10 @@ export default function PhotoAnalysisScreen() {
 
               <TextInput
                 value={mealDescription}
-                onChangeText={setMealDescription}
+                onChangeText={(nextValue) => {
+                  setMealDescription(nextValue);
+                  if (redFlagWarning) setRedFlagWarning(null);
+                }}
                 placeholder={t.howYouFeelPlaceholder}
                 placeholderTextColor={Colors.textTertiary}
                 multiline
@@ -1850,6 +1894,16 @@ export default function PhotoAnalysisScreen() {
                   isRtlLanguage && styles.rtlText,
                 ]}
               />
+
+              {redFlagWarning ? (
+                <View style={[styles.safetyCard, isRtlLanguage && styles.rtlRow]}>
+                  <Ionicons name="medical-outline" size={20} color="#FDBA74" />
+                  <View style={styles.safetyCopy}>
+                    <Text style={[styles.safetyTitle, isRtlLanguage && styles.rtlText]}>{redFlagWarning.title}</Text>
+                    <Text style={[styles.safetyText, isRtlLanguage && styles.rtlText]}>{redFlagWarning.message}</Text>
+                  </View>
+                </View>
+              ) : null}
 
               <Pressable
                 onPress={handleGenerateAnalysis}
@@ -2051,6 +2105,16 @@ export default function PhotoAnalysisScreen() {
                   </Text>
                 </View>
 
+                {redFlagWarning ? (
+                  <View style={[styles.safetyCard, isRtlLanguage && styles.rtlRow]}>
+                    <Ionicons name="medical-outline" size={20} color="#FDBA74" />
+                    <View style={styles.safetyCopy}>
+                      <Text style={[styles.safetyTitle, isRtlLanguage && styles.rtlText]}>{redFlagWarning.title}</Text>
+                      <Text style={[styles.safetyText, isRtlLanguage && styles.rtlText]}>{redFlagWarning.message}</Text>
+                    </View>
+                  </View>
+                ) : null}
+
                 {(isAnalyzing || isCorrecting) && analysis ? (
                   <View style={styles.scanNotice}>
                     <ActivityIndicator size="large" color={Colors.primary} />
@@ -2215,7 +2279,10 @@ export default function PhotoAnalysisScreen() {
                         <View style={[styles.correctionInputRow, isRtlLanguage && styles.rtlRow]}>
                           <TextInput
                             value={correctionDraft}
-                            onChangeText={setCorrectionDraft}
+                            onChangeText={(nextValue) => {
+                              setCorrectionDraft(nextValue);
+                              if (redFlagWarning) setRedFlagWarning(null);
+                            }}
                             placeholder={t.correctionPlaceholder}
                             placeholderTextColor={Colors.textTertiary}
                             multiline
@@ -2285,6 +2352,16 @@ export default function PhotoAnalysisScreen() {
                             <Text style={styles.applyCorrectionButtonText}>{t.applyCorrection}</Text>
                           )}
                         </Pressable>
+                      </View>
+                    ) : null}
+
+                    {redFlagWarning ? (
+                      <View style={[styles.safetyCard, isRtlLanguage && styles.rtlRow]}>
+                        <Ionicons name="medical-outline" size={20} color="#FDBA74" />
+                        <View style={styles.safetyCopy}>
+                          <Text style={[styles.safetyTitle, isRtlLanguage && styles.rtlText]}>{redFlagWarning.title}</Text>
+                          <Text style={[styles.safetyText, isRtlLanguage && styles.rtlText]}>{redFlagWarning.message}</Text>
+                        </View>
                       </View>
                     ) : null}
                   </View>
@@ -2455,6 +2532,30 @@ const styles = createStyles({
   symptomChipSelected: {
     backgroundColor: '#2DCE89',
     borderColor: '#68F3B3',
+  },
+  safetyCard: {
+    alignItems: 'flex-start',
+    backgroundColor: '#1B1205',
+    borderColor: '#FDBA74',
+    borderRadius: BorderRadius.lg,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: Spacing.sm,
+    padding: Spacing.md,
+  },
+  safetyCopy: { flex: 1, minWidth: 0 },
+  safetyTitle: {
+    color: '#FED7AA',
+    fontFamily: FontFamily.sansBold,
+    fontSize: FontSize.sm,
+    lineHeight: 20,
+  },
+  safetyText: {
+    color: '#FFE7C2',
+    fontFamily: FontFamily.sansMedium,
+    fontSize: FontSize.sm,
+    lineHeight: 20,
+    marginTop: 4,
   },
   symptomChipText: {
     color: '#D8D8D8',
