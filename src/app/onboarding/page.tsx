@@ -141,15 +141,15 @@ const ONBOARDING_COPY: Record<AppLanguage, OnboardingCopy> = {
   },
   de: {
     selectorTitle: 'Sprache wählen',
-    selectorHelper: 'English, Deutsch und فارسی aktualisieren dieses Onboarding sofort.',
+    selectorHelper: 'Wähle die Sprache für die Einführung. Die Texte aktualisieren sich sofort.',
     questionCount: (step, total) => `Frage ${step} von ${total}`,
-    summaryHeader: 'Deine persönliche Zusammenfassung',
-    summaryTitle: 'Dein GutWell-Startplan',
+    summaryHeader: 'Deine persönliche Übersicht',
+    summaryTitle: 'Dein GutWell-Start',
     mainGoal: 'Hauptziel',
-    focusAreas: 'Fokusbereiche',
-    habits: 'Erste Gewohnheiten',
+    focusAreas: 'Schwerpunkte',
+    habits: 'Erste Empfehlungen',
     saving: 'Profil wird gespeichert...',
-    startTracking: 'Tracking starten',
+    startTracking: 'Loslegen',
     back: 'Zurück',
     demoMode: 'Demo-Modus – Daten werden lokal gespeichert',
     signInRequired: 'Bitte melde dich an, bevor du dein Profil speicherst.',
@@ -167,15 +167,15 @@ const ONBOARDING_COPY: Record<AppLanguage, OnboardingCopy> = {
         { value: 'too_loose', label: 'Zu weich' },
         { value: 'varies', label: 'Wechselt' },
       ] },
-      { id: 'symptoms', title: 'Welches Symptom tritt bei dir am häufigsten auf?', helper: 'Wähle das, was du am meisten bemerkst.', options: [
-        { value: 'bloating', label: 'Blähbauch' },
-        { value: 'gas', label: 'Gas' },
+      { id: 'symptoms', title: 'Welches Symptom tritt bei dir am häufigsten auf?', helper: 'Wähle das Symptom, das du am häufigsten bemerkst.', options: [
+        { value: 'bloating', label: 'Blähungen' },
+        { value: 'gas', label: 'Völlegefühl/Gase' },
         { value: 'constipation', label: 'Verstopfung' },
         { value: 'diarrhea', label: 'Durchfall' },
         { value: 'pain', label: 'Schmerzen' },
         { value: 'none', label: 'Keine' },
       ] },
-      { id: 'diet', title: 'Wie würdest du deine aktuelle Ernährung beschreiben?', helper: 'Ohne Bewertung. Das hilft beim Personalisieren.', options: [
+      { id: 'diet', title: 'Wie würdest du deine aktuelle Ernährung beschreiben?', helper: 'Ohne Bewertung. So wird dein erster Plan passender.', options: [
         { value: 'very_healthy', label: 'Sehr gesund' },
         { value: 'mostly_balanced', label: 'Meist ausgewogen' },
         { value: 'inconsistent', label: 'Unregelmäßig' },
@@ -193,19 +193,19 @@ const ONBOARDING_COPY: Record<AppLanguage, OnboardingCopy> = {
         { value: 'moderately', label: 'Mäßig' },
         { value: 'strongly', label: 'Stark' },
       ] },
-      { id: 'sleep', title: 'Wie würdest du deine Schlafqualität bewerten?', helper: 'Schlaf hilft deinem Darm, sich zu regulieren.', options: [
+      { id: 'sleep', title: 'Wie würdest du deine Schlafqualität bewerten?', helper: 'Schlaf unterstützt Erholung und Rhythmus deines Darms.', options: [
         { value: 'excellent', label: 'Ausgezeichnet' },
         { value: 'good', label: 'Gut' },
         { value: 'fair', label: 'Okay' },
         { value: 'poor', label: 'Schlecht' },
       ] },
-      { id: 'triggers', title: 'Hast du Trigger-Lebensmittel erkannt?', helper: 'Das kannst du später mit Mahlzeiten-Logs verfeinern.', options: [
+      { id: 'triggers', title: 'Hast du bereits Auslöser beim Essen erkannt?', helper: 'Das lässt sich später mit deinen Mahlzeiten weiter verfeinern.', options: [
         { value: 'yes_clearly', label: 'Ja, eindeutig' },
         { value: 'sometimes', label: 'Manchmal' },
         { value: 'rarely', label: 'Selten' },
         { value: 'dont_know', label: 'Weiß ich nicht' },
       ] },
-      { id: 'goal', title: 'Was ist gerade dein wichtigstes Ziel?', helper: 'Dein erster GutWell-Plan beginnt hier.', options: [
+      { id: 'goal', title: 'Was ist gerade dein wichtigstes Ziel?', helper: 'Dein erster GutWell-Plan baut darauf auf.', options: [
         { value: 'reduce_bloating', label: 'Blähungen reduzieren' },
         { value: 'improve_regularity', label: 'Regelmäßigkeit verbessern' },
         { value: 'improve_consistency', label: 'Konsistenz verbessern' },
@@ -215,52 +215,52 @@ const ONBOARDING_COPY: Record<AppLanguage, OnboardingCopy> = {
     ],
     focusLabels: {
       mindfulEating: 'Achtsames Essen',
-      hydration: 'Hydration',
+      hydration: 'Flüssigkeit',
       fiberBalance: 'Ballaststoff-Balance',
-      foodPatternTracking: 'Essensmuster tracken',
+      foodPatternTracking: 'Essensmuster beobachten',
       dailyConsistency: 'Tägliche Konstanz',
-      stressSupport: 'Stress-Unterstützung',
+      stressSupport: 'Stress gezielt entlasten',
       sleepRoutine: 'Schlafroutine',
       fiberQuality: 'Ballaststoffqualität',
-      triggerDiscovery: 'Trigger entdecken',
+      triggerDiscovery: 'Auslöser erkennen',
     },
     habitLabels: {
-      mealRoutine: 'Starte mit einer einfachen, wiederholbaren Mahlzeitenroutine pro Tag.',
+      mealRoutine: 'Starte jeden Tag mit einer einfachen, gut wiederholbaren Mahlzeitenroutine.',
       slowEating: 'Iss langsamer und pausiere einmal in der Mitte der Mahlzeit.',
       fiberWater: 'Ergänze täglich ein ballaststoffreiches Lebensmittel und ein Glas Wasser.',
       breathing: 'Mach vor einer Mahlzeit eine 5-minütige Atempause.',
-      trackPatterns: 'Tracke Mahlzeiten und Symptome 7 Tage lang, um Muster zu erkennen.',
+      trackPatterns: 'Halte Mahlzeiten und Symptome 7 Tage fest, um Muster zu erkennen.',
     },
   },
   fa: {
-    selectorTitle: 'زبان را انتخاب کنید',
-    selectorHelper: 'English، Deutsch و فارسی متن این شروع برنامه را فوری تغییر می‌دهند.',
+    selectorTitle: 'زبان برنامه را انتخاب کنید',
+    selectorHelper: 'زبان معرفی اولیه را انتخاب کنید؛ متن‌ها بلافاصله به‌روزرسانی می‌شوند.',
     questionCount: (step, total) => `سؤال ${step} از ${total}`,
-    summaryHeader: 'خلاصه شخصی تو',
-    summaryTitle: 'برنامه شروع GutWell تو',
+    summaryHeader: 'خلاصه شخصی شما',
+    summaryTitle: 'شروع برنامه GutWell شما',
     mainGoal: 'هدف اصلی',
-    focusAreas: 'بخش‌های تمرکز',
-    habits: 'عادت‌های پیشنهادی اول',
+    focusAreas: 'محورهای تمرکز',
+    habits: 'پیشنهادهای اولیه',
     saving: 'در حال ذخیره پروفایل...',
-    startTracking: 'شروع پیگیری',
+    startTracking: 'شروع برنامه',
     back: 'بازگشت',
-    demoMode: 'حالت دمو – داده ها فقط محلی ذخیره می شوند',
+    demoMode: 'حالت دمو – داده‌ها فقط به‌صورت محلی ذخیره می‌شوند',
     signInRequired: 'برای ذخیره پروفایل، لطفاً وارد شوید.',
     saveError: 'ذخیره پروفایل انجام نشد. لطفاً دوباره تلاش کنید.',
     questions: [
-      { id: 'bowelFrequency', title: 'چند وقت یک‌بار اجابت مزاج داری؟', helper: 'برای ادامه، یک گزینه را انتخاب کن.', options: [
+      { id: 'bowelFrequency', title: 'چند وقت یک‌بار اجابت مزاج دارید؟', helper: 'برای ادامه، یک گزینه را انتخاب کنید.', options: [
         { value: '2_3_per_day', label: '۲ تا ۳ بار در روز' },
         { value: 'once_per_day', label: 'یک بار در روز' },
         { value: 'every_2_3_days', label: 'هر ۲ تا ۳ روز' },
         { value: 'less_than_3_per_week', label: 'کمتر از ۳ بار در هفته' },
       ] },
-      { id: 'stoolConsistency', title: 'قوام مدفوعت را چطور توصیف می‌کنی؟', helper: 'گزینه‌ای را بزن که به حالت معمولت نزدیک‌تر است.', options: [
+      { id: 'stoolConsistency', title: 'قوام مدفوع خود را چطور توصیف می‌کنید؟', helper: 'گزینه‌ای را انتخاب کنید که به الگوی معمول شما نزدیک‌تر است.', options: [
         { value: 'too_hard', label: 'خیلی سفت' },
         { value: 'normal', label: 'طبیعی' },
         { value: 'too_loose', label: 'خیلی شل' },
         { value: 'varies', label: 'متغیر' },
       ] },
-      { id: 'symptoms', title: 'کدام نشانه بیشتر برایت پیش می‌آید؟', helper: 'چیزی را انتخاب کن که بیشتر متوجهش می‌شوی.', options: [
+      { id: 'symptoms', title: 'کدام علامت بیشتر برای شما پیش می‌آید؟', helper: 'موردی را انتخاب کنید که بیشتر متوجه آن می‌شوید.', options: [
         { value: 'bloating', label: 'نفخ' },
         { value: 'gas', label: 'گاز' },
         { value: 'constipation', label: 'یبوست' },
@@ -268,37 +268,37 @@ const ONBOARDING_COPY: Record<AppLanguage, OnboardingCopy> = {
         { value: 'pain', label: 'درد' },
         { value: 'none', label: 'هیچ‌کدام' },
       ] },
-      { id: 'diet', title: 'رژیم غذایی فعلی‌ات را چطور توصیف می‌کنی؟', helper: 'بدون قضاوت. این برای شخصی‌سازی برنامه کمک می‌کند.', options: [
+      { id: 'diet', title: 'رژیم غذایی فعلی خود را چطور توصیف می‌کنید؟', helper: 'بدون قضاوت؛ این پاسخ به شخصی‌سازی برنامه کمک می‌کند.', options: [
         { value: 'very_healthy', label: 'خیلی سالم' },
         { value: 'mostly_balanced', label: 'اغلب متعادل' },
         { value: 'inconsistent', label: 'نامنظم' },
-        { value: 'processed', label: 'فرآوری‌شده' },
+        { value: 'processed', label: 'غذاهای فرآوری‌شده' },
       ] },
-      { id: 'fiber', title: 'مصرف فیبرت را چطور ارزیابی می‌کنی؟', helper: 'به میوه، سبزی، حبوبات، غلات، مغزها و دانه‌ها فکر کن.', options: [
+      { id: 'fiber', title: 'مصرف فیبر خود را چطور ارزیابی می‌کنید؟', helper: 'به میوه، سبزیجات، حبوبات، غلات، مغزها و دانه‌ها فکر کنید.', options: [
         { value: 'high', label: 'زیاد' },
         { value: 'moderate', label: 'متوسط' },
         { value: 'low', label: 'کم' },
         { value: 'dont_know', label: 'نمی‌دانم' },
       ] },
-      { id: 'stress', title: 'استرس چقدر روی هضمت اثر می‌گذارد؟', helper: 'استرس می‌تواند ریتم روده را سریع تغییر دهد.', options: [
+      { id: 'stress', title: 'استرس چقدر روی هضم شما اثر می‌گذارد؟', helper: 'استرس می‌تواند ریتم گوارش را سریع تغییر دهد.', options: [
         { value: 'not_at_all', label: 'اصلاً' },
         { value: 'a_little', label: 'کمی' },
         { value: 'moderately', label: 'متوسط' },
         { value: 'strongly', label: 'زیاد' },
       ] },
-      { id: 'sleep', title: 'کیفیت خوابت را چطور ارزیابی می‌کنی؟', helper: 'خواب به روده کمک می‌کند تنظیم و بازسازی شود.', options: [
+      { id: 'sleep', title: 'کیفیت خواب خود را چطور ارزیابی می‌کنید؟', helper: 'خواب به تنظیم و بازسازی دستگاه گوارش کمک می‌کند.', options: [
         { value: 'excellent', label: 'عالی' },
         { value: 'good', label: 'خوب' },
         { value: 'fair', label: 'قابل قبول' },
         { value: 'poor', label: 'ضعیف' },
       ] },
-      { id: 'triggers', title: 'آیا غذاهای محرک خودت را شناخته‌ای؟', helper: 'بعداً با ثبت وعده‌ها دقیق‌ترش می‌کنی.', options: [
+      { id: 'triggers', title: 'آیا غذاهای محرک خود را شناسایی کرده‌اید؟', helper: 'بعداً با ثبت وعده‌ها می‌توانید آن را دقیق‌تر کنید.', options: [
         { value: 'yes_clearly', label: 'بله، کاملاً' },
         { value: 'sometimes', label: 'گاهی' },
         { value: 'rarely', label: 'به ندرت' },
         { value: 'dont_know', label: 'نمی‌دانم' },
       ] },
-      { id: 'goal', title: 'هدف اصلی‌ات الان چیست؟', helper: 'اولین برنامه GutWell تو از اینجا شروع می‌شود.', options: [
+      { id: 'goal', title: 'هدف اصلی شما در حال حاضر چیست؟', helper: 'اولین برنامه GutWell شما از همین پاسخ شروع می‌شود.', options: [
         { value: 'reduce_bloating', label: 'کاهش نفخ' },
         { value: 'improve_regularity', label: 'بهبود نظم دفع' },
         { value: 'improve_consistency', label: 'بهبود قوام' },
@@ -308,21 +308,21 @@ const ONBOARDING_COPY: Record<AppLanguage, OnboardingCopy> = {
     ],
     focusLabels: {
       mindfulEating: 'آگاهانه غذا خوردن',
-      hydration: 'آبرسانی',
+      hydration: 'دریافت مایعات',
       fiberBalance: 'تعادل فیبر',
       foodPatternTracking: 'پیگیری الگوهای غذایی',
-      dailyConsistency: 'پیوستگی روزانه',
-      stressSupport: 'حمایت در برابر استرس',
-      sleepRoutine: 'روتین خواب',
+      dailyConsistency: 'ثبات روزانه',
+      stressSupport: 'کاهش فشار استرس',
+      sleepRoutine: 'برنامه خواب',
       fiberQuality: 'کیفیت فیبر',
       triggerDiscovery: 'شناخت محرک‌ها',
     },
     habitLabels: {
-      mealRoutine: 'هر روز با یک روتین غذایی ساده و قابل تکرار شروع کن.',
-      slowEating: 'آرام‌تر غذا بخور و وسط وعده کمی مکث کن.',
-      fiberWater: 'روزانه یک غذای پرفیبر و یک لیوان آب بیشتر اضافه کن.',
-      breathing: 'قبل از یک وعده، ۵ دقیقه تنفس آرام انجام بده.',
-      trackPatterns: '۷ روز غذا و نشانه‌ها را ثبت کن تا الگوها مشخص شوند.',
+      mealRoutine: 'هر روز با یک روتین غذایی ساده و قابل تکرار شروع کنید.',
+      slowEating: 'آرام‌تر غذا بخورید و وسط وعده کمی مکث کنید.',
+      fiberWater: 'هر روز یک غذای پرفیبر و یک لیوان آب بیشتر اضافه کنید.',
+      breathing: 'قبل از یک وعده، ۵ دقیقه تنفس آرام انجام دهید.',
+      trackPatterns: '۷ روز غذا و علائم را ثبت کنید تا الگوها مشخص شوند.',
     },
   },
 };
