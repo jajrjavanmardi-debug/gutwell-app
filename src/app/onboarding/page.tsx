@@ -16,6 +16,7 @@ import { saveGuestOnboarding } from '../../../lib/guest-mode';
 import { supabase } from '../../../lib/supabase';
 import { saveUserProfileSettings } from '../../../lib/user-profile-settings';
 import { detectRedFlagSymptoms, getRedFlagWarning, type RedFlagWarningCopy } from '../../../lib/red-flag-triage';
+import { acceptHealthDataConsent, getHealthDataConsentStatus } from '../../../lib/health-data-consent';
 
 type Question = {
   id: string;
@@ -39,6 +40,14 @@ type OnboardingCopy = {
   demoMode: string;
   signInRequired: string;
   saveError: string;
+  consentTitle: string;
+  consentIntro: string;
+  consentItems: string[];
+  consentAccept: string;
+  consentSaving: string;
+  consentChecking: string;
+  consentError: string;
+  consentEmergencyAction: string;
   questions: Question[];
   focusLabels: Record<string, string>;
   habitLabels: Record<string, string>;
@@ -62,6 +71,20 @@ const ONBOARDING_COPY: Record<AppLanguage, OnboardingCopy> = {
     demoMode: 'Demo Mode – data stored locally',
     signInRequired: 'Please sign in before saving your profile.',
     saveError: 'Could not save your profile. Please try again.',
+    consentTitle: 'Health-data consent',
+    consentIntro: 'Before onboarding, please confirm how NutriFlow uses health-related information.',
+    consentItems: [
+      'NutriFlow processes wellness information such as symptoms, food logs, gut-health notes, profile choices, and meal analysis history.',
+      'NutriFlow is educational and wellness-oriented. It is not medical advice, diagnosis, or treatment.',
+      'Guest mode stores this data locally on this device or browser.',
+      'Signed-in accounts may store profile and history data in Supabase so your account can sync across devices.',
+      'Emergency guidance remains available even if you do not consent.',
+    ],
+    consentAccept: 'I understand and consent',
+    consentSaving: 'Saving consent...',
+    consentChecking: 'Checking consent...',
+    consentError: 'Could not save consent. Please try again.',
+    consentEmergencyAction: 'View urgent symptom guidance',
     questions: [
       { id: 'bowelFrequency', title: 'How often do you have a bowel movement?', helper: 'Tap one option to continue.', options: [
         { value: '2_3_per_day', label: '2–3 per day' },
@@ -156,6 +179,20 @@ const ONBOARDING_COPY: Record<AppLanguage, OnboardingCopy> = {
     demoMode: 'Demo-Modus – Daten werden lokal gespeichert',
     signInRequired: 'Bitte melde dich an, bevor du dein Profil speicherst.',
     saveError: 'Dein Profil konnte nicht gespeichert werden. Bitte versuche es erneut.',
+    consentTitle: 'Einwilligung zu Gesundheitsdaten',
+    consentIntro: 'Bitte bestätige vor dem Onboarding, wie NutriFlow gesundheitsbezogene Informationen nutzt.',
+    consentItems: [
+      'NutriFlow verarbeitet Wellness-Informationen wie Symptome, Essensprotokolle, Notizen zur Darmgesundheit, Profilangaben und Mahlzeitenverlauf.',
+      'NutriFlow ist für Bildung und Wohlbefinden gedacht. Es ist keine medizinische Beratung, Diagnose oder Behandlung.',
+      'Im Gastmodus werden diese Daten lokal auf diesem Gerät oder in diesem Browser gespeichert.',
+      'Bei angemeldeten Konten können Profil- und Verlaufsdaten in Supabase gespeichert werden, damit dein Konto geräteübergreifend synchronisiert wird.',
+      'Notfallhinweise bleiben verfügbar, auch wenn du nicht einwilligst.',
+    ],
+    consentAccept: 'Ich verstehe und stimme zu',
+    consentSaving: 'Einwilligung wird gespeichert...',
+    consentChecking: 'Einwilligung wird geprüft...',
+    consentError: 'Einwilligung konnte nicht gespeichert werden. Bitte versuche es erneut.',
+    consentEmergencyAction: 'Dringende Symptomhinweise ansehen',
     questions: [
       { id: 'bowelFrequency', title: 'Wie oft hast du Stuhlgang?', helper: 'Tippe eine Option an, um fortzufahren.', options: [
         { value: '2_3_per_day', label: '2–3 Mal pro Tag' },
@@ -250,6 +287,20 @@ const ONBOARDING_COPY: Record<AppLanguage, OnboardingCopy> = {
     demoMode: 'حالت دمو – داده‌ها فقط به‌صورت محلی ذخیره می‌شوند',
     signInRequired: 'برای ذخیره پروفایل، لطفاً وارد شوید.',
     saveError: 'ذخیره پروفایل انجام نشد. لطفاً دوباره تلاش کنید.',
+    consentTitle: 'رضایت برای داده‌های سلامت',
+    consentIntro: 'پیش از شروع معرفی اولیه، لطفاً تأیید کنید NutriFlow چگونه اطلاعات مرتبط با سلامت را استفاده می‌کند.',
+    consentItems: [
+      'NutriFlow اطلاعات تندرستی مانند علائم، سوابق غذا، یادداشت‌های گوارشی، انتخاب‌های پروفایل و تاریخچه تحلیل غذا را پردازش می‌کند.',
+      'NutriFlow آموزشی و مبتنی بر تندرستی است؛ توصیه پزشکی، تشخیص یا درمان نیست.',
+      'در حالت مهمان، داده‌ها فقط روی همین دستگاه یا مرورگر ذخیره می‌شوند.',
+      'برای حساب‌های واردشده، داده‌های پروفایل و سوابق ممکن است برای همگام‌سازی حساب در Supabase ذخیره شوند.',
+      'راهنمای موارد فوری حتی بدون رضایت نیز در دسترس می‌ماند.',
+    ],
+    consentAccept: 'می‌فهمم و رضایت می‌دهم',
+    consentSaving: 'در حال ذخیره رضایت...',
+    consentChecking: 'در حال بررسی رضایت...',
+    consentError: 'ذخیره رضایت انجام نشد. لطفاً دوباره تلاش کنید.',
+    consentEmergencyAction: 'مشاهده راهنمای علائم فوری',
     questions: [
       { id: 'bowelFrequency', title: 'چند وقت یک‌بار اجابت مزاج دارید؟', helper: 'برای ادامه، یک گزینه را انتخاب کنید.', options: [
         { value: '2_3_per_day', label: '۲ تا ۳ بار در روز' },
@@ -378,6 +429,10 @@ export default function OnboardingPage() {
   const [step, setStep] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [redFlagWarning, setRedFlagWarning] = useState<RedFlagWarningCopy | null>(null);
+  const [hasHealthDataConsent, setHasHealthDataConsent] = useState(false);
+  const [isCheckingConsent, setIsCheckingConsent] = useState(true);
+  const [isSavingConsent, setIsSavingConsent] = useState(false);
+  const [consentError, setConsentError] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState('');
 
@@ -396,6 +451,33 @@ export default function OnboardingPage() {
       .catch(console.warn);
   }, []);
 
+  useEffect(() => {
+    if (authLoading) return;
+
+    let isActive = true;
+    setIsCheckingConsent(true);
+    setConsentError('');
+
+    getHealthDataConsentStatus({
+      userId: user?.id,
+      storeRemotely: Boolean(user?.id && !isPublicWebGuestFlow),
+    })
+      .then((status) => {
+        if (isActive) setHasHealthDataConsent(status.accepted);
+      })
+      .catch((error) => {
+        console.warn('Health-data consent load failed:', error);
+        if (isActive) setHasHealthDataConsent(false);
+      })
+      .finally(() => {
+        if (isActive) setIsCheckingConsent(false);
+      });
+
+    return () => {
+      isActive = false;
+    };
+  }, [authLoading, isPublicWebGuestFlow, user?.id]);
+
   const setLanguage = (nextLanguage: AppLanguage) => {
     setLanguageState(nextLanguage);
     AsyncStorage.setItem(APP_LANGUAGE_STORAGE_KEY, nextLanguage).catch(console.warn);
@@ -410,6 +492,25 @@ export default function OnboardingPage() {
   const showRedFlagWarning = (warning: RedFlagWarningCopy) => {
     setRedFlagWarning(warning);
     Alert.alert(warning.title, warning.message, [{ text: warning.actionLabel }]);
+  };
+
+  const handleAcceptHealthDataConsent = async () => {
+    if (isSavingConsent) return;
+
+    setIsSavingConsent(true);
+    setConsentError('');
+    try {
+      await acceptHealthDataConsent({
+        userId: user?.id,
+        storeRemotely: Boolean(user?.id && !isPublicWebGuestFlow),
+      });
+      setHasHealthDataConsent(true);
+    } catch (error) {
+      console.error('Failed to save health-data consent:', error);
+      setConsentError(copy.consentError);
+    } finally {
+      setIsSavingConsent(false);
+    }
   };
 
   const handleSelect = (value: string) => {
@@ -428,6 +529,11 @@ export default function OnboardingPage() {
 
   const handleStartTracking = async () => {
     if (isSaving || authLoading) return;
+
+    if (!hasHealthDataConsent) {
+      setConsentError(copy.consentError);
+      return;
+    }
 
     const authUser = user;
     if (!authUser?.id && !isPublicWebGuestFlow) {
@@ -553,6 +659,45 @@ export default function OnboardingPage() {
           </View>
         ) : null}
 
+        {isCheckingConsent || !hasHealthDataConsent ? (
+          <View style={styles.consentCard}>
+            <Text style={[styles.consentEyebrow, isRtl && styles.rtlText]}>NutriFlow</Text>
+            <Text style={[styles.consentTitle, isRtl && styles.rtlText]}>
+              {isCheckingConsent ? copy.consentChecking : copy.consentTitle}
+            </Text>
+            {!isCheckingConsent ? (
+              <>
+                <Text style={[styles.consentIntro, isRtl && styles.rtlText]}>{copy.consentIntro}</Text>
+                <View style={styles.consentList}>
+                  {copy.consentItems.map((item) => (
+                    <View key={item} style={[styles.consentItem, isRtl && styles.rtlRow]}>
+                      <Text style={[styles.consentBullet, isRtl && styles.rtlText]}>•</Text>
+                      <Text style={[styles.consentItemText, isRtl && styles.rtlText]}>{item}</Text>
+                    </View>
+                  ))}
+                </View>
+                {consentError ? (
+                  <Text style={[styles.errorText, isRtl && styles.rtlText]}>{consentError}</Text>
+                ) : null}
+                <Pressable
+                  onPress={handleAcceptHealthDataConsent}
+                  disabled={isSavingConsent}
+                  style={[styles.startButton, isSavingConsent && styles.startButtonDisabled]}
+                >
+                  <Text style={styles.startButtonText}>
+                    {isSavingConsent ? copy.consentSaving : copy.consentAccept}
+                  </Text>
+                </Pressable>
+                <Pressable onPress={() => router.push('/relief')} style={styles.emergencyButton}>
+                  <Text style={[styles.emergencyButtonText, isRtl && styles.rtlText]}>
+                    {copy.consentEmergencyAction}
+                  </Text>
+                </Pressable>
+              </>
+            ) : null}
+          </View>
+        ) : (
+          <>
         <View style={styles.progressWrap}>
           <View style={[styles.progressTrack, isRtl && styles.progressTrackRtl]}>
             <View style={[styles.progressFill, { width: `${progressPercent}%` }]} />
@@ -627,6 +772,8 @@ export default function OnboardingPage() {
             <Text style={styles.backButtonText}>{copy.back}</Text>
           </Pressable>
         ) : null}
+          </>
+        )}
       </ScrollView>
     </SafeAreaView>
   );
@@ -672,6 +819,16 @@ const styles = StyleSheet.create({
   progressFill: { height: '100%', backgroundColor: COLORS.accent },
   progressText: { color: COLORS.textSecondary, fontSize: 15, fontWeight: '500' },
   card: { backgroundColor: COLORS.card, borderRadius: 20, borderWidth: 1, borderColor: COLORS.border, padding: 20, gap: 10 },
+  consentCard: { backgroundColor: COLORS.card, borderRadius: 20, borderWidth: 1, borderColor: COLORS.border, padding: 20, gap: 12 },
+  consentEyebrow: { color: COLORS.accent, fontSize: 13, fontWeight: '800', letterSpacing: 0 },
+  consentTitle: { color: COLORS.textPrimary, fontSize: 26, lineHeight: 32, fontWeight: '800' },
+  consentIntro: { color: COLORS.textSecondary, fontSize: 15, lineHeight: 22 },
+  consentList: { gap: 10, marginTop: 2 },
+  consentItem: { alignItems: 'flex-start', flexDirection: 'row', gap: 8 },
+  consentBullet: { color: COLORS.accent, fontSize: 18, fontWeight: '800', lineHeight: 22 },
+  consentItemText: { color: COLORS.textSecondary, flex: 1, fontSize: 14, lineHeight: 21 },
+  emergencyButton: { alignItems: 'center', borderColor: COLORS.border, borderRadius: 16, borderWidth: 1, paddingVertical: 12 },
+  emergencyButtonText: { color: COLORS.textPrimary, fontSize: 15, fontWeight: '700' },
   safetyCard: {
     alignItems: 'flex-start',
     backgroundColor: '#FFF7ED',
