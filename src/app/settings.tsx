@@ -2,7 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { ActivityIndicator, Platform, Pressable, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Platform, Pressable, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import {
@@ -18,6 +18,7 @@ import {
   parseStoredLanguage,
   type AppLanguage,
 } from '../../lib/app-language';
+import { deleteGuestData, deleteSignedInUserData } from '../../lib/delete-user-data';
 import { useAuth } from '../../contexts/AuthContext';
 
 const MINT = '#DFF5EA';
@@ -72,6 +73,19 @@ const SETTINGS_COPY = {
     shareFeedbackOpened: 'Share sheet opened',
     shareFeedbackCopied: 'Feedback invite copied',
     shareFeedbackFailed: 'Could not open sharing right now',
+    deleteDataTitle: 'Delete my data',
+    deleteDataHint: 'Remove local demo data and clear app-owned profile, history, symptom, score, reminder, and saved meal records where supported.',
+    deleteDataButton: 'Delete my data',
+    deleteDataConfirmTitle: 'Delete my data?',
+    deleteDataConfirmMessage: 'This permanently removes NutriFlow app data for this profile. This action cannot be undone.',
+    deleteDataCancel: 'Keep data',
+    deleteDataConfirm: 'Delete data',
+    deletingData: 'Deleting data...',
+    deleteDataGuestDone: 'Guest data deleted',
+    deleteDataDone: 'Your NutriFlow data was deleted',
+    deleteDataPartial: 'Some remote records could not be deleted. Please try again.',
+    deleteDataFailed: 'Could not delete data right now',
+    deleteDataNoSession: 'Please sign in again before deleting synced data.',
     shareMessage: [
       'NutriFlow',
       '',
@@ -124,6 +138,19 @@ const SETTINGS_COPY = {
     shareFeedbackOpened: 'Teilen geöffnet',
     shareFeedbackCopied: 'Feedback-Einladung kopiert',
     shareFeedbackFailed: 'Teilen kann gerade nicht geöffnet werden',
+    deleteDataTitle: 'Meine Daten löschen',
+    deleteDataHint: 'Entfernt lokale Demo-Daten und löscht app-eigene Profil-, Verlaufs-, Symptom-, Score-, Erinnerungs- und gespeicherte Mahlzeitendaten, soweit unterstützt.',
+    deleteDataButton: 'Meine Daten löschen',
+    deleteDataConfirmTitle: 'Daten wirklich löschen?',
+    deleteDataConfirmMessage: 'Dadurch werden deine NutriFlow-App-Daten für dieses Profil dauerhaft entfernt. Diese Aktion kann nicht rückgängig gemacht werden.',
+    deleteDataCancel: 'Daten behalten',
+    deleteDataConfirm: 'Daten löschen',
+    deletingData: 'Daten werden gelöscht...',
+    deleteDataGuestDone: 'Gastdaten gelöscht',
+    deleteDataDone: 'Deine NutriFlow-Daten wurden gelöscht',
+    deleteDataPartial: 'Einige entfernte Datensätze konnten nicht gelöscht werden. Bitte versuche es erneut.',
+    deleteDataFailed: 'Daten können gerade nicht gelöscht werden',
+    deleteDataNoSession: 'Bitte melde dich erneut an, bevor du synchronisierte Daten löschst.',
     shareMessage: [
       'NutriFlow',
       '',
@@ -176,6 +203,19 @@ const SETTINGS_COPY = {
     shareFeedbackOpened: 'صفحه اشتراک‌گذاری باز شد',
     shareFeedbackCopied: 'دعوت بازخورد کپی شد',
     shareFeedbackFailed: 'اکنون امکان باز کردن اشتراک‌گذاری وجود ندارد',
+    deleteDataTitle: 'حذف داده‌های من',
+    deleteDataHint: 'داده‌های دمو و حافظه محلی را پاک می‌کند و داده‌های درون‌برنامه‌ای پروفایل، سوابق، علائم، امتیازها، یادآورها و غذاهای ذخیره‌شده را در صورت پشتیبانی حذف می‌کند.',
+    deleteDataButton: 'حذف داده‌های من',
+    deleteDataConfirmTitle: 'داده‌های شما حذف شود؟',
+    deleteDataConfirmMessage: 'با این کار داده‌های NutriFlow مربوط به این پروفایل برای همیشه حذف می‌شود. این اقدام قابل بازگشت نیست.',
+    deleteDataCancel: 'نگه داشتن داده‌ها',
+    deleteDataConfirm: 'حذف داده‌ها',
+    deletingData: 'در حال حذف داده‌ها...',
+    deleteDataGuestDone: 'داده‌های مهمان حذف شد',
+    deleteDataDone: 'داده‌های NutriFlow شما حذف شد',
+    deleteDataPartial: 'برخی داده‌های راه دور حذف نشدند. لطفاً دوباره تلاش کنید.',
+    deleteDataFailed: 'در حال حاضر امکان حذف داده‌ها وجود ندارد',
+    deleteDataNoSession: 'برای حذف داده‌های همگام‌سازی‌شده، لطفاً دوباره وارد شوید.',
     shareMessage: [
       'NutriFlow',
       '',
@@ -193,11 +233,12 @@ const SETTINGS_COPY = {
 } as const;
 
 export default function SettingsScreen() {
-  const { isGuest, signOut } = useAuth();
+  const { isGuest, signOut, user, refreshProfile } = useAuth();
   const [selectedConditions, setSelectedConditions] = useState<MedicalCondition[]>([]);
   const [selectedLanguage, setSelectedLanguage] = useState<AppLanguage>('en');
   const [isLoadingProfile, setIsLoadingProfile] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [isDeletingData, setIsDeletingData] = useState(false);
   const [saveMessage, setSaveMessage] = useState('');
   const isRtl = isRtlLanguage(selectedLanguage);
   const t = SETTINGS_COPY[selectedLanguage];
@@ -285,6 +326,73 @@ export default function SettingsScreen() {
     } catch (error) {
       console.error('App feedback share failed:', error);
       setSaveMessage(t.shareFeedbackFailed);
+    }
+  };
+
+  const confirmDeleteData = () => {
+    if (Platform.OS === 'web' && typeof window !== 'undefined' && typeof window.confirm === 'function') {
+      return Promise.resolve(window.confirm(`${t.deleteDataConfirmTitle}\n\n${t.deleteDataConfirmMessage}`));
+    }
+
+    return new Promise<boolean>((resolve) => {
+      Alert.alert(
+        t.deleteDataConfirmTitle,
+        t.deleteDataConfirmMessage,
+        [
+          { text: t.deleteDataCancel, style: 'cancel', onPress: () => resolve(false) },
+          { text: t.deleteDataConfirm, style: 'destructive', onPress: () => resolve(true) },
+        ],
+        { cancelable: true, onDismiss: () => resolve(false) }
+      );
+    });
+  };
+
+  const handleDeleteData = async () => {
+    if (isDeletingData) return;
+
+    const confirmed = await confirmDeleteData();
+    if (!confirmed) return;
+
+    setIsDeletingData(true);
+    setSaveMessage('');
+
+    try {
+      if (isGuest) {
+        await deleteGuestData();
+        await signOut().catch((error) => {
+          console.warn('Leaving guest mode after data deletion failed:', error);
+        });
+        await deleteGuestData().catch((error) => {
+          console.warn('Final guest data cleanup failed:', error);
+        });
+        setSaveMessage(t.deleteDataGuestDone);
+        router.replace('/login');
+        return;
+      }
+
+      if (!user?.id) {
+        setSaveMessage(t.deleteDataNoSession);
+        return;
+      }
+
+      const result = await deleteSignedInUserData(user.id);
+      setSelectedConditions([]);
+      await refreshProfile().catch((error) => {
+        console.warn('Profile refresh after data deletion failed:', error);
+      });
+
+      if (result.failures.length > 0) {
+        console.warn('Some user data could not be deleted:', result.failures);
+        setSaveMessage(t.deleteDataPartial);
+        return;
+      }
+
+      setSaveMessage(t.deleteDataDone);
+    } catch (error) {
+      console.error('Data deletion failed:', error);
+      setSaveMessage(t.deleteDataFailed);
+    } finally {
+      setIsDeletingData(false);
     }
   };
 
@@ -474,6 +582,37 @@ export default function SettingsScreen() {
           </Pressable>
         </View>
 
+        <View style={styles.dangerCard}>
+          <View style={[styles.cardHeader, isRtl && styles.rtlRow]}>
+            <View style={styles.dangerIconCircle}>
+              <Ionicons name="trash-outline" size={22} color="#B64A3A" />
+            </View>
+            <View style={styles.cardHeaderCopy}>
+              <Text style={[styles.cardTitle, isRtl && styles.rtlText]}>{t.deleteDataTitle}</Text>
+              <Text style={[styles.cardSubtitle, isRtl && styles.rtlText]}>{t.deleteDataHint}</Text>
+            </View>
+          </View>
+
+          <Text style={[styles.deleteDataWarning, isRtl && styles.rtlText]}>{t.deleteDataConfirmMessage}</Text>
+
+          <Pressable
+            onPress={handleDeleteData}
+            disabled={isDeletingData}
+            accessibilityRole="button"
+            style={({ pressed }) => [
+              styles.deleteDataButton,
+              isRtl && styles.rtlRow,
+              isDeletingData && styles.deleteDataButtonDisabled,
+              pressed && !isDeletingData && styles.pressed,
+            ]}
+          >
+            <Ionicons name="trash-outline" size={18} color="#FFFFFF" />
+            <Text style={[styles.deleteDataButtonText, isRtl && styles.rtlText]}>
+              {isDeletingData ? t.deletingData : t.deleteDataButton}
+            </Text>
+          </Pressable>
+        </View>
+
         <View style={styles.card}>
           <Text style={[styles.cardTitle, isRtl && styles.rtlText]}>{t.aiPersonalization}</Text>
           <Text style={[styles.cardSubtitle, isRtl && styles.rtlText]}>
@@ -586,9 +725,24 @@ const styles = StyleSheet.create({
     gap: 14,
     marginBottom: 18,
   },
+  dangerCard: {
+    backgroundColor: '#FFF9F7',
+    borderColor: '#F0C7BE',
+    borderRadius: CARD_RADIUS,
+    borderWidth: 1,
+    padding: SCREEN_PADDING,
+  },
   iconCircle: {
     alignItems: 'center',
     backgroundColor: MINT,
+    borderRadius: CARD_RADIUS,
+    height: 48,
+    justifyContent: 'center',
+    width: 48,
+  },
+  dangerIconCircle: {
+    alignItems: 'center',
+    backgroundColor: '#F9E5E0',
     borderRadius: CARD_RADIUS,
     height: 48,
     justifyContent: 'center',
@@ -739,6 +893,34 @@ const styles = StyleSheet.create({
   },
   shareFeedbackButtonText: {
     color: SLATE_DARK,
+    flexShrink: 1,
+    fontSize: 15,
+    fontWeight: '900',
+    textAlign: 'center',
+  },
+  deleteDataWarning: {
+    color: '#8F3E32',
+    fontSize: 13,
+    fontWeight: '700',
+    lineHeight: 19,
+    marginBottom: 14,
+  },
+  deleteDataButton: {
+    alignItems: 'center',
+    backgroundColor: '#B64A3A',
+    borderRadius: CARD_RADIUS,
+    flexDirection: 'row',
+    gap: 8,
+    justifyContent: 'center',
+    minHeight: 50,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+  },
+  deleteDataButtonDisabled: {
+    opacity: 0.65,
+  },
+  deleteDataButtonText: {
+    color: '#FFFFFF',
     flexShrink: 1,
     fontSize: 15,
     fontWeight: '900',
