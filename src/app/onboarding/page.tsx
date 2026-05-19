@@ -48,6 +48,8 @@ type OnboardingCopy = {
   consentChecking: string;
   consentError: string;
   consentEmergencyAction: string;
+  privacyPolicy: string;
+  termsDisclaimer: string;
   questions: Question[];
   focusLabels: Record<string, string>;
   habitLabels: Record<string, string>;
@@ -85,6 +87,8 @@ const ONBOARDING_COPY: Record<AppLanguage, OnboardingCopy> = {
     consentChecking: 'Checking consent...',
     consentError: 'Could not save consent. Please try again.',
     consentEmergencyAction: 'View urgent symptom guidance',
+    privacyPolicy: 'Privacy Policy',
+    termsDisclaimer: 'Terms / Disclaimer',
     questions: [
       { id: 'bowelFrequency', title: 'How often do you have a bowel movement?', helper: 'Tap one option to continue.', options: [
         { value: '2_3_per_day', label: '2–3 per day' },
@@ -193,6 +197,8 @@ const ONBOARDING_COPY: Record<AppLanguage, OnboardingCopy> = {
     consentChecking: 'Einwilligung wird geprüft...',
     consentError: 'Einwilligung konnte nicht gespeichert werden. Bitte versuche es erneut.',
     consentEmergencyAction: 'Dringende Symptomhinweise ansehen',
+    privacyPolicy: 'Datenschutzhinweise',
+    termsDisclaimer: 'Nutzungsbedingungen / Disclaimer',
     questions: [
       { id: 'bowelFrequency', title: 'Wie oft hast du Stuhlgang?', helper: 'Tippe eine Option an, um fortzufahren.', options: [
         { value: '2_3_per_day', label: '2–3 Mal pro Tag' },
@@ -301,6 +307,8 @@ const ONBOARDING_COPY: Record<AppLanguage, OnboardingCopy> = {
     consentChecking: 'در حال بررسی رضایت...',
     consentError: 'ذخیره رضایت انجام نشد. لطفاً دوباره تلاش کنید.',
     consentEmergencyAction: 'مشاهده راهنمای علائم فوری',
+    privacyPolicy: 'سیاست حریم خصوصی',
+    termsDisclaimer: 'شرایط / سلب مسئولیت',
     questions: [
       { id: 'bowelFrequency', title: 'چند وقت یک‌بار اجابت مزاج دارید؟', helper: 'برای ادامه، یک گزینه را انتخاب کنید.', options: [
         { value: '2_3_per_day', label: '۲ تا ۳ بار در روز' },
@@ -693,6 +701,15 @@ export default function OnboardingPage() {
                     {copy.consentEmergencyAction}
                   </Text>
                 </Pressable>
+                <View style={[styles.consentLegalLinks, isRtl && styles.rtlRow]}>
+                  <Pressable onPress={() => router.push('/privacy-policy')} accessibilityRole="link" style={styles.consentLegalLink}>
+                    <Text style={[styles.consentLegalLinkText, isRtl && styles.rtlText]}>{copy.privacyPolicy}</Text>
+                  </Pressable>
+                  <Text style={styles.consentLegalSeparator}>·</Text>
+                  <Pressable onPress={() => router.push('/terms-disclaimer')} accessibilityRole="link" style={styles.consentLegalLink}>
+                    <Text style={[styles.consentLegalLinkText, isRtl && styles.rtlText]}>{copy.termsDisclaimer}</Text>
+                  </Pressable>
+                </View>
               </>
             ) : null}
           </View>
@@ -832,6 +849,10 @@ const styles = StyleSheet.create({
   consentItem: { alignItems: 'flex-start', flexDirection: 'row', gap: 8 },
   consentBullet: { color: COLORS.accent, fontSize: 18, fontWeight: '800', lineHeight: 22 },
   consentItemText: { color: COLORS.textSecondary, flex: 1, fontSize: 14, lineHeight: 21 },
+  consentLegalLinks: { alignItems: 'center', flexDirection: 'row', flexWrap: 'wrap', gap: 8, justifyContent: 'center' },
+  consentLegalLink: { paddingVertical: 4 },
+  consentLegalLinkText: { color: '#276E3A', fontSize: 14, fontWeight: '800' },
+  consentLegalSeparator: { color: COLORS.textSecondary, fontSize: 16, fontWeight: '700' },
   emergencyButton: { alignItems: 'center', borderColor: COLORS.border, borderRadius: 16, borderWidth: 1, paddingVertical: 12 },
   emergencyButtonText: { color: COLORS.textPrimary, fontSize: 15, fontWeight: '700' },
   safetyCard: {

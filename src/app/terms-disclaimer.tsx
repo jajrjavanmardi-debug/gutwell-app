@@ -46,7 +46,7 @@ const TERMS_SECTIONS = [
   {
     title: 'Educational and wellness use only',
     body:
-      'NutriFlow helps you reflect on meals, symptoms, and wellness patterns. It is not intended to diagnose, treat, cure, prevent, or monitor a disease or medical condition.',
+      'NutriFlow helps you reflect on meals, symptoms, and wellness patterns. NutriFlow is not intended for emergency use, diagnosis, treatment, cure, or prevention of disease. It is not intended to monitor a disease or medical condition.',
   },
   {
     title: 'Not medical advice, diagnosis, or treatment',
@@ -64,6 +64,11 @@ const TERMS_SECTIONS = [
       'AI-generated meal analysis can be inaccurate, incomplete, or misleading. It may misidentify foods, miss ingredients, misunderstand context, or produce estimates that do not fit your body. Treat scores and recommendations as educational estimates and look for patterns over time.',
   },
   {
+    title: 'Meal photos and image handling',
+    body:
+      'Meal photos are used to generate educational analysis. Image data may be sent to the configured AI provider. NutriFlow may store a local image URI or data URL in guest history and may store an image reference with signed-in meal history in Supabase. NutriFlow does not currently provide a dedicated long-term photo library, and it does not yet guarantee that embedded photo metadata is stripped before AI processing.',
+  },
+  {
     title: 'Food and symptom tracking limits',
     body:
       'Symptoms can have many causes, and not every symptom is caused by food. Tracking should not create fear, restriction, or pressure. Taking breaks from tracking is okay.',
@@ -76,12 +81,17 @@ const TERMS_SECTIONS = [
   {
     title: 'Third-party services and availability',
     body:
-      'NutriFlow depends on third-party services such as Supabase, AI providers, food reference data providers, app tooling, hosting, and optional monitoring. These services may be unavailable, change behavior, or process data according to their own terms and policies.',
+      'NutriFlow depends on third-party services such as Supabase for authentication and sync, Vercel for web hosting, Groq and/or Google Gemini for AI analysis depending on configuration, USDA FoodData Central for food reference data, Expo services for app tooling, and optional monitoring such as Sentry. These services may be unavailable, change behavior, or process data according to their own terms and policies.',
+  },
+  {
+    title: 'MVP retention and deletion limits',
+    body:
+      'NutriFlow is an MVP and does not yet offer configurable retention schedules or enterprise retention guarantees. Use “Delete my data” in Settings to clear local guest data where supported and to attempt deletion of app-owned signed-in records from Supabase. Some hosting, security, platform, AI-provider, or diagnostic logs may remain outside the app database for limited periods.',
   },
   {
     title: 'No compliance or validation claims',
     body:
-      'This MVP does not claim HIPAA compliance, MDR compliance, FDA clearance, clinical validation, or medical-device status.',
+      'This MVP does not claim HIPAA compliance, FDA clearance, MDR compliance, CE marking, clinical validation, or medical-device status.',
   },
 ];
 

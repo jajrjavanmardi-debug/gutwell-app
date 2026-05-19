@@ -44,9 +44,9 @@ const COPY: Record<AppLanguage, {
 
 const PRIVACY_SECTIONS = [
   {
-    title: 'What data NutriFlow processes',
+    title: 'What health-related data NutriFlow processes',
     body:
-      'NutriFlow may process information you enter or create in the app: meal photos, meal descriptions, symptom notes, selected wellness context, language preference, supplement logs, food history, analysis results, feedback corrections, and app settings. If you grant location permission, the app may use a broad local context such as city/region to make nearby-food suggestions; precise coordinates are not shown in meal results.',
+      'NutriFlow may process wellness and health-adjacent information you enter or create in the app: symptoms, digestion notes, stool and comfort check-ins, meal descriptions, meal photos, selected wellness context, supplement logs, food history, educational meal estimates, AI-generated analysis, feedback corrections, language preference, consent state, and app settings. If you grant location permission, the app may use broad local context such as city/region for nearby-food suggestions; precise coordinates are not shown in meal results.',
   },
   {
     title: 'Guest mode local-only storage',
@@ -59,9 +59,19 @@ const PRIVACY_SECTIONS = [
       'If you sign in, NutriFlow uses Supabase for authentication and app data sync. Profile settings, onboarding details, food logs, analysis history, supplement logs, and app-owned records may be stored in Supabase so they can sync across devices. Supabase authentication may process identifiers such as your email address.',
   },
   {
+    title: 'Meal photos and image analysis',
+    body:
+      'When you take, upload, or choose a sample meal image, NutriFlow uses the image to generate an educational meal analysis. The image data may be sent to the configured AI provider for analysis. The app stores an image reference for history: in guest mode this may be a local device/browser URI or data URL; for signed-in users, an image reference may be stored with the meal history record in Supabase. NutriFlow does not currently provide a separate long-term photo library or dedicated image backup feature.',
+  },
+  {
+    title: 'Photo metadata and EXIF',
+    body:
+      'NutriFlow does not intentionally request or display EXIF fields such as camera model or GPS metadata, and the app does not separately store EXIF fields as profile data. During this MVP, uploaded or captured image bytes may still contain embedded metadata depending on the platform, browser, or picker behavior, and NutriFlow does not yet guarantee metadata stripping before AI processing. Avoid uploading photos if embedded metadata is a concern.',
+  },
+  {
     title: 'Educational and wellness use only',
     body:
-      'NutriFlow is designed for educational gut-wellness reflection and pattern tracking. It is not medical advice, diagnosis, treatment, or a replacement for a clinician. Red-flag symptoms should be handled through medical or emergency care rather than food analysis.',
+      'NutriFlow is designed for educational gut-wellness reflection and pattern tracking. NutriFlow is not intended for emergency use, diagnosis, treatment, cure, or prevention of disease. It is not medical advice or a replacement for a clinician. Red-flag symptoms should be handled through medical or emergency care rather than food analysis.',
   },
   {
     title: 'AI-generated analysis limitations',
@@ -74,14 +84,19 @@ const PRIVACY_SECTIONS = [
       'Settings includes a “Delete my data” option. For guests, this clears local app data where supported. For signed-in users, NutriFlow attempts to remove app-owned profile, history, symptom, estimate, reminder, and saved meal records from Supabase. Some platform, hosting, or security logs may remain for a limited time outside the app database.',
   },
   {
+    title: 'Data retention limits in this MVP',
+    body:
+      'NutriFlow is an early MVP and does not yet offer configurable retention schedules, data export controls, or enterprise retention guarantees. Recent-history screens may show limited windows such as the last 14 days, but signed-in records can remain in Supabase until you delete them, the project owner removes them, or retention is added later. Guest data can remain on the same device/browser until local storage is cleared or “Delete my data” is used.',
+  },
+  {
     title: 'Third-party services',
     body:
-      'NutriFlow may use Supabase for authentication, database, and sync; Groq and/or Google Gemini for AI analysis depending on configuration; USDA FoodData Central for food reference data; Vercel for web hosting; Expo services for app tooling; and Sentry if error monitoring is enabled. These services may process data needed to provide their part of the app.',
+      'NutriFlow may use Supabase for authentication, database, and sync; Vercel for web hosting and deployment; Groq and/or Google Gemini for AI analysis depending on configuration; USDA FoodData Central for food and nutrient reference data; Expo services for app tooling and runtime workflows; and Sentry if error monitoring is enabled. These services may process the data needed to provide their part of the app, and their own terms and policies may apply.',
   },
   {
     title: 'No compliance claims',
     body:
-      'This MVP does not claim HIPAA compliance, MDR compliance, FDA clearance, clinical validation, or medical-device status.',
+      'This MVP does not claim HIPAA compliance, FDA clearance, MDR compliance, CE marking, clinical validation, or medical-device status.',
   },
 ];
 
