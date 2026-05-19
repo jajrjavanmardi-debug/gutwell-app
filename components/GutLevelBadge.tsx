@@ -1,8 +1,8 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { Colors, Spacing, FontSize, BorderRadius, FontFamily, Shadows } from '../constants/theme';
-import { calculateLevel, getNextLevel, getLevelProgress, GUT_LEVELS } from '../lib/levels';
+import { Colors, Spacing, FontSize, BorderRadius, FontFamily } from '../constants/theme';
+import { calculateLevel, getNextLevel, getLevelProgress } from '../lib/levels';
 
 type Props = {
   totalPoints: number;
@@ -30,13 +30,13 @@ export function GutLevelBadge({ totalPoints, compact = false }: Props) {
         <Ionicons name={level.icon as any} size={28} color={levelColor} />
       </View>
       <Text style={styles.levelName}>{level.name}</Text>
-      <Text style={styles.points}>{totalPoints} points</Text>
+      <Text style={styles.points}>{totalPoints} awareness points</Text>
       {nextLevel && (
         <View style={styles.progressWrap}>
           <View style={styles.progressTrack}>
             <View style={[styles.progressFill, { width: `${progress * 100}%`, backgroundColor: levelColor }]} />
           </View>
-          <Text style={styles.nextLabel}>{nextLevel.minPoints - totalPoints} pts to {nextLevel.name}</Text>
+          <Text style={styles.nextLabel}>{nextLevel.minPoints - totalPoints} awareness pts to {nextLevel.name}</Text>
         </View>
       )}
     </View>

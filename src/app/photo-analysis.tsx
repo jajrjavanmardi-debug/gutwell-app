@@ -240,9 +240,9 @@ const copy = {
     snapshotHeading: 'NutriFlow meal snapshot',
     shareErrorTitle: 'Sharing unavailable',
     shareErrorMessage: 'Unable to open sharing right now.',
-    disagree: "This didn't work for my body",
+    disagree: 'This did not feel right for my body',
     planBTitle: 'Plan B',
-    planBText: "I'm sorry this suggestion bothered you. I saved it as a possible pattern and your gentler Plan B is: pause this food for now, sip ginger or peppermint tea, hydrate, and choose a very simple meal like rice, banana, or soup until your gut settles.",
+    planBText: "I'm sorry this did not feel right for your body. I saved it as a possible pattern and your gentler Plan B is: pause this food for now, sip ginger or peppermint tea, hydrate, and choose a very simple meal like rice, banana, or soup until your gut settles.",
     instantReliefTitle: 'Comfort Support',
     instantReliefText: 'Try peppermint tea, a warm compress on your belly, slow breathing, hydration, and rest. Pause the food you suspect for now. If pain is severe, worsening, or unusual, get medical help.',
     painApology: "I'm sorry this food may have bothered your body. Let's switch to a gentler Plan B first.",
@@ -251,7 +251,12 @@ const copy = {
     trackingSafetyTitle: 'Keep tracking gentle',
     trackingSafetyText:
       'Symptoms have many causes, and not every symptom is caused by food. Food tracking should not create fear; taking breaks from tracking is okay.',
-    rankUp: 'Rank Up',
+    rankUp: 'Progress noted',
+    rankNames: {
+      Initiate: 'Starting point',
+      Warrior: 'Steady observer',
+      Apex: 'Long-term observer',
+    },
     chatPlaceholder: 'Correct or add details...',
     send: 'Send',
     newScan: 'New Scan',
@@ -302,13 +307,13 @@ const copy = {
       constipationFiber: 'Fiber-rich ingredients may support regularity patterns',
       constipationLowFiber: 'Low fiber density may slow bowel rhythm',
       lowFiberDiversity: 'Low fiber diversity may limit gut wellness support',
-      processedFat: 'Processed high-fat combination may be less gut-supportive',
+      processedFat: 'Processed high-fat combination may feel less comfortable',
       balancedDiversity: 'Balanced protein and cooked plants may support gut stability',
       fodmapIbs: 'High-FODMAP load may be less comfortable for IBS patterns',
       fructan: 'Possible high-fructan pattern noted',
       ibsTrigger: 'Possible IBS-related trigger pattern',
       lowFiber: 'Low fiber density for your current pattern',
-      inflammatory: 'Combination may be less gut-friendly',
+      inflammatory: 'Combination may feel less comfortable',
       symptomMatch: 'Current symptoms weighted in the estimate',
       gentle: 'Gentler digestion pattern noted',
       profileSensitive: 'Adjusted for your selected wellness profile',
@@ -368,18 +373,23 @@ const copy = {
     snapshotHeading: 'NutriFlow Mahlzeitenübersicht',
     shareErrorTitle: 'Teilen nicht verfügbar',
     shareErrorMessage: 'Teilen kann gerade nicht geöffnet werden.',
-    disagree: "Das hat meinem Körper nicht gutgetan",
+    disagree: 'Das hat sich für meinen Körper nicht passend angefühlt',
     planBTitle: 'Plan B',
-    planBText: 'Es tut mir leid, dass diese Empfehlung dir nicht gutgetan hat. Ich habe sie als mögliches Muster gespeichert. Sanfter Plan B: pausiere dieses Lebensmittel, trinke Ingwer- oder Pfefferminztee, bleib hydriert und iss vorerst etwas Einfaches wie Reis, Banane oder Suppe.',
+    planBText: 'Es tut mir leid, dass sich diese Empfehlung für deinen Körper nicht passend angefühlt hat. Ich habe sie als mögliches Muster gespeichert. Sanfter Plan B: pausiere dieses Lebensmittel, trinke Ingwer- oder Pfefferminztee, bleib hydriert und iss vorerst etwas Einfaches wie Reis, Banane oder Suppe.',
     instantReliefTitle: 'Sanfte Hilfe',
     instantReliefText: 'Versuche Pfefferminztee, eine warme Kompresse auf dem Bauch, ruhiges Atmen, Wasser und etwas Ruhe. Pausiere das Lebensmittel, das du vermutest. Bei starken, zunehmenden oder ungewöhnlichen Schmerzen bitte medizinische Hilfe holen.',
-    painApology: 'Es tut mir leid, dass dieses Essen deinem Körper nicht gutgetan haben könnte. Lass uns zuerst zu einem sanfteren Plan B wechseln.',
+    painApology: 'Es tut mir leid, dass dieses Essen sich für deinen Körper nicht passend angefühlt haben könnte. Lass uns zuerst zu einem sanfteren Plan B wechseln.',
     medicalDisclaimer:
       'Orientierender Einblick, keine Diagnose und keine medizinische Beratung. Beobachte Muster über die Zeit und suche bei starken oder ungewöhnlichen Symptomen medizinische Hilfe.',
     trackingSafetyTitle: 'Tracking darf sanft bleiben',
     trackingSafetyText:
       'Symptome können viele Ursachen haben, und nicht jedes Symptom kommt vom Essen. Essens-Tracking soll keine Angst machen; Pausen vom Tracken sind okay.',
-    rankUp: 'Levelaufstieg',
+    rankUp: 'Fortschritt notiert',
+    rankNames: {
+      Initiate: 'Startpunkt',
+      Warrior: 'Stetiges Beobachten',
+      Apex: 'Langzeit-Beobachtung',
+    },
     chatPlaceholder: 'Korrigieren oder Details ergänzen...',
     send: 'Senden',
     newScan: 'Neuer Scan',
@@ -496,7 +506,7 @@ const copy = {
     snapshotHeading: 'خلاصه غذای NutriFlow',
     shareErrorTitle: 'اشتراک‌گذاری در دسترس نیست',
     shareErrorMessage: 'اکنون امکان باز کردن اشتراک‌گذاری وجود ندارد.',
-    disagree: 'این برای بدن من خوب نبود',
+    disagree: 'این با بدن من سازگار نبود',
     planBTitle: 'برنامه جایگزین',
     planBText: 'متأسفم که این پیشنهاد با بدن شما سازگار نبود. آن را به‌عنوان یک الگوی احتمالی ذخیره کردم. برنامه جایگزین ملایم‌تر: فعلاً این غذا را کنار بگذارید، چای زنجبیل یا نعناع بنوشید، آب کافی بخورید و تا آرام شدن گوارش، یک غذای ساده مثل برنج، موز یا سوپ انتخاب کنید.',
     instantReliefTitle: 'راهنمای آرام‌سازی',
@@ -507,7 +517,12 @@ const copy = {
     trackingSafetyTitle: 'پیگیری را ملایم نگه دارید',
     trackingSafetyText:
       'علائم می‌توانند علت‌های زیادی داشته باشند و هر علامتی از غذا نیست. پیگیری غذا نباید باعث ترس شود؛ فاصله گرفتن از ثبت و پیگیری کاملاً اشکالی ندارد.',
-    rankUp: 'ارتقای رتبه',
+    rankUp: 'پیشرفت ثبت شد',
+    rankNames: {
+      Initiate: 'نقطه شروع',
+      Warrior: 'مشاهده‌گر آرام',
+      Apex: 'مشاهده‌گر بلندمدت',
+    },
     chatPlaceholder: 'اصلاح کنید یا جزئیات اضافه کنید...',
     send: 'ارسال',
     newScan: 'اسکن جدید',
@@ -1436,7 +1451,7 @@ export default function PhotoAnalysisScreen() {
         setTriggerMemories(progress.triggers);
       }
       if (xpResult.leveledUp) {
-        setRankUpBadge(`${t.rankUp}: ${xpResult.profile.rank}`);
+        setRankUpBadge(`${t.rankUp}: ${t.rankNames[xpResult.profile.rank]}`);
         setTimeout(() => setRankUpBadge(''), 3600);
       }
     } catch (error) {
@@ -1660,7 +1675,7 @@ export default function PhotoAnalysisScreen() {
       }
       const xpResult = await addXpForAction(5);
       if (xpResult.leveledUp) {
-        setRankUpBadge(`${t.rankUp}: ${xpResult.profile.rank}`);
+        setRankUpBadge(`${t.rankUp}: ${t.rankNames[xpResult.profile.rank]}`);
         setTimeout(() => setRankUpBadge(''), 3600);
       }
 

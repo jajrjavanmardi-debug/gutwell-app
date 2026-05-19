@@ -84,12 +84,12 @@ struct GutWellSmallView: View {
                     .foregroundColor(.secondary)
             }
 
-            // Streak
+            // Logged-day rhythm
             HStack(spacing: 4) {
-                Image(systemName: "flame.fill")
+                Image(systemName: "calendar")
                     .font(.system(size: 11))
-                    .foregroundColor(.orange)
-                Text("\(entry.streak) day streak")
+                    .foregroundColor(.secondary)
+                Text("\(entry.streak) days logged")
                     .font(.system(size: 11, weight: .medium))
                     .foregroundColor(.primary)
             }
@@ -144,10 +144,10 @@ struct GutWellMediumView: View {
                 }
 
                 HStack(spacing: 4) {
-                    Image(systemName: "flame.fill")
+                    Image(systemName: "calendar")
                         .font(.system(size: 13))
-                        .foregroundColor(.orange)
-                    Text("\(entry.streak) day streak")
+                        .foregroundColor(.secondary)
+                    Text("\(entry.streak) days logged")
                         .font(.system(size: 14, weight: .semibold))
                 }
 
@@ -186,7 +186,7 @@ struct GutWellStreakWidget: Widget {
             }
         }
         .configurationDisplayName("NutriFlow")
-        .description("Track your wellness estimate and check-in streak.")
+        .description("View your wellness estimate and recent check-ins.")
         .supportedFamilies([.systemSmall, .systemMedium])
     }
 }

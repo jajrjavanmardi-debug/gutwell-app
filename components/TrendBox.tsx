@@ -12,7 +12,7 @@ type TrendBoxProps = {
 export default function TrendBox({ avgScore, bestDay, trend }: TrendBoxProps) {
   const trendIcon = trend === 'up' ? 'trending-up' : trend === 'down' ? 'trending-down' : 'remove';
   const trendColor = trend === 'up' ? Colors.secondary : trend === 'down' ? '#E07070' : Colors.textTertiary;
-  const trendLabel = trend === 'up' ? 'Improving' : trend === 'down' ? 'Declining' : 'Steady';
+  const trendLabel = trend === 'up' ? 'Higher' : trend === 'down' ? 'Lower' : 'Steady';
 
   return (
     <View style={styles.card}>
@@ -31,7 +31,7 @@ export default function TrendBox({ avgScore, bestDay, trend }: TrendBoxProps) {
         {bestDay ? (
           <View style={styles.bestDay}>
             <Text style={styles.bestDayValue}>{bestDay}</Text>
-            <Text style={styles.statLabel}>Best Day</Text>
+            <Text style={styles.statLabel}>Steadiest day</Text>
           </View>
         ) : null}
       </View>

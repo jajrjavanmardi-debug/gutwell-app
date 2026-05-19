@@ -31,19 +31,19 @@ const BASE_COPY: Record<AppLanguage, EatingBehaviorSafetyCopy> = {
 
 const FREQUENT_COPY: Record<AppLanguage, EatingBehaviorSafetyCopy> = {
   en: {
-    title: 'A tracking pause may help',
+    title: 'A gentle tracking reminder',
     body:
-      'You have run several analyses recently. If tracking starts to feel stressful, pause for a while and come back when it feels useful.',
+      'You seem to be tracking a lot. NutriFlow is here to support awareness, not control. Taking breaks is okay.',
   },
   de: {
-    title: 'Eine Tracking-Pause kann guttun',
+    title: 'Sanfte Erinnerung zum Tracking',
     body:
-      'Du hast zuletzt mehrere Analysen gestartet. Wenn Tracking stressig wird, pausiere eine Weile und komm zurück, wenn es sich hilfreich anfühlt.',
+      'Du scheinst gerade viel zu tracken. NutriFlow ist dafür da, Bewusstsein zu unterstützen, nicht Kontrolle. Pausen sind okay.',
   },
   fa: {
-    title: 'یک وقفه از پیگیری می‌تواند کمک کند',
+    title: 'یادآوری ملایم برای پیگیری',
     body:
-      'اخیراً چندین تحلیل انجام داده‌اید. اگر پیگیری برایتان استرس‌زا شد، مدتی مکث کنید و وقتی مفید بود برگردید.',
+      'به نظر می‌رسد این روزها زیاد پیگیری می‌کنید. NutriFlow برای حمایت از آگاهی است، نه کنترل. فاصله گرفتن اشکالی ندارد.',
   },
 };
 
@@ -51,17 +51,17 @@ const LOW_VARIETY_COPY: Record<AppLanguage, EatingBehaviorSafetyCopy> = {
   en: {
     title: 'Variety can stay flexible',
     body:
-      'The same meal appears often in recent logs. That can be completely okay; try not to let tracking make meals feel scary or restricted.',
+      'Similar meals appear often in recent logs. NutriFlow is here to support awareness, not control. Taking breaks is okay, and variety can stay flexible.',
   },
   de: {
     title: 'Abwechslung darf flexibel bleiben',
     body:
-      'Eine ähnliche Mahlzeit taucht in letzter Zeit öfter auf. Das kann völlig okay sein; versuche, Tracking nicht zu Angst oder starren Regeln werden zu lassen.',
+      'Ähnliche Mahlzeiten tauchen zuletzt öfter auf. NutriFlow unterstützt Bewusstsein, nicht Kontrolle. Pausen sind okay, und Abwechslung darf flexibel bleiben.',
   },
   fa: {
     title: 'تنوع می‌تواند انعطاف‌پذیر بماند',
     body:
-      'در ثبت‌های اخیر، یک وعده مشابه چند بار دیده می‌شود. این می‌تواند کاملاً طبیعی باشد؛ مراقب باشید پیگیری غذا باعث ترس یا محدودیت سخت‌گیرانه نشود.',
+      'در ثبت‌های اخیر، وعده‌های مشابه چند بار دیده می‌شود. NutriFlow برای حمایت از آگاهی است، نه کنترل. فاصله گرفتن اشکالی ندارد و تنوع می‌تواند انعطاف‌پذیر بماند.',
   },
 };
 

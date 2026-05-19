@@ -79,12 +79,12 @@ export function CheckInSuccessOverlay({ visible, score, streak, onDone }: Props)
               <Ionicons name="checkmark" size={48} color={Colors.secondary} />
             </Animated.View>
 
-            {/* Logged! */}
-            <Text style={styles.loggedText}>Logged!</Text>
+            {/* Saved confirmation */}
+            <Text style={styles.loggedText}>Check-in saved</Text>
 
-            {/* Streak */}
+            {/* Logged-day rhythm */}
             {streak != null && streak > 0 && (
-              <Text style={styles.streakText}>🔥 Day {streak}</Text>
+              <Text style={styles.streakText}>Day {streak} logged</Text>
             )}
 
             {/* Wellness estimate */}

@@ -75,7 +75,7 @@ export function ShareCard({
   const handleShare = async () => {
     try {
       await Share.share({
-        message: `My NutriFlow wellness estimate this week: ${score ?? '--'}/100. Day ${streak} streak. Download NutriFlow to track gut wellness patterns.`,
+        message: `My NutriFlow wellness estimate this week: ${score ?? '--'}/100. ${streak} days logged. Download NutriFlow to notice gut wellness patterns gently.`,
       });
     } catch {
       // Share cancelled — no action needed
@@ -155,7 +155,7 @@ export function ShareCard({
                   color={weekTrend === 'up' ? Colors.secondary : '#E07070'}
                 />
                 <Text style={[styles.trendPillText, { color: weekTrend === 'up' ? Colors.secondary : '#E07070' }]}>
-                  {weekTrend === 'up' ? 'Improving' : 'Declining'} this week
+                  {weekTrend === 'up' ? 'Higher' : 'Lower'} this week
                 </Text>
               </View>
             )}
@@ -166,25 +166,25 @@ export function ShareCard({
             {/* Stats row */}
             <View style={styles.statsRow}>
               <View style={styles.statItem}>
-                <Ionicons name="flame-outline" size={16} color={Colors.accent} />
+                <Ionicons name="calendar-outline" size={16} color={Colors.accent} />
                 <Text style={styles.statValue}>{streak}</Text>
-                <Text style={styles.statLabel}>day streak</Text>
+                <Text style={styles.statLabel}>days logged</Text>
               </View>
               <View style={styles.statSep} />
               <View style={styles.statItem}>
                 <Ionicons name="ribbon-outline" size={16} color={Colors.secondary} />
                 <Text style={styles.statValue}>{level}</Text>
-                <Text style={styles.statLabel}>level</Text>
+                <Text style={styles.statLabel}>path</Text>
               </View>
             </View>
 
             {/* Footer tagline */}
-            <Text style={styles.cardFooter}>Track gut wellness patterns daily</Text>
+            <Text style={styles.cardFooter}>Notice gut wellness patterns gently</Text>
           </LinearGradient>
 
           {/* Action Area */}
           <View style={styles.actions}>
-            <Text style={styles.actionsTitle}>Share your progress</Text>
+            <Text style={styles.actionsTitle}>Share your snapshot</Text>
 
             <TouchableOpacity style={styles.shareBtn} onPress={handleShare} activeOpacity={0.8}>
               <Ionicons name="share-social-outline" size={18} color={Colors.textInverse} />

@@ -7,7 +7,6 @@ import {
   TouchableOpacity,
   Animated,
   Dimensions,
-  Platform,
 } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -31,15 +30,13 @@ const MILESTONES: StreakMilestone[] = [
   { days: 366, label: '1 Year'       },
 ];
 
-const MILESTONE_THRESHOLDS = [0, 7, 30, 100, 180, 366];
-
 const DAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
 const STATE_MESSAGES: Record<string, string> = {
-  active:  'Your tracking rhythm looks strong!',
-  at_risk: 'Keep your streak alive!',
+  active:  'Your check-in rhythm is steady.',
+  at_risk: 'A pause is okay; check in when useful.',
   broken:  'Every day is a fresh start.',
-  new:     'Begin your gut wellness tracking journey!',
+  new:     'Start with gentle awareness.',
 };
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -180,7 +177,7 @@ export function StreakPopup({
 
           {/* Streak Number */}
           <Text style={styles.streakNumber}>{currentStreak}</Text>
-          <Text style={styles.streakLabel}>Day Streak</Text>
+          <Text style={styles.streakLabel}>Days logged</Text>
 
           {/* Motivational Message */}
           <View style={[
@@ -224,13 +221,13 @@ export function StreakPopup({
           <View style={styles.divider} />
 
           {/* Milestone Progress */}
-          <Text style={styles.sectionHeading}>Milestone Progress</Text>
+          <Text style={styles.sectionHeading}>Routine progress</Text>
           <View style={styles.milestoneRow}>
             <Text style={styles.milestoneCurrent}>{milestone.label}</Text>
             {nextMilestone ? (
               <Text style={styles.milestoneNext}>{nextMilestone.label} ({nextMilestone.days}d)</Text>
             ) : (
-              <Text style={styles.milestoneNext}>Max reached!</Text>
+              <Text style={styles.milestoneNext}>Fully logged</Text>
             )}
           </View>
           <View style={styles.progressTrack}>
@@ -243,7 +240,7 @@ export function StreakPopup({
           </View>
           {nextMilestone && (
             <Text style={styles.progressSubtext}>
-              {nextMilestone.days - currentStreak} day{nextMilestone.days - currentStreak !== 1 ? 's' : ''} until {nextMilestone.label}
+              {nextMilestone.days - currentStreak} day{nextMilestone.days - currentStreak !== 1 ? 's' : ''} toward {nextMilestone.label}
             </Text>
           )}
 
@@ -253,15 +250,15 @@ export function StreakPopup({
           {/* Stats Row */}
           <View style={styles.statsRow}>
             <View style={styles.statItem}>
-              <Ionicons name="trophy-outline" size={18} color={Colors.secondary} />
+              <Ionicons name="calendar-outline" size={18} color={Colors.secondary} />
               <Text style={styles.statValue}>{bestStreak}</Text>
-              <Text style={styles.statLabel}>Best Streak</Text>
+              <Text style={styles.statLabel}>Longest rhythm</Text>
             </View>
             <View style={styles.statDivider} />
             <View style={styles.statItem}>
               <Ionicons name="checkmark-circle-outline" size={18} color={Colors.secondary} />
               <Text style={styles.statValue}>{completionPct}%</Text>
-              <Text style={styles.statLabel}>Completion Rate</Text>
+              <Text style={styles.statLabel}>Check-ins</Text>
             </View>
           </View>
         </LinearGradient>

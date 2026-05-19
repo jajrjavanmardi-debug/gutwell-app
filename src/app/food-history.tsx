@@ -29,22 +29,22 @@ const HISTORY_COPY: Record<AppLanguage, {
     kicker: 'Last 14 days',
     title: 'Meal History',
     scorePending: 'Estimate pending',
-    emptyTitle: 'Your gut journey starts here!',
-    emptyText: 'Take your first photo.',
+    emptyTitle: 'Your meal history starts here.',
+    emptyText: 'Take your first photo when it feels useful.',
   },
   de: {
     kicker: 'Letzte 14 Tage',
     title: 'Mahlzeitenverlauf',
     scorePending: 'Einschätzung offen',
-    emptyTitle: 'Deine Darmreise beginnt hier!',
-    emptyText: 'Nimm dein erstes Foto auf.',
+    emptyTitle: 'Dein Mahlzeitenverlauf beginnt hier.',
+    emptyText: 'Nimm dein erstes Foto auf, wenn es hilfreich ist.',
   },
   fa: {
     kicker: '۱۴ روز گذشته',
     title: 'سوابق غذا',
     scorePending: 'برآورد در انتظار',
-    emptyTitle: 'مسیر گوارش شما از اینجا شروع می شود!',
-    emptyText: 'اولین عکس غذای خود را بگیرید.',
+    emptyTitle: 'سوابق غذای شما از اینجا شروع می‌شود.',
+    emptyText: 'هر وقت مفید بود، اولین عکس غذای خود را بگیرید.',
   },
 };
 

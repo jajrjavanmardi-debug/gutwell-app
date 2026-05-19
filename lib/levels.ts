@@ -6,11 +6,11 @@ export type GutLevel = {
 };
 
 export const GUT_LEVELS: GutLevel[] = [
-  { name: 'Beginner', key: 'beginner', minPoints: 0, icon: 'leaf' },
-  { name: 'Explorer', key: 'explorer', minPoints: 50, icon: 'compass' },
-  { name: 'Tracker', key: 'tracker', minPoints: 150, icon: 'analytics' },
-  { name: 'Specialist', key: 'specialist', minPoints: 400, icon: 'shield-checkmark' },
-  { name: 'Gut Guru', key: 'guru', minPoints: 1000, icon: 'star' },
+  { name: 'Starting point', key: 'beginner', minPoints: 0, icon: 'leaf' },
+  { name: 'Pattern observer', key: 'explorer', minPoints: 50, icon: 'compass' },
+  { name: 'Steady logger', key: 'tracker', minPoints: 150, icon: 'analytics' },
+  { name: 'Long-term observer', key: 'specialist', minPoints: 400, icon: 'shield-checkmark' },
+  { name: 'Practice builder', key: 'guru', minPoints: 1000, icon: 'star' },
 ];
 
 export function calculateLevel(totalPoints: number): GutLevel {

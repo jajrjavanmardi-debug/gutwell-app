@@ -58,14 +58,14 @@ function buildDailyGutScoreFallbackInsight(score: number, mainGoal: string | nul
 
   if (score >= 75) {
     return goal
-      ? `Your wellness estimate is strong today; keep one steady habit supporting ${goal}.`
-      : 'Your wellness estimate is strong today; keep meals simple, hydrated, and consistent.';
+      ? `Your wellness estimate is higher today; keep one steady habit supporting ${goal}.`
+      : 'Your wellness estimate is higher today; keep meals simple, hydrated, and consistent.';
   }
 
   if (score >= 50) {
     return goal
-      ? `Your wellness estimate is moderate; choose one gentle meal or hydration step for ${goal}.`
-      : 'Your wellness estimate is moderate; choose one gentle meal and track symptoms today.';
+      ? `Your wellness estimate is in the middle range; choose one gentle meal or hydration step for ${goal}.`
+      : 'Your wellness estimate is in the middle range; choose one gentle meal and notice symptoms today.';
   }
 
   return goal
