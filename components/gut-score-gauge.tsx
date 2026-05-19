@@ -10,6 +10,7 @@ type GutScoreGaugeProps = {
   score: number;
   scoreLabel: string;
   statusLabel: string;
+  helperNote?: string;
   color: string;
   isRtl?: boolean;
   size?: number;
@@ -64,6 +65,7 @@ export function GutScoreGauge({
   score,
   scoreLabel,
   statusLabel,
+  helperNote,
   color,
   isRtl = false,
   size = 180,
@@ -159,6 +161,9 @@ export function GutScoreGauge({
       </View>
 
       <Text style={[styles.statusText, { color }, isRtl && styles.rtlText]}>{statusLabel}</Text>
+      {helperNote ? (
+        <Text style={[styles.helperText, isRtl && styles.rtlText]}>{helperNote}</Text>
+      ) : null}
     </View>
   );
 }
@@ -203,6 +208,14 @@ const styles = StyleSheet.create({
   statusText: {
     fontFamily: FontFamily.sansBold,
     fontSize: FontSize.md,
+    textAlign: 'center',
+  },
+  helperText: {
+    color: Colors.textSecondary,
+    fontFamily: FontFamily.sansRegular,
+    fontSize: FontSize.xs,
+    lineHeight: 18,
+    maxWidth: 300,
     textAlign: 'center',
   },
   rtlText: {

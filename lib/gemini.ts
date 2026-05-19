@@ -172,7 +172,7 @@ export async function generateDailyGutScoreInsight(input: {
   mainGoal: string | null;
 }): Promise<string> {
   const prompt = [
-    `Based on a Gut Score of ${input.score} and the goal of ${input.mainGoal ?? 'General wellness'}, give a 1-sentence pattern-tracking tip.`,
+    `Based on a daily wellness estimate of ${input.score} and the goal of ${input.mainGoal ?? 'General wellness'}, give a 1-sentence pattern-tracking tip.`,
     'Tone: supportive and practical.',
     'No diagnosis, treatment, cure, or certainty claims; no emojis; max 20 words.',
   ].join('\n');

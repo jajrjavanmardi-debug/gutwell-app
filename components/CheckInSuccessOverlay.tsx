@@ -87,9 +87,9 @@ export function CheckInSuccessOverlay({ visible, score, streak, onDone }: Props)
               <Text style={styles.streakText}>🔥 Day {streak}</Text>
             )}
 
-            {/* Gut Score */}
+            {/* Wellness estimate */}
             {score != null && (
-              <Text style={styles.scoreText}>Gut Score: {score}</Text>
+              <Text style={styles.scoreText}>Wellness estimate: {score}</Text>
             )}
           </LinearGradient>
         </View>

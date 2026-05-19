@@ -37,7 +37,10 @@
     },
     "web": {
       "output": "static",
-      "favicon": "./assets/images/favicon.png"
+      "favicon": "./assets/images/favicon.png",
+      "name": "NutriFlow",
+      "shortName": "NutriFlow",
+      "description": "Educational meal estimates, food history, and pattern-aware gut wellness tracking."
     },
     "plugins": [
       "expo-router",

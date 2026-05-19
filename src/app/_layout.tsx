@@ -1,10 +1,18 @@
 import { Stack } from 'expo-router';
+import Head from 'expo-router/head';
 import { StyleSheet, View } from 'react-native';
 import { AuthProvider } from '../../contexts/AuthContext';
 
 export default function RootLayout() {
   return (
     <AuthProvider>
+      <Head>
+        <title>NutriFlow</title>
+        <meta
+          name="description"
+          content="NutriFlow offers educational meal estimates, food history, and pattern-aware gut wellness tracking."
+        />
+      </Head>
       <View style={styles.rootBackground}>
         <Stack
           screenOptions={{

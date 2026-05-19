@@ -132,7 +132,7 @@ function buildFallbackRecommendation(
         'Kurzantwort: Es wurde keine konkrete Mahlzeit genannt, daher basiert diese Empfehlung nur auf deinen Symptomen.',
         'So startest du: Trinke Wasser, atme langsam in den Bauch, nutze bei Krämpfen sanfte Wärme und füge vorerst kein unklar verdächtiges Lebensmittel hinzu.',
         'Wie oft: Beobachte die Symptome 24-72 Stunden und nenne beim nächsten Mal das konkrete Lebensmittel, wenn du eine Mahlzeitenanalyse möchtest.',
-        'Bildender Einblick, keine Diagnose und keine medizinische Beratung. Suche Hilfe bei starken oder ungewöhnlichen Symptomen.',
+        'Orientierender Einblick, keine Diagnose und keine medizinische Beratung. Suche Hilfe bei starken oder ungewöhnlichen Symptomen.',
       ].join('\n');
     }
 
@@ -158,7 +158,7 @@ function buildFallbackRecommendation(
       'Kurzantwort: Die KI ist gerade nicht verfügbar, aber du kannst mit einem kleinen Schritt zur Musterbeobachtung starten.',
       `Start: Wähle eine sanfte Mahlzeit mit ${nutrients.slice(0, 2).join(' und ')}${foodName ? `, zum Beispiel ${foodName}` : ''}.`,
       'Häufigkeit: Probiere heute eine kleine Änderung und beobachte Blähungen, Reflux, Verstopfung oder Schmerzen für 24-72 Stunden.',
-      'Bildender Einblick, keine Diagnose und keine medizinische Beratung.',
+      'Orientierender Einblick, keine Diagnose und keine medizinische Beratung.',
     ].join('\n');
   }
 

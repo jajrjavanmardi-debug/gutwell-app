@@ -75,7 +75,7 @@ export function ShareCard({
   const handleShare = async () => {
     try {
       await Share.share({
-        message: `My NutriFlow gut score this week: ${score ?? '--'}/100 🌿 Day ${streak} streak! Download NutriFlow to track gut wellness patterns.`,
+        message: `My NutriFlow wellness estimate this week: ${score ?? '--'}/100. Day ${streak} streak. Download NutriFlow to track gut wellness patterns.`,
       });
     } catch {
       // Share cancelled — no action needed
@@ -144,7 +144,7 @@ export function ShareCard({
               </View>
             </View>
 
-            <Text style={styles.scoreLabel}>Gut Score</Text>
+            <Text style={styles.scoreLabel}>Wellness estimate</Text>
 
             {/* Trend pill */}
             {weekTrend && weekTrend !== 'flat' && (

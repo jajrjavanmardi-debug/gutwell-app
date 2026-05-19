@@ -26,7 +26,7 @@ export default function TrendBox({ avgScore, bestDay, trend }: TrendBoxProps) {
       <View style={styles.row}>
         <View style={styles.stat}>
           <Text style={styles.statValue}>{avgScore}</Text>
-          <Text style={styles.statLabel}>Avg Score</Text>
+          <Text style={styles.statLabel}>Avg estimate</Text>
         </View>
         {bestDay ? (
           <View style={styles.bestDay}>

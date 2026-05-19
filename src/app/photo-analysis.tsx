@@ -211,7 +211,7 @@ const copy = {
     resultTitle: 'Personalized meal insight',
     symptomsLabel: 'Symptoms & notes',
     symptomSelectorLabel: 'Select symptoms',
-    symptomSelectorHint: 'Choose all that apply so the score reflects your current reaction.',
+    symptomSelectorHint: 'Choose all that apply so the estimate reflects your current reaction.',
     symptomsPlaceholder: 'Before taking a photo you can note symptoms; after capture, describe how you feel.',
     howYouFeelLabel: 'Meal details & extra notes',
     howYouFeelPlaceholder: 'Example: This is lentil soup with onions. I ate a large bowl.',
@@ -220,7 +220,10 @@ const copy = {
     feelingsRequiredTitle: 'Add meal context first',
     feelingsRequiredMessage: 'Select at least one symptom or type a short meal note before generating the analysis.',
     share: 'Share Result',
-    scoreLabel: 'Meal Impact Score',
+    scoreLabel: 'Educational Meal Estimate',
+    scoreProgressLabel: 'Pattern-based estimate',
+    scoreHelperNote:
+      'This is an educational estimate based on your profile and meal context, not a diagnosis. Look for patterns over time.',
     shareTitle: 'My NutriFlow meal analysis',
     snapshotHeading: 'NutriFlow meal snapshot',
     shareErrorTitle: 'Sharing unavailable',
@@ -270,7 +273,7 @@ const copy = {
     logMealOffline: 'Saved offline — will sync when connected',
     logMealLocal: 'Saved locally in demo mode',
     loginRequired: 'Please sign in to log meals.',
-    pendingScore: 'Pending',
+    pendingScore: 'Estimate pending',
     photoMealDefault: 'Photo meal',
     analysisInsightTitle: 'Analysis Insight',
     scientificSource: 'Data Source: USDA FoodData Central & localized AI adaptation.',
@@ -291,7 +294,7 @@ const copy = {
       ibsTrigger: 'Possible IBS-related trigger pattern',
       lowFiber: 'Low fiber density for your current pattern',
       inflammatory: 'Combination may be less gut-friendly',
-      symptomMatch: 'Current symptoms weighted in the score',
+      symptomMatch: 'Current symptoms weighted in the estimate',
       gentle: 'Gentler digestion pattern noted',
       profileSensitive: 'Adjusted for your selected wellness profile',
     },
@@ -331,7 +334,7 @@ const copy = {
     resultTitle: 'Personalisierte Mahlzeitenanalyse',
     symptomsLabel: 'Symptome & Notizen',
     symptomSelectorLabel: 'Symptome auswählen',
-    symptomSelectorHint: 'Wähle alles aus, was zutrifft, damit der Score deine aktuelle Reaktion berücksichtigt.',
+    symptomSelectorHint: 'Wähle alles aus, was zutrifft, damit die Einschätzung deine aktuelle Reaktion berücksichtigt.',
     symptomsPlaceholder: 'Vor dem Foto kannst du Symptome notieren; nach der Aufnahme beschreibst du dein Befinden.',
     howYouFeelLabel: 'Mahlzeitdetails und Notizen',
     howYouFeelPlaceholder: 'Zum Beispiel: Das ist Linsensuppe mit Zwiebeln. Ich habe eine große Schüssel gegessen.',
@@ -340,7 +343,10 @@ const copy = {
     feelingsRequiredTitle: 'Erst Kontext ergänzen',
     feelingsRequiredMessage: 'Wähle mindestens ein Symptom aus oder tippe eine kurze Mahlzeitnotiz, bevor du die Analyse erstellst.',
     share: 'Ergebnis teilen',
-    scoreLabel: 'Mahlzeiten-Score',
+    scoreLabel: 'Orientierende Mahlzeiten-Einschätzung',
+    scoreProgressLabel: 'Musterbasierte Einschätzung',
+    scoreHelperNote:
+      'Dies ist eine orientierende Einschätzung auf Basis deines Profils und Mahlzeitenkontexts, keine Diagnose. Achte über Zeit auf Muster.',
     shareTitle: 'Meine NutriFlow-Mahlzeitenanalyse',
     snapshotHeading: 'NutriFlow Mahlzeitenübersicht',
     shareErrorTitle: 'Teilen nicht verfügbar',
@@ -352,7 +358,7 @@ const copy = {
     instantReliefText: 'Versuche Pfefferminztee, eine warme Kompresse auf dem Bauch, ruhiges Atmen, Wasser und etwas Ruhe. Pausiere das Lebensmittel, das du vermutest. Bei starken, zunehmenden oder ungewöhnlichen Schmerzen bitte medizinische Hilfe holen.',
     painApology: 'Es tut mir leid, dass dieses Essen deinem Körper nicht gutgetan haben könnte. Lass uns zuerst zu einem sanfteren Plan B wechseln.',
     medicalDisclaimer:
-      'Bildender Einblick, keine Diagnose und keine medizinische Beratung. Beobachte Muster über die Zeit und suche bei starken oder ungewöhnlichen Symptomen medizinische Hilfe.',
+      'Orientierender Einblick, keine Diagnose und keine medizinische Beratung. Beobachte Muster über die Zeit und suche bei starken oder ungewöhnlichen Symptomen medizinische Hilfe.',
     rankUp: 'Levelaufstieg',
     chatPlaceholder: 'Korrigieren oder Details ergänzen...',
     send: 'Senden',
@@ -390,7 +396,7 @@ const copy = {
     logMealOffline: 'Offline gespeichert — Synchronisation folgt bei Verbindung',
     logMealLocal: 'Im Demo-Modus lokal gespeichert',
     loginRequired: 'Bitte melde dich an, um Mahlzeiten zu speichern.',
-    pendingScore: 'Ausstehend',
+    pendingScore: 'Einschätzung folgt',
     photoMealDefault: 'Mahlzeit (Foto)',
     analysisInsightTitle: 'Wichtige Erkenntnisse',
     scientificSource: 'Datenquelle: USDA FoodData Central & lokalisierte KI-Anpassung.',
@@ -411,7 +417,7 @@ const copy = {
       ibsTrigger: 'Mögliches Reizdarm-bezogenes Auslösermuster',
       lowFiber: 'Geringe Ballaststoffdichte für dein aktuelles Muster',
       inflammatory: 'Kombination kann weniger gut verträglich sein',
-      symptomMatch: 'Aktuelle Symptome im Score berücksichtigt',
+      symptomMatch: 'Aktuelle Symptome in der Einschätzung berücksichtigt',
       gentle: 'Sanfteres Verdauungsmuster notiert',
       profileSensitive: 'An deinen ausgewählten Wellness-Kontext angepasst',
     },
@@ -451,7 +457,7 @@ const copy = {
     resultTitle: 'تحلیل شخصی وعده غذایی',
     symptomsLabel: 'علائم و یادداشت‌ها',
     symptomSelectorLabel: 'انتخاب علائم',
-    symptomSelectorHint: 'هر موردی را که صدق می‌کند انتخاب کنید تا امتیاز با واکنش فعلی شما هماهنگ شود.',
+    symptomSelectorHint: 'هر موردی را که صدق می‌کند انتخاب کنید تا برآورد با واکنش فعلی شما هماهنگ شود.',
     symptomsPlaceholder: 'قبل از عکس می‌توانید علائم را بنویسید؛ بعد از عکس، احساس خود را توضیح دهید.',
     howYouFeelLabel: 'جزئیات وعده و یادداشت‌های بیشتر',
     howYouFeelPlaceholder: 'مثال: این سوپ عدس با پیاز است. یک کاسه بزرگ خوردم.',
@@ -460,7 +466,10 @@ const copy = {
     feelingsRequiredTitle: 'ابتدا زمینه غذا را اضافه کنید',
     feelingsRequiredMessage: 'قبل از ایجاد تحلیل، حداقل یک علامت انتخاب کنید یا یک یادداشت کوتاه درباره غذا بنویسید.',
     share: 'اشتراک‌گذاری نتیجه',
-    scoreLabel: 'امتیاز تأثیر غذا',
+    scoreLabel: 'برآورد آموزشی وعده غذایی',
+    scoreProgressLabel: 'برآورد مبتنی بر الگو',
+    scoreHelperNote:
+      'این یک برآورد آموزشی بر اساس پروفایل و زمینه وعده غذایی شماست، نه تشخیص. الگوها را در طول زمان دنبال کنید.',
     shareTitle: 'تحلیل غذای NutriFlow من',
     snapshotHeading: 'خلاصه غذای NutriFlow',
     shareErrorTitle: 'اشتراک‌گذاری در دسترس نیست',
@@ -510,7 +519,7 @@ const copy = {
     logMealOffline: 'آفلاین ذخیره شد – پس از اتصال همگام می‌شود',
     logMealLocal: 'در حالت دمو به‌صورت محلی ذخیره شد',
     loginRequired: 'برای ثبت غذا وارد شوید.',
-    pendingScore: 'در انتظار',
+    pendingScore: 'برآورد در انتظار',
     photoMealDefault: 'غذای عکس',
     analysisInsightTitle: 'نکات کلیدی تحلیل',
     scientificSource: 'منبع داده: USDA FoodData Central و سازگاری محلی با هوش مصنوعی.',
@@ -531,7 +540,7 @@ const copy = {
       ibsTrigger: 'الگوی احتمالی مرتبط با IBS دیده شد',
       lowFiber: 'تراکم فیبر برای الگوی فعلی شما پایین است',
       inflammatory: 'این ترکیب ممکن است برای گوارش کمتر ملایم باشد',
-      symptomMatch: 'علائم فعلی در امتیاز لحاظ شد',
+      symptomMatch: 'علائم فعلی در برآورد لحاظ شد',
       gentle: 'الگوی هضم ملایم‌تری دیده شد',
       profileSensitive: 'بر اساس زمینه تندرستی انتخابی شما تنظیم شد',
     },
@@ -711,8 +720,19 @@ function isInsightSectionBoundary(line: string, language: AppLanguage): boolean 
     'نکات',
     copy[language].instantReliefTitle.toLocaleLowerCase(),
     copy[language].scoreLabel.toLocaleLowerCase(),
+    'educational meal estimate',
+    'meal fit estimate',
+    'pattern-based estimate',
     'gut score',
     'darm-score',
+    'orientierende mahlzeiten-einschätzung',
+    'mahlzeiten-einschätzung',
+    'musterbasierte einschätzung',
+    'bildende mahlzeiten-schätzung',
+    'mahlzeiten-schätzung',
+    'musterbasierte schätzung',
+    'برآورد آموزشی وعده غذایی',
+    'برآورد مبتنی بر الگو',
     'امتیاز روده',
   ].includes(normalized);
 }
@@ -809,6 +829,18 @@ function stripAnalysisInsightSection(aiText: string, language: AppLanguage): str
   }
 
   return skippedAnyInsight ? keptLines.join('\n').replace(/\n{3,}/g, '\n\n').trim() : aiText;
+}
+
+function localizeVisibleEstimateLabels(aiText: string, language: AppLanguage): string {
+  const labels = copy[language];
+
+  return aiText
+    .replace(/Meal Impact Score|Impact Score/gi, labels.scoreLabel)
+    .replace(/Gut Score/gi, labels.scoreProgressLabel)
+    .replace(/Mahlzeiten-Score/gi, labels.scoreLabel)
+    .replace(/Darm-Score/gi, labels.scoreProgressLabel)
+    .replace(/امتیاز تأثیر غذا|امتیاز غذا/g, labels.scoreLabel)
+    .replace(/امتیاز روده/g, labels.scoreProgressLabel);
 }
 
 function buildFallbackAnalysisInsights(
@@ -966,7 +998,7 @@ export default function PhotoAnalysisScreen() {
     extractedAnalysisInsights,
     buildFallbackAnalysisInsights(analysis, currentSymptoms, promptConditions, language),
   );
-  const displayAnalysisText = stripAnalysisInsightSection(analysis, language);
+  const displayAnalysisText = localizeVisibleEstimateLabels(stripAnalysisInsightSection(analysis, language), language);
   const wizardSubtitle =
     wizardStep === 1 ? t.wizardStep1Subtitle : wizardStep === 2 ? t.wizardStep2Subtitle : t.wizardStep3Subtitle;
   const canRecordFeelings = wizardStep === 2 && Boolean(photoUri && lastImageBase64);
@@ -1173,9 +1205,10 @@ export default function PhotoAnalysisScreen() {
       const summary = [
         t.snapshotHeading,
         `${t.scoreLabel}: ${mealImpactScore ?? t.pendingScore}`,
+        t.scoreHelperNote,
         `${t.profileContext}`,
         '',
-        analysis,
+        displayAnalysisText,
       ].join('\n');
 
       await Share.share({
@@ -1210,7 +1243,7 @@ export default function PhotoAnalysisScreen() {
       meal_name: mealName,
       meal_type: getMealTypeForClock(),
       foods: null as string[] | null,
-      note: `${scoreNote}. ${analysis.slice(0, 600)}`,
+      note: `${scoreNote}. ${displayAnalysisText.slice(0, 600)}`,
       logged_at: new Date().toISOString(),
     };
 
@@ -2141,14 +2174,19 @@ export default function PhotoAnalysisScreen() {
                       </View>
                     </View>
                     {mealImpactScore ? (
-                      <View style={[
-                        styles.scoreBadge,
-                        hasPainSymptom && styles.scorePainBadge,
-                        isRtlLanguage && styles.rtlRow,
-                      ]}>
-                        <Ionicons name="speedometer" size={18} color={Colors.textInverse} />
-                        <Text style={[styles.scoreBadgeLabel, isRtlLanguage && styles.rtlText]}>{t.scoreLabel}</Text>
-                        <Text style={styles.scoreBadgeValue}>{mealImpactScore}</Text>
+                      <View style={styles.scoreEstimateWrap}>
+                        <View style={[
+                          styles.scoreBadge,
+                          hasPainSymptom && styles.scorePainBadge,
+                          isRtlLanguage && styles.rtlRow,
+                        ]}>
+                          <Ionicons name="speedometer" size={18} color={Colors.textInverse} />
+                          <Text style={[styles.scoreBadgeLabel, isRtlLanguage && styles.rtlText]}>{t.scoreLabel}</Text>
+                          <Text style={styles.scoreBadgeValue}>{mealImpactScore}</Text>
+                        </View>
+                        <Text style={[styles.scoreHelperNote, isRtlLanguage && styles.rtlText]}>
+                          {t.scoreHelperNote}
+                        </Text>
                       </View>
                     ) : null}
                     {analysisInsights.length > 0 ? (
@@ -2938,10 +2976,22 @@ const styles = createStyles({
     borderRadius: BorderRadius.full,
     flexDirection: 'row',
     gap: Spacing.xs,
-    marginBottom: Spacing.md,
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.sm,
     ...Shadows.sm,
+  },
+  scoreEstimateWrap: {
+    alignSelf: 'flex-start',
+    gap: Spacing.xs,
+    marginBottom: Spacing.md,
+    maxWidth: '100%',
+  },
+  scoreHelperNote: {
+    color: '#C7D1CB',
+    fontFamily: FontFamily.sansRegular,
+    fontSize: FontSize.xs,
+    lineHeight: 18,
+    maxWidth: 360,
   },
   scorePainBadge: {
     backgroundColor: '#F59E0B',

@@ -61,7 +61,7 @@ const ONBOARDING_COPY: Record<AppLanguage, OnboardingCopy> = {
     selectorHelper: 'English, Deutsch, and فارسی update this onboarding instantly.',
     questionCount: (step, total) => `Question ${step} of ${total}`,
     summaryHeader: 'Your personalized summary',
-    summaryTitle: 'Your GutWell starting plan',
+    summaryTitle: 'Your NutriFlow starting plan',
     mainGoal: 'Main goal',
     focusAreas: 'Focus areas',
     habits: 'Suggested first habits',
@@ -137,7 +137,7 @@ const ONBOARDING_COPY: Record<AppLanguage, OnboardingCopy> = {
         { value: 'rarely', label: 'Rarely' },
         { value: 'dont_know', label: "Don't know" },
       ] },
-      { id: 'goal', title: 'What is your main goal right now?', helper: 'Your first GutWell plan starts here.', options: [
+      { id: 'goal', title: 'What is your main goal right now?', helper: 'Your first NutriFlow plan starts here.', options: [
         { value: 'reduce_bloating', label: 'Reduce bloating' },
         { value: 'improve_regularity', label: 'Improve regularity' },
         { value: 'improve_consistency', label: 'Improve consistency' },
@@ -169,7 +169,7 @@ const ONBOARDING_COPY: Record<AppLanguage, OnboardingCopy> = {
     selectorHelper: 'Wähle die Sprache für die Einführung. Die Texte aktualisieren sich sofort.',
     questionCount: (step, total) => `Frage ${step} von ${total}`,
     summaryHeader: 'Deine persönliche Übersicht',
-    summaryTitle: 'Dein GutWell-Start',
+    summaryTitle: 'Dein NutriFlow-Start',
     mainGoal: 'Hauptziel',
     focusAreas: 'Schwerpunkte',
     habits: 'Erste Empfehlungen',
@@ -245,7 +245,7 @@ const ONBOARDING_COPY: Record<AppLanguage, OnboardingCopy> = {
         { value: 'rarely', label: 'Selten' },
         { value: 'dont_know', label: 'Weiß ich nicht' },
       ] },
-      { id: 'goal', title: 'Was ist gerade dein wichtigstes Ziel?', helper: 'Dein erster GutWell-Plan baut darauf auf.', options: [
+      { id: 'goal', title: 'Was ist gerade dein wichtigstes Ziel?', helper: 'Dein erster NutriFlow-Plan baut darauf auf.', options: [
         { value: 'reduce_bloating', label: 'Blähungen besser einordnen' },
         { value: 'improve_regularity', label: 'Regelmäßigkeit verbessern' },
         { value: 'improve_consistency', label: 'Konsistenz verbessern' },
@@ -277,7 +277,7 @@ const ONBOARDING_COPY: Record<AppLanguage, OnboardingCopy> = {
     selectorHelper: 'زبان معرفی اولیه را انتخاب کنید؛ متن‌ها بلافاصله به‌روزرسانی می‌شوند.',
     questionCount: (step, total) => `سؤال ${step} از ${total}`,
     summaryHeader: 'خلاصه شخصی شما',
-    summaryTitle: 'شروع برنامه GutWell شما',
+    summaryTitle: 'شروع برنامه NutriFlow شما',
     mainGoal: 'هدف اصلی',
     focusAreas: 'محورهای تمرکز',
     habits: 'پیشنهادهای اولیه',
@@ -353,7 +353,7 @@ const ONBOARDING_COPY: Record<AppLanguage, OnboardingCopy> = {
         { value: 'rarely', label: 'به ندرت' },
         { value: 'dont_know', label: 'نمی‌دانم' },
       ] },
-      { id: 'goal', title: 'هدف اصلی شما در حال حاضر چیست؟', helper: 'اولین برنامه GutWell شما از همین پاسخ شروع می‌شود.', options: [
+      { id: 'goal', title: 'هدف اصلی شما در حال حاضر چیست؟', helper: 'اولین برنامه NutriFlow شما از همین پاسخ شروع می‌شود.', options: [
         { value: 'reduce_bloating', label: 'مدیریت بهتر نفخ' },
         { value: 'improve_regularity', label: 'بهبود نظم دفع' },
         { value: 'improve_consistency', label: 'بهبود قوام' },

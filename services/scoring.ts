@@ -58,19 +58,19 @@ function buildDailyGutScoreFallbackInsight(score: number, mainGoal: string | nul
 
   if (score >= 75) {
     return goal
-      ? `Your gut score is strong today; keep one steady habit supporting ${goal}.`
-      : 'Your gut score is strong today; keep meals simple, hydrated, and consistent.';
+      ? `Your wellness estimate is strong today; keep one steady habit supporting ${goal}.`
+      : 'Your wellness estimate is strong today; keep meals simple, hydrated, and consistent.';
   }
 
   if (score >= 50) {
     return goal
-      ? `Your gut score is moderate; choose one gentle meal or hydration step for ${goal}.`
-      : 'Your gut score is moderate; choose one gentle meal and track symptoms today.';
+      ? `Your wellness estimate is moderate; choose one gentle meal or hydration step for ${goal}.`
+      : 'Your wellness estimate is moderate; choose one gentle meal and track symptoms today.';
   }
 
   return goal
-    ? `Your Gut Score is lower today; keep portions gentle and observe possible patterns for ${goal}.`
-    : 'Your Gut Score is lower today; keep portions gentle and observe possible food patterns.';
+    ? `Your wellness estimate is lower today; keep portions gentle and observe possible patterns for ${goal}.`
+    : 'Your wellness estimate is lower today; keep portions gentle and observe possible food patterns.';
 }
 
 async function getDailyGutScoreInsight(input: { score: number; mainGoal: string | null }): Promise<string> {

@@ -48,9 +48,9 @@ export default function HomeScreen() {
       );
 
       if (weightedSymptomCount > weightedMealCount) {
-        setRecommendationMessage('Recent symptoms may be affecting your score ⚠️');
+        setRecommendationMessage('Recent symptoms may affect today\'s estimate ⚠️');
       } else if (weightedMealCount > weightedSymptomCount) {
-        setRecommendationMessage('Your recent meals are improving your score 👍');
+        setRecommendationMessage('Your recent meals support today\'s estimate 👍');
       } else {
         setRecommendationMessage('Keep tracking to see clearer patterns ➖');
       }
@@ -99,7 +99,7 @@ export default function HomeScreen() {
       const [meal, symptom] = mostFrequentPair[0].split('|||');
       const occurrences = mostFrequentPair[1];
       setCorrelationMessage(
-        `${meal.charAt(0).toUpperCase() + meal.slice(1)} may be linked to ${symptom} (seen ${occurrences} times) ⚠️`
+        `${meal.charAt(0).toUpperCase() + meal.slice(1)} has a possible pattern with ${symptom} (seen ${occurrences} times) ⚠️`
       );
     } else {
       setCorrelationMessage('');
@@ -181,7 +181,7 @@ export default function HomeScreen() {
         <Text style={styles.title}>Welcome</Text>
 
       <View style={styles.scoreCard}>
-        <Text style={styles.scoreLabel}>Gut Score</Text>
+        <Text style={styles.scoreLabel}>Wellness estimate</Text>
         <Text style={styles.scoreValue}>{gutScore}</Text>
         <Text style={styles.trendMessage}>{trendMessage}</Text>
         {recommendationMessage ? (

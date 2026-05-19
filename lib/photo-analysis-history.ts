@@ -33,18 +33,18 @@ type HealthLogRow = {
 
 const SCORE_LABELS: Record<AppLanguage, { impact: string; gut: string; fallbackMeal: string }> = {
   en: {
-    impact: 'Meal Impact Score',
-    gut: 'Gut Score',
+    impact: 'Educational Meal Estimate',
+    gut: 'Pattern-based estimate',
     fallbackMeal: 'Meal photo',
   },
   de: {
-    impact: 'Mahlzeiten-Score',
-    gut: 'Darm-Score',
+    impact: 'Orientierende Mahlzeiten-Einschätzung',
+    gut: 'Musterbasierte Einschätzung',
     fallbackMeal: 'Mahlzeit (Foto)',
   },
   fa: {
-    impact: 'امتیاز تأثیر غذا',
-    gut: 'امتیاز روده',
+    impact: 'برآورد آموزشی وعده غذایی',
+    gut: 'برآورد مبتنی بر الگو',
     fallbackMeal: 'غذای عکس',
   },
 };
@@ -70,7 +70,7 @@ function normalizeDigits(value: string): string {
 export function extractMealImpactScore(aiText: string): string | null {
   const normalizedText = normalizeDigits(aiText);
   const scoreMatch = normalizedText.match(
-    /(?:meal impact score|impact score|gut score|score|mahlzeiten-score|darm-score|امتیاز تأثیر غذا|امتیاز غذا|امتیاز روده|امتیاز)[^\d]{0,40}(\d{1,2})\s*(?:\/|out of|از)\s*10/i,
+    /(?:educational meal estimate|meal fit estimate|pattern-based estimate|wellness estimate|meal impact score|impact score|gut score|score|orientierende mahlzeiten-einschätzung|mahlzeiten-einschätzung|musterbasierte einschätzung|wellness-einschätzung|bildende mahlzeiten-schätzung|mahlzeiten-schätzung|musterbasierte schätzung|wellness-schätzung|mahlzeiten-score|darm-score|برآورد آموزشی وعده غذایی|برآورد تناسب وعده|برآورد مبتنی بر الگو|برآورد تندرستی|امتیاز تأثیر غذا|امتیاز غذا|امتیاز روده|امتیاز)[^\d]{0,40}(\d{1,2})\s*(?:\/|out of|از)\s*10/i,
   )
     ?? normalizedText.match(/(\d{1,2})\s*(?:\/|out of|از)\s*10/i);
 
@@ -273,17 +273,17 @@ export function applyDynamicMealImpactScore(
   const [scoreNumber] = dynamicScore.split('/');
   const labels = SCORE_LABELS[language];
   let updatedText = aiText.replace(
-    /((?:Gut Score|Darm-Score|امتیاز روده)\s*:\s*\[[#-]{10}\]\s*)[0-9\u06f0-\u06f9\u0660-\u0669]{1,2}\s*(?:\/|از)\s*(?:10|۱۰|١٠)/i,
+    /((?:Pattern-based estimate|Wellness estimate|Gut Score|Musterbasierte Einschätzung|Wellness-Einschätzung|Musterbasierte Schätzung|Wellness-Schätzung|Darm-Score|برآورد مبتنی بر الگو|برآورد تندرستی|امتیاز روده)\s*:\s*\[[#-]{10}\]\s*)[0-9\u06f0-\u06f9\u0660-\u0669]{1,2}\s*(?:\/|از)\s*(?:10|۱۰|١٠)/i,
     `$1${dynamicScore}`,
   );
 
   updatedText = updatedText.replace(
-    /((?:Meal Impact Score|Impact Score|Score|Mahlzeiten-Score|Darm-Score|امتیاز تأثیر غذا|امتیاز غذا|امتیاز روده|امتیاز)[^\d\n|]{0,40})[0-9\u06f0-\u06f9\u0660-\u0669]{1,2}\s*(?:\/|out of|از)\s*(?:10|۱۰|١٠)/i,
+    /((?:Educational Meal Estimate|Meal Fit Estimate|Pattern-based estimate|Wellness estimate|Meal Impact Score|Impact Score|Score|Orientierende Mahlzeiten-Einschätzung|Mahlzeiten-Einschätzung|Musterbasierte Einschätzung|Wellness-Einschätzung|Bildende Mahlzeiten-Schätzung|Mahlzeiten-Schätzung|Musterbasierte Schätzung|Wellness-Schätzung|Mahlzeiten-Score|Darm-Score|برآورد آموزشی وعده غذایی|برآورد تناسب وعده|برآورد مبتنی بر الگو|برآورد تندرستی|امتیاز تأثیر غذا|امتیاز غذا|امتیاز روده|امتیاز)[^\d\n|]{0,40})[0-9\u06f0-\u06f9\u0660-\u0669]{1,2}\s*(?:\/|out of|از)\s*(?:10|۱۰|١٠)/i,
     `$1${dynamicScore}`,
   );
 
   updatedText = updatedText.replace(
-    /(\|\s*(?:Score|Gut Score|Meal Impact Score|Mahlzeiten-Score|Darm-Score|امتیاز تأثیر غذا|امتیاز روده|امتیاز)\s*\|[^\n]*\n\|[^\n]*\n\|(?:[^|\n]*\|){2}\s*)[0-9\u06f0-\u06f9\u0660-\u0669]{1,2}\s*(?:\/|out of|از)\s*(?:10|۱۰|١٠)/i,
+    /(\|\s*(?:Score|Pattern-based estimate|Educational Meal Estimate|Meal Fit Estimate|Gut Score|Meal Impact Score|Orientierende Mahlzeiten-Einschätzung|Musterbasierte Einschätzung|Bildende Mahlzeiten-Schätzung|Musterbasierte Schätzung|Mahlzeiten-Score|Darm-Score|برآورد آموزشی وعده غذایی|برآورد مبتنی بر الگو|امتیاز تأثیر غذا|امتیاز روده|امتیاز)\s*\|[^\n]*\n\|[^\n]*\n\|(?:[^|\n]*\|){2}\s*)[0-9\u06f0-\u06f9\u0660-\u0669]{1,2}\s*(?:\/|out of|از)\s*(?:10|۱۰|١٠)/i,
     `$1${dynamicScore}`,
   );
 

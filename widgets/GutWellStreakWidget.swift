@@ -74,12 +74,12 @@ struct GutWellSmallView: View {
 
             Spacer()
 
-            // Gut Score
+            // Wellness estimate
             VStack(alignment: .leading, spacing: 2) {
                 Text("\(entry.gutScore)")
                     .font(.system(size: 36, weight: .bold, design: .rounded))
                     .foregroundColor(scoreColor)
-                Text("Gut Score")
+                Text("Wellness estimate")
                     .font(.system(size: 11))
                     .foregroundColor(.secondary)
             }
@@ -127,7 +127,7 @@ struct GutWellMediumView: View {
                         .font(.system(size: 22, weight: .bold, design: .rounded))
                         .foregroundColor(scoreColor)
                 }
-                Text("Gut Score")
+                Text("Wellness estimate")
                     .font(.system(size: 10))
                     .foregroundColor(.secondary)
             }
@@ -186,7 +186,7 @@ struct GutWellStreakWidget: Widget {
             }
         }
         .configurationDisplayName("NutriFlow")
-        .description("Track your gut score and check-in streak.")
+        .description("Track your wellness estimate and check-in streak.")
         .supportedFamilies([.systemSmall, .systemMedium])
     }
 }
