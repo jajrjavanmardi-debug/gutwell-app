@@ -1,5 +1,7 @@
 import { getLocalDateKey } from '../lib/date';
+import type { AppLanguage } from '../lib/app-language';
 import { generateDailyGutScoreInsight } from '../lib/groq';
+import { shouldReplaceEnglishFallbackForPersian } from '../lib/language-safety';
 import { updateTodayScore } from '../lib/scoring';
 import { supabase } from '../lib/supabase';
 
@@ -53,8 +55,42 @@ function readStringArray(value: unknown): string[] {
   return Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : [];
 }
 
-function buildDailyGutScoreFallbackInsight(score: number, mainGoal: string | null): string {
+function buildDailyGutScoreFallbackInsight(
+  score: number,
+  mainGoal: string | null,
+  language: AppLanguage,
+): string {
   const goal = mainGoal?.trim();
+
+  if (language === 'fa') {
+    if (score >= 75) {
+      return 'برآورد امروز بالاتر است؛ یک عادت آرام و ثابت را ادامه دهید و علائم را بدون فشار دنبال کنید.';
+    }
+
+    if (score >= 50) {
+      return 'برآورد امروز در محدوده میانی است؛ یک وعده ملایم یا قدم ساده برای آب‌رسانی انتخاب کنید.';
+    }
+
+    return 'برآورد امروز پایین‌تر است؛ وعده‌ها را ساده نگه دارید و الگوهای احتمالی را با آرامش مشاهده کنید.';
+  }
+
+  if (language === 'de') {
+    if (score >= 75) {
+      return goal
+        ? `Deine heutige Einschätzung ist höher; halte eine ruhige Gewohnheit für ${goal} stabil.`
+        : 'Deine heutige Einschätzung ist höher; halte Mahlzeiten einfach, ausreichend Wasser und Routinen stabil.';
+    }
+
+    if (score >= 50) {
+      return goal
+        ? `Deine heutige Einschätzung liegt im mittleren Bereich; wähle einen sanften Schritt für ${goal}.`
+        : 'Deine heutige Einschätzung liegt im mittleren Bereich; wähle eine sanfte Mahlzeit und beobachte Symptome.';
+    }
+
+    return goal
+      ? `Deine heutige Einschätzung ist niedriger; halte Portionen sanft und beobachte Muster für ${goal}.`
+      : 'Deine heutige Einschätzung ist niedriger; halte Portionen sanft und beobachte mögliche Muster.';
+  }
 
   if (score >= 75) {
     return goal
@@ -73,12 +109,26 @@ function buildDailyGutScoreFallbackInsight(score: number, mainGoal: string | nul
     : 'Your wellness estimate is lower today; keep portions gentle and observe possible food patterns.';
 }
 
-async function getDailyGutScoreInsight(input: { score: number; mainGoal: string | null }): Promise<string> {
+async function getDailyGutScoreInsight(input: {
+  score: number;
+  mainGoal: string | null;
+  language: AppLanguage;
+}): Promise<string> {
   try {
-    const insight = await generateDailyGutScoreInsight(input);
-    return insight.trim() || buildDailyGutScoreFallbackInsight(input.score, input.mainGoal);
+    const insight = await generateDailyGutScoreInsight({
+      score: input.score,
+      mainGoal: input.mainGoal,
+      preferredLanguage: input.language,
+    });
+    const trimmedInsight = insight.trim();
+
+    if (trimmedInsight && !shouldReplaceEnglishFallbackForPersian(input.language, trimmedInsight)) {
+      return trimmedInsight;
+    }
+
+    return buildDailyGutScoreFallbackInsight(input.score, input.mainGoal, input.language);
   } catch {
-    return buildDailyGutScoreFallbackInsight(input.score, input.mainGoal);
+    return buildDailyGutScoreFallbackInsight(input.score, input.mainGoal, input.language);
   }
 }
 
@@ -232,7 +282,10 @@ export async function saveOnboardingResultsToUserProfile(
   if (error) throw error;
 }
 
-export async function fetchDailyGutScoreCardData(userId: string): Promise<DailyGutScoreCardData> {
+export async function fetchDailyGutScoreCardData(
+  userId: string,
+  language: AppLanguage = 'en',
+): Promise<DailyGutScoreCardData> {
   const today = getLocalDateKey();
   await updateTodayScore(userId);
 
@@ -274,6 +327,7 @@ export async function fetchDailyGutScoreCardData(userId: string): Promise<DailyG
   const insight = await getDailyGutScoreInsight({
     score: scoreResult.score,
     mainGoal: readString(profileRow.main_goal, '') || null,
+    language,
   });
 
   return {

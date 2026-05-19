@@ -465,9 +465,9 @@ export async function getFoodRecommendationFromNutrients(
   userFeeling: string,
   nutrients: string[],
   foodData: FoodNutrition | null,
-  options: { hasSpecificFood?: boolean } = {},
+  options: { hasSpecificFood?: boolean; preferredLanguage?: AppLanguage } = {},
 ): Promise<string> {
-  const preferredLanguage = getPreferredCoachLanguage(userFeeling);
+  const preferredLanguage = options.preferredLanguage ?? getPreferredCoachLanguage(userFeeling);
   const copy = COACH_LANGUAGE_COPY[preferredLanguage];
   const hasSpecificFood = options.hasSpecificFood ?? true;
   const usableFoodData = hasSpecificFood ? foodData : null;
@@ -477,6 +477,9 @@ export async function getFoodRecommendationFromNutrients(
     `Language rule: ${copy.languageRule} Answer only in ${copy.languageName}.`,
     preferredLanguage === 'fa'
       ? 'Persian formatting rule: use natural Persian wording, right-to-left-friendly line breaks, and Persian labels.'
+      : '',
+    preferredLanguage === 'fa'
+      ? 'Persian hard rule: do not return English recommendation sentences. If your draft is English, translate it fully into Persian before final output.'
       : '',
     '',
     'User context:',
@@ -541,12 +544,25 @@ export async function getFoodRecommendationFromNutrients(
 export async function generateDailyGutScoreInsight(input: {
   score: number;
   mainGoal: string | null;
+  preferredLanguage?: AppLanguage;
 }): Promise<string> {
+  const preferredLanguage = input.preferredLanguage ?? 'en';
+  const copy = COACH_LANGUAGE_COPY[preferredLanguage];
+  const fallbackGoal = {
+    en: 'General gut wellness',
+    de: 'allgemeines Darmwohlbefinden',
+    fa: 'تندرستی عمومی گوارش',
+  }[preferredLanguage];
   const prompt = [
-    `Based on a daily wellness estimate of ${input.score}/100 and the goal of ${input.mainGoal ?? 'General gut wellness'}, give a 1-sentence coaching tip.`,
+    `Based on a daily wellness estimate of ${input.score}/100 and the goal of ${input.mainGoal ?? fallbackGoal}, give a 1-sentence coaching tip.`,
+    `Selected app language: ${copy.languageName}.`,
+    `Language rule: ${copy.languageRule} Answer only in ${copy.languageName}.`,
+    preferredLanguage === 'fa'
+      ? 'Persian formatting rule: use natural Persian wording, Persian script, and RTL-friendly phrasing. Do not include English labels.'
+      : '',
     'Make it practical, specific, and supportive.',
     'No diagnosis, no treatment or cure claim, no certainty claims, no emojis, max 20 words.',
-  ].join('\n');
+  ].filter(Boolean).join('\n');
 
   return callGroq(prompt, 'text');
 }
@@ -630,6 +646,9 @@ export async function analyzeMealPhotoWithGroq(
     `Output format requirement: return Markdown only. First include a compact Summary Table for "${languageCopy.mealImpact}" with columns "${languageCopy.meal}", "${languageCopy.symptoms}", "${languageCopy.mealImpactScore}", "${languageCopy.why}". Then include one line "${languageCopy.gutScore}: [####------] X/10" as a text progress bar where X is the same dynamic ${languageCopy.mealImpactScore}. Then include "${languageCopy.analysisInsight}:" with 2-3 concise bullet points explaining why the estimate was assigned. Then include "${languageCopy.tips}:" with max 3 bullet points.`,
     'Length requirement: keep the total explanation under 130 words.',
     `Language requirement: ${languageCopy.languageRule} All fixed labels, table headers, section names, and the footer must be in ${languageCopy.languageName}.`,
+    preferredLanguage === 'fa'
+      ? 'Persian hard rule: if any draft text is English, translate it before final output. No English recommendation sentences, headings, bullets, or labels.'
+      : '',
     `Mandatory safety footer: end with this exact footer in the selected language: "${languageCopy.footer}"`,
     'When the image is unclear, say what extra detail would help instead of pretending certainty.',
     'Avoid diagnosis, treatment, cure, certainty, or medical claims.',

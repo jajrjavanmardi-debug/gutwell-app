@@ -12,6 +12,8 @@ import {
   detectRedFlagSymptoms,
   RedFlagTriageError,
 } from './red-flag-triage';
+import type { AppLanguage } from './app-language';
+import { shouldReplaceEnglishFallbackForPersian } from './language-safety';
 import { fetchFoodNutrition, type FoodNutrition } from './usda';
 
 export type NutritionRecommendationResult = {
@@ -23,6 +25,7 @@ export type NutritionRecommendationResult = {
 
 type NutritionRecommendationOptions = {
   hasSpecificFood?: boolean;
+  preferredLanguage?: AppLanguage;
 };
 
 const nutrientCache = new Map<string, string[]>();
@@ -76,7 +79,11 @@ export function hasSpecificFoodReference(input: string): boolean {
   return remainingWords.length > 0;
 }
 
-function getFallbackLanguage(userFeeling: string): 'en' | 'de' | 'fa' {
+function getFallbackLanguage(
+  userFeeling: string,
+  preferredLanguage?: AppLanguage,
+): 'en' | 'de' | 'fa' {
+  if (preferredLanguage) return preferredLanguage;
   if (/preferred response language:\s*(persian|فارسی)|use persian only|فارسی/i.test(userFeeling)) return 'fa';
   if (/preferred response language:\s*(german|deutsch)|use german only|deutsch/i.test(userFeeling)) return 'de';
   return 'en';
@@ -113,8 +120,9 @@ function buildFallbackRecommendation(
   nutrients: string[],
   foodData: FoodNutrition | null,
   hasSpecificFood: boolean,
+  preferredLanguage?: AppLanguage,
 ): string {
-  const language = getFallbackLanguage(userFeeling);
+  const language = getFallbackLanguage(userFeeling, preferredLanguage);
   const foodName = hasSpecificFood ? foodData?.description : undefined;
 
   if (!hasSpecificFood) {
@@ -214,7 +222,7 @@ export async function getNutritionRecommendation(
 
   const triage = detectRedFlagSymptoms(feeling);
   if (triage.hasRedFlag) {
-    throw new RedFlagTriageError(getFallbackLanguage(feeling), triage);
+    throw new RedFlagTriageError(getFallbackLanguage(feeling, options.preferredLanguage), triage);
   }
 
   const hasSpecificFood = options.hasSpecificFood ?? hasSpecificFoodReference(feeling);
@@ -230,10 +238,23 @@ export async function getNutritionRecommendation(
   const foods = hasSpecificFood ? await FoodService.findMatchingFoodsForNutrients(nutrients) : [];
   let recommendation: string;
   try {
-    recommendation = await AnalysisService.generateRecommendation(feeling, nutrients, foods, { hasSpecificFood });
+    recommendation = await AnalysisService.generateRecommendation(feeling, nutrients, foods, {
+      hasSpecificFood,
+      preferredLanguage: options.preferredLanguage,
+    });
   } catch (error) {
     if (!isMissingAiProviderKey(error)) throw error;
-    recommendation = buildFallbackRecommendation(feeling, nutrients, foods[0] ?? null, hasSpecificFood);
+    recommendation = buildFallbackRecommendation(
+      feeling,
+      nutrients,
+      foods[0] ?? null,
+      hasSpecificFood,
+      options.preferredLanguage,
+    );
+  }
+
+  if (shouldReplaceEnglishFallbackForPersian(options.preferredLanguage ?? getFallbackLanguage(feeling), recommendation)) {
+    recommendation = buildFallbackRecommendation(feeling, nutrients, foods[0] ?? null, hasSpecificFood, 'fa');
   }
 
   return {

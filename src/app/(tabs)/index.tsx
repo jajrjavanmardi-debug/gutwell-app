@@ -777,11 +777,13 @@ function SevenDayProgressChart({
   data,
   gutLabel,
   energyLabel,
+  isRtl,
   onSelectPoint,
 }: {
   data: ChartPoint[];
   gutLabel: string;
   energyLabel: string;
+  isRtl: boolean;
   onSelectPoint: (point: ChartPoint) => void;
 }) {
   const chartWidth = 300;
@@ -821,21 +823,25 @@ function SevenDayProgressChart({
               />
               <Circle cx={x} cy={gutY} r="4.5" fill="#2DCE89" onPress={() => onSelectPoint(point)} />
               <Circle cx={x} cy={energyY} r="4.5" fill="#D4A373" />
-              <SvgText x={x} y="162" fill="#777777" fontSize="10" fontWeight="700" textAnchor="middle">
+              <SvgText x={x} y="162" fill={isRtl ? '#20372C' : '#777777'} fontSize="10" fontWeight="700" textAnchor="middle">
                 {point.label}
               </SvgText>
             </Fragment>
           );
         })}
       </Svg>
-      <View style={styles.chartLegend}>
-        <View style={styles.chartLegendItem}>
+      <View style={[styles.chartLegend, isRtl && styles.rtlRow]}>
+        <View style={[styles.chartLegendItem, isRtl && styles.rtlRow]}>
           <View style={[styles.chartLegendDot, styles.chartGutDot]} />
-          <Text style={styles.chartLegendText}>{gutLabel}</Text>
+          <Text style={[styles.chartLegendText, isRtl && styles.persianReadableText, isRtl && styles.rtlText]}>
+            {gutLabel}
+          </Text>
         </View>
-        <View style={styles.chartLegendItem}>
+        <View style={[styles.chartLegendItem, isRtl && styles.rtlRow]}>
           <View style={[styles.chartLegendDot, styles.chartEnergyDot]} />
-          <Text style={styles.chartLegendText}>{energyLabel}</Text>
+          <Text style={[styles.chartLegendText, isRtl && styles.persianReadableText, isRtl && styles.rtlText]}>
+            {energyLabel}
+          </Text>
         </View>
       </View>
     </View>
@@ -848,6 +854,7 @@ export default function HomeScreen() {
   const { width } = useWindowDimensions();
   const scrollViewRef = useRef<ScrollView>(null);
   const previousLanguageRef = useRef<Language>('en');
+  const languageRef = useRef<Language>('en');
   const redFlagActiveRef = useRef(false);
   const celebrationPulse = useRef(new Animated.Value(0)).current;
   const [feeling, setFeeling] = useState('');
@@ -955,6 +962,10 @@ export default function HomeScreen() {
     AsyncStorage.setItem(APP_LANGUAGE_STORAGE_KEY, language).catch(console.warn);
   }, [hasLoadedLanguage, language]);
 
+  useEffect(() => {
+    languageRef.current = language;
+  }, [language]);
+
   useFocusEffect(
     useCallback(() => {
       let isActive = true;
@@ -965,7 +976,7 @@ export default function HomeScreen() {
         getPhotoAnalysisHistory(currentUser?.id),
         getSupplementHistory(),
         getUserProgressProfile(),
-        currentUser?.id ? fetchDailyGutScoreCardData(currentUser.id) : Promise.resolve(null),
+        currentUser?.id ? fetchDailyGutScoreCardData(currentUser.id, languageRef.current) : Promise.resolve(null),
         getUserProfileSettings().catch((error) => {
           console.warn('Profile settings load failed:', error);
           return fallbackProfileSettings;
@@ -998,6 +1009,26 @@ export default function HomeScreen() {
       };
     }, [currentUser?.id])
   );
+
+  useEffect(() => {
+    if (!hasLoadedLanguage || !currentUser?.id) return;
+
+    let isActive = true;
+    setDailyGutScoreLoading(true);
+
+    fetchDailyGutScoreCardData(currentUser.id, language)
+      .then((dailyScore) => {
+        if (isActive) setDailyGutScoreCard(dailyScore);
+      })
+      .catch(console.warn)
+      .finally(() => {
+        if (isActive) setDailyGutScoreLoading(false);
+      });
+
+    return () => {
+      isActive = false;
+    };
+  }, [currentUser?.id, hasLoadedLanguage, language]);
 
   const localizedNutrients = useMemo(
     () => localizedResult?.nutrients.map((nutrient) => translateNutrient(nutrient, language)) ?? [],
@@ -1136,7 +1167,10 @@ export default function HomeScreen() {
         `Use ${AI_LANGUAGE_LABELS[language]} only. Do not respond in any other language.`,
         'For IBS/bloating patterns, avoid pushing brown rice, barley bread, barley, or high-fiber whole grains as comfort ideas. Prefer gentler options such as white rice, boiled potatoes, zucchini, carrots, peppermint tea, ginger tea, or low-FODMAP soup.',
       ].join('\n');
-      const recommendation = await getNutritionRecommendation(analysisInput, { hasSpecificFood });
+      const recommendation = await getNutritionRecommendation(analysisInput, {
+        hasSpecificFood,
+        preferredLanguage: language,
+      });
       if (redFlagActiveRef.current) return;
       const xpResult = await addXpForAction(10);
       setResult({ ...recommendation, feeling: trimmedFeeling });
@@ -1351,7 +1385,11 @@ export default function HomeScreen() {
             </View>
           ) : null}
           {shouldShowProfileCompletion ? (
-            <View style={[styles.profileCompletionCard, isCompactMobile && styles.mobileCard]}>
+            <View style={[
+              styles.profileCompletionCard,
+              isCompactMobile && styles.mobileCard,
+              isRtl && styles.persianReadableCard,
+            ]}>
               <View style={[styles.profileCompletionHeader, isRtl && styles.rtlRow]}>
                 <View style={styles.profileCompletionIcon}>
                   <Ionicons name="person-add-outline" size={20} color="#276E3A" />
@@ -1360,7 +1398,11 @@ export default function HomeScreen() {
                   <Text style={[styles.profileCompletionTitle, isRtl && styles.rtlText]}>
                     {t.completeProfileTitle}
                   </Text>
-                  <Text style={[styles.profileCompletionText, isRtl && styles.rtlText]}>
+                  <Text style={[
+                    styles.profileCompletionText,
+                    isRtl && styles.persianReadableMutedText,
+                    isRtl && styles.rtlText,
+                  ]}>
                     {t.completeProfileBody}
                   </Text>
                 </View>
@@ -1524,7 +1566,11 @@ export default function HomeScreen() {
             </Pressable>
           </LinearGradient>
 
-          <View style={[styles.dailyScoreCard, isCompactMobile && styles.mobileCard]}>
+          <View style={[
+            styles.dailyScoreCard,
+            isCompactMobile && styles.mobileCard,
+            isRtl && styles.persianReadableCard,
+          ]}>
             <View style={styles.sectionHeader}>
               <Text style={[styles.sectionKicker, isRtl && styles.rtlText]}>{t.dailyGutScore}</Text>
               <Text style={[styles.sectionTitle, isRtl && styles.rtlText]}>
@@ -1534,14 +1580,22 @@ export default function HomeScreen() {
             {dailyGutScoreLoading ? (
               <ActivityIndicator color={DS.colors.sage} size="small" />
             ) : (
-              <Text style={[styles.dailyScoreSummary, isRtl && styles.rtlText]}>
+              <Text style={[
+                styles.dailyScoreSummary,
+                isRtl && styles.persianReadableMutedText,
+                isRtl && styles.rtlText,
+              ]}>
                 {dailyGutScoreCard?.insight
                   ?? t.dailyScoreFallback}
               </Text>
             )}
           </View>
 
-          <View style={[styles.chartCard, isCompactMobile && styles.mobileCard]}>
+          <View style={[
+            styles.chartCard,
+            isCompactMobile && styles.mobileCard,
+            isRtl && styles.persianReadableCard,
+          ]}>
             <View style={styles.sectionHeader}>
               <Text style={[styles.sectionKicker, isRtl && styles.rtlText]}>
                 {t.progressChartSubtitle}
@@ -1554,6 +1608,7 @@ export default function HomeScreen() {
               data={chartData}
               gutLabel={t.gutScoreMetric}
               energyLabel={t.energyMetric}
+              isRtl={isRtl}
               onSelectPoint={setSelectedChartPoint}
             />
             {selectedChartPoint ? (
@@ -1565,20 +1620,24 @@ export default function HomeScreen() {
                     <Ionicons name="close" size={16} color="#A7A7A7" />
                   </Pressable>
                 </View>
-                <Text style={[styles.chartPopupText, isRtl && styles.rtlText]}>
+                <Text style={[styles.chartPopupText, isRtl && styles.persianReadableMutedText, isRtl && styles.rtlText]}>
                   {t.chartPopupDate}: {selectedChartPoint.dateLabel}
                 </Text>
-                <Text style={[styles.chartPopupText, isRtl && styles.rtlText]}>
+                <Text style={[styles.chartPopupText, isRtl && styles.persianReadableMutedText, isRtl && styles.rtlText]}>
                   {t.chartPopupScore}: {selectedChartPoint.gutScore}/10
                 </Text>
-                <Text style={[styles.chartPopupText, isRtl && styles.rtlText]}>
+                <Text style={[styles.chartPopupText, isRtl && styles.persianReadableMutedText, isRtl && styles.rtlText]}>
                   {t.chartPopupFeeling}: {t.chartFeeling[selectedChartPoint.feeling]}
                 </Text>
               </View>
             ) : null}
           </View>
 
-          <View style={[styles.photoHistoryCard, isCompactMobile && styles.mobileCard]}>
+          <View style={[
+            styles.photoHistoryCard,
+            isCompactMobile && styles.mobileCard,
+            isRtl && styles.persianReadableCard,
+          ]}>
             <View style={styles.sectionHeader}>
               <Text style={[styles.sectionKicker, isRtl && styles.rtlText]}>
                 {t.photoHistorySubtitle}
@@ -1608,7 +1667,11 @@ export default function HomeScreen() {
                       <Text style={[styles.photoHistoryDate, isRtl && styles.rtlText]}>
                         {new Date(item.createdAt).toLocaleDateString()}
                       </Text>
-                      <Text numberOfLines={1} style={[styles.photoHistoryMeal, isRtl && styles.rtlText]}>
+                      <Text numberOfLines={1} style={[
+                        styles.photoHistoryMeal,
+                        isRtl && styles.persianReadableText,
+                        isRtl && styles.rtlText,
+                      ]}>
                         {item.mealName}
                       </Text>
                       <View style={[styles.photoHistoryScoreBadge, isRtl && styles.rtlRow]}>
@@ -1627,7 +1690,7 @@ export default function HomeScreen() {
                 ))}
               </View>
             ) : (
-              <Text style={[styles.emptyText, isRtl && styles.rtlText]}>
+              <Text style={[styles.emptyText, isRtl && styles.persianReadableMutedText, isRtl && styles.rtlText]}>
                 {t.photoHistoryEmpty}
               </Text>
             )}
@@ -1640,7 +1703,11 @@ export default function HomeScreen() {
             </Pressable>
           </View>
 
-          <View style={[styles.heatmapCard, isCompactMobile && styles.mobileCard]}>
+          <View style={[
+            styles.heatmapCard,
+            isCompactMobile && styles.mobileCard,
+            isRtl && styles.persianReadableCard,
+          ]}>
             <View style={styles.sectionHeader}>
               <Text style={[styles.sectionKicker, isRtl && styles.rtlText]}>{t.heatmapSubtitle}</Text>
               <Text style={[styles.sectionTitle, isRtl && styles.rtlText]}>{t.heatmapTitle}</Text>
@@ -1663,7 +1730,9 @@ export default function HomeScreen() {
               <Text style={[styles.heroTitle, isCompactMobile && styles.heroTitleCompact, isRtl && styles.rtlText]}>
                 {ui.welcomeMessageTitle}
               </Text>
-              <Text style={[styles.heroSubtitle, isRtl && styles.rtlText]}>{ui.welcomeMessageSubtitle}</Text>
+              <Text style={[styles.heroSubtitle, isRtl && styles.persianReadableMutedText, isRtl && styles.rtlText]}>
+                {ui.welcomeMessageSubtitle}
+              </Text>
 
               <View style={[styles.promptChips, isRtl && styles.rtlRow]}>
                 {EXAMPLE_FEELINGS.map((example) => (
@@ -1678,7 +1747,11 @@ export default function HomeScreen() {
               </View>
             </View>
 
-            <View style={[styles.inputCard, isCompactMobile && styles.mobileCard]}>
+            <View style={[
+              styles.inputCard,
+              isCompactMobile && styles.mobileCard,
+              isRtl && styles.persianReadableCard,
+            ]}>
               <View style={[styles.inputHeader, isRtl && styles.rtlRow]}>
                 <Text style={[styles.inputLabel, isRtl && styles.rtlText]}>{t.inputLabel}</Text>
                 <Pressable
@@ -1711,7 +1784,7 @@ export default function HomeScreen() {
                   <Text style={[styles.trackingSafetyTitle, isRtl && styles.rtlText]}>
                     {eatingBehaviorSafetyCopy.title}
                   </Text>
-                  <Text style={[styles.trackingSafetyText, isRtl && styles.rtlText]}>
+                  <Text style={[styles.trackingSafetyText, isRtl && styles.persianReadableMutedText, isRtl && styles.rtlText]}>
                     {eatingBehaviorSafetyCopy.body}
                   </Text>
                 </View>
@@ -1724,7 +1797,7 @@ export default function HomeScreen() {
                     <Text style={[styles.trackingReminderTitle, isRtl && styles.rtlText]}>
                       {trackingSafetyReminder.title}
                     </Text>
-                    <Text style={[styles.trackingReminderText, isRtl && styles.rtlText]}>
+                    <Text style={[styles.trackingReminderText, isRtl && styles.persianReadableMutedText, isRtl && styles.rtlText]}>
                       {trackingSafetyReminder.body}
                     </Text>
                   </View>
@@ -1912,7 +1985,12 @@ export default function HomeScreen() {
 
           {localizedResult ? (
             <>
-              <View style={[styles.resultContextCard, isCompactMobile && styles.mobileCard, isRtl && styles.rtlRow]}>
+              <View style={[
+                styles.resultContextCard,
+                isCompactMobile && styles.mobileCard,
+                isRtl && styles.persianReadableCard,
+                isRtl && styles.rtlRow,
+              ]}>
                 <View style={styles.resultContextItem}>
                   <Text style={[styles.resultContextLabel, isRtl && styles.rtlText]}>
                     {t.shareFeeling}
@@ -1932,7 +2010,12 @@ export default function HomeScreen() {
               </View>
 
               <View style={[styles.resultsGrid, isWideLayout && styles.resultsGridWide]}>
-              <View style={[styles.resultsPanel, isCompactMobile && styles.mobileCard, isWideLayout && styles.nutrientsPanelWide]}>
+              <View style={[
+                styles.resultsPanel,
+                isCompactMobile && styles.mobileCard,
+                isWideLayout && styles.nutrientsPanelWide,
+                isRtl && styles.persianReadableCard,
+              ]}>
                 <View style={styles.sectionHeader}>
                   <Text style={[styles.sectionKicker, isRtl && styles.rtlText]}>{t.supportiveNutrients}</Text>
                   <Text style={[styles.sectionTitle, isRtl && styles.rtlText]}>{t.nutrientBadges}</Text>
@@ -1971,32 +2054,43 @@ export default function HomeScreen() {
                       ))}
                     </View>
                   ) : (
-                    <Text style={[styles.foodEmptyText, isRtl && styles.rtlText]}>
+                    <Text style={[styles.foodEmptyText, isRtl && styles.persianReadableMutedText, isRtl && styles.rtlText]}>
                       {t.noFoods}
                     </Text>
                   )}
                   <View style={[styles.scientificSourceRow, isRtl && styles.rtlRow]}>
                     <Ionicons name="library-outline" size={13} color={DS.colors.slate} />
-                    <Text style={[styles.scientificSourceText, isRtl && styles.rtlText]}>
+                    <Text style={[styles.scientificSourceText, isRtl && styles.persianReadableMutedText, isRtl && styles.rtlText]}>
                       {scientificSource}
                     </Text>
                   </View>
                 </View>
               </View>
 
-              <View style={[styles.resultsPanel, styles.recommendationPanel, isCompactMobile && styles.mobileCard]}>
+              <View style={[
+                styles.resultsPanel,
+                styles.recommendationPanel,
+                isCompactMobile && styles.mobileCard,
+                isRtl && styles.persianReadableCard,
+              ]}>
                 <View style={styles.sectionHeader}>
                   <Text style={[styles.sectionKicker, isRtl && styles.rtlText]}>{t.yourPlan}</Text>
                   <Text style={[styles.sectionTitle, isRtl && styles.rtlText]}>{t.bigRecommendation}</Text>
                 </View>
 
-                <View style={[styles.recommendationCard, isCompactMobile && styles.recommendationCardCompact]}>
+                <View style={[
+                  styles.recommendationCard,
+                  isCompactMobile && styles.recommendationCardCompact,
+                  isRtl && styles.persianRecommendationCard,
+                ]}>
                   <View style={styles.recommendationIcon}>
                     <Ionicons name="chatbubble-ellipses" size={22} color={Colors.textInverse} />
                   </View>
-                  <Text style={[styles.recommendationText, isRtl && styles.rtlText]}>{localizedResult.recommendation}</Text>
-                  <View style={styles.medicalDisclaimerBox}>
-                    <Text style={[styles.medicalDisclaimerText, isRtl && styles.rtlText]}>
+                  <Text style={[styles.recommendationText, isRtl && styles.persianRecommendationText, isRtl && styles.rtlText]}>
+                    {localizedResult.recommendation}
+                  </Text>
+                  <View style={[styles.medicalDisclaimerBox, isRtl && styles.persianDisclaimerBox]}>
+                    <Text style={[styles.medicalDisclaimerText, isRtl && styles.persianDisclaimerText, isRtl && styles.rtlText]}>
                       {t.medicalDisclaimer}
                     </Text>
                   </View>
@@ -2323,6 +2417,37 @@ const styles = StyleSheet.create({
   rtlText: {
     textAlign: 'right',
     writingDirection: 'rtl',
+  },
+  persianReadableCard: {
+    backgroundColor: '#FFFFFF',
+    borderColor: '#B8DCC8',
+  },
+  persianReadableText: {
+    color: '#162B21',
+    fontFamily: FontFamily.sansSemiBold,
+  },
+  persianReadableMutedText: {
+    color: '#263C32',
+    fontFamily: FontFamily.sansMedium,
+  },
+  persianRecommendationCard: {
+    backgroundColor: '#EAF7F0',
+    borderColor: '#B8DCC8',
+    borderWidth: 1,
+  },
+  persianRecommendationText: {
+    color: '#10231A',
+    fontFamily: FontFamily.displaySemiBold,
+    fontSize: 22,
+    lineHeight: 34,
+  },
+  persianDisclaimerBox: {
+    backgroundColor: '#FFFFFF',
+    borderColor: '#B8DCC8',
+  },
+  persianDisclaimerText: {
+    color: '#263C32',
+    fontFamily: FontFamily.sansMedium,
   },
   hero: { gap: Spacing.lg },
   heroWide: { alignItems: 'stretch', flexDirection: 'row' },

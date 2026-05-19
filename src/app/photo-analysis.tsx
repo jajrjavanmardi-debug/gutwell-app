@@ -46,6 +46,7 @@ import {
   parseStoredLanguage,
   type AppLanguage,
 } from '../../lib/app-language';
+import { shouldReplaceEnglishFallbackForPersian } from '../../lib/language-safety';
 import {
   applyDynamicMealImpactScore,
   extractMealName,
@@ -277,6 +278,8 @@ const copy = {
     photoUnavailableMessage: 'Could not read the photo data. Please try again.',
     cameraNeededTitle: 'Camera access needed',
     cameraNeededMessage: 'Please allow camera access to take a meal photo. If access was denied, enable Camera permission in your phone settings or choose from gallery.',
+    cameraOpenFailedTitle: 'Camera could not open',
+    cameraOpenFailedMessage: 'Try again, or choose a meal photo from your gallery. In Expo Go, make sure the app has Camera permission in your phone settings.',
     demoMode: 'Demo Mode',
     cameraUnavailableTitle: 'Camera unavailable in this preview.',
     cameraUnavailableMessage: 'Use gallery upload or a sample meal image to continue.',
@@ -411,6 +414,8 @@ const copy = {
     photoUnavailableMessage: 'Die Fotodaten konnten nicht gelesen werden. Bitte erneut versuchen.',
     cameraNeededTitle: 'Kamerazugriff nötig',
     cameraNeededMessage: 'Bitte erlaube den Kamerazugriff, um ein Mahlzeitenfoto aufzunehmen. Wenn der Zugriff abgelehnt wurde, aktiviere Kamera in den Telefoneinstellungen oder wähle ein Bild aus der Galerie.',
+    cameraOpenFailedTitle: 'Kamera konnte nicht geöffnet werden',
+    cameraOpenFailedMessage: 'Versuche es erneut oder wähle ein Mahlzeitenfoto aus der Galerie. Prüfe in Expo Go, ob die Kamera-Berechtigung in den Telefoneinstellungen aktiv ist.',
     demoMode: 'Demo-Modus',
     cameraUnavailableTitle: 'Kamera in dieser Vorschau nicht verfügbar.',
     cameraUnavailableMessage: 'Nutze den Galerie-Upload oder ein Beispielbild, um fortzufahren.',
@@ -545,6 +550,8 @@ const copy = {
     photoUnavailableMessage: 'داده‌های عکس خوانده نشد. لطفاً دوباره تلاش کنید.',
     cameraNeededTitle: 'دسترسی به دوربین لازم است',
     cameraNeededMessage: 'برای گرفتن عکس غذا، اجازه دسترسی به دوربین را بدهید. اگر دسترسی رد شده است، مجوز دوربین را در تنظیمات گوشی فعال کنید یا از گالری انتخاب کنید.',
+    cameraOpenFailedTitle: 'دوربین باز نشد',
+    cameraOpenFailedMessage: 'دوباره تلاش کنید یا یک عکس غذا از گالری انتخاب کنید. در Expo Go مطمئن شوید مجوز دوربین در تنظیمات گوشی فعال است.',
     demoMode: 'حالت دمو',
     cameraUnavailableTitle: 'دوربین در این پیش‌نمایش در دسترس نیست.',
     cameraUnavailableMessage: 'برای ادامه، از گالری بارگذاری کنید یا یک تصویر غذای نمونه انتخاب کنید.',
@@ -957,6 +964,59 @@ function localizeVisibleEstimateLabels(aiText: string, language: AppLanguage): s
     .replace(/امتیاز روده/g, labels.scoreProgressLabel);
 }
 
+const PERSIAN_PROFILE_CONTEXT: Record<string, string> = {
+  ibs: 'الگوی روده تحریک‌پذیر',
+  'irritable bowel syndrome': 'الگوی روده تحریک‌پذیر',
+  gastritis: 'حساسیت معده',
+  bloating: 'نفخ',
+  celiac: 'زمینه سلیاک',
+  'lactose intolerance': 'حساسیت به لاکتوز',
+  'general gut health': 'تندرستی عمومی گوارش',
+};
+
+function localizeSymptomForPersian(symptom: string): string {
+  const normalized = symptom.trim().toLocaleLowerCase();
+  const option = SYMPTOM_OPTIONS.find((item) =>
+    item.key === normalized ||
+    item.promptLabel.toLocaleLowerCase() === normalized ||
+    item.labels.en.toLocaleLowerCase() === normalized ||
+    item.labels.de.toLocaleLowerCase() === normalized ||
+    item.labels.fa === symptom.trim()
+  );
+
+  return option?.labels.fa ?? PERSIAN_PROFILE_CONTEXT[normalized] ?? 'زمینه انتخاب‌شده';
+}
+
+function buildPersianPhotoAnalysisFallback(symptoms: string[], mealDescriptionText: string): string {
+  const labels = copy.fa;
+  const symptomSummary = symptoms.length > 0
+    ? Array.from(new Set(symptoms.map(localizeSymptomForPersian))).join('، ')
+    : 'علائم مشخصی انتخاب نشده است';
+  const mealSummary = /[\u0600-\u06FF]/.test(mealDescriptionText)
+    ? mealDescriptionText
+    : 'وعده انتخاب‌شده';
+
+  return [
+    `| ${labels.symptomsLabel} | ${labels.scoreLabel} | چرا |`,
+    '| --- | --- | --- |',
+    `| ${symptomSummary} | 6/10 | این یک برآورد آموزشی بر اساس عکس، توضیح وعده و زمینه علائم است. |`,
+    '',
+    `${labels.scoreProgressLabel}: [######----] 6/10`,
+    '',
+    `${labels.analysisInsightTitle}:`,
+    `- ${mealSummary} را در کنار علائم فعلی به‌عنوان یک الگوی احتمالی نگاه کنید، نه یک علت قطعی.`,
+    '- علائم می‌توانند علت‌های زیادی داشته باشند و هر علامتی از غذا نیست.',
+    '- برای نتیجه بهتر، واکنش بدن را در ۲۴ تا ۷۲ ساعت آینده با آرامش دنبال کنید.',
+    '',
+    'نکات:',
+    '- اگر ناراحتی دارید، آب کافی، تنفس آرام و یک وعده ساده‌تر را در نظر بگیرید.',
+    '- پیگیری غذا باید به آگاهی کمک کند، نه کنترل یا ترس.',
+    '- فاصله گرفتن از ثبت و پیگیری هم کاملاً اشکالی ندارد.',
+    '',
+    labels.scoreHelperNote,
+  ].join('\n');
+}
+
 function buildFallbackAnalysisInsights(
   aiText: string,
   symptoms: string[],
@@ -1037,7 +1097,6 @@ export default function PhotoAnalysisScreen() {
   const params = useLocalSearchParams<{ historyId?: string }>();
   const [photoUri, setPhotoUri] = useState<string | null>(null);
   const [lastImageBase64, setLastImageBase64] = useState('');
-  const [cameraUnavailable, setCameraUnavailable] = useState(() => isIosSimulatorRuntime());
   const [analysis, setAnalysis] = useState('');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [isCorrecting, setIsCorrecting] = useState(false);
@@ -1084,7 +1143,8 @@ export default function PhotoAnalysisScreen() {
   /** Dev client / standalone only — Expo Go has no custom native STT modules. */
   const voiceNativeEnabled = canUseNativeSpeechToText();
   const isWebFeedbackDemo = Platform.OS === 'web';
-  const isCameraFallbackActive = isWebFeedbackDemo || isIosSimulatorRuntime() || cameraUnavailable;
+  const isSimulatorCameraFallback = isIosSimulatorRuntime();
+  const shouldShowCameraFallback = isWebFeedbackDemo || isSimulatorCameraFallback;
   const isRtlLanguage = isAppRtlLanguage(language);
   const selectedSymptomLabels = selectedSymptoms.map((symptomKey) => {
     const option = SYMPTOM_OPTIONS.find((item) => item.key === symptomKey);
@@ -1502,7 +1562,10 @@ export default function PhotoAnalysisScreen() {
         userFeelingsNarrative: feelingsNarrative,
       });
       if (redFlagActiveRef.current) return;
-      const dynamicResult = applyDynamicMealImpactScore(rawResult, currentSymptoms, feelingsNarrative, language);
+      const localizedRawResult = shouldReplaceEnglishFallbackForPersian(language, rawResult)
+        ? buildPersianPhotoAnalysisFallback(currentSymptoms, mealDescriptionText)
+        : rawResult;
+      const dynamicResult = applyDynamicMealImpactScore(localizedRawResult, currentSymptoms, feelingsNarrative, language);
       const dynamicMealImpactScore = resolveMealImpactScore(dynamicResult, currentSymptoms, feelingsNarrative, language);
       setAnalysis(dynamicResult);
       setResultsScrollKey((key) => key + 1);
@@ -1523,8 +1586,8 @@ export default function PhotoAnalysisScreen() {
       const xpResult = await addXpForAction(10);
       if (hasPainSymptom) {
         const progress = await recordTriggerFeedback({
-          mealName: extractMealName(rawResult),
-          adviceSummary: rawResult.slice(0, 240),
+          mealName: extractMealName(localizedRawResult),
+          adviceSummary: localizedRawResult.slice(0, 240),
           symptoms: currentSymptoms,
         });
         setTriggerMemories(progress.triggers);
@@ -1640,8 +1703,8 @@ export default function PhotoAnalysisScreen() {
       return;
     }
 
-    if (isCameraFallbackActive) {
-      setCameraUnavailable(true);
+    if (isSimulatorCameraFallback) {
+      Alert.alert(cameraFallbackTitle, cameraFallbackMessage);
       return;
     }
 
@@ -1656,7 +1719,7 @@ export default function PhotoAnalysisScreen() {
       }
 
       const result = await ImagePicker.launchCameraAsync({
-        mediaTypes: ['images'],
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
         quality: 0.72,
         base64: false,
         exif: false,
@@ -1666,9 +1729,8 @@ export default function PhotoAnalysisScreen() {
         await storeCapturedPhoto(result.assets[0]);
       }
     } catch (error) {
-      console.warn('Camera unavailable, switching to simulator-safe demo flow:', error);
-      setCameraUnavailable(true);
-      Alert.alert(cameraFallbackTitle, cameraFallbackMessage);
+      console.warn('Camera launch failed:', error);
+      Alert.alert(t.cameraOpenFailedTitle, t.cameraOpenFailedMessage);
     }
   };
 
@@ -1688,7 +1750,7 @@ export default function PhotoAnalysisScreen() {
       }
 
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ['images'],
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
         quality: 0.72,
         base64: false,
         exif: false,
@@ -1739,8 +1801,11 @@ export default function PhotoAnalysisScreen() {
         priorUserCorrections: userFeedback,
       });
       if (redFlagActiveRef.current) return;
+      const localizedRevisedAnalysis = shouldReplaceEnglishFallbackForPersian(language, revisedAnalysis)
+        ? buildPersianPhotoAnalysisFallback([...currentSymptoms, correction], mealDescriptionText)
+        : revisedAnalysis;
       const dynamicRevisedAnalysis = applyDynamicMealImpactScore(
-        revisedAnalysis,
+        localizedRevisedAnalysis,
         [...currentSymptoms, correction],
         correction,
         language,
@@ -2206,7 +2271,7 @@ export default function PhotoAnalysisScreen() {
           >
             {wizardStep === 1 ? (
               <>
-                {isCameraFallbackActive ? (
+                {shouldShowCameraFallback ? (
                   <View style={styles.cameraFallbackCard}>
                     <View style={[styles.demoModePill, isRtlLanguage && styles.rtlRow]}>
                       <Ionicons name="phone-portrait" size={14} color="#D8FBEA" />
