@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Constants from 'expo-constants';
+import * as ImageManipulator from 'expo-image-manipulator';
 import * as ImagePicker from 'expo-image-picker';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -126,6 +127,7 @@ const DEV_LOCATION_OVERRIDE =
   typeof process !== 'undefined' && process.env?.EXPO_PUBLIC_DEV_LOCATION_OVERRIDE
     ? process.env.EXPO_PUBLIC_DEV_LOCATION_OVERRIDE.trim()
     : '';
+const PHOTO_METADATA_STRIP_QUALITY = 0.86;
 
 const SYMPTOM_OPTIONS = [
   { key: 'bloating', promptLabel: 'Bloating', labels: { en: 'Bloating', de: 'Blähungen', fa: 'نفخ' } },
@@ -283,6 +285,7 @@ const copy = {
     uploadImageFromGallery: 'Upload image from gallery',
     useSampleMealImage: 'Use sample meal image',
     demoMealHelper: 'Sample images continue through the same meal analysis flow as gallery uploads.',
+    photoPrivacyNote: 'For privacy, photo metadata such as location is not used for analysis.',
     libraryNeededTitle: 'Photo library access needed',
     libraryNeededMessage: 'Please allow photo library access to choose a meal photo.',
     correctionFailedTitle: 'Correction failed',
@@ -416,6 +419,7 @@ const copy = {
     uploadImageFromGallery: 'Bild aus Galerie hochladen',
     useSampleMealImage: 'Beispiel-Mahlzeit verwenden',
     demoMealHelper: 'Beispielbilder nutzen denselben Analyseablauf wie Galerie-Uploads.',
+    photoPrivacyNote: 'Zum Schutz deiner Privatsphäre werden Fotometadaten wie Standort nicht für die Analyse verwendet.',
     libraryNeededTitle: 'Fotomediathek-Zugriff nötig',
     libraryNeededMessage: 'Bitte erlaube den Zugriff auf die Fotomediathek, um ein Bild auszuwählen.',
     correctionFailedTitle: 'Korrektur fehlgeschlagen',
@@ -549,6 +553,7 @@ const copy = {
     uploadImageFromGallery: 'بارگذاری تصویر از گالری',
     useSampleMealImage: 'استفاده از تصویر نمونه غذا',
     demoMealHelper: 'تصاویر نمونه همان مسیر تحلیل گالری را طی می‌کنند.',
+    photoPrivacyNote: 'برای حفظ حریم خصوصی، فراداده‌های عکس مانند موقعیت مکانی برای تحلیل استفاده نمی‌شود.',
     libraryNeededTitle: 'دسترسی به گالری لازم است',
     libraryNeededMessage: 'برای انتخاب عکس غذا، اجازه دسترسی به گالری را بدهید.',
     correctionFailedTitle: 'اصلاح ناموفق بود',
@@ -626,13 +631,87 @@ function formatTriggerMemories(items: TriggerFeedbackItem[]): string[] {
   );
 }
 
-function readFileAsDataUrl(file: File): Promise<string> {
+function loadWebImage(uri: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(String(reader.result ?? ''));
-    reader.onerror = () => reject(reader.error ?? new Error('Unable to read image file.'));
-    reader.readAsDataURL(file);
+    const image = document.createElement('img');
+    image.onload = () => resolve(image);
+    image.onerror = () => reject(new Error('Unable to decode image file.'));
+    image.src = uri;
   });
+}
+
+function getBase64FromDataUrl(dataUrl: string): string {
+  const [, base64 = ''] = dataUrl.split(',');
+  return base64;
+}
+
+type SanitizedMealPhoto = {
+  uri: string;
+  base64: string;
+  width: number;
+  height: number;
+};
+
+async function stripWebPhotoMetadata(file: File): Promise<SanitizedMealPhoto> {
+  if (typeof document === 'undefined' || typeof URL === 'undefined') {
+    throw new Error('Image processing is unavailable in this environment.');
+  }
+
+  const objectUrl = URL.createObjectURL(file);
+
+  try {
+    const image = await loadWebImage(objectUrl);
+    const width = image.naturalWidth || image.width;
+    const height = image.naturalHeight || image.height;
+
+    if (!width || !height) {
+      throw new Error('Image dimensions are unavailable.');
+    }
+
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+    const context = canvas.getContext('2d');
+
+    if (!context) {
+      throw new Error('Image processing is unavailable in this browser.');
+    }
+
+    context.drawImage(image, 0, 0, width, height);
+    const uri = canvas.toDataURL('image/jpeg', PHOTO_METADATA_STRIP_QUALITY);
+    const base64 = getBase64FromDataUrl(uri);
+
+    if (!base64) {
+      throw new Error('Unable to prepare image data.');
+    }
+
+    return { uri, base64, width, height };
+  } finally {
+    URL.revokeObjectURL(objectUrl);
+  }
+}
+
+async function stripNativePhotoMetadata(asset: ImagePicker.ImagePickerAsset): Promise<SanitizedMealPhoto> {
+  if (!asset.uri) {
+    throw new Error('Image file is unavailable.');
+  }
+
+  const result = await ImageManipulator.manipulateAsync(asset.uri, [], {
+    base64: true,
+    compress: PHOTO_METADATA_STRIP_QUALITY,
+    format: ImageManipulator.SaveFormat.JPEG,
+  });
+
+  if (!result.base64) {
+    throw new Error('Unable to prepare image data.');
+  }
+
+  return {
+    uri: result.uri,
+    base64: result.base64,
+    width: result.width,
+    height: result.height,
+  };
 }
 
 let loadedVoiceModule: VoiceModule | null = null;
@@ -1469,21 +1548,17 @@ export default function PhotoAnalysisScreen() {
     }
   };
 
-  const storeCapturedPhoto = (
-    asset: ImagePicker.ImagePickerAsset,
+  const storeSanitizedPhoto = (
+    photo: SanitizedMealPhoto,
     options: {
       mealDescription?: string;
       symptomKeys?: SymptomKey[];
       nextStep?: WizardStep;
     } = {},
   ) => {
-    if (!asset.base64) {
-      Alert.alert(t.photoUnavailableTitle, t.photoUnavailableMessage);
-      return;
-    }
     // Listen-before-analyze: no Groq call here—only after Step 2 voice/text and Generate Analysis.
-    setPhotoUri(asset.uri);
-    setLastImageBase64(asset.base64);
+    setPhotoUri(photo.uri);
+    setLastImageBase64(photo.base64);
     setAnalysis('');
     setPlanBMessage('');
     setUserFeedback([]);
@@ -1494,6 +1569,23 @@ export default function PhotoAnalysisScreen() {
     setSelectedSymptoms(options.symptomKeys ?? []);
     setRedFlagWarning(null);
     redFlagActiveRef.current = false;
+  };
+
+  const storeCapturedPhoto = async (
+    asset: ImagePicker.ImagePickerAsset,
+    options: {
+      mealDescription?: string;
+      symptomKeys?: SymptomKey[];
+      nextStep?: WizardStep;
+    } = {},
+  ) => {
+    try {
+      const sanitizedPhoto = await stripNativePhotoMetadata(asset);
+      storeSanitizedPhoto(sanitizedPhoto, options);
+    } catch (error) {
+      console.error('Meal photo metadata stripping failed:', error);
+      Alert.alert(t.photoUnavailableTitle, t.photoUnavailableMessage);
+    }
   };
 
   const pickImageFileOnWeb = () => {
@@ -1510,20 +1602,10 @@ export default function PhotoAnalysisScreen() {
       if (!file) return;
 
       try {
-        const dataUrl = await readFileAsDataUrl(file);
-        const [, base64 = ''] = dataUrl.split(',');
-        if (!base64) {
-          Alert.alert(t.photoUnavailableTitle, t.photoUnavailableMessage);
-          return;
-        }
-        storeCapturedPhoto({
-          uri: dataUrl,
-          base64,
-          width: 0,
-          height: 0,
-        } as ImagePicker.ImagePickerAsset);
+        const sanitizedPhoto = await stripWebPhotoMetadata(file);
+        storeSanitizedPhoto(sanitizedPhoto);
       } catch (error) {
-        console.error('Web image read failed:', error);
+        console.error('Web image metadata stripping failed:', error);
         Alert.alert(t.photoUnavailableTitle, t.photoUnavailableMessage);
       }
     };
@@ -1535,7 +1617,7 @@ export default function PhotoAnalysisScreen() {
   const selectDemoMeal = (demoMealKey: DemoMealKey) => {
     const demoMeal = DEMO_MEALS[demoMealKey];
 
-    storeCapturedPhoto(
+    storeSanitizedPhoto(
       {
         uri: demoMeal.imageUri,
         base64: demoMeal.imageBase64,
@@ -1576,11 +1658,12 @@ export default function PhotoAnalysisScreen() {
       const result = await ImagePicker.launchCameraAsync({
         mediaTypes: ['images'],
         quality: 0.72,
-        base64: true,
+        base64: false,
+        exif: false,
       });
 
       if (!result.canceled && result.assets[0]) {
-        storeCapturedPhoto(result.assets[0]);
+        await storeCapturedPhoto(result.assets[0]);
       }
     } catch (error) {
       console.warn('Camera unavailable, switching to simulator-safe demo flow:', error);
@@ -1607,11 +1690,12 @@ export default function PhotoAnalysisScreen() {
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ['images'],
         quality: 0.72,
-        base64: true,
+        base64: false,
+        exif: false,
       });
 
       if (!result.canceled && result.assets[0]) {
-        storeCapturedPhoto(result.assets[0]);
+        await storeCapturedPhoto(result.assets[0]);
       }
     } catch (error) {
       console.warn('Image picker failed:', error);
@@ -2233,6 +2317,13 @@ export default function PhotoAnalysisScreen() {
                     </View>
                   </>
                 )}
+
+                <View style={[styles.photoPrivacyNoteCard, isRtlLanguage && styles.rtlRow]}>
+                  <Ionicons name="shield-checkmark-outline" size={18} color="#B7F7D6" />
+                  <Text style={[styles.photoPrivacyNoteText, isRtlLanguage && styles.rtlText]}>
+                    {t.photoPrivacyNote}
+                  </Text>
+                </View>
 
                 {photoUri ? <Image source={{ uri: photoUri }} style={styles.previewImage} /> : null}
 
@@ -2908,6 +2999,24 @@ const styles = createStyles({
     fontSize: FontSize.xs,
     lineHeight: 18,
     marginTop: 4,
+  },
+  photoPrivacyNoteCard: {
+    alignItems: 'center',
+    backgroundColor: 'rgba(183,247,214,0.08)',
+    borderColor: 'rgba(183,247,214,0.24)',
+    borderRadius: BorderRadius.lg,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: Spacing.sm,
+    marginTop: Spacing.md,
+    padding: Spacing.md,
+  },
+  photoPrivacyNoteText: {
+    color: '#D8FBEA',
+    flex: 1,
+    fontFamily: FontFamily.sansMedium,
+    fontSize: FontSize.xs,
+    lineHeight: 18,
   },
   cameraFallbackCard: {
     backgroundColor: '#0F3D2E',

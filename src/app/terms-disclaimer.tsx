@@ -66,7 +66,7 @@ const TERMS_SECTIONS = [
   {
     title: 'Meal photos and image handling',
     body:
-      'Meal photos are used to generate educational analysis. Image data may be sent to the configured AI provider. NutriFlow may store a local image URI or data URL in guest history and may store an image reference with signed-in meal history in Supabase. NutriFlow does not currently provide a dedicated long-term photo library, and it does not yet guarantee that embedded photo metadata is stripped before AI processing.',
+      'Meal photos are used to generate educational analysis. Before user-supplied images enter analysis or history storage, NutriFlow re-encodes them client-side into a new JPEG to remove embedded photo metadata such as location where practical. Browser uploads use a canvas export, and native camera/gallery images use Expo ImageManipulator. Image data may be sent to the configured AI provider, and NutriFlow may store the re-encoded local image URI or data URL in guest history or a re-encoded image reference with signed-in meal history in Supabase. NutriFlow does not currently provide a dedicated long-term photo library.',
   },
   {
     title: 'Food and symptom tracking limits',

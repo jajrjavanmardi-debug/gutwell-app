@@ -66,7 +66,7 @@ const PRIVACY_SECTIONS = [
   {
     title: 'Photo metadata and EXIF',
     body:
-      'NutriFlow does not intentionally request or display EXIF fields such as camera model or GPS metadata, and the app does not separately store EXIF fields as profile data. During this MVP, uploaded or captured image bytes may still contain embedded metadata depending on the platform, browser, or picker behavior, and NutriFlow does not yet guarantee metadata stripping before AI processing. Avoid uploading photos if embedded metadata is a concern.',
+      'NutriFlow does not intentionally request, display, or store EXIF fields such as camera model or GPS metadata as profile data. Before user-supplied meal photos enter analysis or history storage, the app re-encodes them client-side into a new JPEG: browser uploads are drawn through a canvas export, and native camera/gallery images are processed with Expo ImageManipulator. This is intended to remove embedded photo metadata such as location. App-provided sample images are generated assets and do not include user photo metadata.',
   },
   {
     title: 'Educational and wellness use only',
