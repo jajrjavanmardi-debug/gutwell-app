@@ -65,6 +65,10 @@ import {
   type UserProfileSettings,
 } from '../../../lib/user-profile-settings';
 import {
+  getMissingDetailedProfileQuestionIds,
+  getStoredOnboardingAnswers,
+} from '../../../lib/onboarding-progress';
+import {
   detectRedFlagSymptoms,
   getRedFlagWarning,
   RedFlagTriageError,
@@ -218,6 +222,9 @@ const translations = {
     todaysStatus: "Today's Status",
     supplementTaken: 'Supplement Taken',
     noSupplementsLogged: 'No Supplements Logged Yet',
+    completeProfileTitle: 'Complete your profile',
+    completeProfileBody: 'You can start now and complete your profile later. A fuller profile improves personalization.',
+    completeProfileButton: 'Complete profile',
     supplementTitle: "Today's Supplements",
     supplementLogTitle: 'Log Supplement & Probiotic',
     supplementSubtitle: 'Log supplements and probiotics for meal analysis context.',
@@ -344,6 +351,9 @@ const translations = {
     todaysStatus: 'Heutiger Status',
     supplementTaken: 'Eingenommen',
     noSupplementsLogged: 'Heute noch nichts erfasst',
+    completeProfileTitle: 'Profil vervollständigen',
+    completeProfileBody: 'Du kannst jetzt starten und dein Profil später vervollständigen. Ein vollständigeres Profil verbessert die Personalisierung.',
+    completeProfileButton: 'Profil vervollständigen',
     supplementTitle: 'Heutige Ergänzungen',
     supplementLogTitle: 'Supplement oder Probiotikum erfassen',
     supplementSubtitle: 'Erfasse Supplements und Probiotika als Kontext für Mahlzeitenanalysen.',
@@ -470,6 +480,9 @@ const translations = {
     todaysStatus: 'وضعیت امروز',
     supplementTaken: 'مکمل ثبت‌شده',
     noSupplementsLogged: 'هنوز مکملی ثبت نشده',
+    completeProfileTitle: 'تکمیل پروفایل',
+    completeProfileBody: 'می‌توانید همین حالا شروع کنید و پروفایل خود را بعداً کامل کنید. پروفایل کامل‌تر، شخصی‌سازی را بهتر می‌کند.',
+    completeProfileButton: 'تکمیل پروفایل',
     supplementTitle: 'مکمل‌های امروز',
     supplementLogTitle: 'ثبت مکمل و پروبیوتیک',
     supplementSubtitle: 'مکمل‌ها و پروبیوتیک‌ها را برای تحلیل دقیق‌تر وعده‌ها ثبت کنید.',
@@ -865,6 +878,7 @@ export default function HomeScreen() {
   const [selectedChartPoint, setSelectedChartPoint] = useState<ChartPoint | null>(null);
   const [dailyGutScoreCard, setDailyGutScoreCard] = useState<DailyGutScoreCardData | null>(null);
   const [dailyGutScoreLoading, setDailyGutScoreLoading] = useState(false);
+  const [shouldShowProfileCompletion, setShouldShowProfileCompletion] = useState(false);
 
   const t = translations[language];
   const isRtl = isRtlLanguage(language);
@@ -956,13 +970,18 @@ export default function HomeScreen() {
           console.warn('Profile settings load failed:', error);
           return fallbackProfileSettings;
         }),
+        getStoredOnboardingAnswers(currentUser?.id).catch((error) => {
+          console.warn('Onboarding progress load failed:', error);
+          return {};
+        }),
       ])
-        .then(([history, supplements, progress, dailyScore, profileSettings]) => {
+        .then(([history, supplements, progress, dailyScore, profileSettings, onboardingAnswers]) => {
           if (!isActive) return;
           setPhotoHistory(history);
           setSupplementHistory(supplements);
           setUserProgress(progress);
           setDailyGutScoreCard(dailyScore);
+          setShouldShowProfileCompletion(getMissingDetailedProfileQuestionIds(onboardingAnswers).length > 0);
           setConditions(toHomeConditions(profileSettings.conditions));
           if (profileSettings.preferredLanguage) {
             setLanguage(profileSettings.preferredLanguage);
@@ -1329,6 +1348,33 @@ export default function HomeScreen() {
             <View style={[styles.demoModeBadge, isRtl && styles.rtlRow]}>
               <Ionicons name="phone-portrait-outline" size={13} color="#276E3A" />
               <Text style={[styles.demoModeBadgeText, isRtl && styles.rtlText]}>{ui.demoMode}</Text>
+            </View>
+          ) : null}
+          {shouldShowProfileCompletion ? (
+            <View style={[styles.profileCompletionCard, isCompactMobile && styles.mobileCard]}>
+              <View style={[styles.profileCompletionHeader, isRtl && styles.rtlRow]}>
+                <View style={styles.profileCompletionIcon}>
+                  <Ionicons name="person-add-outline" size={20} color="#276E3A" />
+                </View>
+                <View style={styles.profileCompletionCopy}>
+                  <Text style={[styles.profileCompletionTitle, isRtl && styles.rtlText]}>
+                    {t.completeProfileTitle}
+                  </Text>
+                  <Text style={[styles.profileCompletionText, isRtl && styles.rtlText]}>
+                    {t.completeProfileBody}
+                  </Text>
+                </View>
+              </View>
+              <Pressable
+                onPress={() => router.push({ pathname: '/onboarding/page', params: { mode: 'complete-profile' } })}
+                accessibilityRole="button"
+                style={({ pressed }) => [styles.profileCompletionButton, isRtl && styles.rtlRow, pressed && styles.pressed]}
+              >
+                <Ionicons name="create-outline" size={17} color="#000000" />
+                <Text style={[styles.profileCompletionButtonText, isRtl && styles.rtlText]}>
+                  {t.completeProfileButton}
+                </Text>
+              </Pressable>
             </View>
           ) : null}
           <LinearGradient
@@ -2160,6 +2206,62 @@ const styles = StyleSheet.create({
     flexShrink: 1,
     fontFamily: FontFamily.sansBold,
     fontSize: FontSize.xs,
+  },
+  profileCompletionCard: {
+    backgroundColor: '#F7FCFA',
+    borderColor: '#CFE9D8',
+    borderRadius: DS.borderRadii.card,
+    borderWidth: 1,
+    gap: Spacing.md,
+    padding: Spacing.lg,
+    ...Shadows.sm,
+  },
+  profileCompletionHeader: {
+    alignItems: 'flex-start',
+    flexDirection: 'row',
+    gap: Spacing.md,
+  },
+  profileCompletionIcon: {
+    alignItems: 'center',
+    backgroundColor: '#E8F5EC',
+    borderRadius: BorderRadius.lg,
+    height: 42,
+    justifyContent: 'center',
+    width: 42,
+  },
+  profileCompletionCopy: {
+    flex: 1,
+    minWidth: 0,
+  },
+  profileCompletionTitle: {
+    color: DS.colors.navy,
+    fontFamily: FontFamily.sansBold,
+    fontSize: FontSize.md,
+  },
+  profileCompletionText: {
+    color: DS.colors.slate,
+    fontFamily: FontFamily.sansMedium,
+    fontSize: FontSize.sm,
+    lineHeight: 20,
+    marginTop: 4,
+  },
+  profileCompletionButton: {
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    backgroundColor: '#DFF5EA',
+    borderColor: '#BFE5CB',
+    borderRadius: DS.borderRadii.button,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: Spacing.xs,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+  },
+  profileCompletionButtonText: {
+    color: '#000000',
+    flexShrink: 1,
+    fontFamily: FontFamily.sansBold,
+    fontSize: FontSize.sm,
   },
   settingsQuickButton: {
     alignItems: 'center',

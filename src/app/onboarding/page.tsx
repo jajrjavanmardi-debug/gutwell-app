@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useEffect, useMemo, useState } from 'react';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Alert, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -13,6 +13,12 @@ import {
 } from '../../../lib/app-language';
 import { useAuth } from '../../../contexts/AuthContext';
 import { saveGuestOnboarding } from '../../../lib/guest-mode';
+import {
+  DETAILED_ONBOARDING_QUESTION_IDS,
+  ESSENTIAL_ONBOARDING_QUESTION_IDS,
+  cacheOnboardingAnswers,
+  getStoredOnboardingAnswers,
+} from '../../../lib/onboarding-progress';
 import { supabase } from '../../../lib/supabase';
 import { saveUserProfileSettings } from '../../../lib/user-profile-settings';
 import { detectRedFlagSymptoms, getRedFlagWarning, type RedFlagWarningCopy } from '../../../lib/red-flag-triage';
@@ -36,6 +42,14 @@ type OnboardingCopy = {
   habits: string;
   saving: string;
   startTracking: string;
+  saveProfile: string;
+  completeProfile: string;
+  skipForNow: string;
+  profileLaterNote: string;
+  fullerProfileNote: string;
+  quickStartTitle: string;
+  completeProfileTitle: string;
+  completeProfileIntro: string;
   back: string;
   demoMode: string;
   signInRequired: string;
@@ -55,8 +69,6 @@ type OnboardingCopy = {
   habitLabels: Record<string, string>;
 };
 
-const QUESTION_TOTAL = 9;
-
 const ONBOARDING_COPY: Record<AppLanguage, OnboardingCopy> = {
   en: {
     selectorTitle: 'Choose your language',
@@ -69,6 +81,14 @@ const ONBOARDING_COPY: Record<AppLanguage, OnboardingCopy> = {
     habits: 'Suggested first habits',
     saving: 'Saving profile...',
     startTracking: 'Start tracking',
+    saveProfile: 'Save profile',
+    completeProfile: 'Complete your profile',
+    skipForNow: 'Skip for now',
+    profileLaterNote: 'You can start now and complete your profile later.',
+    fullerProfileNote: 'A fuller profile improves personalization.',
+    quickStartTitle: 'Quick start',
+    completeProfileTitle: 'Complete your profile',
+    completeProfileIntro: 'Answer the remaining optional profile questions when you have a minute.',
     back: 'Back',
     demoMode: 'Demo Mode – data stored locally',
     signInRequired: 'Please sign in before saving your profile.',
@@ -179,6 +199,14 @@ const ONBOARDING_COPY: Record<AppLanguage, OnboardingCopy> = {
     habits: 'Erste Empfehlungen',
     saving: 'Profil wird gespeichert...',
     startTracking: 'Loslegen',
+    saveProfile: 'Profil speichern',
+    completeProfile: 'Profil vervollständigen',
+    skipForNow: 'Jetzt überspringen',
+    profileLaterNote: 'Du kannst jetzt starten und dein Profil später vervollständigen.',
+    fullerProfileNote: 'Ein vollständigeres Profil verbessert die Personalisierung.',
+    quickStartTitle: 'Schnellstart',
+    completeProfileTitle: 'Profil vervollständigen',
+    completeProfileIntro: 'Beantworte die restlichen optionalen Profilfragen, wenn du kurz Zeit hast.',
     back: 'Zurück',
     demoMode: 'Demo-Modus – Daten werden lokal gespeichert',
     signInRequired: 'Bitte melde dich an, bevor du dein Profil speicherst.',
@@ -289,6 +317,14 @@ const ONBOARDING_COPY: Record<AppLanguage, OnboardingCopy> = {
     habits: 'پیشنهادهای اولیه',
     saving: 'در حال ذخیره پروفایل...',
     startTracking: 'شروع برنامه',
+    saveProfile: 'ذخیره پروفایل',
+    completeProfile: 'تکمیل پروفایل',
+    skipForNow: 'فعلاً رد کردن',
+    profileLaterNote: 'می‌توانید همین حالا شروع کنید و پروفایل خود را بعداً کامل کنید.',
+    fullerProfileNote: 'پروفایل کامل‌تر، شخصی‌سازی را بهتر می‌کند.',
+    quickStartTitle: 'شروع سریع',
+    completeProfileTitle: 'تکمیل پروفایل',
+    completeProfileIntro: 'هر وقت فرصت داشتید، به پرسش‌های اختیاری باقی‌مانده پاسخ دهید.',
     back: 'بازگشت',
     demoMode: 'حالت دمو – داده‌ها فقط به‌صورت محلی ذخیره می‌شوند',
     signInRequired: 'برای ذخیره پروفایل، لطفاً وارد شوید.',
@@ -405,6 +441,12 @@ function getAnswerLabel(language: AppLanguage, questionId: string, value: string
   return question?.options.find((option) => option.value === value)?.label ?? value;
 }
 
+function getQuestionsByIds(questions: Question[], questionIds: readonly string[]): Question[] {
+  return questionIds
+    .map((questionId) => questions.find((question) => question.id === questionId))
+    .filter((question): question is Question => Boolean(question));
+}
+
 function computeFocusAreas(answers: Record<string, string>) {
   const focus = new Set<string>();
   const mainGoal = answers.goal ?? 'general_health';
@@ -432,6 +474,7 @@ function computeHabits(answers: Record<string, string>) {
 
 export default function OnboardingPage() {
   const router = useRouter();
+  const params = useLocalSearchParams<{ mode?: string }>();
   const { user, isGuest, loading: authLoading, refreshProfile } = useAuth();
   const [language, setLanguageState] = useState<AppLanguage>('en');
   const [step, setStep] = useState(0);
@@ -446,7 +489,14 @@ export default function OnboardingPage() {
 
   const copy = ONBOARDING_COPY[language];
   const isRtl = isRtlLanguage(language);
-  const questions = copy.questions;
+  const isCompleteProfileMode = params.mode === 'complete-profile';
+  const questions = useMemo(
+    () => getQuestionsByIds(
+      copy.questions,
+      isCompleteProfileMode ? DETAILED_ONBOARDING_QUESTION_IDS : ESSENTIAL_ONBOARDING_QUESTION_IDS,
+    ),
+    [copy.questions, isCompleteProfileMode],
+  );
   const isSummary = step >= questions.length;
   const currentQuestion = questions[step];
   const currentAnswer = currentQuestion ? answers[currentQuestion.id] : undefined;
@@ -454,10 +504,34 @@ export default function OnboardingPage() {
   const isPublicWebGuestFlow = isGuest || (!user?.id && Platform.OS === 'web');
 
   useEffect(() => {
+    setStep(0);
+    setSaveError('');
+  }, [isCompleteProfileMode]);
+
+  useEffect(() => {
     AsyncStorage.getItem(APP_LANGUAGE_STORAGE_KEY)
       .then((storedLanguage) => setLanguageState(parseStoredLanguage(storedLanguage)))
       .catch(console.warn);
   }, []);
+
+  useEffect(() => {
+    if (authLoading) return;
+
+    let isActive = true;
+    getStoredOnboardingAnswers(user?.id)
+      .then((storedAnswers) => {
+        if (isActive && Object.keys(storedAnswers).length > 0) {
+          setAnswers((currentAnswers) => ({ ...storedAnswers, ...currentAnswers }));
+        }
+      })
+      .catch((error) => {
+        console.warn('Stored onboarding answers load failed:', error);
+      });
+
+    return () => {
+      isActive = false;
+    };
+  }, [authLoading, user?.id]);
 
   useEffect(() => {
     if (authLoading) return;
@@ -550,7 +624,8 @@ export default function OnboardingPage() {
       return;
     }
 
-    const answerLabels = Object.entries(answers).map(([questionId, value]) =>
+    const answersToSave = { ...answers };
+    const answerLabels = Object.entries(answersToSave).map(([questionId, value]) =>
       getAnswerLabel(language, questionId, value)
     );
     const triage = detectRedFlagSymptoms(answerLabels);
@@ -566,12 +641,13 @@ export default function OnboardingPage() {
       const completedAt = new Date().toISOString();
       if (isPublicWebGuestFlow) {
         await saveGuestOnboarding({
-          answers,
+          answers: answersToSave,
           language,
-          focusAreas: computeFocusAreas(answers),
-          habits: computeHabits(answers),
+          focusAreas: computeFocusAreas(answersToSave),
+          habits: computeHabits(answersToSave),
           completedAt,
         });
+        await cacheOnboardingAnswers(answersToSave);
         await saveUserProfileSettings({
           conditions: [],
           preferredLanguage: language,
@@ -590,18 +666,18 @@ export default function OnboardingPage() {
         .upsert(
           {
             user_id: authUser.id,
-            onboarding_answers: answers,
-            main_goal: answers.goal ?? 'general_health',
-            stool_frequency_baseline: answers.bowelFrequency ?? '',
-            stool_type_baseline: answers.stoolConsistency ?? '',
-            symptoms_baseline: answers.symptoms ? [answers.symptoms] : [],
-            diet_pattern_baseline: answers.diet ?? '',
-            fiber_intake_baseline: answers.fiber ?? '',
-            stress_impact_baseline: answers.stress ?? '',
-            sleep_quality_baseline: answers.sleep ?? '',
-            trigger_food_awareness: answers.triggers ?? '',
-            focus_areas: computeFocusAreas(answers),
-            first_habits: computeHabits(answers),
+            onboarding_answers: answersToSave,
+            main_goal: answersToSave.goal ?? 'general_health',
+            stool_frequency_baseline: answersToSave.bowelFrequency ?? '',
+            stool_type_baseline: answersToSave.stoolConsistency ?? '',
+            symptoms_baseline: answersToSave.symptoms ? [answersToSave.symptoms] : [],
+            diet_pattern_baseline: answersToSave.diet ?? '',
+            fiber_intake_baseline: answersToSave.fiber ?? '',
+            stress_impact_baseline: answersToSave.stress ?? '',
+            sleep_quality_baseline: answersToSave.sleep ?? '',
+            trigger_food_awareness: answersToSave.triggers ?? '',
+            focus_areas: computeFocusAreas(answersToSave),
+            first_habits: computeHabits(answersToSave),
             preferred_language: language,
             updated_at: completedAt,
           },
@@ -617,15 +693,16 @@ export default function OnboardingPage() {
             id: authUser.id,
             display_name: authUser.user_metadata?.display_name ?? authUser.email?.split('@')[0] ?? null,
             onboarding_completed: true,
-            gut_concern: answers.symptoms ?? null,
-            symptom_frequency: answers.bowelFrequency ?? null,
-            goal: answers.goal ?? 'general_health',
+            gut_concern: answersToSave.symptoms ?? null,
+            symptom_frequency: answersToSave.bowelFrequency ?? null,
+            goal: answersToSave.goal ?? 'general_health',
           },
           { onConflict: 'id' }
         );
 
       if (profileError) throw profileError;
 
+      await cacheOnboardingAnswers(answersToSave, authUser.id);
       await refreshProfile();
       router.replace('/(tabs)');
     } catch (error) {
@@ -715,12 +792,24 @@ export default function OnboardingPage() {
           </View>
         ) : (
           <>
+        <View style={styles.progressIntroCard}>
+          <Text style={[styles.progressIntroTitle, isRtl && styles.rtlText]}>
+            {isCompleteProfileMode ? copy.completeProfileTitle : copy.quickStartTitle}
+          </Text>
+          <Text style={[styles.progressIntroText, isRtl && styles.rtlText]}>
+            {isCompleteProfileMode ? copy.completeProfileIntro : copy.profileLaterNote}
+          </Text>
+          <Text style={[styles.progressIntroText, isRtl && styles.rtlText]}>
+            {copy.fullerProfileNote}
+          </Text>
+        </View>
+
         <View style={styles.progressWrap}>
           <View style={[styles.progressTrack, isRtl && styles.progressTrackRtl]}>
             <View style={[styles.progressFill, { width: `${progressPercent}%` }]} />
           </View>
           <Text style={[styles.progressText, isRtl && styles.rtlText]}>
-            {isSummary ? copy.summaryHeader : copy.questionCount(step + 1, QUESTION_TOTAL)}
+            {isSummary ? copy.summaryHeader : copy.questionCount(step + 1, questions.length)}
           </Text>
         </View>
 
@@ -763,7 +852,13 @@ export default function OnboardingPage() {
           </>
         ) : (
           <View style={styles.card}>
-            <Text style={[styles.summaryTitle, isRtl && styles.rtlText]}>{copy.summaryTitle}</Text>
+            <Text style={[styles.summaryTitle, isRtl && styles.rtlText]}>
+              {isCompleteProfileMode ? copy.completeProfileTitle : copy.summaryTitle}
+            </Text>
+            <Text style={[styles.sectionBody, isRtl && styles.rtlText]}>
+              {isCompleteProfileMode ? copy.completeProfileIntro : copy.profileLaterNote}
+            </Text>
+            <Text style={[styles.sectionBody, isRtl && styles.rtlText]}>{copy.fullerProfileNote}</Text>
             <Text style={[styles.sectionTitle, isRtl && styles.rtlText]}>{copy.mainGoal}</Text>
             <Text style={[styles.sectionBody, isRtl && styles.rtlText]}>{summary.mainGoal}</Text>
             <Text style={[styles.sectionTitle, isRtl && styles.rtlText]}>{copy.focusAreas}</Text>
@@ -783,11 +878,21 @@ export default function OnboardingPage() {
               style={[styles.startButton, (isSaving || authLoading) && styles.startButtonDisabled]}
             >
               <Text style={styles.startButtonText}>
-                {isSaving || authLoading ? copy.saving : copy.startTracking}
+                {isSaving || authLoading
+                  ? copy.saving
+                  : isCompleteProfileMode
+                    ? copy.saveProfile
+                    : copy.startTracking}
               </Text>
             </Pressable>
           </View>
         )}
+
+        {isCompleteProfileMode ? (
+          <Pressable onPress={() => router.replace('/(tabs)')} style={styles.skipButton}>
+            <Text style={[styles.skipButtonText, isRtl && styles.rtlText]}>{copy.skipForNow}</Text>
+          </Pressable>
+        ) : null}
 
         {step > 0 && !isSummary ? (
           <Pressable onPress={() => setStep((prev) => Math.max(prev - 1, 0))} style={styles.backButton}>
@@ -836,6 +941,24 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   progressWrap: { gap: 10 },
+  progressIntroCard: {
+    backgroundColor: '#EFF8F2',
+    borderColor: '#CFE9D8',
+    borderRadius: 18,
+    borderWidth: 1,
+    padding: 16,
+    gap: 6,
+  },
+  progressIntroTitle: {
+    color: COLORS.textPrimary,
+    fontSize: 18,
+    fontWeight: '800',
+  },
+  progressIntroText: {
+    color: COLORS.textSecondary,
+    fontSize: 14,
+    lineHeight: 20,
+  },
   progressTrack: { height: 10, borderRadius: 999, backgroundColor: '#E8EDE9', overflow: 'hidden', alignItems: 'flex-start' },
   progressTrackRtl: { alignItems: 'flex-end' },
   progressFill: { height: '100%', backgroundColor: COLORS.accent },
@@ -903,6 +1026,17 @@ const styles = StyleSheet.create({
   startButton: { marginTop: 12, borderRadius: 16, backgroundColor: COLORS.accent, paddingVertical: 14, alignItems: 'center' },
   startButtonDisabled: { opacity: 0.8 },
   startButtonText: { color: '#FFFFFF', fontSize: 17, fontWeight: '700' },
+  skipButton: {
+    alignItems: 'center',
+    alignSelf: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+  },
+  skipButtonText: {
+    color: COLORS.textSecondary,
+    fontSize: 15,
+    fontWeight: '700',
+  },
   errorText: { color: '#C1444B', fontSize: 14, fontWeight: '700', lineHeight: 20 },
   backButton: { borderRadius: 16, borderWidth: 1, borderColor: COLORS.border, backgroundColor: '#FFFFFF', paddingVertical: 10, paddingHorizontal: 16, alignSelf: 'flex-start' },
   backButtonText: { color: COLORS.textPrimary, fontSize: 16, fontWeight: '600' },

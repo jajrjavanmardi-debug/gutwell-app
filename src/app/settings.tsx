@@ -12,6 +12,10 @@ import {
   saveUserProfileSettings,
 } from '../../lib/user-profile-settings';
 import {
+  getMissingDetailedProfileQuestionIds,
+  getStoredOnboardingAnswers,
+} from '../../lib/onboarding-progress';
+import {
   APP_LANGUAGE_OPTIONS,
   APP_LANGUAGE_STORAGE_KEY,
   isRtlLanguage,
@@ -55,6 +59,9 @@ const SETTINGS_COPY = {
     demoMode: 'Demo Mode – data stored locally',
     signInForSync: 'Sign in for cloud sync',
     signInForSyncHint: 'Create or use an account to sync profile and history across devices.',
+    completeProfileTitle: 'Complete your profile',
+    completeProfileHint: 'You can start now and complete your profile later. A fuller profile improves personalization.',
+    completeProfileButton: 'Complete profile',
     conditionLabels: {
       IBS: 'IBS',
       Gastritis: 'Gastritis',
@@ -124,6 +131,9 @@ const SETTINGS_COPY = {
     demoMode: 'Demo-Modus – Daten werden lokal gespeichert',
     signInForSync: 'Für Synchronisierung anmelden',
     signInForSyncHint: 'Erstelle oder nutze ein Konto, um Profil und Verlauf auf deinen Geräten zu synchronisieren.',
+    completeProfileTitle: 'Profil vervollständigen',
+    completeProfileHint: 'Du kannst jetzt starten und dein Profil später vervollständigen. Ein vollständigeres Profil verbessert die Personalisierung.',
+    completeProfileButton: 'Profil vervollständigen',
     conditionLabels: {
       IBS: 'Reizdarmsyndrom',
       Gastritis: 'Gastritis',
@@ -193,6 +203,9 @@ const SETTINGS_COPY = {
     demoMode: 'حالت دمو – داده‌ها فقط به‌صورت محلی ذخیره می‌شوند',
     signInForSync: 'ورود برای همگام‌سازی',
     signInForSyncHint: 'برای همگام‌سازی پروفایل و سوابق بین دستگاه‌ها، حساب بسازید یا وارد شوید.',
+    completeProfileTitle: 'تکمیل پروفایل',
+    completeProfileHint: 'می‌توانید همین حالا شروع کنید و پروفایل خود را بعداً کامل کنید. پروفایل کامل‌تر، شخصی‌سازی را بهتر می‌کند.',
+    completeProfileButton: 'تکمیل پروفایل',
     conditionLabels: {
       IBS: 'سندرم روده تحریک‌پذیر',
       Gastritis: 'گاستریت',
@@ -251,6 +264,7 @@ export default function SettingsScreen() {
   const [isLoadingProfile, setIsLoadingProfile] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isDeletingData, setIsDeletingData] = useState(false);
+  const [shouldShowProfileCompletion, setShouldShowProfileCompletion] = useState(false);
   const [saveMessage, setSaveMessage] = useState('');
   const isRtl = isRtlLanguage(selectedLanguage);
   const t = SETTINGS_COPY[selectedLanguage];
@@ -263,11 +277,16 @@ export default function SettingsScreen() {
     Promise.all([
       getUserProfileSettings(),
       AsyncStorage.getItem(APP_LANGUAGE_STORAGE_KEY),
+      getStoredOnboardingAnswers(user?.id).catch((error) => {
+        console.warn('Onboarding progress load failed:', error);
+        return {};
+      }),
     ])
-      .then(([settings, storedLanguage]) => {
+      .then(([settings, storedLanguage, onboardingAnswers]) => {
         if (!isActive) return;
         setSelectedConditions(settings.conditions);
         setSelectedLanguage(settings.preferredLanguage ?? parseStoredLanguage(storedLanguage));
+        setShouldShowProfileCompletion(getMissingDetailedProfileQuestionIds(onboardingAnswers).length > 0);
       })
       .catch(async (error) => {
         console.error('Profile load failed:', error);
@@ -282,7 +301,7 @@ export default function SettingsScreen() {
     return () => {
       isActive = false;
     };
-  }, []));
+  }, [user?.id]));
 
   const toggleCondition = (condition: MedicalCondition) => {
     setSelectedConditions((current) =>
@@ -453,6 +472,28 @@ export default function SettingsScreen() {
             >
               <Ionicons name="log-in-outline" size={18} color={SLATE_DARK} />
               <Text style={[styles.shareFeedbackButtonText, isRtl && styles.rtlText]}>{t.signInForSync}</Text>
+            </Pressable>
+          </View>
+        ) : null}
+
+        {shouldShowProfileCompletion ? (
+          <View style={styles.card}>
+            <View style={[styles.cardHeader, isRtl && styles.rtlRow]}>
+              <View style={styles.iconCircle}>
+                <Ionicons name="person-add-outline" size={22} color={MINT_DARK} />
+              </View>
+              <View style={styles.cardHeaderCopy}>
+                <Text style={[styles.cardTitle, isRtl && styles.rtlText]}>{t.completeProfileTitle}</Text>
+                <Text style={[styles.cardSubtitle, isRtl && styles.rtlText]}>{t.completeProfileHint}</Text>
+              </View>
+            </View>
+            <Pressable
+              onPress={() => router.push({ pathname: '/onboarding/page', params: { mode: 'complete-profile' } })}
+              accessibilityRole="button"
+              style={({ pressed }) => [styles.shareFeedbackButton, isRtl && styles.rtlRow, pressed && styles.pressed]}
+            >
+              <Ionicons name="create-outline" size={18} color={SLATE_DARK} />
+              <Text style={[styles.shareFeedbackButtonText, isRtl && styles.rtlText]}>{t.completeProfileButton}</Text>
             </Pressable>
           </View>
         ) : null}
