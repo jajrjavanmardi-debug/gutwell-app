@@ -504,6 +504,8 @@ export async function getFoodRecommendationFromNutrients(
     '',
     'Answer the person\'s actual question first. Do not start with generic nutrient education.',
     'Behave like a practical gut wellness advisor: give a safe starting amount, a realistic frequency, how to increase or pause, and what symptoms to watch.',
+    'Avoid moral food language such as "good food", "bad food", "clean", "cheat", or blame. Use neutral terms such as "may feel gentler", "may be less comfortable", "possible pattern", and "context".',
+    'Do not imply every symptom is caused by food. Briefly keep the framing pattern-based: symptoms can have many causes, food tracking should not create fear, and taking breaks from tracking is okay.',
     'When the user asks "how many", "can I eat this", "how often", or names a food, provide concrete food/intake guidance. Use ranges when exact dosing would be unsafe or uncertain.',
     'Do not give a vague answer like "eat in moderation" unless it is paired with a specific starting amount and tracking instruction.',
     'For plums/prunes guidance: mention that prunes may support regularity but may be associated with gas, bloating, cramps, diarrhea, or IBS-pattern discomfort because of sorbitol/fructose. A cautious start is 1 prune or 1 small fresh plum per day; if tolerated, increase prunes to 2-3 per day or fresh plums to 1-2 per day. Pair with water and avoid large portions at night if reflux is active.',
@@ -614,6 +616,7 @@ export async function analyzeMealPhotoWithGroq(
 
   const adviceTail = [
     `Supplement rule: consider the supplements the user has taken in the last 12 hours when creating the meal insight. If the user has taken a supplement like a digestive enzyme or probiotic, acknowledge it as context. If the supplement may make the meal feel gentler, such as enzymes for legumes/raisins or probiotics for general gut support, increase the ${languageCopy.mealImpactScore} slightly and explain why, but do not overpromise comfort changes.`,
+    'Eating-behavior safety rule: avoid moral food language such as "good food", "bad food", "clean", "cheat", or blame. Food tracking should not create fear. Do not imply every symptom is caused by food; frame findings as possible patterns and mention that taking breaks from tracking is okay when helpful.',
     'Combine what you see with the profile context and all current symptoms. If selected symptoms are present, such as bloating, pain, heaviness, gas, cramps, reflux, nausea, diarrhea, constipation, or low energy, explicitly name each selected symptom and explain how the meal may be associated with that specific combination.',
     'For IBS, bloating, or stomach pain patterns, specifically note possible gas-forming or high-FODMAP foods when relevant, such as beans, lentils, onion, garlic, wheat-heavy foods, lactose, carbonated drinks, or large raw portions.',
     `Provide a clear "${languageCopy.mealImpactScore}" from 1 to 10 for this specific meal, where 1 may be associated with more discomfort and 10 is very gut-supportive for this user. The estimate must be targeted to the selected symptom combination, not just the food in general.`,
@@ -755,6 +758,7 @@ export async function reviseMealAnalysisWithGroq(
     `- If the user says "you misunderstood", "that is wrong", or gives a correction, apologize immediately in ${languageCopy.languageName} before the revised advice.`,
     '- If the correction names a different food, completely clear the old meal context and do not mention the previous guessed food. No cookies or old foods may leak into the revised answer.',
     '- Preserve useful context from the photo and prior analysis only when it does not conflict with the correction and only when the user is discussing the same food.',
+    '- Avoid moral food language such as good/bad food, clean, cheat, blame, or certainty. Remind gently that symptoms can have many causes and not every symptom is caused by food.',
     '- For IBS/bloating, do not suggest brown rice, barley bread, barley, or high-fiber whole grains. Prefer white rice, boiled potatoes, zucchini, carrots, peppermint tea, ginger tea, or low-FODMAP soup.',
     `- Recalculate the ${languageCopy.mealImpactScore} from the corrected meal, current symptoms, and known conditions. Use the full 1-10 range: 8-10 for gentle balanced/supportive meals, 5-7 for mixed meals, 1-4 for strong possible-trigger combinations. Never reuse a default 4/10 or 6/10 estimate unless the corrected meal truly deserves it.`,
     '- Apply symptom interactions strongly: bloating plus onion/garlic/spicy/high-FODMAP lowers the estimate; constipation plus fiber-rich foods raises it; reflux plus greasy/spicy/creamy/acidic foods lowers it.',

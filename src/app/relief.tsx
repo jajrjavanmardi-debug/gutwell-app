@@ -29,7 +29,7 @@ const RELIEF_COPY = {
     safetySymptomsHint: 'If any of these apply, NutriFlow will pause tips and show a medical-care message.',
     emergencyTitle: 'When to get medical help',
     emergencyGuidance:
-      'If symptoms are severe, unusual, worsening, or include chest pain, fainting, blood, or trouble breathing, seek urgent medical care.',
+      'If symptoms are severe, unusual, worsening, or include chest pain, fainting, blood, or trouble breathing, seek urgent medical care. In Germany, call 112 for emergencies; elsewhere contact local emergency services or urgent care.',
   },
   de: {
     help: 'Hilfe',
@@ -45,7 +45,7 @@ const RELIEF_COPY = {
     safetySymptomsHint: 'Wenn eines davon zutrifft, pausiert NutriFlow die Tipps und zeigt einen medizinischen Sicherheitshinweis.',
     emergencyTitle: 'Wann medizinische Hilfe wichtig ist',
     emergencyGuidance:
-      'Wenn Symptome stark, ungewöhnlich oder zunehmend sind oder Brustschmerz, Ohnmacht, Blut oder Atemnot auftreten, suche dringend medizinische Hilfe.',
+      'Wenn Symptome stark, ungewöhnlich oder zunehmend sind oder Brustschmerz, Ohnmacht, Blut oder Atemnot auftreten, suche dringend medizinische Hilfe. In Deutschland rufe im Notfall 112 an; außerhalb Deutschlands kontaktiere den örtlichen Notruf oder eine Notfallpraxis.',
   },
   fa: {
     help: 'کمک',
@@ -61,7 +61,7 @@ const RELIEF_COPY = {
     safetySymptomsHint: 'اگر هرکدام صدق می‌کند، NutriFlow نکات معمول را متوقف می‌کند و پیام مراقبت پزشکی نشان می‌دهد.',
     emergencyTitle: 'چه زمانی کمک پزشکی لازم است',
     emergencyGuidance:
-      'اگر علائم شدید، غیرمعمول یا رو به بدتر شدن هستند، یا درد قفسه سینه، غش، خون‌ریزی یا تنگی نفس دارید، فوراً کمک پزشکی بگیرید.',
+      'اگر علائم شدید، غیرمعمول یا رو به بدتر شدن هستند، یا درد قفسه سینه، غش، خون‌ریزی یا تنگی نفس دارید، فوراً کمک پزشکی بگیرید. در آلمان برای وضعیت اورژانسی با 112 تماس بگیرید؛ در کشورهای دیگر با اورژانس محلی یا مرکز درمان فوری تماس بگیرید.',
   },
 } as const;
 
@@ -137,6 +137,10 @@ export default function ReliefScreen() {
   }, []));
 
   const handleComfortSymptomSelect = (symptom: ReliefSymptom) => {
+    if (redFlagWarning) {
+      Alert.alert(redFlagWarning.title, redFlagWarning.message, [{ text: redFlagWarning.actionLabel }]);
+      return;
+    }
     setRedFlagWarning(null);
     setSelectedSymptom(symptom);
   };
@@ -181,6 +185,7 @@ export default function ReliefScreen() {
               return (
                 <Pressable
                   key={symptom}
+                  disabled={Boolean(redFlagWarning)}
                   onPress={() => handleComfortSymptomSelect(symptom)}
                   accessibilityRole="button"
                   accessibilityState={{ selected: isSelected }}
@@ -188,6 +193,7 @@ export default function ReliefScreen() {
                     styles.symptomButton,
                     isRtl && styles.rtlSymptomButton,
                     isSelected && styles.symptomButtonSelected,
+                    redFlagWarning && styles.symptomButtonDisabled,
                     pressed && styles.pressed,
                   ]}
                 >
@@ -357,6 +363,9 @@ const styles = StyleSheet.create({
   },
   symptomButtonSelected: {
     backgroundColor: SAGE_DARK,
+  },
+  symptomButtonDisabled: {
+    opacity: 0.45,
   },
   symptomButtonText: {
     color: '#FFFFFF',

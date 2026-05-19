@@ -3,7 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import Constants from 'expo-constants';
 import * as ImagePicker from 'expo-image-picker';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -51,7 +51,12 @@ import {
   getPhotoAnalysisHistory,
   resolveMealImpactScore,
   savePhotoAnalysisHistoryItem,
+  type PhotoAnalysisHistoryItem,
 } from '../../lib/photo-analysis-history';
+import {
+  getEatingBehaviorSafetyCopy,
+  getTrackingSafetyReminder,
+} from '../../lib/eating-behavior-safety';
 import { getRecentSupplements, type SupplementHistoryItem } from '../../lib/supplement-history';
 import { supabase } from '../../lib/supabase';
 import {
@@ -65,7 +70,12 @@ import {
   getUserProfileSettings,
   type MedicalCondition,
 } from '../../lib/user-profile-settings';
-import { detectRedFlagSymptoms, getRedFlagWarning, type RedFlagWarningCopy } from '../../lib/red-flag-triage';
+import {
+  detectRedFlagSymptoms,
+  getRedFlagWarning,
+  RedFlagTriageError,
+  type RedFlagWarningCopy,
+} from '../../lib/red-flag-triage';
 
 const Colors = ImportedColors ?? {
   background: '#000000',
@@ -236,6 +246,9 @@ const copy = {
     painApology: "I'm sorry this food may have bothered your body. Let's switch to a gentler Plan B first.",
     medicalDisclaimer:
       'Educational insight only, not a diagnosis or medical advice. Observe patterns over time and seek medical care for severe or unusual symptoms.',
+    trackingSafetyTitle: 'Keep tracking gentle',
+    trackingSafetyText:
+      'Symptoms have many causes, and not every symptom is caused by food. Food tracking should not create fear; taking breaks from tracking is okay.',
     rankUp: 'Rank Up',
     chatPlaceholder: 'Correct or add details...',
     send: 'Send',
@@ -359,6 +372,9 @@ const copy = {
     painApology: 'Es tut mir leid, dass dieses Essen deinem Körper nicht gutgetan haben könnte. Lass uns zuerst zu einem sanfteren Plan B wechseln.',
     medicalDisclaimer:
       'Orientierender Einblick, keine Diagnose und keine medizinische Beratung. Beobachte Muster über die Zeit und suche bei starken oder ungewöhnlichen Symptomen medizinische Hilfe.',
+    trackingSafetyTitle: 'Tracking darf sanft bleiben',
+    trackingSafetyText:
+      'Symptome können viele Ursachen haben, und nicht jedes Symptom kommt vom Essen. Essens-Tracking soll keine Angst machen; Pausen vom Tracken sind okay.',
     rankUp: 'Levelaufstieg',
     chatPlaceholder: 'Korrigieren oder Details ergänzen...',
     send: 'Senden',
@@ -482,6 +498,9 @@ const copy = {
     painApology: 'متأسفم که این غذا ممکن است بدن شما را اذیت کرده باشد. ابتدا سراغ یک برنامه جایگزین ملایم‌تر برویم.',
     medicalDisclaimer:
       'این یک بینش آموزشی است، نه تشخیص یا توصیه پزشکی. الگوها را در طول زمان مشاهده کنید و در صورت علائم شدید یا غیرمعمول کمک پزشکی بگیرید.',
+    trackingSafetyTitle: 'پیگیری را ملایم نگه دارید',
+    trackingSafetyText:
+      'علائم می‌توانند علت‌های زیادی داشته باشند و هر علامتی از غذا نیست. پیگیری غذا نباید باعث ترس شود؛ فاصله گرفتن از ثبت و پیگیری کاملاً اشکالی ندارد.',
     rankUp: 'ارتقای رتبه',
     chatPlaceholder: 'اصلاح کنید یا جزئیات اضافه کنید...',
     send: 'ارسال',
@@ -943,6 +962,7 @@ export default function PhotoAnalysisScreen() {
   /** Corrections the user submitted this session (typed or sent after voice); fed to revise prompts as prior context. */
   const [userFeedback, setUserFeedback] = useState<string[]>([]);
   const [todaysSupplements, setTodaysSupplements] = useState<SupplementHistoryItem[]>([]);
+  const [recentPhotoHistory, setRecentPhotoHistory] = useState<PhotoAnalysisHistoryItem[]>([]);
   const [triggerMemories, setTriggerMemories] = useState<TriggerFeedbackItem[]>([]);
   const [planBMessage, setPlanBMessage] = useState('');
   const [redFlagWarning, setRedFlagWarning] = useState<RedFlagWarningCopy | null>(null);
@@ -955,6 +975,7 @@ export default function PhotoAnalysisScreen() {
   const voiceDestinationRef = useRef<'feelings' | 'correction'>('feelings');
   const latestTranscriptRef = useRef('');
   const voiceHoldActiveRef = useRef(false);
+  const redFlagActiveRef = useRef(false);
   /** Pulse scale + glow opacity while the mic is actively listening. */
   const recordingPulse = useRef(new Animated.Value(1)).current;
   const { user, isGuest } = useAuth();
@@ -984,7 +1005,7 @@ export default function PhotoAnalysisScreen() {
   ].filter(Boolean).join('\n');
   const hasAnalysisInput = Boolean(mealDescriptionText || selectedSymptoms.length > 0);
   const userEnteredSymptoms = selectedSymptomLabels;
-  const promptConditions = getPromptConditions(profileConditions);
+  const promptConditions = useMemo(() => getPromptConditions(profileConditions), [profileConditions]);
   const currentSymptoms = [
     ...promptConditions,
     ...userEnteredSymptoms,
@@ -999,6 +1020,8 @@ export default function PhotoAnalysisScreen() {
     buildFallbackAnalysisInsights(analysis, currentSymptoms, promptConditions, language),
   );
   const displayAnalysisText = localizeVisibleEstimateLabels(stripAnalysisInsightSection(analysis, language), language);
+  const eatingBehaviorSafetyCopy = getEatingBehaviorSafetyCopy(language);
+  const trackingSafetyReminder = getTrackingSafetyReminder(recentPhotoHistory, language);
   const wizardSubtitle =
     wizardStep === 1 ? t.wizardStep1Subtitle : wizardStep === 2 ? t.wizardStep2Subtitle : t.wizardStep3Subtitle;
   const canRecordFeelings = wizardStep === 2 && Boolean(photoUri && lastImageBase64);
@@ -1149,6 +1172,12 @@ export default function PhotoAnalysisScreen() {
       .catch(console.warn);
   }, []);
 
+  useEffect(() => {
+    getPhotoAnalysisHistory(user?.id)
+      .then(setRecentPhotoHistory)
+      .catch(console.warn);
+  }, [user?.id]);
+
   useEffect(() => () => {
     loadedVoiceModule?.destroy?.();
     loadedVoiceModule?.removeAllListeners?.();
@@ -1162,6 +1191,7 @@ export default function PhotoAnalysisScreen() {
 
     getPhotoAnalysisHistory(user?.id)
       .then((history) => {
+        setRecentPhotoHistory(history);
         const savedAnalysis = history.find((item) => item.id === params.historyId);
         if (!savedAnalysis) return;
 
@@ -1196,10 +1226,14 @@ export default function PhotoAnalysisScreen() {
         );
       })
       .catch(console.warn);
-  }, [params.historyId, user?.id]);
+  }, [params.historyId, promptConditions, user?.id]);
 
   const handleShareAnalysis = async () => {
     if (!analysis) return;
+    if (redFlagWarning) {
+      Alert.alert(redFlagWarning.title, redFlagWarning.message, [{ text: redFlagWarning.actionLabel }]);
+      return;
+    }
 
     try {
       const summary = [
@@ -1223,6 +1257,10 @@ export default function PhotoAnalysisScreen() {
 
   const handleLogPhotoAnalysis = async () => {
     if (!analysis) {
+      return;
+    }
+    if (redFlagWarning) {
+      Alert.alert(redFlagWarning.title, redFlagWarning.message, [{ text: redFlagWarning.actionLabel }]);
       return;
     }
 
@@ -1269,18 +1307,56 @@ export default function PhotoAnalysisScreen() {
     setToast({ visible: true, message: t.logMealSuccess, type: 'success' });
   };
 
-  const showRedFlagWarning = (warning: RedFlagWarningCopy) => {
+  const showRedFlagHardStop = (warning: RedFlagWarningCopy, shouldAlert = true) => {
+    setAnalysis('');
+    setPlanBMessage('');
+    setAccuracyAnswer(null);
+    setCorrectionDraft('');
+    setIsAnalyzing(false);
+    setIsCorrecting(false);
+    voiceHoldActiveRef.current = false;
+    redFlagActiveRef.current = true;
+    setIsListening(false);
+    setVoiceTarget(null);
     setRedFlagWarning(warning);
-    Alert.alert(warning.title, warning.message, [{ text: warning.actionLabel }]);
+    if (shouldAlert) {
+      Alert.alert(warning.title, warning.message, [{ text: warning.actionLabel }]);
+    }
+  };
+
+  const handleMealDescriptionChange = (nextValue: string) => {
+    setMealDescription(nextValue);
+    const triage = detectRedFlagSymptoms([nextValue, ...currentSymptoms]);
+    if (triage.hasRedFlag) {
+      showRedFlagHardStop(getRedFlagWarning(language), false);
+      return;
+    }
+    redFlagActiveRef.current = false;
+    if (redFlagWarning) setRedFlagWarning(null);
+  };
+
+  const handleCorrectionDraftChange = (nextValue: string) => {
+    setCorrectionDraft(nextValue);
+    const triage = detectRedFlagSymptoms(nextValue);
+    if (triage.hasRedFlag) {
+      showRedFlagHardStop(getRedFlagWarning(language), false);
+      setCorrectionDraft(nextValue);
+      return;
+    }
+    redFlagActiveRef.current = false;
+    if (redFlagWarning) setRedFlagWarning(null);
   };
 
   const toggleSymptom = (symptomKey: SymptomKey) => {
-    setRedFlagWarning(null);
     setSelectedSymptoms((current) =>
       current.includes(symptomKey)
         ? current.filter((item) => item !== symptomKey)
         : [...current, symptomKey]
     );
+    if (redFlagWarning && !detectRedFlagSymptoms(mealDescriptionText).hasRedFlag) {
+      redFlagActiveRef.current = false;
+      setRedFlagWarning(null);
+    }
   };
 
   const handleGenerateAnalysis = () => {
@@ -1292,11 +1368,7 @@ export default function PhotoAnalysisScreen() {
 
     const triage = detectRedFlagSymptoms([mealDescriptionText, ...currentSymptoms]);
     if (triage.hasRedFlag) {
-      setAnalysis('');
-      setPlanBMessage('');
-      setAccuracyAnswer(null);
-      setCorrectionDraft('');
-      showRedFlagWarning(getRedFlagWarning(language));
+      showRedFlagHardStop(getRedFlagWarning(language));
       return;
     }
 
@@ -1310,7 +1382,7 @@ export default function PhotoAnalysisScreen() {
   ) => {
     const triage = detectRedFlagSymptoms([feelingsNarrative, ...currentSymptoms]);
     if (triage.hasRedFlag) {
-      showRedFlagWarning(getRedFlagWarning(language));
+      showRedFlagHardStop(getRedFlagWarning(language));
       return;
     }
 
@@ -1319,6 +1391,7 @@ export default function PhotoAnalysisScreen() {
     setLastImageBase64(imageBase64);
     setPlanBMessage('');
     setRedFlagWarning(null);
+    redFlagActiveRef.current = false;
     setUserFeedback([]);
 
     try {
@@ -1333,6 +1406,7 @@ export default function PhotoAnalysisScreen() {
         retailLocationHint,
         userFeelingsNarrative: feelingsNarrative,
       });
+      if (redFlagActiveRef.current) return;
       const dynamicResult = applyDynamicMealImpactScore(rawResult, currentSymptoms, feelingsNarrative, language);
       const dynamicMealImpactScore = resolveMealImpactScore(dynamicResult, currentSymptoms, feelingsNarrative, language);
       setAnalysis(dynamicResult);
@@ -1348,6 +1422,9 @@ export default function PhotoAnalysisScreen() {
         language,
         userId: user?.id,
       });
+      getPhotoAnalysisHistory(user?.id)
+        .then(setRecentPhotoHistory)
+        .catch(console.warn);
       const xpResult = await addXpForAction(10);
       if (hasPainSymptom) {
         const progress = await recordTriggerFeedback({
@@ -1362,6 +1439,10 @@ export default function PhotoAnalysisScreen() {
         setTimeout(() => setRankUpBadge(''), 3600);
       }
     } catch (error) {
+      if (error instanceof RedFlagTriageError) {
+        showRedFlagHardStop(getRedFlagWarning(language));
+        return;
+      }
       console.error('Meal photo analysis failed:', error);
       Alert.alert(
         t.photoAnalysisFailedTitle,
@@ -1395,6 +1476,8 @@ export default function PhotoAnalysisScreen() {
     setCorrectionDraft('');
     setMealDescription(options.mealDescription ?? '');
     setSelectedSymptoms(options.symptomKeys ?? []);
+    setRedFlagWarning(null);
+    redFlagActiveRef.current = false;
   };
 
   const pickImageFileOnWeb = () => {
@@ -1525,11 +1608,8 @@ export default function PhotoAnalysisScreen() {
 
     const triage = detectRedFlagSymptoms(correction);
     if (triage.hasRedFlag) {
-      setAnalysis('');
-      setPlanBMessage('');
-      setAccuracyAnswer(null);
-      setCorrectionDraft('');
-      showRedFlagWarning(getRedFlagWarning(language));
+      showRedFlagHardStop(getRedFlagWarning(language));
+      setCorrectionDraft(correction);
       return;
     }
 
@@ -1554,6 +1634,7 @@ export default function PhotoAnalysisScreen() {
         retailLocationHint,
         priorUserCorrections: userFeedback,
       });
+      if (redFlagActiveRef.current) return;
       const dynamicRevisedAnalysis = applyDynamicMealImpactScore(
         revisedAnalysis,
         [...currentSymptoms, correction],
@@ -1588,6 +1669,11 @@ export default function PhotoAnalysisScreen() {
       }
       setCorrectionDraft('');
     } catch (error) {
+      if (error instanceof RedFlagTriageError) {
+        showRedFlagHardStop(getRedFlagWarning(language));
+        setCorrectionDraft(correction);
+        return;
+      }
       console.error('Meal correction failed:', error);
       Alert.alert(
         t.correctionFailedTitle,
@@ -1601,9 +1687,8 @@ export default function PhotoAnalysisScreen() {
   const applyVoiceTranscript = (destination: 'feelings' | 'correction', text: string) => {
     const trimmed = text.trim();
     if (!trimmed) return;
-    setRedFlagWarning(null);
-    if (destination === 'feelings') setMealDescription(trimmed);
-    else setCorrectionDraft(trimmed);
+    if (destination === 'feelings') handleMealDescriptionChange(trimmed);
+    else handleCorrectionDraftChange(trimmed);
   };
 
   const bindVoiceHandlers = (Voice: VoiceModule, destination: 'feelings' | 'correction') => {
@@ -1612,9 +1697,9 @@ export default function PhotoAnalysisScreen() {
       if (!spokenText || !voiceHoldActiveRef.current) return;
       latestTranscriptRef.current = spokenText;
       if (destination === 'correction') {
-        setCorrectionDraft(spokenText);
+        handleCorrectionDraftChange(spokenText);
       } else {
-        setMealDescription(spokenText);
+        handleMealDescriptionChange(spokenText);
       }
     };
     Voice.onSpeechPartialResults = (event) => {
@@ -1622,9 +1707,9 @@ export default function PhotoAnalysisScreen() {
       if (!spokenText || !voiceHoldActiveRef.current) return;
       latestTranscriptRef.current = spokenText;
       if (destination === 'correction') {
-        setCorrectionDraft(spokenText);
+        handleCorrectionDraftChange(spokenText);
       } else {
-        setMealDescription(spokenText);
+        handleMealDescriptionChange(spokenText);
       }
     };
     Voice.onSpeechError = (err: unknown) => {
@@ -1658,8 +1743,8 @@ export default function PhotoAnalysisScreen() {
       const next = spokenText.trim();
       if (!next) return;
       latestTranscriptRef.current = next;
-      if (destination === 'correction') setCorrectionDraft(next);
-      else setMealDescription(next);
+      if (destination === 'correction') handleCorrectionDraftChange(next);
+      else handleMealDescriptionChange(next);
     };
 
     const micToast = () =>
@@ -1750,6 +1835,7 @@ export default function PhotoAnalysisScreen() {
     setPlanBMessage('');
     setRankUpBadge('');
     setRedFlagWarning(null);
+    redFlagActiveRef.current = false;
     setMealDescription('');
     setSelectedSymptoms([]);
     setUserFeedback([]);
@@ -1766,6 +1852,7 @@ export default function PhotoAnalysisScreen() {
     setLastImageBase64('');
     setAnalysis('');
     setRedFlagWarning(null);
+    redFlagActiveRef.current = false;
     setMealDescription('');
     setSelectedSymptoms([]);
     setWizardStep(1);
@@ -1913,10 +2000,7 @@ export default function PhotoAnalysisScreen() {
 
               <TextInput
                 value={mealDescription}
-                onChangeText={(nextValue) => {
-                  setMealDescription(nextValue);
-                  if (redFlagWarning) setRedFlagWarning(null);
-                }}
+                onChangeText={handleMealDescriptionChange}
                 placeholder={t.howYouFeelPlaceholder}
                 placeholderTextColor={Colors.textTertiary}
                 multiline
@@ -1927,6 +2011,32 @@ export default function PhotoAnalysisScreen() {
                   isRtlLanguage && styles.rtlText,
                 ]}
               />
+
+              <View style={[styles.trackingSafetyCard, isRtlLanguage && styles.rtlRow]}>
+                <Ionicons name="heart-outline" size={18} color="#F5D9A8" />
+                <View style={styles.safetyCopy}>
+                  <Text style={[styles.trackingSafetyTitle, isRtlLanguage && styles.rtlText]}>
+                    {eatingBehaviorSafetyCopy.title}
+                  </Text>
+                  <Text style={[styles.trackingSafetyText, isRtlLanguage && styles.rtlText]}>
+                    {eatingBehaviorSafetyCopy.body}
+                  </Text>
+                </View>
+              </View>
+
+              {trackingSafetyReminder ? (
+                <View style={[styles.trackingReminderCard, isRtlLanguage && styles.rtlRow]}>
+                  <Ionicons name="pause-circle-outline" size={18} color="#B7F7D6" />
+                  <View style={styles.safetyCopy}>
+                    <Text style={[styles.trackingReminderTitle, isRtlLanguage && styles.rtlText]}>
+                      {trackingSafetyReminder.title}
+                    </Text>
+                    <Text style={[styles.trackingReminderText, isRtlLanguage && styles.rtlText]}>
+                      {trackingSafetyReminder.body}
+                    </Text>
+                  </View>
+                </View>
+              ) : null}
 
               {redFlagWarning ? (
                 <View style={[styles.safetyCard, isRtlLanguage && styles.rtlRow]}>
@@ -1940,19 +2050,20 @@ export default function PhotoAnalysisScreen() {
 
               <Pressable
                 onPress={handleGenerateAnalysis}
-                disabled={!hasAnalysisInput || isAnalyzing || !lastImageBase64.trim()}
+                disabled={!hasAnalysisInput || isAnalyzing || !lastImageBase64.trim() || Boolean(redFlagWarning)}
                 accessibilityRole="button"
                 accessibilityLabel={t.generateAnalysis}
                 accessibilityState={{
-                  disabled: !hasAnalysisInput || isAnalyzing || !lastImageBase64.trim(),
+                  disabled: !hasAnalysisInput || isAnalyzing || !lastImageBase64.trim() || Boolean(redFlagWarning),
                 }}
                 style={({ pressed }) => [
                   styles.analyzeCombinedButton,
-                  (!hasAnalysisInput || isAnalyzing || !lastImageBase64.trim()) &&
+                  (!hasAnalysisInput || isAnalyzing || !lastImageBase64.trim() || Boolean(redFlagWarning)) &&
                     styles.analyzeCombinedButtonDisabled,
                   pressed &&
                     hasAnalysisInput &&
                     !isAnalyzing &&
+                    !redFlagWarning &&
                     lastImageBase64.trim() &&
                     styles.pressed,
                 ]}
@@ -2317,10 +2428,7 @@ export default function PhotoAnalysisScreen() {
                         <View style={[styles.correctionInputRow, isRtlLanguage && styles.rtlRow]}>
                           <TextInput
                             value={correctionDraft}
-                            onChangeText={(nextValue) => {
-                              setCorrectionDraft(nextValue);
-                              if (redFlagWarning) setRedFlagWarning(null);
-                            }}
+                            onChangeText={handleCorrectionDraftChange}
                             placeholder={t.correctionPlaceholder}
                             placeholderTextColor={Colors.textTertiary}
                             multiline
@@ -2376,12 +2484,12 @@ export default function PhotoAnalysisScreen() {
                           </View>
                         ) : null}
                         <Pressable
-                          disabled={isCorrecting}
+                          disabled={isCorrecting || Boolean(redFlagWarning)}
                           onPress={() => void handleApplyCorrection()}
                           style={({ pressed }) => [
                             styles.applyCorrectionButton,
-                            isCorrecting && styles.applyCorrectionButtonDisabled,
-                            pressed && !isCorrecting && styles.pressed,
+                            (isCorrecting || Boolean(redFlagWarning)) && styles.applyCorrectionButtonDisabled,
+                            pressed && !isCorrecting && !redFlagWarning && styles.pressed,
                           ]}
                         >
                           {isCorrecting ? (
@@ -2590,6 +2698,52 @@ const styles = createStyles({
   },
   safetyText: {
     color: '#FFE7C2',
+    fontFamily: FontFamily.sansMedium,
+    fontSize: FontSize.sm,
+    lineHeight: 20,
+    marginTop: 4,
+  },
+  trackingSafetyCard: {
+    alignItems: 'flex-start',
+    backgroundColor: 'rgba(245, 217, 168, 0.08)',
+    borderColor: 'rgba(245, 217, 168, 0.28)',
+    borderRadius: BorderRadius.lg,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: Spacing.sm,
+    padding: Spacing.md,
+  },
+  trackingReminderCard: {
+    alignItems: 'flex-start',
+    backgroundColor: 'rgba(45, 206, 137, 0.10)',
+    borderColor: 'rgba(45, 206, 137, 0.30)',
+    borderRadius: BorderRadius.lg,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: Spacing.sm,
+    padding: Spacing.md,
+  },
+  trackingSafetyTitle: {
+    color: '#F5D9A8',
+    fontFamily: FontFamily.sansBold,
+    fontSize: FontSize.sm,
+    lineHeight: 20,
+  },
+  trackingSafetyText: {
+    color: '#FFE7C2',
+    fontFamily: FontFamily.sansMedium,
+    fontSize: FontSize.sm,
+    lineHeight: 20,
+    marginTop: 4,
+  },
+  trackingReminderTitle: {
+    color: '#B7F7D6',
+    fontFamily: FontFamily.sansBold,
+    fontSize: FontSize.sm,
+    lineHeight: 20,
+  },
+  trackingReminderText: {
+    color: '#D8FBEA',
     fontFamily: FontFamily.sansMedium,
     fontSize: FontSize.sm,
     lineHeight: 20,

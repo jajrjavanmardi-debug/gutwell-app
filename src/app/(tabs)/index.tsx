@@ -47,6 +47,10 @@ import {
   getUserProgressProfile,
   type UserProgressProfile,
 } from '../../../lib/user-progress';
+import {
+  getEatingBehaviorSafetyCopy,
+  getTrackingSafetyReminder,
+} from '../../../lib/eating-behavior-safety';
 import { fetchDailyGutScoreCardData, type DailyGutScoreCardData } from '../../../services/scoring';
 import {
   APP_LANGUAGE_STORAGE_KEY,
@@ -60,7 +64,12 @@ import {
   type MedicalCondition,
   type UserProfileSettings,
 } from '../../../lib/user-profile-settings';
-import { detectRedFlagSymptoms, getRedFlagWarning, type RedFlagWarningCopy } from '../../../lib/red-flag-triage';
+import {
+  detectRedFlagSymptoms,
+  getRedFlagWarning,
+  RedFlagTriageError,
+  type RedFlagWarningCopy,
+} from '../../../lib/red-flag-triage';
 
 const EXAMPLE_FEELINGS = [
   'lowEnergy',
@@ -826,6 +835,7 @@ export default function HomeScreen() {
   const { width } = useWindowDimensions();
   const scrollViewRef = useRef<ScrollView>(null);
   const previousLanguageRef = useRef<Language>('en');
+  const redFlagActiveRef = useRef(false);
   const celebrationPulse = useRef(new Animated.Value(0)).current;
   const [feeling, setFeeling] = useState('');
   const [language, setLanguage] = useState<Language>('en');
@@ -893,6 +903,11 @@ export default function HomeScreen() {
   const chartData = useMemo(
     () => buildSevenDayChartData(photoHistory, supplementHistory, gutScore, language),
     [gutScore, language, photoHistory, supplementHistory]
+  );
+  const eatingBehaviorSafetyCopy = useMemo(() => getEatingBehaviorSafetyCopy(language), [language]);
+  const trackingSafetyReminder = useMemo(
+    () => getTrackingSafetyReminder(photoHistory, language),
+    [language, photoHistory]
   );
   const isGoodFeeling = useMemo(
     () => /\bgood\b|\bgreat\b|\bbetter\b|\bhappy\b|\bcalm\b|\bwonderful\b|\bfine\b|\bgut\b|\bbesser\b|\bgern\b/i.test(trimmedFeeling),
@@ -1023,8 +1038,42 @@ export default function HomeScreen() {
     setResultLanguage(null);
     setErrorMessage('');
     setRedFlagWarning(null);
+    redFlagActiveRef.current = false;
     setShowReadyMessage(false);
     setLanguageRefreshMessage('');
+  };
+
+  const showRedFlagHardStop = (warning: RedFlagWarningCopy, shouldAlert = true) => {
+    setResult(null);
+    setResultLanguage(null);
+    setErrorMessage('');
+    setShowReadyMessage(false);
+    setLanguageRefreshMessage('');
+    redFlagActiveRef.current = true;
+    setRedFlagWarning(warning);
+    if (shouldAlert) {
+      Alert.alert(warning.title, warning.message, [{ text: warning.actionLabel }]);
+    }
+  };
+
+  const handleFeelingChange = (nextValue: string) => {
+    setFeeling(nextValue);
+    const triage = detectRedFlagSymptoms(nextValue);
+    if (triage.hasRedFlag) {
+      showRedFlagHardStop(getRedFlagWarning(language), false);
+      return;
+    }
+    redFlagActiveRef.current = false;
+    if (redFlagWarning) setRedFlagWarning(null);
+  };
+
+  const handleStartPhotoAnalysis = () => {
+    const triage = detectRedFlagSymptoms(trimmedFeeling);
+    if (triage.hasRedFlag) {
+      showRedFlagHardStop(getRedFlagWarning(language));
+      return;
+    }
+    router.push('/photo-analysis');
   };
 
   const handleGeneratePlan = async () => {
@@ -1044,14 +1093,7 @@ export default function HomeScreen() {
 
     const triage = detectRedFlagSymptoms(trimmedFeeling);
     if (triage.hasRedFlag) {
-      const warning = getRedFlagWarning(language);
-      setResult(null);
-      setResultLanguage(null);
-      setErrorMessage('');
-      setShowReadyMessage(false);
-      setLanguageRefreshMessage('');
-      setRedFlagWarning(warning);
-      Alert.alert(warning.title, warning.message, [{ text: warning.actionLabel }]);
+      showRedFlagHardStop(getRedFlagWarning(language));
       return;
     }
 
@@ -1059,6 +1101,7 @@ export default function HomeScreen() {
     console.log('Nutrition plan loading state set to true');
     setErrorMessage('');
     setRedFlagWarning(null);
+    redFlagActiveRef.current = false;
     setShowReadyMessage(false);
     setLanguageRefreshMessage('');
 
@@ -1075,6 +1118,7 @@ export default function HomeScreen() {
         'For IBS/bloating patterns, avoid pushing brown rice, barley bread, barley, or high-fiber whole grains as comfort ideas. Prefer gentler options such as white rice, boiled potatoes, zucchini, carrots, peppermint tea, ginger tea, or low-FODMAP soup.',
       ].join('\n');
       const recommendation = await getNutritionRecommendation(analysisInput, { hasSpecificFood });
+      if (redFlagActiveRef.current) return;
       const xpResult = await addXpForAction(10);
       setResult({ ...recommendation, feeling: trimmedFeeling });
       setResultLanguage(language);
@@ -1096,6 +1140,10 @@ export default function HomeScreen() {
         foods: recommendation.foods.map((food) => food.description),
       });
     } catch (error) {
+      if (error instanceof RedFlagTriageError) {
+        showRedFlagHardStop(getRedFlagWarning(language));
+        return;
+      }
       const message =
         error instanceof Error
           ? error.message
@@ -1168,6 +1216,10 @@ export default function HomeScreen() {
 
   const handleShareRecommendation = async () => {
     if (!shareMessage) return;
+    if (redFlagWarning) {
+      Alert.alert(redFlagWarning.title, redFlagWarning.message, [{ text: redFlagWarning.actionLabel }]);
+      return;
+    }
 
     try {
       await Share.share({
@@ -1378,13 +1430,13 @@ export default function HomeScreen() {
             </View>
 
             <Pressable
-              disabled={isLoading}
-              onPress={() => router.push('/photo-analysis')}
+              disabled={isLoading || Boolean(redFlagWarning)}
+              onPress={handleStartPhotoAnalysis}
               hitSlop={8}
               style={({ pressed }) => [
                 styles.actionCardPressable,
-                isLoading && styles.photoAnalysisButtonDisabled,
-                pressed && !isLoading && styles.pressed,
+                (isLoading || Boolean(redFlagWarning)) && styles.photoAnalysisButtonDisabled,
+                pressed && !isLoading && !redFlagWarning && styles.pressed,
               ]}
             >
               <LinearGradient
@@ -1571,7 +1623,7 @@ export default function HomeScreen() {
                 {EXAMPLE_FEELINGS.map((example) => (
                   <Pressable
                     key={example}
-                    onPress={() => setFeeling(t.examples[example])}
+                    onPress={() => handleFeelingChange(t.examples[example])}
                     style={({ pressed }) => [styles.promptChip, pressed && styles.pressed]}
                   >
                     <Text style={[styles.promptChipText, isRtl && styles.rtlText]}>{t.examples[example]}</Text>
@@ -1599,16 +1651,39 @@ export default function HomeScreen() {
               </View>
               <TextInput
                 value={feeling}
-                onChangeText={(nextValue) => {
-                  setFeeling(nextValue);
-                  if (redFlagWarning) setRedFlagWarning(null);
-                }}
+                onChangeText={handleFeelingChange}
                 placeholder={t.placeholder}
                 placeholderTextColor="#777777"
                 multiline
                 textAlignVertical="top"
                 style={[styles.textArea, isRtl && styles.rtlText]}
               />
+
+              <View style={[styles.trackingSafetyCard, isRtl && styles.rtlRow]}>
+                <Ionicons name="heart-outline" size={18} color="#7E795D" />
+                <View style={styles.trackingSafetyCopy}>
+                  <Text style={[styles.trackingSafetyTitle, isRtl && styles.rtlText]}>
+                    {eatingBehaviorSafetyCopy.title}
+                  </Text>
+                  <Text style={[styles.trackingSafetyText, isRtl && styles.rtlText]}>
+                    {eatingBehaviorSafetyCopy.body}
+                  </Text>
+                </View>
+              </View>
+
+              {trackingSafetyReminder ? (
+                <View style={[styles.trackingReminderCard, isRtl && styles.rtlRow]}>
+                  <Ionicons name="pause-circle-outline" size={18} color="#276E3A" />
+                  <View style={styles.trackingSafetyCopy}>
+                    <Text style={[styles.trackingReminderTitle, isRtl && styles.rtlText]}>
+                      {trackingSafetyReminder.title}
+                    </Text>
+                    <Text style={[styles.trackingReminderText, isRtl && styles.rtlText]}>
+                      {trackingSafetyReminder.body}
+                    </Text>
+                  </View>
+                </View>
+              ) : null}
 
               <View style={styles.profileControls}>
                 <Text style={[styles.controlLabel, isRtl && styles.rtlText]}>{t.conditions}</Text>
@@ -1657,14 +1732,14 @@ export default function HomeScreen() {
               </View>
 
               <Pressable
-                disabled={isLoading}
+                disabled={isLoading || Boolean(redFlagWarning)}
                 onPress={handleGeneratePlan}
                 hitSlop={8}
                 style={({ pressed }) => [
                   styles.generateButton,
                   !hasFeelingInput && !isLoading && styles.generateButtonNeedsInput,
-                  isLoading && styles.generateButtonDisabled,
-                  pressed && !isLoading && styles.pressed,
+                  (isLoading || Boolean(redFlagWarning)) && styles.generateButtonDisabled,
+                  pressed && !isLoading && !redFlagWarning && styles.pressed,
                 ]}
               >
                 {isLoading ? (
@@ -2881,6 +2956,55 @@ const styles = StyleSheet.create({
     fontFamily: FontFamily.sansSemiBold,
     fontSize: FontSize.sm,
     lineHeight: 20,
+  },
+  trackingSafetyCard: {
+    alignItems: 'flex-start',
+    backgroundColor: '#F8F6EE',
+    borderColor: '#D8D1B6',
+    borderRadius: BorderRadius.md,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: Spacing.sm,
+    marginTop: Spacing.md,
+    padding: Spacing.md,
+  },
+  trackingReminderCard: {
+    alignItems: 'flex-start',
+    backgroundColor: '#ECF7F0',
+    borderColor: '#BFE5CB',
+    borderRadius: BorderRadius.md,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: Spacing.sm,
+    marginTop: Spacing.sm,
+    padding: Spacing.md,
+  },
+  trackingSafetyCopy: { flex: 1, minWidth: 0 },
+  trackingSafetyTitle: {
+    color: '#4E5B66',
+    fontFamily: FontFamily.sansBold,
+    fontSize: FontSize.sm,
+    lineHeight: 20,
+  },
+  trackingSafetyText: {
+    color: '#4E5B66',
+    fontFamily: FontFamily.sansMedium,
+    fontSize: FontSize.sm,
+    lineHeight: 20,
+    marginTop: 4,
+  },
+  trackingReminderTitle: {
+    color: '#276E3A',
+    fontFamily: FontFamily.sansBold,
+    fontSize: FontSize.sm,
+    lineHeight: 20,
+  },
+  trackingReminderText: {
+    color: '#276E3A',
+    fontFamily: FontFamily.sansMedium,
+    fontSize: FontSize.sm,
+    lineHeight: 20,
+    marginTop: 4,
   },
   readyToast: {
     alignItems: 'center',

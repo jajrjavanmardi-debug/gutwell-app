@@ -13,21 +13,21 @@ export type RedFlagTriageResult = {
 
 const WARNING_COPY: Record<AppLanguage, RedFlagWarningCopy> = {
   en: {
-    title: 'Medical care recommended',
+    title: 'Medical care is the safer next step',
     message:
-      'NutriFlow is not suitable for this situation. These symptoms may need medical assessment. Please seek medical care; if symptoms are severe or worsening, contact urgent or emergency care.',
+      'NutriFlow is not appropriate for this situation, so normal food analysis and tips are paused. These symptoms may need medical assessment. If symptoms are severe, worsening, or feel urgent, seek medical care now. In Germany, call 112 for emergencies; elsewhere contact local emergency services or urgent care.',
     actionLabel: 'Understood',
   },
   de: {
-    title: 'Medizinische Abklärung empfohlen',
+    title: 'Medizinische Hilfe ist jetzt sicherer',
     message:
-      'NutriFlow ist für diesen Fall nicht geeignet. Diese Symptome sollten medizinisch abgeklärt werden. Bitte wenden Sie sich an ärztliche Hilfe; bei starken oder zunehmenden Beschwerden an den Notdienst.',
+      'NutriFlow ist für diese Situation nicht geeignet, daher sind normale Essensanalysen und Tipps pausiert. Diese Symptome sollten medizinisch abgeklärt werden. Wenn die Beschwerden stark sind, zunehmen oder dringend wirken, suche jetzt medizinische Hilfe. In Deutschland rufe im Notfall 112 an; außerhalb Deutschlands kontaktiere den örtlichen Notruf oder eine Notfallpraxis.',
     actionLabel: 'Verstanden',
   },
   fa: {
-    title: 'نیاز به بررسی پزشکی',
+    title: 'کمک پزشکی گزینه امن‌تری است',
     message:
-      'NutriFlow برای این وضعیت مناسب نیست. این علائم بهتر است توسط پزشک بررسی شوند. لطفاً برای دریافت مراقبت پزشکی اقدام کنید؛ اگر علائم شدید یا رو به بدتر شدن هستند، با اورژانس یا مرکز درمانی تماس بگیرید.',
+      'NutriFlow برای این وضعیت مناسب نیست، بنابراین تحلیل معمول غذا و نکات عادی متوقف می‌شود. این علائم ممکن است نیاز به بررسی پزشکی داشته باشند. اگر علائم شدید، رو به بدتر شدن یا فوری به نظر می‌رسند، همین حالا کمک پزشکی بگیرید. در آلمان برای وضعیت اورژانسی با 112 تماس بگیرید؛ در کشورهای دیگر با اورژانس محلی یا مرکز درمان فوری تماس بگیرید.',
     actionLabel: 'متوجه شدم',
   },
 };
@@ -158,13 +158,14 @@ function normalizeRedFlagText(input: string): string {
     .replace(/ي/g, 'ی')
     .replace(/ك/g, 'ک')
     .replace(/ۀ/g, 'ه')
-    .replace(/s+/g, ' ')
+    .replace(/\s+/g, ' ')
     .trim();
 }
 
 function stringifyTriageInput(input: string | readonly (string | null | undefined)[] | null | undefined): string {
-  if (Array.isArray(input)) return input.filter(Boolean).join(' ');
-  return input ?? '';
+  if (!input) return '';
+  if (typeof input === 'string') return input;
+  return input.filter(Boolean).join(' ');
 }
 
 export function detectRedFlagSymptoms(

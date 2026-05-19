@@ -489,7 +489,7 @@ export default function OnboardingPage() {
     habits: computeHabits(answers).map((habit) => copy.habitLabels[habit]),
   }), [answers, copy, language]);
 
-  const showRedFlagWarning = (warning: RedFlagWarningCopy) => {
+  const showRedFlagHardStop = (warning: RedFlagWarningCopy) => {
     setRedFlagWarning(warning);
     Alert.alert(warning.title, warning.message, [{ text: warning.actionLabel }]);
   };
@@ -519,7 +519,7 @@ export default function OnboardingPage() {
     const selectedOption = currentQuestion.options.find((option) => option.value === value);
     const triage = detectRedFlagSymptoms([currentQuestion.title, selectedOption?.label, value]);
     if (triage.hasRedFlag) {
-      showRedFlagWarning(getRedFlagWarning(language));
+      showRedFlagHardStop(getRedFlagWarning(language));
       return;
     }
     setRedFlagWarning(null);
@@ -547,7 +547,7 @@ export default function OnboardingPage() {
     );
     const triage = detectRedFlagSymptoms(answerLabels);
     if (triage.hasRedFlag) {
-      showRedFlagWarning(getRedFlagWarning(language));
+      showRedFlagHardStop(getRedFlagWarning(language));
       return;
     }
 
@@ -719,6 +719,11 @@ export default function OnboardingPage() {
                 <View style={styles.safetyCopy}>
                   <Text style={[styles.safetyTitle, isRtl && styles.rtlText]}>{redFlagWarning.title}</Text>
                   <Text style={[styles.safetyText, isRtl && styles.rtlText]}>{redFlagWarning.message}</Text>
+                  <Pressable onPress={() => router.push('/relief')} style={styles.safetyActionButton}>
+                    <Text style={[styles.emergencyButtonText, isRtl && styles.rtlText]}>
+                      {copy.consentEmergencyAction}
+                    </Text>
+                  </Pressable>
                 </View>
               </View>
             ) : null}
@@ -851,6 +856,17 @@ const styles = StyleSheet.create({
     width: 26,
   },
   safetyCopy: { flex: 1 },
+  safetyActionButton: {
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    backgroundColor: '#FFFFFF',
+    borderColor: '#FDBA74',
+    borderRadius: 14,
+    borderWidth: 1,
+    marginTop: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+  },
   safetyTitle: { color: '#7C2D12', fontSize: 16, fontWeight: '800' },
   safetyText: { color: '#7C2D12', fontSize: 14, lineHeight: 20, marginTop: 4 },
   questionTitle: { color: COLORS.textPrimary, fontSize: 28, lineHeight: 34, fontWeight: '700' },
