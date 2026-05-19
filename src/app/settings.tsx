@@ -73,6 +73,10 @@ const SETTINGS_COPY = {
     shareFeedbackOpened: 'Share sheet opened',
     shareFeedbackCopied: 'Feedback invite copied',
     shareFeedbackFailed: 'Could not open sharing right now',
+    legalTitle: 'Legal & trust',
+    legalHint: 'Review privacy, AI limits, wellness-only use, and data deletion details.',
+    privacyPolicy: 'Privacy Policy',
+    termsDisclaimer: 'Terms / Disclaimer',
     deleteDataTitle: 'Delete my data',
     deleteDataHint: 'Remove local demo data and clear app-owned profile, history, symptom, estimate, reminder, and saved meal records where supported.',
     deleteDataButton: 'Delete my data',
@@ -138,6 +142,10 @@ const SETTINGS_COPY = {
     shareFeedbackOpened: 'Teilen geöffnet',
     shareFeedbackCopied: 'Feedback-Einladung kopiert',
     shareFeedbackFailed: 'Teilen kann gerade nicht geöffnet werden',
+    legalTitle: 'Rechtliches & Vertrauen',
+    legalHint: 'Lies Hinweise zu Datenschutz, KI-Grenzen, Wellness-Nutzung und Datenlöschung.',
+    privacyPolicy: 'Datenschutzhinweise',
+    termsDisclaimer: 'Nutzungsbedingungen / Disclaimer',
     deleteDataTitle: 'Meine Daten löschen',
     deleteDataHint: 'Entfernt lokale Demo-Daten und löscht app-eigene Profil-, Verlaufs-, Symptom-, Einschätzungs-, Erinnerungs- und gespeicherte Mahlzeitendaten, soweit unterstützt.',
     deleteDataButton: 'Meine Daten löschen',
@@ -203,6 +211,10 @@ const SETTINGS_COPY = {
     shareFeedbackOpened: 'صفحه اشتراک‌گذاری باز شد',
     shareFeedbackCopied: 'دعوت بازخورد کپی شد',
     shareFeedbackFailed: 'اکنون امکان باز کردن اشتراک‌گذاری وجود ندارد',
+    legalTitle: 'حقوقی و اعتماد',
+    legalHint: 'جزئیات حریم خصوصی، محدودیت‌های هوش مصنوعی، کاربرد تندرستی و حذف داده را ببینید.',
+    privacyPolicy: 'سیاست حریم خصوصی',
+    termsDisclaimer: 'شرایط / سلب مسئولیت',
     deleteDataTitle: 'حذف داده‌های من',
     deleteDataHint: 'داده‌های دمو و حافظه محلی را پاک می‌کند و داده‌های درون‌برنامه‌ای پروفایل، سوابق، علائم، برآوردها، یادآورها و غذاهای ذخیره‌شده را در صورت پشتیبانی حذف می‌کند.',
     deleteDataButton: 'حذف داده‌های من',
@@ -582,6 +594,37 @@ export default function SettingsScreen() {
           </Pressable>
         </View>
 
+        <View style={styles.card}>
+          <View style={[styles.cardHeader, isRtl && styles.rtlRow]}>
+            <View style={styles.iconCircle}>
+              <Ionicons name="shield-checkmark" size={22} color={MINT_DARK} />
+            </View>
+            <View style={styles.cardHeaderCopy}>
+              <Text style={[styles.cardTitle, isRtl && styles.rtlText]}>{t.legalTitle}</Text>
+              <Text style={[styles.cardSubtitle, isRtl && styles.rtlText]}>{t.legalHint}</Text>
+            </View>
+          </View>
+
+          <View style={[styles.legalButtonRow, isRtl && styles.rtlRow]}>
+            <Pressable
+              onPress={() => router.push('/privacy-policy' as never)}
+              accessibilityRole="link"
+              style={({ pressed }) => [styles.legalButton, isRtl && styles.rtlRow, pressed && styles.pressed]}
+            >
+              <Ionicons name="lock-closed-outline" size={18} color={SLATE_DARK} />
+              <Text style={[styles.legalButtonText, isRtl && styles.rtlText]}>{t.privacyPolicy}</Text>
+            </Pressable>
+            <Pressable
+              onPress={() => router.push('/terms-disclaimer' as never)}
+              accessibilityRole="link"
+              style={({ pressed }) => [styles.legalButton, isRtl && styles.rtlRow, pressed && styles.pressed]}
+            >
+              <Ionicons name="document-text-outline" size={18} color={SLATE_DARK} />
+              <Text style={[styles.legalButtonText, isRtl && styles.rtlText]}>{t.termsDisclaimer}</Text>
+            </Pressable>
+          </View>
+        </View>
+
         <View style={styles.dangerCard}>
           <View style={[styles.cardHeader, isRtl && styles.rtlRow]}>
             <View style={styles.dangerIconCircle}>
@@ -897,6 +940,29 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '900',
     textAlign: 'center',
+  },
+  legalButtonRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+  },
+  legalButton: {
+    alignItems: 'center',
+    backgroundColor: '#F3F7F5',
+    borderColor: '#D8E4DE',
+    borderRadius: CARD_RADIUS,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: 8,
+    minHeight: 48,
+    paddingHorizontal: 14,
+    paddingVertical: 11,
+  },
+  legalButtonText: {
+    color: SLATE_DARK,
+    flexShrink: 1,
+    fontSize: 14,
+    fontWeight: '900',
   },
   deleteDataWarning: {
     color: '#8F3E32',

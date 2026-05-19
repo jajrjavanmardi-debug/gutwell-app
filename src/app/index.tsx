@@ -15,6 +15,8 @@ const ENTRY_COPY: Record<AppLanguage, {
   continueAsGuest: string;
   demoMode: string;
   accountAccess: string;
+  privacyPolicy: string;
+  termsDisclaimer: string;
   startingGuest: string;
   guestError: string;
 }> = {
@@ -26,6 +28,8 @@ const ENTRY_COPY: Record<AppLanguage, {
     continueAsGuest: 'Continue as Guest',
     demoMode: 'Demo Mode – data stored locally',
     accountAccess: 'Sign in or create account',
+    privacyPolicy: 'Privacy Policy',
+    termsDisclaimer: 'Terms / Disclaimer',
     startingGuest: 'Starting demo...',
     guestError: 'Could not start guest mode. Please try again.',
   },
@@ -37,6 +41,8 @@ const ENTRY_COPY: Record<AppLanguage, {
     continueAsGuest: 'Als Gast fortfahren',
     demoMode: 'Demo-Modus – Daten werden lokal gespeichert',
     accountAccess: 'Anmelden oder Konto erstellen',
+    privacyPolicy: 'Datenschutzhinweise',
+    termsDisclaimer: 'Nutzungsbedingungen / Disclaimer',
     startingGuest: 'Demo wird gestartet...',
     guestError: 'Gastmodus konnte nicht gestartet werden. Bitte erneut versuchen.',
   },
@@ -48,6 +54,8 @@ const ENTRY_COPY: Record<AppLanguage, {
     continueAsGuest: 'ادامه به عنوان مهمان',
     demoMode: 'حالت دمو – داده ها فقط محلی ذخیره می شوند',
     accountAccess: 'ورود یا ساخت حساب',
+    privacyPolicy: 'سیاست حریم خصوصی',
+    termsDisclaimer: 'شرایط / سلب مسئولیت',
     startingGuest: 'در حال شروع دمو...',
     guestError: 'شروع حالت مهمان انجام نشد. لطفاً دوباره تلاش کنید.',
   },
@@ -125,6 +133,24 @@ export default function AppEntry() {
             >
               <Text style={[styles.accountButtonText, isRtl && styles.rtlText]}>{copy.accountAccess}</Text>
             </Pressable>
+
+            <View style={[styles.legalLinkRow, isRtl && styles.rtlRow]}>
+              <Pressable
+                onPress={() => router.push('/privacy-policy' as never)}
+                accessibilityRole="link"
+                style={({ pressed }) => [styles.legalLink, pressed && styles.pressed]}
+              >
+                <Text style={[styles.legalLinkText, isRtl && styles.rtlText]}>{copy.privacyPolicy}</Text>
+              </Pressable>
+              <Text style={styles.legalSeparator}>·</Text>
+              <Pressable
+                onPress={() => router.push('/terms-disclaimer' as never)}
+                accessibilityRole="link"
+                style={({ pressed }) => [styles.legalLink, pressed && styles.pressed]}
+              >
+                <Text style={[styles.legalLinkText, isRtl && styles.rtlText]}>{copy.termsDisclaimer}</Text>
+              </Pressable>
+            </View>
           </View>
         </View>
       </SafeAreaView>
@@ -267,6 +293,28 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '800',
   },
+  legalLinkRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    justifyContent: 'center',
+    marginTop: 18,
+  },
+  legalLink: {
+    paddingHorizontal: 4,
+    paddingVertical: 4,
+  },
+  legalLinkText: {
+    color: '#276E3A',
+    fontSize: 13,
+    fontWeight: '800',
+  },
+  legalSeparator: {
+    color: '#9BA7A0',
+    fontSize: 13,
+    fontWeight: '800',
+  },
   buttonDisabled: {
     opacity: 0.68,
   },
@@ -277,5 +325,8 @@ const styles = StyleSheet.create({
   rtlText: {
     textAlign: 'right',
     writingDirection: 'rtl',
+  },
+  rtlRow: {
+    flexDirection: 'row-reverse',
   },
 });

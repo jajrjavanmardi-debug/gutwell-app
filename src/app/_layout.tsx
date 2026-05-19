@@ -27,6 +27,8 @@ export default function RootLayout() {
           <Stack.Screen name="food-history" options={{ headerShown: false }} />
           <Stack.Screen name="settings" options={{ headerShown: false }} />
           <Stack.Screen name="relief" options={{ headerShown: false }} />
+          <Stack.Screen name="privacy-policy" options={{ headerShown: false }} />
+          <Stack.Screen name="terms-disclaimer" options={{ headerShown: false }} />
         </Stack>
       </View>
     </AuthProvider>

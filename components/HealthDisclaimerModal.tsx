@@ -55,7 +55,7 @@ export function HealthDisclaimerModal({ visible, onAccept }: Props) {
   };
 
   const handleViewPrivacy = () => {
-    router.push('/privacy-policy');
+    router.push('/privacy-policy' as never);
   };
 
   return (

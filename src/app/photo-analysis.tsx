@@ -216,6 +216,8 @@ const copy = {
     takePhotoText: 'Opens your camera. When you have a clear shot, tap Next.',
     chooseGallery: 'Choose from Gallery',
     chooseGalleryText: 'Pick a meal photo, then tap Next.',
+    mobileCaptureTitle: 'Scan with camera or gallery',
+    mobileCaptureMessage: 'On a physical phone, take a live meal photo or choose an existing image from your gallery.',
     analyzing: 'Analyzing your photo and notes with your gut profile...',
     analyzingBrand: 'NutriFlow',
     resultTitle: 'Personalized meal insight',
@@ -267,12 +269,12 @@ const copy = {
     photoUnavailableTitle: 'Photo unavailable',
     photoUnavailableMessage: 'Could not read the photo data. Please try again.',
     cameraNeededTitle: 'Camera access needed',
-    cameraNeededMessage: 'Please allow camera access to take a meal photo.',
+    cameraNeededMessage: 'Please allow camera access to take a meal photo. If access was denied, enable Camera permission in your phone settings or choose from gallery.',
     demoMode: 'Demo Mode',
     cameraUnavailableTitle: 'Camera unavailable in this preview.',
     cameraUnavailableMessage: 'Use gallery upload or a sample meal image to continue.',
     webDemoTitle: 'Browser preview',
-    webDemoMessage: 'In the browser, use gallery upload or built-in meal images instead of camera capture.',
+    webDemoMessage: 'In the browser demo, use gallery upload or built-in meal images instead of camera capture.',
     uploadImageFromGallery: 'Upload image from gallery',
     useSampleMealImage: 'Use sample meal image',
     demoMealHelper: 'Sample images continue through the same meal analysis flow as gallery uploads.',
@@ -342,6 +344,8 @@ const copy = {
     takePhotoText: 'Öffnet die Kamera. Wenn das Foto passt, tippe auf Weiter.',
     chooseGallery: 'Aus Galerie wählen',
     chooseGalleryText: 'Wähle ein Foto deiner Mahlzeit und tippe dann auf Weiter.',
+    mobileCaptureTitle: 'Mit Kamera oder Galerie scannen',
+    mobileCaptureMessage: 'Auf einem physischen Smartphone kannst du ein Live-Foto aufnehmen oder ein vorhandenes Bild aus der Galerie wählen.',
     analyzing: 'Foto und Notizen werden mit deinem Darmprofil ausgewertet…',
     analyzingBrand: 'NutriFlow',
     resultTitle: 'Personalisierte Mahlzeitenanalyse',
@@ -393,12 +397,12 @@ const copy = {
     photoUnavailableTitle: 'Foto nicht verfügbar',
     photoUnavailableMessage: 'Die Fotodaten konnten nicht gelesen werden. Bitte erneut versuchen.',
     cameraNeededTitle: 'Kamerazugriff nötig',
-    cameraNeededMessage: 'Bitte erlaube den Kamerazugriff, um ein Mahlzeitenfoto aufzunehmen.',
+    cameraNeededMessage: 'Bitte erlaube den Kamerazugriff, um ein Mahlzeitenfoto aufzunehmen. Wenn der Zugriff abgelehnt wurde, aktiviere Kamera in den Telefoneinstellungen oder wähle ein Bild aus der Galerie.',
     demoMode: 'Demo-Modus',
     cameraUnavailableTitle: 'Kamera in dieser Vorschau nicht verfügbar.',
     cameraUnavailableMessage: 'Nutze den Galerie-Upload oder ein Beispielbild, um fortzufahren.',
     webDemoTitle: 'Browser-Vorschau',
-    webDemoMessage: 'Im Browser kannst du Galerie-Upload oder integrierte Beispielbilder statt Kameraaufnahme nutzen.',
+    webDemoMessage: 'In der Browser-Demo kannst du Galerie-Upload oder integrierte Beispielbilder statt Kameraaufnahme nutzen.',
     uploadImageFromGallery: 'Bild aus Galerie hochladen',
     useSampleMealImage: 'Beispiel-Mahlzeit verwenden',
     demoMealHelper: 'Beispielbilder nutzen denselben Analyseablauf wie Galerie-Uploads.',
@@ -468,6 +472,8 @@ const copy = {
     takePhotoText: 'دوربین باز می‌شود. وقتی عکس واضح بود، روی «بعدی» بزنید.',
     chooseGallery: 'انتخاب از گالری',
     chooseGalleryText: 'یک عکس از وعده غذایی انتخاب کنید، سپس روی «بعدی» بزنید.',
+    mobileCaptureTitle: 'اسکن با دوربین یا گالری',
+    mobileCaptureMessage: 'در گوشی واقعی، یک عکس زنده از غذا بگیرید یا یک تصویر موجود را از گالری انتخاب کنید.',
     analyzing: 'در حال تحلیل عکس و یادداشت‌ها بر اساس پروفایل گوارش شما…',
     analyzingBrand: 'NutriFlow',
     resultTitle: 'تحلیل شخصی وعده غذایی',
@@ -519,12 +525,12 @@ const copy = {
     photoUnavailableTitle: 'عکس در دسترس نیست',
     photoUnavailableMessage: 'داده‌های عکس خوانده نشد. لطفاً دوباره تلاش کنید.',
     cameraNeededTitle: 'دسترسی به دوربین لازم است',
-    cameraNeededMessage: 'برای گرفتن عکس غذا، اجازه دسترسی به دوربین را بدهید.',
+    cameraNeededMessage: 'برای گرفتن عکس غذا، اجازه دسترسی به دوربین را بدهید. اگر دسترسی رد شده است، مجوز دوربین را در تنظیمات گوشی فعال کنید یا از گالری انتخاب کنید.',
     demoMode: 'حالت دمو',
     cameraUnavailableTitle: 'دوربین در این پیش‌نمایش در دسترس نیست.',
     cameraUnavailableMessage: 'برای ادامه، از گالری بارگذاری کنید یا یک تصویر غذای نمونه انتخاب کنید.',
     webDemoTitle: 'پیش‌نمایش مرورگر',
-    webDemoMessage: 'در مرورگر، به جای دوربین از بارگذاری تصویر یا تصاویر نمونه غذا استفاده کنید.',
+    webDemoMessage: 'در دموی مرورگر، به جای دوربین از بارگذاری تصویر یا تصاویر نمونه غذا استفاده کنید.',
     uploadImageFromGallery: 'بارگذاری تصویر از گالری',
     useSampleMealImage: 'استفاده از تصویر نمونه غذا',
     demoMealHelper: 'تصاویر نمونه همان مسیر تحلیل گالری را طی می‌کنند.',
@@ -682,15 +688,10 @@ function isIosSimulatorRuntime(): boolean {
   if (Platform.OS !== 'ios') return false;
   if (Constants.isDevice === false) return true;
 
-  const executionEnvironment = String(Constants.executionEnvironment ?? '').toLowerCase();
-  const iosPlatform = Constants.platform?.ios?.platform?.toLowerCase() ?? '';
   const iosModel = Constants.platform?.ios?.model?.toLowerCase() ?? '';
   const deviceName = Constants.deviceName?.toLowerCase() ?? '';
 
-  return ['x86_64', 'i386', 'arm64'].includes(iosPlatform)
-    || iosModel.includes('simulator')
-    || deviceName.includes('simulator')
-    || (__DEV__ && executionEnvironment === 'storeclient');
+  return iosModel.includes('simulator') || deviceName.includes('simulator');
 }
 
 function ensurePainApology(analysis: string, apology: string, hasPainSymptom: boolean): string {
@@ -1548,7 +1549,10 @@ export default function PhotoAnalysisScreen() {
     }
 
     try {
-      const permission = await ImagePicker.requestCameraPermissionsAsync();
+      const existingPermission = await ImagePicker.getCameraPermissionsAsync();
+      const permission = existingPermission.granted
+        ? existingPermission
+        : await ImagePicker.requestCameraPermissionsAsync();
       if (!permission.granted) {
         Alert.alert(t.cameraNeededTitle, t.cameraNeededMessage);
         return;
@@ -1566,6 +1570,7 @@ export default function PhotoAnalysisScreen() {
     } catch (error) {
       console.warn('Camera unavailable, switching to simulator-safe demo flow:', error);
       setCameraUnavailable(true);
+      Alert.alert(cameraFallbackTitle, cameraFallbackMessage);
     }
   };
 
@@ -2163,41 +2168,55 @@ export default function PhotoAnalysisScreen() {
                     </View>
                   </View>
                 ) : (
-                  <View style={styles.actionGrid}>
-                    <Pressable
-                      disabled={isAnalyzing}
-                      onPress={takePhoto}
-                      style={({ pressed }) => [
-                        styles.photoActionButton,
-                        styles.takePhotoButton,
-                        isAnalyzing && styles.disabledButton,
-                        pressed && !isAnalyzing && styles.pressed,
-                      ]}
-                    >
-                      <View style={styles.photoActionIcon}>
-                        <Ionicons name="camera" size={30} color={Colors.textInverse} />
+                  <>
+                    <View style={[styles.cameraModeCard, isRtlLanguage && styles.rtlRow]}>
+                      <Ionicons name="camera-outline" size={20} color="#B7F7D6" />
+                      <View style={styles.cameraModeCopy}>
+                        <Text style={[styles.cameraModeTitle, isRtlLanguage && styles.rtlText]}>
+                          {t.mobileCaptureTitle}
+                        </Text>
+                        <Text style={[styles.cameraModeText, isRtlLanguage && styles.rtlText]}>
+                          {t.mobileCaptureMessage}
+                        </Text>
                       </View>
-                      <Text style={[styles.photoActionTitle, isRtlLanguage && styles.rtlText]}>{t.takePhoto}</Text>
-                      <Text style={[styles.photoActionText, isRtlLanguage && styles.rtlText]}>{t.takePhotoText}</Text>
-                    </Pressable>
+                    </View>
 
-                    <Pressable
-                      disabled={isAnalyzing}
-                      onPress={pickImage}
-                      style={({ pressed }) => [
-                        styles.photoActionButton,
-                        styles.galleryButton,
-                        isAnalyzing && styles.disabledButton,
-                        pressed && !isAnalyzing && styles.pressed,
-                      ]}
-                    >
-                      <View style={styles.photoActionIcon}>
-                        <Ionicons name="images" size={30} color={Colors.textInverse} />
-                      </View>
-                      <Text style={[styles.photoActionTitle, isRtlLanguage && styles.rtlText]}>{t.chooseGallery}</Text>
-                      <Text style={[styles.photoActionText, isRtlLanguage && styles.rtlText]}>{t.chooseGalleryText}</Text>
-                    </Pressable>
-                  </View>
+                    <View style={styles.actionGrid}>
+                      <Pressable
+                        disabled={isAnalyzing}
+                        onPress={takePhoto}
+                        style={({ pressed }) => [
+                          styles.photoActionButton,
+                          styles.takePhotoButton,
+                          isAnalyzing && styles.disabledButton,
+                          pressed && !isAnalyzing && styles.pressed,
+                        ]}
+                      >
+                        <View style={styles.photoActionIcon}>
+                          <Ionicons name="camera" size={30} color={Colors.textInverse} />
+                        </View>
+                        <Text style={[styles.photoActionTitle, isRtlLanguage && styles.rtlText]}>{t.takePhoto}</Text>
+                        <Text style={[styles.photoActionText, isRtlLanguage && styles.rtlText]}>{t.takePhotoText}</Text>
+                      </Pressable>
+
+                      <Pressable
+                        disabled={isAnalyzing}
+                        onPress={pickImage}
+                        style={({ pressed }) => [
+                          styles.photoActionButton,
+                          styles.galleryButton,
+                          isAnalyzing && styles.disabledButton,
+                          pressed && !isAnalyzing && styles.pressed,
+                        ]}
+                      >
+                        <View style={styles.photoActionIcon}>
+                          <Ionicons name="images" size={30} color={Colors.textInverse} />
+                        </View>
+                        <Text style={[styles.photoActionTitle, isRtlLanguage && styles.rtlText]}>{t.chooseGallery}</Text>
+                        <Text style={[styles.photoActionText, isRtlLanguage && styles.rtlText]}>{t.chooseGalleryText}</Text>
+                      </Pressable>
+                    </View>
+                  </>
                 )}
 
                 {photoUri ? <Image source={{ uri: photoUri }} style={styles.previewImage} /> : null}
@@ -2847,6 +2866,33 @@ const styles = createStyles({
   },
   actionGrid: {
     gap: Spacing.md,
+  },
+  cameraModeCard: {
+    alignItems: 'flex-start',
+    backgroundColor: '#10281F',
+    borderColor: '#2DCE8955',
+    borderRadius: 15,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: Spacing.sm,
+    marginBottom: Spacing.md,
+    padding: Spacing.md,
+  },
+  cameraModeCopy: {
+    flex: 1,
+    minWidth: 0,
+  },
+  cameraModeTitle: {
+    color: '#FFFFFF',
+    fontFamily: FontFamily.sansBold,
+    fontSize: FontSize.sm,
+  },
+  cameraModeText: {
+    color: '#B7F7D6',
+    fontFamily: FontFamily.sansMedium,
+    fontSize: FontSize.xs,
+    lineHeight: 18,
+    marginTop: 4,
   },
   cameraFallbackCard: {
     backgroundColor: '#0F3D2E',
