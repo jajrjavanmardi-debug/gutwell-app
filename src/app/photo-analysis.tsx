@@ -49,6 +49,7 @@ import {
 } from '../../lib/app-language';
 import { shouldReplaceEnglishFallbackForPersian } from '../../lib/language-safety';
 import {
+  extractIngredientMentionsFromText,
   filterIngredientsForLanguage,
   findCommonDishIngredientSuggestion,
   localizeIngredientName,
@@ -134,12 +135,16 @@ const createStyles = <T extends Parameters<typeof StyleSheet.create>[0]>(styleSh
 type WizardStep = 1 | 2 | 3 | 4;
 type IngredientReviewStatus = 'unconfirmed' | 'confirmed' | 'skipped';
 type EstimateConfidenceLevel = 'low' | 'medium' | 'higher';
+type IngredientFeedbackKind = 'updated' | 'helpful' | null;
 type IngredientReviewState = {
   mealGuess: string;
   likelyIngredients: string[];
   selectedIngredients: string[];
   status: IngredientReviewStatus;
   source: IngredientSuggestionSource;
+  userNotesPrioritized?: boolean;
+  userNoteIngredients?: string[];
+  photoMealGuess?: string;
 };
 /** When set to `Germany`, skips GPS and fixes AI context to Nürtingen (dev/testing only). */
 const DEV_LOCATION_OVERRIDE =
@@ -327,14 +332,18 @@ const copy = {
     addIngredient: 'Add',
     confirmIngredients: 'Confirm ingredients',
     continueWithoutConfirming: 'Continue without confirming',
-    ingredientRemovalHint: 'Tap an ingredient to remove it if it looks wrong.',
+    ingredientRemovalHint: 'Tap an ingredient to remove it from the review.',
+    ingredientUpdatedMessage: 'Thanks, I updated the meal details.',
+    ingredientEditHelpfulMessage: 'Your edits help make the estimate more accurate.',
+    ingredientConfirmedUsageMessage: 'The analysis will use your confirmed ingredients.',
+    userNotesPriorityMessage: "I'll use your meal description and confirmed ingredients for the estimate.",
     lowerConfidenceNotice:
       'Lower confidence: this estimate is based mainly on the photo and may miss hidden ingredients.',
     confidenceLabel: 'Confidence',
     confidenceLevels: {
       low: 'Low confidence: photo-only or uncertain ingredients',
       medium: 'Medium confidence: likely dish + partial context',
-      higher: 'Higher confidence: user-confirmed ingredients + symptoms',
+      higher: 'Higher confidence: user notes or confirmed ingredients + context',
     },
     lowEstimateGentleNote:
       'This food is not bad. Based on your current profile and confirmed ingredients, it may be more likely to challenge your symptoms today.',
@@ -487,14 +496,18 @@ const copy = {
     addIngredient: 'Hinzufügen',
     confirmIngredients: 'Zutaten bestätigen',
     continueWithoutConfirming: 'Ohne Bestätigung fortfahren',
-    ingredientRemovalHint: 'Tippe eine Zutat an, um sie zu entfernen, wenn sie nicht stimmt.',
+    ingredientRemovalHint: 'Tippe eine Zutat an, um sie aus der Prüfung zu entfernen.',
+    ingredientUpdatedMessage: 'Danke, ich habe die Mahlzeitdetails aktualisiert.',
+    ingredientEditHelpfulMessage: 'Deine Änderungen helfen, die Einschätzung genauer zu machen.',
+    ingredientConfirmedUsageMessage: 'Die Analyse verwendet deine bestätigten Zutaten.',
+    userNotesPriorityMessage: 'Ich verwende deine Mahlzeitenbeschreibung und die bestätigten Zutaten für die Einschätzung.',
     lowerConfidenceNotice:
       'Geringere Sicherheit: Diese Einschätzung basiert vor allem auf dem Foto und kann versteckte Zutaten übersehen.',
     confidenceLabel: 'Sicherheit',
     confidenceLevels: {
       low: 'Niedrige Sicherheit: nur Foto oder unsichere Zutaten',
       medium: 'Mittlere Sicherheit: wahrscheinliches Gericht + Teilkontext',
-      higher: 'Höhere Sicherheit: bestätigte Zutaten + Symptome',
+      higher: 'Höhere Sicherheit: Nutzerangaben oder bestätigte Zutaten + Kontext',
     },
     lowEstimateGentleNote:
       'Dieses Essen ist nicht schlecht. Auf Basis deines aktuellen Profils und der bestätigten Zutaten könnte es deine Symptome heute eher herausfordern.',
@@ -647,14 +660,18 @@ const copy = {
     addIngredient: 'افزودن',
     confirmIngredients: 'تأیید مواد',
     continueWithoutConfirming: 'ادامه بدون تأیید',
-    ingredientRemovalHint: 'اگر ماده‌ای اشتباه است، روی آن بزنید تا حذف شود.',
+    ingredientRemovalHint: 'برای حذف هر ماده از بررسی، روی آن بزنید.',
+    ingredientUpdatedMessage: 'ممنون، جزئیات وعده را به‌روزرسانی کردم.',
+    ingredientEditHelpfulMessage: 'ویرایش‌های شما به دقیق‌تر شدن برآورد کمک می‌کند.',
+    ingredientConfirmedUsageMessage: 'تحلیل از مواد تأییدشده شما استفاده می‌کند.',
+    userNotesPriorityMessage: 'برای برآورد، توضیح وعده و مواد تأییدشده شما را مبنا می‌گیرم.',
     lowerConfidenceNotice:
       'اطمینان کمتر: این برآورد بیشتر بر اساس عکس است و ممکن است مواد پنهان را از دست بدهد.',
     confidenceLabel: 'میزان اطمینان',
     confidenceLevels: {
       low: 'اطمینان پایین: فقط عکس یا مواد نامطمئن',
       medium: 'اطمینان متوسط: غذای احتمالی همراه با زمینه محدود',
-      higher: 'اطمینان بالاتر: مواد تأییدشده همراه با علائم',
+      higher: 'اطمینان بالاتر: توضیح شما یا مواد تأییدشده همراه با زمینه',
     },
     lowEstimateGentleNote:
       'این غذا بد نیست. بر اساس پروفایل فعلی و مواد تأییدشده، ممکن است امروز بیشتر علائم شما را به چالش بکشد.',
@@ -1236,10 +1253,9 @@ function buildFallbackAnalysisInsights(
 
 function getIngredientConfidenceLevel(
   review: IngredientReviewState | null,
-  selectedSymptomCount: number,
 ): EstimateConfidenceLevel {
   if (!review || review.status === 'skipped' || review.selectedIngredients.length === 0) return 'low';
-  if (review.status === 'confirmed' && selectedSymptomCount > 0) return 'higher';
+  if (review.status === 'confirmed') return 'higher';
   return 'medium';
 }
 
@@ -1313,6 +1329,37 @@ function getIngredientReviewFromCommonDish(
   };
 }
 
+function getIngredientReviewFromUserNotes(
+  text: string,
+  language: AppLanguage,
+  fallbackMealName: string,
+): IngredientReviewState | null {
+  const trimmed = text.trim();
+  if (!trimmed) return null;
+
+  const dishSuggestion = findCommonDishIngredientSuggestion(trimmed, language);
+  const noteIngredients = filterIngredientsForLanguage(
+    extractIngredientMentionsFromText(trimmed),
+    language,
+  );
+  const ingredients = filterIngredientsForLanguage(
+    mergeIngredientNames(noteIngredients, dishSuggestion?.ingredients ?? []),
+    language,
+  );
+
+  if (!dishSuggestion && ingredients.length === 0) return null;
+
+  return {
+    mealGuess: dishSuggestion?.mealGuess || getSafeMealGuessLabel(trimmed, language, fallbackMealName),
+    likelyIngredients: ingredients,
+    selectedIngredients: ingredients,
+    status: 'unconfirmed',
+    source: dishSuggestion ? 'common-dish' : 'manual',
+    userNotesPrioritized: true,
+    userNoteIngredients: noteIngredients,
+  };
+}
+
 function getSafeMealGuessLabel(
   value: string,
   language: AppLanguage,
@@ -1321,7 +1368,7 @@ function getSafeMealGuessLabel(
   const trimmed = value.trim();
   if (!trimmed) return fallback;
   if (language === 'fa' && /[A-Za-z]/.test(trimmed)) return fallback;
-  return trimmed;
+  return trimmed.length > 80 ? `${trimmed.slice(0, 77)}...` : trimmed;
 }
 
 function getVoiceLocale(language: AppLanguage): string {
@@ -1358,6 +1405,7 @@ export default function PhotoAnalysisScreen() {
   const [selectedSymptoms, setSelectedSymptoms] = useState<SymptomKey[]>([]);
   const [ingredientReview, setIngredientReview] = useState<IngredientReviewState | null>(null);
   const [customIngredient, setCustomIngredient] = useState('');
+  const [ingredientFeedbackKind, setIngredientFeedbackKind] = useState<IngredientFeedbackKind>(null);
   const [isPreparingIngredients, setIsPreparingIngredients] = useState(false);
   const [profileConditions, setProfileConditions] = useState<MedicalCondition[]>([]);
   /** Corrections the user submitted this session (typed or sent after voice); fed to revise prompts as prior context. */
@@ -1421,7 +1469,7 @@ export default function PhotoAnalysisScreen() {
     buildFallbackAnalysisInsights(analysis, currentSymptoms, promptConditions, language),
   );
   const displayAnalysisText = localizeVisibleEstimateLabels(stripAnalysisInsightSection(analysis, language), language);
-  const estimateConfidenceLevel = getIngredientConfidenceLevel(ingredientReview, selectedSymptoms.length);
+  const estimateConfidenceLevel = getIngredientConfidenceLevel(ingredientReview);
   const shouldShowLowerConfidenceNotice = ingredientReview?.status === 'skipped' || estimateConfidenceLevel === 'low';
   const shouldShowLowEstimateGentleNote = (() => {
     if (!mealImpactScore) return false;
@@ -1432,6 +1480,12 @@ export default function PhotoAnalysisScreen() {
     ingredientReview?.status === 'confirmed'
       ? t.lowEstimateGentleNote
       : t.lowEstimateGentleNoteUnconfirmed;
+  const ingredientEditFeedbackMessage =
+    ingredientFeedbackKind === 'updated'
+      ? t.ingredientUpdatedMessage
+      : ingredientFeedbackKind === 'helpful'
+        ? t.ingredientEditHelpfulMessage
+        : '';
   const eatingBehaviorSafetyCopy = getEatingBehaviorSafetyCopy(language);
   const trackingSafetyReminder = getTrackingSafetyReminder(recentPhotoHistory, language);
   const wizardSubtitle =
@@ -1618,6 +1672,7 @@ export default function PhotoAnalysisScreen() {
         setAnalysis(savedAnalysis.aiText);
         setIngredientReview(null);
         setCustomIngredient('');
+        setIngredientFeedbackKind(null);
         setPlanBMessage('');
         setUserFeedback([]);
         setWizardStep(4);
@@ -1748,7 +1803,10 @@ export default function PhotoAnalysisScreen() {
 
   const handleMealDescriptionChange = (nextValue: string) => {
     setMealDescription(nextValue);
-    if (wizardStep <= 2) setIngredientReview(null);
+    if (wizardStep <= 2) {
+      setIngredientReview(null);
+      setIngredientFeedbackKind(null);
+    }
     const triage = detectRedFlagSymptoms([nextValue, ...currentSymptoms]);
     if (triage.hasRedFlag) {
       showRedFlagHardStop(getRedFlagWarning(language), false);
@@ -1784,6 +1842,7 @@ export default function PhotoAnalysisScreen() {
 
   const handlePrepareIngredientReview = async () => {
     if (!lastImageBase64.trim() || !photoUri) return;
+    setIngredientFeedbackKind(null);
 
     const triage = detectRedFlagSymptoms([mealDescriptionText, ...currentSymptoms]);
     if (triage.hasRedFlag) {
@@ -1791,9 +1850,9 @@ export default function PhotoAnalysisScreen() {
       return;
     }
 
-    const localSuggestion = getIngredientReviewFromCommonDish(mealDescriptionText, language);
-    if (localSuggestion) {
-      setIngredientReview(localSuggestion);
+    const notesSuggestion = getIngredientReviewFromUserNotes(mealDescriptionText, language, t.photoMealDefault);
+    if (notesSuggestion) {
+      setIngredientReview(notesSuggestion);
       setWizardStep(3);
       return;
     }
@@ -1805,10 +1864,7 @@ export default function PhotoAnalysisScreen() {
         userMealNarrative: mealDescriptionText,
         symptoms: currentSymptoms,
       });
-      const commonSuggestion = getIngredientReviewFromCommonDish(
-        `${mealDescriptionText} ${aiSuggestion.mealGuess}`,
-        language,
-      );
+      const commonSuggestion = getIngredientReviewFromCommonDish(aiSuggestion.mealGuess, language);
       const source: IngredientSuggestionSource = commonSuggestion ? 'mixed' : 'photo-guess';
       const ingredients = filterIngredientsForLanguage(
         mergeIngredientNames(commonSuggestion?.ingredients ?? [], aiSuggestion.likelyIngredients),
@@ -1822,6 +1878,7 @@ export default function PhotoAnalysisScreen() {
         selectedIngredients: ingredients,
         status: 'unconfirmed',
         source,
+        photoMealGuess: aiSuggestion.mealGuess,
       });
       setWizardStep(3);
     } catch (error) {
@@ -1858,6 +1915,7 @@ export default function PhotoAnalysisScreen() {
     updateIngredientSelection((ingredients) =>
       ingredients.filter((item) => normalizeIngredientName(item) !== normalized)
     );
+    setIngredientFeedbackKind('helpful');
   };
 
   const addCustomIngredient = () => {
@@ -1873,6 +1931,7 @@ export default function PhotoAnalysisScreen() {
       };
     });
     setCustomIngredient('');
+    setIngredientFeedbackKind('updated');
   };
 
   const runAnalysisFromIngredientReview = (status: IngredientReviewStatus) => {
@@ -1909,7 +1968,7 @@ export default function PhotoAnalysisScreen() {
     setUserFeedback([]);
 
     try {
-      const confidenceLevel = getIngredientConfidenceLevel(review, selectedSymptoms.length);
+      const confidenceLevel = getIngredientConfidenceLevel(review);
       const likelyIngredients = review?.likelyIngredients ?? [];
       const selectedIngredients = review?.selectedIngredients ?? [];
       const ingredientsConfirmed = review?.status === 'confirmed';
@@ -2001,6 +2060,7 @@ export default function PhotoAnalysisScreen() {
     setSelectedSymptoms(options.symptomKeys ?? []);
     setIngredientReview(null);
     setCustomIngredient('');
+    setIngredientFeedbackKind(null);
     setRedFlagWarning(null);
     redFlagActiveRef.current = false;
   }, []);
@@ -2513,6 +2573,7 @@ export default function PhotoAnalysisScreen() {
     setSelectedSymptoms([]);
     setIngredientReview(null);
     setCustomIngredient('');
+    setIngredientFeedbackKind(null);
     setUserFeedback([]);
     setWizardStep(1);
     setAccuracyAnswer(null);
@@ -2532,6 +2593,7 @@ export default function PhotoAnalysisScreen() {
     setSelectedSymptoms([]);
     setIngredientReview(null);
     setCustomIngredient('');
+    setIngredientFeedbackKind(null);
     setWizardStep(1);
     setAccuracyAnswer(null);
     setCorrectionDraft('');
@@ -2948,6 +3010,24 @@ export default function PhotoAnalysisScreen() {
                       <Ionicons name="sparkles" size={14} color="#2DCE89" />
                       <Text style={[styles.likelyDishText, isRtlLanguage && styles.rtlText]}>
                         {t.likelyDishLabel}: {ingredientReview.mealGuess}
+                      </Text>
+                    </View>
+                  ) : null}
+
+                  {ingredientReview?.userNotesPrioritized ? (
+                    <View style={[styles.ingredientNoticeRow, isRtlLanguage && styles.rtlRow]}>
+                      <Ionicons name="checkmark-circle-outline" size={16} color="#B7F7D6" />
+                      <Text style={[styles.ingredientNoticeText, isRtlLanguage && styles.rtlText]}>
+                        {t.userNotesPriorityMessage}
+                      </Text>
+                    </View>
+                  ) : null}
+
+                  {ingredientEditFeedbackMessage ? (
+                    <View style={[styles.ingredientNoticeRow, isRtlLanguage && styles.rtlRow]}>
+                      <Ionicons name="create-outline" size={16} color="#B7F7D6" />
+                      <Text style={[styles.ingredientNoticeText, isRtlLanguage && styles.rtlText]}>
+                        {ingredientEditFeedbackMessage} {t.ingredientConfirmedUsageMessage}
                       </Text>
                     </View>
                   ) : null}
@@ -3752,6 +3832,18 @@ const styles = createStyles({
     color: '#D8FBEA',
     fontFamily: FontFamily.sansSemiBold,
     fontSize: FontSize.xs,
+  },
+  ingredientNoticeRow: {
+    alignItems: 'flex-start',
+    flexDirection: 'row',
+    gap: Spacing.xs,
+  },
+  ingredientNoticeText: {
+    color: '#B7F7D6',
+    flex: 1,
+    fontFamily: FontFamily.sansMedium,
+    fontSize: FontSize.xs,
+    lineHeight: 18,
   },
   ingredientRemovalHint: {
     color: '#BEBEBE',

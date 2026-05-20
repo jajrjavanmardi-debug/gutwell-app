@@ -60,7 +60,12 @@ const COMMON_DISH_INGREDIENTS: CommonDishIngredientRule[] = [
     ],
   },
   {
-    patterns: [/\bd[öo]ner\b/i, /\bdoner\b/i, /\bkebab\b/i, /دونر/, /کباب/],
+    patterns: [/\bkebab\s*barg\b/i, /\bkabob\s*barg\b/i, /\bbarg\s*kebab\b/i, /کباب\s*برگ/],
+    mealName: { en: 'Kebab barg', de: 'Kebab Barg', fa: 'کباب برگ' },
+    ingredients: ['beef or lamb', 'tomato', 'lemon', 'olives', 'zucchini'],
+  },
+  {
+    patterns: [/\bd[öo]ner\b/i, /\bdoner\b/i, /\bd[öo]ner\s*kebab\b/i, /\bdoner\s*kebab\b/i, /دونر/],
     mealName: { en: 'Döner', de: 'Döner', fa: 'دونر' },
     ingredients: [
       'doner meat',
@@ -144,6 +149,8 @@ const INGREDIENT_LABELS: Record<string, Record<AppLanguage, string>> = {
   salmon: { en: 'salmon', de: 'Lachs', fa: 'سالمون' },
   'cooked greens': { en: 'cooked greens', de: 'gegartes Grün', fa: 'سبزی پخته' },
   lemon: { en: 'lemon', de: 'Zitrone', fa: 'لیمو' },
+  olives: { en: 'olives', de: 'Oliven', fa: 'زیتون' },
+  zucchini: { en: 'zucchini', de: 'Zucchini', fa: 'کدو سبز' },
 };
 
 const INGREDIENT_SYNONYMS: Record<string, string> = {
@@ -167,6 +174,7 @@ const INGREDIENT_SYNONYMS: Record<string, string> = {
   yoghurt: 'yogurt sauce',
   'yoghurt sauce': 'yogurt sauce',
   yogurt: 'yogurt sauce',
+  olive: 'olives',
   chilli: 'chili sauce',
   chili: 'chili sauce',
   'pasta noodles': 'wheat pasta',
@@ -177,6 +185,53 @@ const INGREDIENT_SYNONYMS: Record<string, string> = {
   vegetables: 'raw vegetables',
   veggies: 'raw vegetables',
 };
+
+const INGREDIENT_MENTION_PATTERNS: Array<{ ingredient: string; patterns: RegExp[] }> = [
+  { ingredient: 'reshteh noodles', patterns: [/\breshteh\b/i, /رشته/] },
+  { ingredient: 'beans', patterns: [/\bbeans?\b/i, /\bbohnen\b/i, /لوبیا/] },
+  { ingredient: 'lentils', patterns: [/\blentils?\b/i, /\blinsen\b/i, /عدس/] },
+  { ingredient: 'chickpeas', patterns: [/\bchickpeas?\b/i, /\bgarbanzo\b/i, /\bkichererbsen\b/i, /نخود/] },
+  { ingredient: 'herbs', patterns: [/\bherbs?\b/i, /\bkräuter\b/i, /\bkraeuter\b/i, /سبزی/] },
+  { ingredient: 'spinach', patterns: [/\bspinach\b/i, /\bspinat\b/i, /اسفناج/] },
+  { ingredient: 'onion', patterns: [/\bonions?\b/i, /\bzwiebeln?\b/i, /پیاز/] },
+  { ingredient: 'garlic', patterns: [/\bgarlic\b/i, /\bknoblauch\b/i, /سیر/] },
+  { ingredient: 'kashk', patterns: [/\bkashk\b/i, /کشک/] },
+  { ingredient: 'mint oil', patterns: [/\bmint oil\b/i, /\bfried mint\b/i, /\bminzöl\b/i, /\bminzoel\b/i, /نعناع/] },
+  { ingredient: 'parsley', patterns: [/\bparsley\b/i, /\bpetersilie\b/i, /جعفری/] },
+  { ingredient: 'cilantro', patterns: [/\bcilantro\b/i, /\bcoriander\b/i, /\bkoriander\b/i, /گشنیز/] },
+  { ingredient: 'fenugreek', patterns: [/\bfenugreek\b/i, /\bbockshornklee\b/i, /شنبلیله/] },
+  { ingredient: 'kidney beans', patterns: [/\bkidney beans?\b/i, /\bred beans?\b/i, /\bkidneybohnen\b/i, /لوبیا قرمز/] },
+  { ingredient: 'beef or lamb', patterns: [/\bbeef\b/i, /\blamb\b/i, /\brind\b/i, /\blamm\b/i, /گوشت/, /گوسفند/] },
+  { ingredient: 'dried lime', patterns: [/\bdried lime\b/i, /\bgetrocknete limette\b/i, /لیموعمانی/] },
+  { ingredient: 'split peas', patterns: [/\bsplit peas?\b/i, /\bgelbe erbsen\b/i, /لپه/] },
+  { ingredient: 'tomato sauce', patterns: [/\btomato sauce\b/i, /\btomatensauce\b/i, /سس گوجه/] },
+  { ingredient: 'potato', patterns: [/\bpotatoes?\b/i, /\bkartoffeln?\b/i, /سیب[\s‌-]*زمینی/] },
+  { ingredient: 'rice', patterns: [/\brice\b/i, /\breis\b/i, /برنج/] },
+  { ingredient: 'doner meat', patterns: [/\bdoner meat\b/i, /\bdönerfleisch\b/i, /\bdoenerfleisch\b/i, /گوشت دونر/] },
+  { ingredient: 'flatbread', patterns: [/\bflatbread\b/i, /\bfladenbrot\b/i, /نان تخت/] },
+  { ingredient: 'raw salad', patterns: [/\braw salad\b/i, /\broher salat\b/i, /سالاد خام/] },
+  { ingredient: 'tomato', patterns: [/\btomatoes?\b/i, /\btomaten?\b/i, /گوجه/] },
+  { ingredient: 'cucumber', patterns: [/\bcucumbers?\b/i, /\bgurken?\b/i, /خیار/] },
+  { ingredient: 'yogurt sauce', patterns: [/\byogurt sauce\b/i, /\byoghurt sauce\b/i, /\bjoghurtsauce\b/i, /سس ماست/] },
+  { ingredient: 'garlic sauce', patterns: [/\bgarlic sauce\b/i, /\bknoblauchsauce\b/i, /سس سیر/] },
+  { ingredient: 'chili sauce', patterns: [/\bchili sauce\b/i, /\bchilli sauce\b/i, /\bchilisauce\b/i, /سس تند/] },
+  { ingredient: 'wheat pasta', patterns: [/\bwheat pasta\b/i, /\bpasta\b/i, /\bspaghetti\b/i, /\bweizenpasta\b/i, /پاستا/, /ماکارونی/] },
+  { ingredient: 'cream sauce', patterns: [/\bcream sauce\b/i, /\bsahnesauce\b/i, /سس خامه/] },
+  { ingredient: 'cheese', patterns: [/\bcheese\b/i, /\bkäse\b/i, /\bkaese\b/i, /پنیر/] },
+  { ingredient: 'olive oil', patterns: [/\bolive oil\b/i, /\bolivenöl\b/i, /\bolivenoel\b/i, /روغن زیتون/] },
+  { ingredient: 'raw leafy greens', patterns: [/\bleafy greens\b/i, /\bblattgemüse\b/i, /\bblattgemuese\b/i, /سبزی برگ/] },
+  { ingredient: 'dressing', patterns: [/\bdressing\b/i, /سس سالاد/] },
+  { ingredient: 'protein', patterns: [/\bprotein\b/i, /\bپروتئین\b/i] },
+  { ingredient: 'cooked vegetables', patterns: [/\bcooked vegetables?\b/i, /\bgegartes gemüse\b/i, /\bgegartes gemuese\b/i, /سبزیجات پخته/] },
+  { ingredient: 'raw vegetables', patterns: [/\braw vegetables?\b/i, /\brohes gemüse\b/i, /\brohes gemuese\b/i, /سبزیجات خام/] },
+  { ingredient: 'sauce', patterns: [/\bsauce\b/i, /\bsoße\b/i, /\bsosse\b/i, /سس/] },
+  { ingredient: 'carrot', patterns: [/\bcarrots?\b/i, /\bkarotten?\b/i, /هویج/] },
+  { ingredient: 'salmon', patterns: [/\bsalmon\b/i, /\blachs\b/i, /سالمون/] },
+  { ingredient: 'cooked greens', patterns: [/\bcooked greens\b/i, /\bgegartes grün\b/i, /\bgegartes gruen\b/i, /سبزی پخته/] },
+  { ingredient: 'lemon', patterns: [/\blemons?\b/i, /\bzitrone\b/i, /لیمو/] },
+  { ingredient: 'olives', patterns: [/\bolives?\b/i, /\boliven\b/i, /زیتون/] },
+  { ingredient: 'zucchini', patterns: [/\bzucchini\b/i, /کدو/] },
+];
 
 function normalizeForMatching(value: string): string {
   return value
@@ -249,4 +304,15 @@ export function filterIngredientsForLanguage(
     if (hasLocalizedIngredientLabel(ingredient, language)) return true;
     return /[\u0600-\u06FF]/.test(ingredient);
   });
+}
+
+export function extractIngredientMentionsFromText(text: string): string[] {
+  const trimmed = text.trim();
+  if (!trimmed) return [];
+
+  return mergeIngredientNames(
+    INGREDIENT_MENTION_PATTERNS
+      .filter(({ patterns }) => patterns.some((pattern) => pattern.test(trimmed)))
+      .map(({ ingredient }) => ingredient)
+  );
 }

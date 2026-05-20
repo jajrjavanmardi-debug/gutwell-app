@@ -499,6 +499,8 @@ export async function suggestMealIngredientsWithGroq(
     'Look at this meal photo and prepare an ingredient review draft only.',
     'Do not generate a wellness estimate, score, advice, diagnosis, or final analysis.',
     'Return likely ingredients, not confirmed facts.',
+    'User-provided meal notes are more reliable than image guesses. If the user text names a meal or ingredients, build the draft from the text first and use the image only to fill non-conflicting gaps.',
+    'If user notes conflict with the image, prefer the notes and do not replace them with the visual guess.',
     'If the user text names a dish, use common ingredients for that dish. For example: Ash Reshteh often includes reshteh noodles, beans, lentils, chickpeas, herbs, spinach, onion, garlic, kashk, and mint oil; Ghormeh Sabzi often includes herbs, kidney beans, meat, dried lime, onion, and rice; Gheymeh often includes split peas, meat, tomato sauce, dried lime, potato, onion, and rice; Döner often includes meat, flatbread, salad, onion, tomato, cucumber, yogurt or garlic sauce, and chili sauce.',
     'Use common English ingredient names in the JSON so the app can localize them later.',
     `Selected app language for dish-name clues: ${languageCopy.languageName}.`,
@@ -724,6 +726,7 @@ export async function analyzeMealPhotoWithGroq(
     `User-confirmed ingredients: ${confirmedIngredientSummary}.`,
     `Ingredient review status: ${ingredientsConfirmed ? 'user confirmed ingredients' : ingredientReviewSkipped ? 'user skipped ingredient confirmation' : 'ingredients are likely but unconfirmed'}.`,
     `Estimate confidence target: ${ingredientConfidence}.`,
+    'Source priority order: 1. user-written meal notes; 2. user-confirmed ingredients; 3. user-selected symptoms/context; 4. photo recognition guess.',
   ];
 
   const geoBlock = [
@@ -736,6 +739,9 @@ export async function analyzeMealPhotoWithGroq(
   const adviceTail = [
     `Supplement rule: consider the supplements the user has taken in the last 12 hours when creating the meal insight. If the user has taken a supplement like a digestive enzyme or probiotic, acknowledge it as context. If the supplement may make the meal feel gentler, such as enzymes for legumes/raisins or probiotics for general digestive support, increase the ${languageCopy.mealImpactScore} slightly and explain why, but do not overpromise comfort changes.`,
     'Eating-behavior safety rule: avoid moral food language such as "good food", "bad food", "clean", "cheat", or blame. Food tracking should not create fear. Do not imply every symptom is caused by food; frame findings as possible patterns and mention that taking breaks from tracking is okay when helpful.',
+    'User-provided meal notes and confirmed ingredients are more reliable than image guesses.',
+    'If user notes name a meal or ingredients, use those details as the main source of truth. Treat photo guesses only as suggestions when notes are empty or vague.',
+    'If user notes conflict with the photo guess, clearly prefer the user notes and do not keep conflicting photo-only ingredients in the final estimate.',
     'Ingredient confidence rule: user-confirmed ingredients are more reliable than the photo. If confirmed ingredients conflict with the image, use the confirmed ingredients. If ingredients are skipped or unconfirmed, clearly keep the estimate lower confidence and avoid sounding certain about hidden ingredients.',
     'Low-confidence estimate rule: if ingredients are not confirmed, do not present a strong estimate as certain; hidden sauces, onions, garlic, legumes, dairy, wheat, or spice may change the estimate.',
     'Non-judgmental low estimate rule: if the estimate is low, say the food is not bad; based on the current profile and confirmed or likely ingredients, it may be more likely to challenge symptoms today.',
@@ -770,13 +776,14 @@ export async function analyzeMealPhotoWithGroq(
         `Language rule: ${languageCopy.languageRule} Answer only in ${languageCopy.languageName}, regardless of user input or device locale.`,
         '',
         'Fusion logic — integrate into one coherent answer:',
-        `- Infer from the image alone a concise visual hypothesis of the meal ([Visual Guess]); state it briefly early on.`,
+        `- Infer from the image alone a concise visual hypothesis of the meal ([Visual Guess]) only when useful, but do not let it override user-provided meal notes or confirmed ingredients.`,
         `- The user's text above is [User Input]: parse what they say the food is (or what they ate) and how they feel ([User Feeling] / symptoms).`,
-        `- Explicitly reflect this meaning in ${languageCopy.languageName}: the photo may look like [Visual Guess], but their text says it is [their food/clarification] and they feel [their feeling/symptoms]. If image and words disagree on food identity or symptoms, treat their words as authoritative.`,
+        `- Explicitly reflect this meaning in ${languageCopy.languageName}: if the image and words disagree on food identity, ingredients, or symptoms, treat their words as authoritative and base the estimate on their described/confirmed meal details.`,
         `- Provide ONE integrated ${languageCopy.mealImpact} analysis that weighs IBS and bloating together with their ${languageCopy.gutScore} (${gutScoreSummary}) and profile conditions/symptoms below.`,
         '',
         `User-provided meal, symptom, and ingredient-review context: ${narrative}`,
         'Use user-typed meal descriptions and user-confirmed ingredients as authoritative. Treat likely ingredients as uncertain when the ingredient review was skipped or not confirmed.',
+        'User-provided meal notes and confirmed ingredients are more reliable than image guesses. If the notes say kebab barg with tomato, lemon, olives, and zucchini, analyze that described meal and ignore conflicting visual-only guesses.',
         'Food-ID priority: Short confirmations (e.g. "Dried figs", "dried figs") define what they ate; override any conflicting visual meal identification when estimating meal fit.',
         'Parse food identity vs symptoms/feeling from their confirmation text when answering.',
         '',
