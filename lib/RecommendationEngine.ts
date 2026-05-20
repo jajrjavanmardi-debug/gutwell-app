@@ -5,7 +5,10 @@ import {
   getHelpfulNutrientsForFeeling,
   GroqNutritionError,
   reviseMealAnalysisWithGroq,
+  suggestMealIngredientsWithGroq,
   type MealCorrectionContext,
+  type MealIngredientSuggestionContext,
+  type MealIngredientSuggestionResult,
   type MealPhotoAnalysisContext,
 } from './groq';
 import {
@@ -284,6 +287,26 @@ export async function analyzeMealPhoto(
   }
 
   return analyzeMealPhotoWithGroq(imageBase64, mimeType, analysisContext);
+}
+
+export async function suggestMealIngredients(
+  imageBase64: string,
+  mimeType = 'image/jpeg',
+  suggestionContext: MealIngredientSuggestionContext = {},
+): Promise<MealIngredientSuggestionResult> {
+  if (!imageBase64.trim()) {
+    throw new Error('Image data is required to suggest meal ingredients.');
+  }
+
+  const triage = detectRedFlagSymptoms([
+    suggestionContext.userMealNarrative,
+    ...(suggestionContext.symptoms ?? []),
+  ]);
+  if (triage.hasRedFlag) {
+    throw new RedFlagTriageError(suggestionContext.preferredLanguage ?? 'en', triage);
+  }
+
+  return suggestMealIngredientsWithGroq(imageBase64, mimeType, suggestionContext);
 }
 
 export async function reviseMealAnalysis(

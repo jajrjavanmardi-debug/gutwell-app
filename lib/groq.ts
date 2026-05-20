@@ -39,6 +39,22 @@ export type MealPhotoAnalysisContext = {
   retailLocationHint?: string;
   /** Verbatim user text (feelings / what they ate) submitted with the photo before analysis */
   userFeelingsNarrative?: string;
+  likelyIngredients?: string[];
+  confirmedIngredients?: string[];
+  ingredientsConfirmed?: boolean;
+  ingredientReviewSkipped?: boolean;
+  ingredientConfidence?: 'low' | 'medium' | 'higher';
+};
+
+export type MealIngredientSuggestionContext = {
+  preferredLanguage?: AppLanguage;
+  userMealNarrative?: string;
+  symptoms?: string[];
+};
+
+export type MealIngredientSuggestionResult = {
+  mealGuess: string;
+  likelyIngredients: string[];
 };
 
 export type MealCorrectionContext = {
@@ -434,6 +450,82 @@ function summarizeFoodData(foodData: FoodNutrition): string {
   ].join('\n');
 }
 
+function parseMealIngredientSuggestion(text: string): MealIngredientSuggestionResult {
+  const objectMatch = text.match(/\{[\s\S]*\}/);
+  if (!objectMatch) {
+    throw new GroqNutritionError('Groq did not return a meal ingredient JSON object.', 'invalid-response');
+  }
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(objectMatch[0]);
+  } catch {
+    throw new GroqNutritionError('Groq returned unparseable meal ingredient JSON.', 'invalid-response');
+  }
+
+  if (!parsed || typeof parsed !== 'object') {
+    throw new GroqNutritionError('Groq returned invalid meal ingredient JSON.', 'invalid-response');
+  }
+
+  const record = parsed as { mealGuess?: unknown; likelyIngredients?: unknown };
+  const mealGuess = typeof record.mealGuess === 'string' ? record.mealGuess.trim().slice(0, 80) : '';
+  const likelyIngredients = Array.isArray(record.likelyIngredients)
+    ? record.likelyIngredients
+      .filter((item): item is string => typeof item === 'string')
+      .map((item) => item.trim())
+      .filter(Boolean)
+      .slice(0, 12)
+    : [];
+
+  return { mealGuess, likelyIngredients };
+}
+
+export async function suggestMealIngredientsWithGroq(
+  imageBase64: string,
+  mimeType = 'image/jpeg',
+  suggestionContext: MealIngredientSuggestionContext = {},
+): Promise<MealIngredientSuggestionResult> {
+  if (!imageBase64.trim()) {
+    throw new Error('Image data is required to suggest meal ingredients.');
+  }
+
+  const {
+    preferredLanguage = 'en',
+    userMealNarrative = '',
+    symptoms = [],
+  } = suggestionContext;
+  const languageCopy = MEAL_LANGUAGE_COPY[preferredLanguage];
+  const prompt = [
+    'Look at this meal photo and prepare an ingredient review draft only.',
+    'Do not generate a wellness estimate, score, advice, diagnosis, or final analysis.',
+    'Return likely ingredients, not confirmed facts.',
+    'If the user text names a dish, use common ingredients for that dish. For example: Ash Reshteh often includes reshteh noodles, beans, lentils, chickpeas, herbs, spinach, onion, garlic, kashk, and mint oil; Ghormeh Sabzi often includes herbs, kidney beans, meat, dried lime, onion, and rice; Gheymeh often includes split peas, meat, tomato sauce, dried lime, potato, onion, and rice; Döner often includes meat, flatbread, salad, onion, tomato, cucumber, yogurt or garlic sauce, and chili sauce.',
+    'Use common English ingredient names in the JSON so the app can localize them later.',
+    `Selected app language for dish-name clues: ${languageCopy.languageName}.`,
+    `User meal text: ${userMealNarrative.trim() || 'not provided'}.`,
+    `Selected symptoms, for context only: ${symptoms.length > 0 ? symptoms.join(', ') : 'not provided'}.`,
+    'Return exactly one JSON object and nothing else.',
+    'Required shape: {"mealGuess":"short likely dish name","likelyIngredients":["ingredient one","ingredient two"]}',
+  ].join('\n');
+  const systemPrompt = [
+    'You are a food recognition helper for a gut wellness app.',
+    'Return only valid JSON. Never include Markdown or prose.',
+    'Never score the meal. Never present ingredients as confirmed facts.',
+  ].join(' ');
+
+  const text = await callGroqWithUserContent([
+    { type: 'text', text: prompt },
+    {
+      type: 'image_url',
+      image_url: {
+        url: `data:${mimeType};base64,${imageBase64}`,
+      },
+    },
+  ], systemPrompt);
+
+  return parseMealIngredientSuggestion(text);
+}
+
 function getPreferredCoachLanguage(userFeeling: string): AppLanguage {
   if (/preferred response language:\s*(persian|فارسی)|use persian only|فارسی/i.test(userFeeling)) {
     return 'fa';
@@ -582,6 +674,11 @@ export async function analyzeMealPhotoWithGroq(
     locationContext,
     retailLocationHint = '',
     userFeelingsNarrative = '',
+    likelyIngredients = [],
+    confirmedIngredients = [],
+    ingredientsConfirmed = false,
+    ingredientReviewSkipped = false,
+    ingredientConfidence = 'low',
   } = analysisContext;
   const languageCopy = MEAL_LANGUAGE_COPY[preferredLanguage];
   const narrative = userFeelingsNarrative.trim();
@@ -589,6 +686,8 @@ export async function analyzeMealPhotoWithGroq(
   const symptomSummary = symptoms.length > 0 ? symptoms.join(', ') : 'not provided';
   const userEnteredSymptomSummary = userEnteredSymptoms.length > 0 ? userEnteredSymptoms.join(', ') : 'none';
   const supplementSummary = supplementsTakenToday.length > 0 ? supplementsTakenToday.join(', ') : 'none reported today';
+  const likelyIngredientSummary = likelyIngredients.length > 0 ? likelyIngredients.join(', ') : 'not provided';
+  const confirmedIngredientSummary = confirmedIngredients.length > 0 ? confirmedIngredients.join(', ') : 'not provided';
   const gutScoreSummary = typeof gutScore === 'number'
     ? `${gutScore}/10`
     : 'not provided; calculate a fresh educational meal estimate from this meal, symptoms, and conditions';
@@ -621,6 +720,10 @@ export async function analyzeMealPhotoWithGroq(
     `Selected symptom combination for estimating meal fit: ${userEnteredSymptomSummary}. Treat this as structured user input, not a vague text description.`,
     `All current symptoms combined: ${symptomSummary}.`,
     `Current Medications/Supplements taken in the last 12 hours: ${supplementSummary}.`,
+    `Likely ingredients from photo/common-dish review: ${likelyIngredientSummary}. These are likely ingredients, not confirmed facts.`,
+    `User-confirmed ingredients: ${confirmedIngredientSummary}.`,
+    `Ingredient review status: ${ingredientsConfirmed ? 'user confirmed ingredients' : ingredientReviewSkipped ? 'user skipped ingredient confirmation' : 'ingredients are likely but unconfirmed'}.`,
+    `Estimate confidence target: ${ingredientConfidence}.`,
   ];
 
   const geoBlock = [
@@ -633,6 +736,9 @@ export async function analyzeMealPhotoWithGroq(
   const adviceTail = [
     `Supplement rule: consider the supplements the user has taken in the last 12 hours when creating the meal insight. If the user has taken a supplement like a digestive enzyme or probiotic, acknowledge it as context. If the supplement may make the meal feel gentler, such as enzymes for legumes/raisins or probiotics for general digestive support, increase the ${languageCopy.mealImpactScore} slightly and explain why, but do not overpromise comfort changes.`,
     'Eating-behavior safety rule: avoid moral food language such as "good food", "bad food", "clean", "cheat", or blame. Food tracking should not create fear. Do not imply every symptom is caused by food; frame findings as possible patterns and mention that taking breaks from tracking is okay when helpful.',
+    'Ingredient confidence rule: user-confirmed ingredients are more reliable than the photo. If confirmed ingredients conflict with the image, use the confirmed ingredients. If ingredients are skipped or unconfirmed, clearly keep the estimate lower confidence and avoid sounding certain about hidden ingredients.',
+    'Low-confidence estimate rule: if ingredients are not confirmed, do not present a strong estimate as certain; hidden sauces, onions, garlic, legumes, dairy, wheat, or spice may change the estimate.',
+    'Non-judgmental low estimate rule: if the estimate is low, say the food is not bad; based on the current profile and confirmed or likely ingredients, it may be more likely to challenge symptoms today.',
     'Combine what you see with the profile context and all current symptoms. If selected symptoms are present, such as bloating, pain, heaviness, gas, cramps, reflux, nausea, diarrhea, constipation, or low energy, explicitly name each selected symptom and explain how the meal may be associated with that specific combination.',
     'For IBS, bloating, or stomach pain patterns, specifically note possible gas-forming or high-FODMAP foods when relevant, such as beans, lentils, onion, garlic, wheat-heavy foods, lactose, carbonated drinks, or large raw portions.',
     `Provide a clear "${languageCopy.mealImpactScore}" from 1 to 10 for this specific meal, where 1 may be associated with more discomfort and 10 may fit the user's current profile and context more comfortably. The estimate must be targeted to the selected symptom combination, not just the food in general.`,
@@ -665,12 +771,12 @@ export async function analyzeMealPhotoWithGroq(
         '',
         'Fusion logic — integrate into one coherent answer:',
         `- Infer from the image alone a concise visual hypothesis of the meal ([Visual Guess]); state it briefly early on.`,
-        `- The user's confirmation above is [User Input]: parse what they say the food is (or what they ate) and how they feel ([User Feeling] / symptoms).`,
+        `- The user's text above is [User Input]: parse what they say the food is (or what they ate) and how they feel ([User Feeling] / symptoms).`,
         `- Explicitly reflect this meaning in ${languageCopy.languageName}: the photo may look like [Visual Guess], but their text says it is [their food/clarification] and they feel [their feeling/symptoms]. If image and words disagree on food identity or symptoms, treat their words as authoritative.`,
         `- Provide ONE integrated ${languageCopy.mealImpact} analysis that weighs IBS and bloating together with their ${languageCopy.gutScore} (${gutScoreSummary}) and profile conditions/symptoms below.`,
         '',
-        `The user has confirmed this food is: ${narrative}`,
-        'Ignore visual guesses from the image if they conflict with this confirmation—the confirmed text is authoritative for meal identity and how they feel.',
+        `User-provided meal, symptom, and ingredient-review context: ${narrative}`,
+        'Use user-typed meal descriptions and user-confirmed ingredients as authoritative. Treat likely ingredients as uncertain when the ingredient review was skipped or not confirmed.',
         'Food-ID priority: Short confirmations (e.g. "Dried figs", "dried figs") define what they ate; override any conflicting visual meal identification when estimating meal fit.',
         'Parse food identity vs symptoms/feeling from their confirmation text when answering.',
         '',
