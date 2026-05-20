@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Constants from 'expo-constants';
+import * as Device from 'expo-device';
 import * as ImageManipulator from 'expo-image-manipulator';
 import * as ImagePicker from 'expo-image-picker';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
@@ -129,6 +130,70 @@ const DEV_LOCATION_OVERRIDE =
     ? process.env.EXPO_PUBLIC_DEV_LOCATION_OVERRIDE.trim()
     : '';
 const PHOTO_METADATA_STRIP_QUALITY = 0.86;
+
+type PhotoCaptureMethod =
+  | 'web-file-upload'
+  | 'ios-simulator-fallback'
+  | 'expo-image-picker-camera'
+  | 'expo-image-picker-gallery'
+  | 'expo-image-picker-pending-result';
+
+type PermissionLogSnapshot = {
+  status: string;
+  granted: boolean | 'unknown';
+  canAskAgain: boolean | 'unknown';
+  expires: string;
+};
+
+function getCameraRuntimeIsDevice(): boolean | 'unknown' {
+  if (Platform.OS === 'web') return false;
+  if (typeof Device.isDevice === 'boolean') return Device.isDevice;
+  if (typeof Constants.isDevice === 'boolean') return Constants.isDevice;
+  return 'unknown';
+}
+
+function getPermissionLogSnapshot(permission?: {
+  status?: string;
+  granted?: boolean;
+  canAskAgain?: boolean;
+  expires?: string | number;
+} | null): PermissionLogSnapshot {
+  return {
+    status: permission?.status ?? 'unknown',
+    granted: typeof permission?.granted === 'boolean' ? permission.granted : 'unknown',
+    canAskAgain: typeof permission?.canAskAgain === 'boolean' ? permission.canAskAgain : 'unknown',
+    expires: permission?.expires === undefined ? 'unknown' : String(permission.expires),
+  };
+}
+
+function getPhotoCameraRuntimeSnapshot() {
+  return {
+    platform: Platform.OS,
+    isDevice: getCameraRuntimeIsDevice(),
+    expoDeviceIsDevice: Device.isDevice,
+    constantsIsDevice:
+      typeof Constants.isDevice === 'boolean' ? Constants.isDevice : 'unknown',
+    executionEnvironment: Constants.executionEnvironment ?? 'unknown',
+    deviceName: Device.deviceName ?? Constants.deviceName ?? 'unknown',
+    modelName: Device.modelName ?? Constants.platform?.ios?.model ?? 'unknown',
+    osName: Device.osName ?? 'unknown',
+    osVersion: Device.osVersion ?? 'unknown',
+  };
+}
+
+function getTakePhotoCaptureMethod(isSimulatorFallback: boolean): PhotoCaptureMethod {
+  if (Platform.OS === 'web') return 'web-file-upload';
+  if (isSimulatorFallback) return 'ios-simulator-fallback';
+  return 'expo-image-picker-camera';
+}
+
+function logPhotoCameraDebug(event: string, details: Record<string, unknown> = {}) {
+  if (typeof __DEV__ === 'undefined' || !__DEV__) return;
+  console.info('[PhotoAnalysisCamera]', event, {
+    ...getPhotoCameraRuntimeSnapshot(),
+    ...details,
+  });
+}
 
 const SYMPTOM_OPTIONS = [
   { key: 'bloating', promptLabel: 'Bloating', labels: { en: 'Bloating', de: 'Blähungen', fa: 'نفخ' } },
@@ -787,10 +852,10 @@ function formatRetailLocationHint(place?: {
 
 function isIosSimulatorRuntime(): boolean {
   if (Platform.OS !== 'ios') return false;
-  if (Constants.isDevice === false) return true;
+  if (Device.isDevice === false) return true;
 
-  const iosModel = Constants.platform?.ios?.model?.toLowerCase() ?? '';
-  const deviceName = Constants.deviceName?.toLowerCase() ?? '';
+  const iosModel = String(Device.modelName ?? Constants.platform?.ios?.model ?? '').toLowerCase();
+  const deviceName = String(Device.deviceName ?? Constants.deviceName ?? '').toLowerCase();
 
   return iosModel.includes('simulator') || deviceName.includes('simulator');
 }
@@ -1611,7 +1676,7 @@ export default function PhotoAnalysisScreen() {
     }
   };
 
-  const storeSanitizedPhoto = (
+  const storeSanitizedPhoto = useCallback((
     photo: SanitizedMealPhoto,
     options: {
       mealDescription?: string;
@@ -1632,9 +1697,9 @@ export default function PhotoAnalysisScreen() {
     setSelectedSymptoms(options.symptomKeys ?? []);
     setRedFlagWarning(null);
     redFlagActiveRef.current = false;
-  };
+  }, []);
 
-  const storeCapturedPhoto = async (
+  const storeCapturedPhoto = useCallback(async (
     asset: ImagePicker.ImagePickerAsset,
     options: {
       mealDescription?: string;
@@ -1649,10 +1714,68 @@ export default function PhotoAnalysisScreen() {
       console.error('Meal photo metadata stripping failed:', error);
       Alert.alert(t.photoUnavailableTitle, t.photoUnavailableMessage);
     }
-  };
+  }, [storeSanitizedPhoto, t.photoUnavailableMessage, t.photoUnavailableTitle]);
 
-  const pickImageFileOnWeb = () => {
-    if (typeof document === 'undefined') return;
+  useFocusEffect(useCallback(() => {
+    if (Platform.OS === 'web' || isSimulatorCameraFallback) return undefined;
+
+    let isActive = true;
+
+    const restorePendingPickerResult = async () => {
+      try {
+        const pendingResult = await ImagePicker.getPendingResultAsync();
+        const selectedCaptureMethod: PhotoCaptureMethod = 'expo-image-picker-pending-result';
+
+        if (!isActive || !pendingResult) return;
+
+        if ('code' in pendingResult) {
+          logPhotoCameraDebug('capture-failure', {
+            selectedCaptureMethod,
+            captureFailure: {
+              code: pendingResult.code,
+              message: pendingResult.message,
+              exception: pendingResult.exception ?? 'unknown',
+            },
+          });
+          return;
+        }
+
+        if (pendingResult.canceled || !pendingResult.assets?.[0]) {
+          logPhotoCameraDebug('capture-canceled', { selectedCaptureMethod });
+          return;
+        }
+
+        const asset = pendingResult.assets[0];
+        logPhotoCameraDebug('capture-success', {
+          selectedCaptureMethod,
+          assetWidth: asset.width ?? 'unknown',
+          assetHeight: asset.height ?? 'unknown',
+          hasUri: Boolean(asset.uri),
+        });
+        await storeCapturedPhoto(asset, { nextStep: 2 });
+      } catch (error) {
+        logPhotoCameraDebug('capture-failure', {
+          selectedCaptureMethod: 'expo-image-picker-pending-result',
+          captureFailure: error instanceof Error ? error.message : String(error),
+        });
+      }
+    };
+
+    void restorePendingPickerResult();
+
+    return () => {
+      isActive = false;
+    };
+  }, [isSimulatorCameraFallback, storeCapturedPhoto]));
+
+  const pickImageFileOnWeb = (selectedCaptureMethod: PhotoCaptureMethod = 'web-file-upload') => {
+    if (typeof document === 'undefined') {
+      logPhotoCameraDebug('capture-failure', {
+        selectedCaptureMethod,
+        reason: 'document-unavailable',
+      });
+      return;
+    }
 
     const input = document.createElement('input');
     input.type = 'file';
@@ -1662,12 +1785,25 @@ export default function PhotoAnalysisScreen() {
     input.onchange = async () => {
       const file = input.files?.[0];
       input.remove();
-      if (!file) return;
+      if (!file) {
+        logPhotoCameraDebug('capture-canceled', { selectedCaptureMethod });
+        return;
+      }
 
       try {
         const sanitizedPhoto = await stripWebPhotoMetadata(file);
+        logPhotoCameraDebug('capture-success', {
+          selectedCaptureMethod,
+          assetWidth: sanitizedPhoto.width,
+          assetHeight: sanitizedPhoto.height,
+          hasUri: Boolean(sanitizedPhoto.uri),
+        });
         storeSanitizedPhoto(sanitizedPhoto);
       } catch (error) {
+        logPhotoCameraDebug('capture-failure', {
+          selectedCaptureMethod,
+          captureFailure: error instanceof Error ? error.message : String(error),
+        });
         console.error('Web image metadata stripping failed:', error);
         Alert.alert(t.photoUnavailableTitle, t.photoUnavailableMessage);
       }
@@ -1698,37 +1834,72 @@ export default function PhotoAnalysisScreen() {
   const takePhoto = async () => {
     if (isAnalyzing) return;
 
+    const selectedCaptureMethod = getTakePhotoCaptureMethod(isSimulatorCameraFallback);
+    logPhotoCameraDebug('capture-start', { selectedCaptureMethod });
+
     if (Platform.OS === 'web') {
-      pickImageFileOnWeb();
+      pickImageFileOnWeb(selectedCaptureMethod);
       return;
     }
 
     if (isSimulatorCameraFallback) {
+      logPhotoCameraDebug('capture-failure', {
+        selectedCaptureMethod,
+        reason: 'camera-fallback',
+      });
       Alert.alert(cameraFallbackTitle, cameraFallbackMessage);
       return;
     }
 
     try {
       const existingPermission = await ImagePicker.getCameraPermissionsAsync();
+      logPhotoCameraDebug('camera-permission-existing', {
+        selectedCaptureMethod,
+        cameraPermissionStatus: getPermissionLogSnapshot(existingPermission),
+      });
       const permission = existingPermission.granted
         ? existingPermission
         : await ImagePicker.requestCameraPermissionsAsync();
+      logPhotoCameraDebug('camera-permission-final', {
+        selectedCaptureMethod,
+        cameraPermissionStatus: getPermissionLogSnapshot(permission),
+      });
       if (!permission.granted) {
+        logPhotoCameraDebug('capture-failure', {
+          selectedCaptureMethod,
+          cameraPermissionStatus: getPermissionLogSnapshot(permission),
+          reason: 'camera-permission-denied',
+        });
         Alert.alert(t.cameraNeededTitle, t.cameraNeededMessage);
         return;
       }
 
       const result = await ImagePicker.launchCameraAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        mediaTypes: ['images'],
+        cameraType: ImagePicker.CameraType.back,
+        allowsEditing: false,
         quality: 0.72,
         base64: false,
         exif: false,
       });
 
       if (!result.canceled && result.assets[0]) {
-        await storeCapturedPhoto(result.assets[0]);
+        const asset = result.assets[0];
+        logPhotoCameraDebug('capture-success', {
+          selectedCaptureMethod,
+          assetWidth: asset.width ?? 'unknown',
+          assetHeight: asset.height ?? 'unknown',
+          hasUri: Boolean(asset.uri),
+        });
+        await storeCapturedPhoto(asset, { nextStep: 2 });
+      } else {
+        logPhotoCameraDebug('capture-canceled', { selectedCaptureMethod });
       }
     } catch (error) {
+      logPhotoCameraDebug('capture-failure', {
+        selectedCaptureMethod,
+        captureFailure: error instanceof Error ? error.message : String(error),
+      });
       console.warn('Camera launch failed:', error);
       Alert.alert(t.cameraOpenFailedTitle, t.cameraOpenFailedMessage);
     }
@@ -1737,29 +1908,56 @@ export default function PhotoAnalysisScreen() {
   const pickImage = async () => {
     if (isAnalyzing) return;
 
+    const selectedCaptureMethod: PhotoCaptureMethod =
+      Platform.OS === 'web' ? 'web-file-upload' : 'expo-image-picker-gallery';
+    logPhotoCameraDebug('gallery-start', { selectedCaptureMethod });
+
     if (Platform.OS === 'web') {
-      pickImageFileOnWeb();
+      pickImageFileOnWeb(selectedCaptureMethod);
       return;
     }
 
     try {
       const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      logPhotoCameraDebug('gallery-permission-final', {
+        selectedCaptureMethod,
+        cameraPermissionStatus: getPermissionLogSnapshot(permission),
+      });
       if (!permission.granted) {
+        logPhotoCameraDebug('capture-failure', {
+          selectedCaptureMethod,
+          cameraPermissionStatus: getPermissionLogSnapshot(permission),
+          reason: 'media-library-permission-denied',
+        });
         Alert.alert(t.libraryNeededTitle, t.libraryNeededMessage);
         return;
       }
 
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        mediaTypes: ['images'],
+        allowsEditing: false,
         quality: 0.72,
         base64: false,
         exif: false,
       });
 
       if (!result.canceled && result.assets[0]) {
-        await storeCapturedPhoto(result.assets[0]);
+        const asset = result.assets[0];
+        logPhotoCameraDebug('capture-success', {
+          selectedCaptureMethod,
+          assetWidth: asset.width ?? 'unknown',
+          assetHeight: asset.height ?? 'unknown',
+          hasUri: Boolean(asset.uri),
+        });
+        await storeCapturedPhoto(asset);
+      } else {
+        logPhotoCameraDebug('capture-canceled', { selectedCaptureMethod });
       }
     } catch (error) {
+      logPhotoCameraDebug('capture-failure', {
+        selectedCaptureMethod,
+        captureFailure: error instanceof Error ? error.message : String(error),
+      });
       console.warn('Image picker failed:', error);
       Alert.alert(
         t.photoUnavailableTitle,
