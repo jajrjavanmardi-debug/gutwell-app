@@ -4,105 +4,82 @@ export type IngredientSuggestionSource = 'common-dish' | 'photo-guess' | 'manual
 
 export type MealIngredientSuggestion = {
   mealGuess: string;
-  ingredients: string[];
+  /** Ingredients that define the dish — safe to pre-select. */
+  coreIngredients: string[];
+  /** Common additions that vary per meal — must NOT be pre-selected or pre-confirmed. */
+  optionalIngredients: string[];
   source: IngredientSuggestionSource;
 };
 
 type CommonDishIngredientRule = {
   patterns: RegExp[];
   mealName: Record<AppLanguage, string>;
-  ingredients: string[];
+  /** Ingredients that define the dish — safe to pre-select. */
+  coreIngredients: string[];
+  /** Common additions that vary per meal — shown as opt-in, never pre-selected. */
+  optionalIngredients: string[];
 };
 
 const COMMON_DISH_INGREDIENTS: CommonDishIngredientRule[] = [
   {
     patterns: [/ash[\s-]?reshteh/i, /aash[\s-]?reshteh/i, /ash-e\s*reshteh/i, /آش\s*رشته/],
     mealName: { en: 'Ash Reshteh', de: 'Ash Reshteh', fa: 'آش رشته' },
-    ingredients: [
-      'reshteh noodles',
-      'beans',
-      'lentils',
-      'chickpeas',
-      'herbs',
-      'spinach',
-      'onion',
-      'garlic',
-      'kashk',
-      'mint oil',
-    ],
+    coreIngredients: ['reshteh noodles', 'beans', 'lentils', 'chickpeas', 'herbs'],
+    optionalIngredients: ['spinach', 'onion', 'garlic', 'kashk', 'mint oil'],
   },
   {
     patterns: [/ghormeh\s*sabzi/i, /qormeh\s*sabzi/i, /قرمه\s*سبزی/, /قورمه\s*سبزی/],
     mealName: { en: 'Ghormeh Sabzi', de: 'Ghormeh Sabzi', fa: 'قرمه سبزی' },
-    ingredients: [
-      'herbs',
-      'parsley',
-      'cilantro',
-      'fenugreek',
-      'kidney beans',
-      'beef or lamb',
-      'dried lime',
-      'onion',
-      'rice',
-    ],
+    coreIngredients: ['herbs', 'parsley', 'cilantro', 'fenugreek', 'kidney beans', 'beef or lamb', 'dried lime'],
+    optionalIngredients: ['onion', 'rice'],
   },
   {
     patterns: [/gheymeh/i, /gheimeh/i, /قیمه/],
     mealName: { en: 'Gheymeh', de: 'Gheymeh', fa: 'قیمه' },
-    ingredients: [
-      'split peas',
-      'beef or lamb',
-      'tomato sauce',
-      'dried lime',
-      'potato',
-      'onion',
-      'rice',
-    ],
+    coreIngredients: ['split peas', 'beef or lamb', 'tomato sauce', 'dried lime'],
+    optionalIngredients: ['potato', 'onion', 'rice'],
   },
   {
     patterns: [/\bkebab\s*barg\b/i, /\bkabob\s*barg\b/i, /\bbarg\s*kebab\b/i, /کباب\s*برگ/],
     mealName: { en: 'Kebab barg', de: 'Kebab Barg', fa: 'کباب برگ' },
-    ingredients: ['beef or lamb', 'tomato', 'lemon', 'olives', 'zucchini'],
+    coreIngredients: ['beef or lamb'],
+    optionalIngredients: ['tomato', 'lemon', 'olives', 'zucchini'],
   },
   {
     patterns: [/\bd[öo]ner\b/i, /\bdoner\b/i, /\bd[öo]ner\s*kebab\b/i, /\bdoner\s*kebab\b/i, /دونر/],
     mealName: { en: 'Döner', de: 'Döner', fa: 'دونر' },
-    ingredients: [
-      'doner meat',
-      'flatbread',
-      'raw salad',
-      'onion',
-      'tomato',
-      'cucumber',
-      'yogurt sauce',
-      'garlic sauce',
-      'chili sauce',
-    ],
+    coreIngredients: ['doner meat', 'flatbread'],
+    optionalIngredients: ['raw salad', 'onion', 'tomato', 'cucumber', 'yogurt sauce', 'garlic sauce', 'chili sauce'],
   },
   {
     patterns: [/\bpasta\b/i, /\bspaghetti\b/i, /\bnoodles?\b/i, /\bnudeln\b/i, /پاستا/, /ماکارونی/],
     mealName: { en: 'Pasta', de: 'Pasta', fa: 'پاستا' },
-    ingredients: ['wheat pasta', 'tomato sauce', 'cream sauce', 'cheese', 'garlic', 'onion', 'olive oil'],
+    coreIngredients: ['wheat pasta'],
+    optionalIngredients: ['tomato sauce', 'cream sauce', 'cheese', 'garlic', 'onion', 'olive oil'],
   },
   {
     patterns: [/\bsalad\b/i, /\bsalat\b/i, /سالاد/],
     mealName: { en: 'Salad', de: 'Salat', fa: 'سالاد' },
-    ingredients: ['raw leafy greens', 'tomato', 'cucumber', 'onion', 'dressing', 'olive oil'],
+    coreIngredients: ['raw leafy greens'],
+    optionalIngredients: ['tomato', 'cucumber', 'onion', 'dressing', 'olive oil'],
   },
   {
     patterns: [/\brice bowl\b/i, /\bbowl\b/i, /\breis[-\s]?bowl\b/i, /کاسه\s*برنج/, /برنج.*کاسه/],
     mealName: { en: 'Rice bowl', de: 'Reis-Bowl', fa: 'کاسه برنج' },
-    ingredients: ['rice', 'protein', 'cooked vegetables', 'raw vegetables', 'sauce'],
+    coreIngredients: ['rice'],
+    optionalIngredients: ['protein', 'cooked vegetables', 'raw vegetables', 'sauce'],
   },
   {
     patterns: [/\blentil soup\b/i, /\blinsensuppe\b/i, /سوپ\s*عدس/],
     mealName: { en: 'Lentil soup', de: 'Linsensuppe', fa: 'سوپ عدس' },
-    ingredients: ['lentils', 'onion', 'garlic', 'herbs', 'carrot', 'tomato', 'olive oil'],
+    coreIngredients: ['lentils'],
+    optionalIngredients: ['onion', 'garlic', 'herbs', 'carrot', 'tomato', 'olive oil'],
   },
   {
     patterns: [/\bsalmon rice\b/i, /\bsalmon.*rice\b/i, /\blachs.*reis\b/i, /سالمون.*برنج/],
     mealName: { en: 'Salmon rice bowl', de: 'Lachs-Reis-Bowl', fa: 'کاسه برنج و سالمون' },
-    ingredients: ['salmon', 'rice', 'cooked greens', 'tomato', 'lemon', 'olive oil'],
+    coreIngredients: ['salmon', 'rice'],
+    optionalIngredients: ['cooked greens', 'tomato', 'lemon', 'olive oil'],
   },
 ];
 
@@ -285,9 +262,15 @@ export function findCommonDishIngredientSuggestion(
 
   if (!match) return null;
 
+  const coreIngredients = mergeIngredientNames(match.coreIngredients);
+  const optionalIngredients = mergeIngredientNames(match.optionalIngredients).filter(
+    (ingredient) => !coreIngredients.includes(ingredient),
+  );
+
   return {
     mealGuess: match.mealName[language],
-    ingredients: mergeIngredientNames(match.ingredients),
+    coreIngredients,
+    optionalIngredients,
     source: 'common-dish',
   };
 }

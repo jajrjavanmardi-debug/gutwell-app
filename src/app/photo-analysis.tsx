@@ -138,8 +138,10 @@ type EstimateConfidenceLevel = 'low' | 'medium' | 'higher';
 type IngredientFeedbackKind = 'updated' | 'helpful' | null;
 type IngredientReviewState = {
   mealGuess: string;
-  likelyIngredients: string[];
+  /** Core dish ingredients + user-named/added ingredients — pre-selected and used for the estimate. */
   selectedIngredients: string[];
+  /** Common additions shown as opt-in chips — never pre-selected or auto-confirmed. */
+  optionalIngredients: string[];
   status: IngredientReviewStatus;
   source: IngredientSuggestionSource;
   userNotesPrioritized?: boolean;
@@ -333,6 +335,7 @@ const copy = {
     confirmIngredients: 'Confirm ingredients',
     continueWithoutConfirming: 'Continue without confirming',
     ingredientRemovalHint: 'Tap an ingredient to remove it from the review.',
+    optionalIngredientsHint: 'These are common additions. Select only what is actually in your meal.',
     ingredientUpdatedMessage: 'Thanks, I updated the meal details.',
     ingredientEditHelpfulMessage: 'Your edits help make the estimate more accurate.',
     ingredientConfirmedUsageMessage: 'The analysis will use your confirmed ingredients.',
@@ -497,6 +500,7 @@ const copy = {
     confirmIngredients: 'Zutaten bestätigen',
     continueWithoutConfirming: 'Ohne Bestätigung fortfahren',
     ingredientRemovalHint: 'Tippe eine Zutat an, um sie aus der Prüfung zu entfernen.',
+    optionalIngredientsHint: 'Das sind übliche Beilagen. Wähle nur aus, was wirklich in deiner Mahlzeit ist.',
     ingredientUpdatedMessage: 'Danke, ich habe die Mahlzeitdetails aktualisiert.',
     ingredientEditHelpfulMessage: 'Deine Änderungen helfen, die Einschätzung genauer zu machen.',
     ingredientConfirmedUsageMessage: 'Die Analyse verwendet deine bestätigten Zutaten.',
@@ -661,6 +665,7 @@ const copy = {
     confirmIngredients: 'تأیید مواد',
     continueWithoutConfirming: 'ادامه بدون تأیید',
     ingredientRemovalHint: 'برای حذف هر ماده از بررسی، روی آن بزنید.',
+    optionalIngredientsHint: 'این‌ها افزودنی‌های رایج هستند. فقط مواردی را انتخاب کنید که واقعاً در وعده شما هست.',
     ingredientUpdatedMessage: 'ممنون، جزئیات وعده را به‌روزرسانی کردم.',
     ingredientEditHelpfulMessage: 'ویرایش‌های شما به دقیق‌تر شدن برآورد کمک می‌کند.',
     ingredientConfirmedUsageMessage: 'تحلیل از مواد تأییدشده شما استفاده می‌کند.',
@@ -1265,9 +1270,6 @@ function buildIngredientContextForAnalysis(
 ): string {
   if (!review) return '';
 
-  const likelyIngredients = review.likelyIngredients
-    .map((ingredient) => localizeIngredientName(ingredient, language))
-    .join(', ');
   const selectedIngredients = review.selectedIngredients
     .map((ingredient) => localizeIngredientName(ingredient, language))
     .join(', ');
@@ -1294,14 +1296,14 @@ function buildIngredientContextForAnalysis(
     },
   }[language];
 
+  // Only ingredients the user kept/added are described to the model; un-selected
+  // optional additions are intentionally omitted so they are never treated as facts.
   if (review.status === 'confirmed') {
     return `${contextCopy.confirmed}: ${selectedIngredients || contextCopy.none}.`;
   }
 
-  const unconfirmedIngredients = selectedIngredients || likelyIngredients || contextCopy.none;
-
   return [
-    `${contextCopy.likely}: ${unconfirmedIngredients}.`,
+    `${contextCopy.likely}: ${selectedIngredients || contextCopy.none}.`,
     contextCopy.lowerConfidence,
   ].join('\n');
 }
@@ -1322,8 +1324,8 @@ function getIngredientReviewFromCommonDish(
 
   return {
     mealGuess: suggestion.mealGuess,
-    likelyIngredients: suggestion.ingredients,
-    selectedIngredients: suggestion.ingredients,
+    selectedIngredients: suggestion.coreIngredients,
+    optionalIngredients: suggestion.optionalIngredients,
     status: 'unconfirmed',
     source: suggestion.source,
   };
@@ -1342,17 +1344,23 @@ function getIngredientReviewFromUserNotes(
     extractIngredientMentionsFromText(trimmed),
     language,
   );
-  const ingredients = filterIngredientsForLanguage(
-    mergeIngredientNames(noteIngredients, dishSuggestion?.ingredients ?? []),
+  // Pre-select what the user actually named, plus the core ingredients that define
+  // the dish. The dish's common additions stay opt-in so they are not auto-confirmed.
+  const selectedIngredients = filterIngredientsForLanguage(
+    mergeIngredientNames(noteIngredients, dishSuggestion?.coreIngredients ?? []),
     language,
   );
+  const optionalIngredients = filterIngredientsForLanguage(
+    mergeIngredientNames(dishSuggestion?.optionalIngredients ?? []),
+    language,
+  ).filter((ingredient) => !selectedIngredients.includes(ingredient));
 
-  if (!dishSuggestion && ingredients.length === 0) return null;
+  if (!dishSuggestion && selectedIngredients.length === 0) return null;
 
   return {
     mealGuess: dishSuggestion?.mealGuess || getSafeMealGuessLabel(trimmed, language, fallbackMealName),
-    likelyIngredients: ingredients,
-    selectedIngredients: ingredients,
+    selectedIngredients,
+    optionalIngredients,
     status: 'unconfirmed',
     source: dishSuggestion ? 'common-dish' : 'manual',
     userNotesPrioritized: true,
@@ -1866,16 +1874,25 @@ export default function PhotoAnalysisScreen() {
       });
       const commonSuggestion = getIngredientReviewFromCommonDish(aiSuggestion.mealGuess, language);
       const source: IngredientSuggestionSource = commonSuggestion ? 'mixed' : 'photo-guess';
-      const ingredients = filterIngredientsForLanguage(
-        mergeIngredientNames(commonSuggestion?.ingredients ?? [], aiSuggestion.likelyIngredients),
-        language,
-      );
+      const photoGuessIngredients = filterIngredientsForLanguage(aiSuggestion.likelyIngredients, language);
+
+      // With a recognized dish, pre-select only its core; the dish's common additions
+      // and extra photo guesses stay opt-in. Without a dish, the photo guess is the
+      // only signal available, so it is pre-selected and remains fully editable.
+      const selectedIngredients = commonSuggestion
+        ? commonSuggestion.selectedIngredients
+        : photoGuessIngredients;
+      const optionalIngredients = commonSuggestion
+        ? mergeIngredientNames(commonSuggestion.optionalIngredients, photoGuessIngredients).filter(
+            (ingredient) => !selectedIngredients.includes(ingredient),
+          )
+        : [];
 
       setIngredientReview({
         mealGuess: commonSuggestion?.mealGuess ||
           getSafeMealGuessLabel(aiSuggestion.mealGuess || mealDescriptionText, language, t.photoMealDefault),
-        likelyIngredients: ingredients,
-        selectedIngredients: ingredients,
+        selectedIngredients,
+        optionalIngredients,
         status: 'unconfirmed',
         source,
         photoMealGuess: aiSuggestion.mealGuess,
@@ -1889,8 +1906,8 @@ export default function PhotoAnalysisScreen() {
       console.warn('Ingredient suggestion failed:', error);
       setIngredientReview({
         mealGuess: getSafeMealGuessLabel(mealDescriptionText, language, t.photoMealDefault),
-        likelyIngredients: [],
         selectedIngredients: [],
+        optionalIngredients: [],
         status: 'unconfirmed',
         source: 'photo-guess',
       });
@@ -1900,22 +1917,35 @@ export default function PhotoAnalysisScreen() {
     }
   };
 
-  const updateIngredientSelection = (updater: (ingredients: string[]) => string[]) => {
+  const removeIngredient = (ingredient: string) => {
+    const normalized = normalizeIngredientName(ingredient);
     setIngredientReview((current) => {
       if (!current) return current;
       return {
         ...current,
-        selectedIngredients: mergeIngredientNames(updater(current.selectedIngredients)),
+        selectedIngredients: current.selectedIngredients.filter(
+          (item) => normalizeIngredientName(item) !== normalized,
+        ),
+        // Keep removed ingredients available as an opt-in chip so they can be re-added.
+        optionalIngredients: mergeIngredientNames(current.optionalIngredients, [ingredient]),
       };
     });
+    setIngredientFeedbackKind('helpful');
   };
 
-  const removeIngredient = (ingredient: string) => {
+  const addOptionalIngredient = (ingredient: string) => {
     const normalized = normalizeIngredientName(ingredient);
-    updateIngredientSelection((ingredients) =>
-      ingredients.filter((item) => normalizeIngredientName(item) !== normalized)
-    );
-    setIngredientFeedbackKind('helpful');
+    setIngredientReview((current) => {
+      if (!current) return current;
+      return {
+        ...current,
+        selectedIngredients: mergeIngredientNames(current.selectedIngredients, [ingredient]),
+        optionalIngredients: current.optionalIngredients.filter(
+          (item) => normalizeIngredientName(item) !== normalized,
+        ),
+      };
+    });
+    setIngredientFeedbackKind('updated');
   };
 
   const addCustomIngredient = () => {
@@ -1923,10 +1953,13 @@ export default function PhotoAnalysisScreen() {
     if (addedIngredients.length === 0) return;
     setIngredientReview((current) => {
       if (!current) return current;
+      const addedNormalized = addedIngredients.map((item) => normalizeIngredientName(item));
       return {
         ...current,
         selectedIngredients: mergeIngredientNames(current.selectedIngredients, addedIngredients),
-        likelyIngredients: mergeIngredientNames(current.likelyIngredients, addedIngredients),
+        optionalIngredients: current.optionalIngredients.filter(
+          (item) => !addedNormalized.includes(normalizeIngredientName(item)),
+        ),
         source: current.source === 'photo-guess' ? 'mixed' : current.source,
       };
     });
@@ -1969,7 +2002,6 @@ export default function PhotoAnalysisScreen() {
 
     try {
       const confidenceLevel = getIngredientConfidenceLevel(review);
-      const likelyIngredients = review?.likelyIngredients ?? [];
       const selectedIngredients = review?.selectedIngredients ?? [];
       const ingredientsConfirmed = review?.status === 'confirmed';
       const ingredientReviewSkipped = review?.status === 'skipped';
@@ -1983,7 +2015,8 @@ export default function PhotoAnalysisScreen() {
         locationContext,
         retailLocationHint,
         userFeelingsNarrative: feelingsNarrative,
-        likelyIngredients,
+        // Send only selected ingredients; un-selected optional additions are withheld.
+        likelyIngredients: selectedIngredients,
         confirmedIngredients: ingredientsConfirmed ? selectedIngredients : [],
         ingredientsConfirmed,
         ingredientReviewSkipped,
@@ -3060,6 +3093,34 @@ export default function PhotoAnalysisScreen() {
                     </View>
                   ) : null}
 
+                  {ingredientReview?.optionalIngredients.length ? (
+                    <>
+                      <Text style={[styles.optionalIngredientsHint, isRtlLanguage && styles.rtlText]}>
+                        {t.optionalIngredientsHint}
+                      </Text>
+                      <View style={[styles.ingredientChipWrap, isRtlLanguage && styles.rtlRow]}>
+                        {ingredientReview.optionalIngredients.map((ingredient) => (
+                          <Pressable
+                            key={ingredient}
+                            onPress={() => addOptionalIngredient(ingredient)}
+                            accessibilityRole="button"
+                            accessibilityLabel={`${t.addIngredient}: ${localizeIngredientName(ingredient, language)}`}
+                            style={({ pressed }) => [
+                              styles.optionalIngredientChip,
+                              isRtlLanguage && styles.rtlRow,
+                              pressed && styles.pressed,
+                            ]}
+                          >
+                            <Ionicons name="add-circle-outline" size={16} color="#2DCE89" />
+                            <Text style={[styles.optionalIngredientChipText, isRtlLanguage && styles.rtlText]}>
+                              {localizeIngredientName(ingredient, language)}
+                            </Text>
+                          </Pressable>
+                        ))}
+                      </View>
+                    </>
+                  ) : null}
+
                   <View style={[styles.addIngredientRow, isRtlLanguage && styles.rtlRow]}>
                     <TextInput
                       value={customIngredient}
@@ -3871,6 +3932,30 @@ const styles = createStyles({
   ingredientChipText: {
     color: '#F4F4F4',
     fontFamily: FontFamily.sansSemiBold,
+    fontSize: FontSize.sm,
+  },
+  optionalIngredientsHint: {
+    color: '#BEBEBE',
+    fontFamily: FontFamily.sansRegular,
+    fontSize: FontSize.xs,
+    lineHeight: 18,
+  },
+  optionalIngredientChip: {
+    alignItems: 'center',
+    backgroundColor: 'transparent',
+    borderColor: 'rgba(45,206,137,0.45)',
+    borderRadius: BorderRadius.full,
+    borderStyle: 'dashed',
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: Spacing.xs,
+    minHeight: 38,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+  },
+  optionalIngredientChipText: {
+    color: '#D8FBEA',
+    fontFamily: FontFamily.sansMedium,
     fontSize: FontSize.sm,
   },
   addIngredientRow: {
