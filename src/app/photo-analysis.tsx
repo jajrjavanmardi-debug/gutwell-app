@@ -4121,6 +4121,8 @@ const styles = createStyles({
     gap: Spacing.md,
   },
   cameraModeCard: {
+    alignSelf: 'stretch',
+    width: '100%',
     alignItems: 'flex-start',
     backgroundColor: '#10281F',
     borderColor: '#2DCE8955',
@@ -4166,6 +4168,8 @@ const styles = createStyles({
     lineHeight: 18,
   },
   cameraFallbackCard: {
+    alignSelf: 'stretch',
+    width: '100%',
     backgroundColor: '#0F3D2E',
     borderColor: '#2DCE8966',
     borderRadius: 15,
