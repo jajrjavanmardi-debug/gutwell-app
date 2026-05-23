@@ -4214,6 +4214,7 @@ const styles = createStyles({
   },
   cameraFallbackCopy: {
     flex: 1,
+    minWidth: 0,
   },
   cameraFallbackTitle: {
     color: '#FFFFFF',
