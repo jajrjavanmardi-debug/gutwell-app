@@ -1177,11 +1177,11 @@ function buildPersianPhotoAnalysisFallback(symptoms: string[], mealDescriptionTe
     : 'وعده انتخاب‌شده';
 
   return [
-    `| ${labels.symptomsLabel} | ${labels.scoreLabel} | چرا |`,
+    `| ${labels.symptomsLabel} | بازتاب وعده | چرا |`,
     '| --- | --- | --- |',
-    `| ${symptomSummary} | 6/10 | این یک برآورد آموزشی بر اساس عکس، توضیح وعده و زمینه علائم است. |`,
+    `| ${symptomSummary} | بازتاب آموزشی | این وعده را بدون نمره‌دادن ثبت کن و در طول زمان به الگوهای بدنت توجه کن. |`,
     '',
-    `${labels.scoreProgressLabel}: [######----] 6/10`,
+    `بازتاب وعده: این وعده را بدون نمره‌دادن ثبت کن و در طول زمان به الگوهای بدنت توجه کن.`,
     '',
     `${labels.analysisInsightTitle}:`,
     `- ${mealSummary} را در کنار علائم فعلی به‌عنوان یک الگوی احتمالی نگاه کنید، نه یک علت قطعی.`,
@@ -1193,7 +1193,7 @@ function buildPersianPhotoAnalysisFallback(symptoms: string[], mealDescriptionTe
     '- پیگیری غذا باید به آگاهی کمک کند، نه کنترل یا ترس.',
     '- فاصله گرفتن از ثبت و پیگیری هم کاملاً اشکالی ندارد.',
     '',
-    labels.scoreHelperNote,
+    `این بازتاب آموزشی جایگزین نمره‌دهی به غذاست و برای مشاهده الگوهای بدن در طول زمان استفاده می‌شود.`,
   ].join('\n');
 }
 
