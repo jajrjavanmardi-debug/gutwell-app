@@ -42,6 +42,7 @@ import { enqueue } from '../../lib/offline-queue';
 import { canUseNativeSpeechToText } from '../../lib/runtime-environment';
 import { analyzeMealPhoto, reviseMealAnalysis, suggestMealIngredients } from '../../lib/RecommendationEngine';
 import {
+  APP_LANGUAGE_OPTIONS,
   APP_LANGUAGE_STORAGE_KEY,
   isRtlLanguage as isAppRtlLanguage,
   parseStoredLanguage,
@@ -283,6 +284,7 @@ const copy = {
   en: {
     back: 'Back',
     title: 'Photo Analysis',
+    languageSelectorA11yLabel: 'Choose language',
     wizardStep1Subtitle: 'Step 1 of 4 — Capture',
     wizardStep2Subtitle: 'Step 2 of 4 — Voice & feeling',
     wizardStep3Subtitle: 'Step 3 of 4 — Ingredients',
@@ -448,6 +450,7 @@ const copy = {
   de: {
     back: 'Zurück',
     title: 'Fotoanalyse',
+    languageSelectorA11yLabel: 'Sprache wählen',
     wizardStep1Subtitle: 'Schritt 1 von 4 — Aufnahme',
     wizardStep2Subtitle: 'Schritt 2 von 4 — Stimme & Befinden',
     wizardStep3Subtitle: 'Schritt 3 von 4 — Zutaten',
@@ -613,6 +616,7 @@ const copy = {
   fa: {
     back: 'بازگشت',
     title: 'تحلیل عکس غذا',
+    languageSelectorA11yLabel: 'انتخاب زبان',
     wizardStep1Subtitle: 'مرحله ۱ از ۴ – عکس',
     wizardStep2Subtitle: 'مرحله ۲ از ۴ – توضیح و احساس',
     wizardStep3Subtitle: 'مرحله ۳ از ۴ – مواد احتمالی',
@@ -1639,6 +1643,14 @@ export default function PhotoAnalysisScreen() {
     };
   }, []));
 
+  // Header switcher writes through the same storage key the rest of the app reads
+  // (settings, tabs, onboarding, etc.) so a change here propagates everywhere.
+  const handleSelectLanguage = (next: AppLanguage) => {
+    if (next === language) return;
+    setLanguage(next);
+    AsyncStorage.setItem(APP_LANGUAGE_STORAGE_KEY, next).catch(console.warn);
+  };
+
   useEffect(() => {
     console.log('NutriFlow Core Updated: Focus English/German, Voice Active, Memory Cleared');
   }, []);
@@ -2655,6 +2667,39 @@ export default function PhotoAnalysisScreen() {
             <Text style={[styles.title, isRtlLanguage && styles.rtlText]}>{t.title}</Text>
             <Text style={[styles.subtitle, isRtlLanguage && styles.rtlText]}>{wizardSubtitle}</Text>
           </View>
+          <View
+            style={styles.languageSwitcherRow}
+            accessibilityRole="radiogroup"
+            accessibilityLabel={t.languageSelectorA11yLabel}
+          >
+            {APP_LANGUAGE_OPTIONS.map((option) => {
+              const selected = language === option.value;
+              return (
+                <Pressable
+                  key={option.value}
+                  onPress={() => handleSelectLanguage(option.value)}
+                  accessibilityRole="radio"
+                  accessibilityState={{ selected }}
+                  accessibilityLabel={option.label}
+                  hitSlop={6}
+                  style={({ pressed }) => [
+                    styles.languageSwitcherButton,
+                    selected && styles.languageSwitcherButtonSelected,
+                    pressed && styles.pressed,
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.languageSwitcherText,
+                      selected && styles.languageSwitcherTextSelected,
+                    ]}
+                  >
+                    {option.value.toUpperCase()}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
         </View>
 
         {wizardStep === 2 ? (
@@ -3574,13 +3619,44 @@ const styles = createStyles({
   },
   header: {
     alignItems: 'center',
+    alignSelf: 'center',
     flexDirection: 'row',
     gap: Spacing.md,
+    maxWidth: 600,
     padding: Spacing.lg,
     paddingBottom: Spacing.md,
+    width: '100%',
   },
   headerTextBlock: {
     flex: 1,
+  },
+  languageSwitcherRow: {
+    flexDirection: 'row',
+    gap: 4,
+  },
+  languageSwitcherButton: {
+    alignItems: 'center',
+    backgroundColor: '#101010',
+    borderColor: '#242424',
+    borderRadius: BorderRadius.full,
+    borderWidth: 1,
+    justifyContent: 'center',
+    minHeight: 32,
+    minWidth: 36,
+    paddingHorizontal: 8,
+  },
+  languageSwitcherButtonSelected: {
+    backgroundColor: '#1F3D2E',
+    borderColor: '#2DCE89',
+  },
+  languageSwitcherText: {
+    color: '#A7A7A7',
+    fontFamily: FontFamily.sansBold,
+    fontSize: FontSize.xs,
+    letterSpacing: 0.5,
+  },
+  languageSwitcherTextSelected: {
+    color: '#D8FBEA',
   },
   backButton: {
     alignItems: 'center',
@@ -3620,10 +3696,13 @@ const styles = createStyles({
     marginTop: 2,
   },
   content: {
+    alignSelf: 'center',
     gap: Spacing.md,
+    maxWidth: 600,
     padding: Spacing.lg,
     paddingBottom: Spacing.lg,
     paddingTop: 0,
+    width: '100%',
   },
   profileCard: {
     alignItems: 'center',
