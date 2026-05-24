@@ -322,8 +322,8 @@ const copy = {
     symptomSelectorLabel: 'Select symptoms',
     symptomSelectorHint: 'Choose all that apply so the estimate reflects your current reaction.',
     symptomsPlaceholder: 'Before taking a photo you can note symptoms; after capture, describe how you feel.',
-    howYouFeelLabel: 'Meal details & extra notes',
-    howYouFeelPlaceholder: 'Example: This is lentil soup with onions. I ate a large bowl.',
+    howYouFeelLabel: 'Meal description, amount, and time eaten',
+    howYouFeelPlaceholder: 'Example: Barbari bread with cheese and walnuts, one small plate, eaten this morning.',
     photoCapturedPrompt: 'Photo captured! Speak or type how you feel.',
     analyzeCombined: 'Analyze Meal',
     feelingsRequiredTitle: 'Add meal context first',
@@ -488,8 +488,8 @@ const copy = {
     symptomSelectorLabel: 'Symptome auswählen',
     symptomSelectorHint: 'Wähle alles aus, was zutrifft, damit die Einschätzung deine aktuelle Reaktion berücksichtigt.',
     symptomsPlaceholder: 'Vor dem Foto kannst du Symptome notieren; nach der Aufnahme beschreibst du dein Befinden.',
-    howYouFeelLabel: 'Mahlzeitdetails und Notizen',
-    howYouFeelPlaceholder: 'Zum Beispiel: Das ist Linsensuppe mit Zwiebeln. Ich habe eine große Schüssel gegessen.',
+    howYouFeelLabel: 'Beschreibung der Mahlzeit, Menge und Zeitpunkt',
+    howYouFeelPlaceholder: 'Beispiel: Barbari-Brot mit Käse und Walnüssen, ein kleiner Teller, heute Morgen gegessen.',
     photoCapturedPrompt: 'Foto gespeichert. Beschreibe jetzt, wie du dich fühlst.',
     analyzeCombined: 'Mahlzeit analysieren',
     feelingsRequiredTitle: 'Erst Kontext ergänzen',
@@ -654,8 +654,8 @@ const copy = {
     symptomSelectorLabel: 'انتخاب علائم',
     symptomSelectorHint: 'هر موردی را که صدق می‌کند انتخاب کنید تا برآورد با واکنش فعلی شما هماهنگ شود.',
     symptomsPlaceholder: 'قبل از عکس می‌توانید علائم را بنویسید؛ بعد از عکس، احساس خود را توضیح دهید.',
-    howYouFeelLabel: 'جزئیات وعده و یادداشت‌های بیشتر',
-    howYouFeelPlaceholder: 'مثال: این سوپ عدس با پیاز است. یک کاسه بزرگ خوردم.',
+    howYouFeelLabel: 'توضیح وعده غذایی، مقدار و زمان مصرف',
+    howYouFeelPlaceholder: 'مثال: «بربری با پنیر و گردو، یک بشقاب کوچک، امروز صبح خوردم.»',
     photoCapturedPrompt: 'عکس ثبت شد. اکنون احساس خود را بنویسید یا بگویید.',
     analyzeCombined: 'تحلیل غذا',
     feelingsRequiredTitle: 'ابتدا زمینه غذا را اضافه کنید',
@@ -1462,7 +1462,7 @@ export default function PhotoAnalysisScreen() {
     : 'None selected';
   const mealDescriptionText = mealDescription.trim();
   const analysisInputSummary = [
-    mealDescriptionText ? `Meal details: ${mealDescriptionText}` : '',
+    mealDescriptionText ? `User-confirmed meal details, amount, and timing (treat all named ingredients as confirmed by user): ${mealDescriptionText}` : '',
     selectedSymptomLabels.length > 0 ? `Selected symptoms: ${selectedSymptomSummary}` : '',
   ].filter(Boolean).join('\n');
   const userEnteredSymptoms = selectedSymptomLabels;
@@ -2815,6 +2815,9 @@ export default function PhotoAnalysisScreen() {
                 </View>
               </View>
 
+              <Text style={[styles.wizardSectionLabel, isRtlLanguage && styles.rtlText]}>
+                {t.howYouFeelLabel}
+              </Text>
               <TextInput
                 value={mealDescription}
                 onChangeText={handleMealDescriptionChange}
