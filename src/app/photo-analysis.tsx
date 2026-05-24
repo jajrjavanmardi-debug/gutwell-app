@@ -1132,6 +1132,44 @@ function stripAnalysisInsightSection(aiText: string, language: AppLanguage): str
   return skippedAnyInsight ? keptLines.join('\n').replace(/\n{3,}/g, '\n\n').trim() : aiText;
 }
 
+function sanitizeMealScoring(text: string): string {
+  const lines = text.split('\n');
+  const result: string[] = [];
+  const scoreSectionHeadings = [
+    /^##?\s*برآورد تناسب وعده/,
+    /^##?\s*Meal Fit Estimate/i,
+    /^##?\s*Orientierende Mahlzeiten-Einschätzung/i,
+  ];
+  const scoreLinePatterns = [
+    /برآورد آموزشی وعده غذایی\s*:/,
+    /^Educational Meal Estimate\s*:/i,
+    /^Orientierende Mahlzeiten-Einschätzung\s*:/i,
+    /برآورد مبتنی بر الگو/,
+    /^Pattern-based estimate/i,
+    /^Musterbasierte Einschätzung/i,
+    /\[#{1,20}[-─\s]*\].*\/10/,
+    /\[[-─\s]*#{1,20}\].*\/10/,
+    /\b\d{1,2}\/10\b/,
+    /[۰-۹]{1,2}\/10/,
+  ];
+  let skipSection = false;
+  for (const line of lines) {
+    const startsScoreSection = scoreSectionHeadings.some(p => p.test(line));
+    if (startsScoreSection) { skipSection = true; continue; }
+    if (skipSection) {
+      const isNewHeading = /^##?\s/.test(line);
+      if (isNewHeading && !scoreSectionHeadings.some(p => p.test(line))) {
+        skipSection = false;
+      } else {
+        continue;
+      }
+    }
+    if (scoreLinePatterns.some(p => p.test(line))) continue;
+    result.push(line);
+  }
+  return result.join('\n').replace(/\n{3,}/g, '\n\n').trim();
+}
+
 function localizeVisibleEstimateLabels(aiText: string, language: AppLanguage): string {
   const labels = copy[language];
 
@@ -1474,13 +1512,14 @@ export default function PhotoAnalysisScreen() {
   const hasPainSymptom = currentSymptoms.some((symptom) =>
     hasPainText(symptom)
   );
+  const shouldShowMealScoreBadge = false; // Product rule: NutriFlow does not rate food
   const mealImpactScore = resolveMealImpactScore(analysis, currentSymptoms, mealDescriptionText, language);
   const extractedAnalysisInsights = extractAnalysisInsightBullets(analysis, language);
   const analysisInsights = mergeAnalysisInsights(
     extractedAnalysisInsights,
     buildFallbackAnalysisInsights(analysis, currentSymptoms, promptConditions, language),
   );
-  const displayAnalysisText = localizeVisibleEstimateLabels(stripAnalysisInsightSection(analysis, language), language);
+  const displayAnalysisText = sanitizeMealScoring(localizeVisibleEstimateLabels(stripAnalysisInsightSection(analysis, language), language));
   const estimateConfidenceLevel = getIngredientConfidenceLevel(ingredientReview);
   const shouldShowLowerConfidenceNotice = ingredientReview?.status === 'skipped' || estimateConfidenceLevel === 'low';
   const shouldShowLowEstimateGentleNote = (() => {
@@ -3358,7 +3397,7 @@ export default function PhotoAnalysisScreen() {
                         <Text style={[styles.resultTitle, isRtlLanguage && styles.rtlText]}>{t.resultTitle}</Text>
                       </View>
                     </View>
-                    {mealImpactScore ? (
+                    {shouldShowMealScoreBadge && mealImpactScore ? (
                       <View style={styles.scoreEstimateWrap}>
                         <View style={[
                           styles.scoreBadge,
@@ -3383,7 +3422,7 @@ export default function PhotoAnalysisScreen() {
                             </Text>
                           </View>
                         ) : null}
-                        {shouldShowLowEstimateGentleNote ? (
+                        {shouldShowMealScoreBadge && shouldShowLowEstimateGentleNote ? (
                           <View style={[styles.lowEstimateNoteCard, isRtlLanguage && styles.rtlRow]}>
                             <Ionicons name="heart-outline" size={18} color="#B7F7D6" />
                             <Text style={[styles.lowEstimateNoteText, isRtlLanguage && styles.rtlText]}>
