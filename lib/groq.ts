@@ -692,7 +692,7 @@ export async function analyzeMealPhotoWithGroq(
   const confirmedIngredientSummary = confirmedIngredients.length > 0 ? confirmedIngredients.join(', ') : 'not provided';
   const gutScoreSummary = typeof gutScore === 'number'
     ? `${gutScore}/10`
-    : 'not provided; calculate a fresh educational meal estimate from this meal, symptoms, and conditions';
+    : 'not provided';
   const locationTrimmed = locationContext?.trim() ?? '';
   const userLocation =
     [
@@ -737,7 +737,7 @@ export async function analyzeMealPhotoWithGroq(
   ];
 
   const adviceTail = [
-    `Supplement rule: consider the supplements the user has taken in the last 12 hours when creating the meal insight. If the user has taken a supplement like a digestive enzyme or probiotic, acknowledge it as context. If the supplement may make the meal feel gentler, such as enzymes for legumes/raisins or probiotics for general digestive support, increase the ${languageCopy.mealImpactScore} slightly and explain why, but do not overpromise comfort changes.`,
+    'Supplement rule: consider the supplements the user has taken in the last 12 hours when creating the meal insight. If the user has taken a supplement like a digestive enzyme or probiotic, acknowledge it as context. If the supplement may make the meal feel gentler or easier to tolerate, such as enzymes for legumes or probiotics for general digestive support, note this as supportive context but do not overpromise comfort changes.',
     'Eating-behavior safety rule: avoid moral food language such as "good food", "bad food", "clean", "cheat", or blame. Food tracking should not create fear. Do not imply every symptom is caused by food; frame findings as possible patterns and mention that taking breaks from tracking is okay when helpful.',
     'User-provided meal notes and confirmed ingredients are more reliable than image guesses.',
     'If user notes name a meal or ingredients, use those details as the main source of truth. Treat photo guesses only as suggestions when notes are empty or vague.',
@@ -779,7 +779,7 @@ export async function analyzeMealPhotoWithGroq(
         `- Infer from the image alone a concise visual hypothesis of the meal ([Visual Guess]) only when useful, but do not let it override user-provided meal notes or confirmed ingredients.`,
         `- The user's text above is [User Input]: parse what they say the food is (or what they ate) and how they feel ([User Feeling] / symptoms).`,
         `- Explicitly reflect this meaning in ${languageCopy.languageName}: if the image and words disagree on food identity, ingredients, or symptoms, treat their words as authoritative and base the estimate on their described/confirmed meal details.`,
-        `- Provide ONE integrated ${languageCopy.mealImpact} analysis that weighs IBS and bloating together with their ${languageCopy.gutScore} (${gutScoreSummary}) and profile conditions/symptoms below.`,
+        `- Provide ONE integrated ${languageCopy.mealImpact} analysis that weighs IBS and bloating together with the current profile conditions and symptoms below.`,
         '',
         `User-provided meal, symptom, and ingredient-review context: ${narrative}`,
         'Use user-typed meal descriptions and user-confirmed ingredients as authoritative. Treat likely ingredients as uncertain when the ingredient review was skipped or not confirmed.',
@@ -799,10 +799,10 @@ export async function analyzeMealPhotoWithGroq(
         'Analyze this meal photo for educational gut wellness patterns.',
         `Preferred response language: ${languageCopy.languageName}.`,
         'Tone rule: be friendly and informal. Speak directly to the person.',
-        `Language rule: ${languageCopy.languageRule} Return the entire analysis, suggestions, meal fit estimate explanation, pattern estimate, tips, table headers, and footer only in ${languageCopy.languageName}.`,
+        `Language rule: ${languageCopy.languageRule} Return the entire analysis, suggestions, meal reflection and context notes, tips, table headers, and footer only in ${languageCopy.languageName}.`,
         ...sharedTail.slice(0, 6),
         'Context reset rule: this is a new meal scan. Ignore all previous meal guesses, cookies, old foods, trigger memories, saved history, or prior chat context unless the user explicitly asks to compare with a previous meal.',
-        'Priority rule: user-entered symptoms from the UI are more important than the default profile symptoms. If any user-entered symptom is present, make it one of the main points in the analysis, symptom notes, and pattern-based estimate.',
+        'Priority rule: user-entered symptoms from the UI are more important than the default profile symptoms. If any user-entered symptom is present, make it one of the main points in the analysis, symptom notes, and neutral reflection based on current meal details and user context.',
         `Empathy rule: if a negative reaction or pain symptom is present, start with a brief sincere apology in ${languageCopy.languageName}, then pivot immediately to a safer Plan B before discussing the original food. A safer Plan B can include ginger tea, peppermint tea, hydration, rest, a warm compress, or temporarily pausing food if the person feels irritated.`,
         `Comfort support rule: if the user-entered symptoms include stomach pain, abdominal pain, cramps, or belly pain, include a short section titled "${languageCopy.instantRelief}". Suggest gentle options such as peppermint tea, ginger tea, a warm compress, hydration, rest, and pausing the food they suspect. Add a safety note to seek urgent care for severe, worsening, or unusual pain.`,
         'IBS abdominal pain consistency: whenever IBS-related abdominal pain, cramps, bloating pain, or a flare is indicated (including from profile conditions such as IBS), prioritize peppermint tea, ginger tea, hydration, rest, warm compress, and a gentle Plan B before elaborate meal suggestions.',
@@ -839,7 +839,7 @@ export async function reviseMealAnalysisWithGroq(
   const prior = priorUserCorrections.map((c) => c.trim()).filter(Boolean);
   const gutScoreSummary = typeof gutScore === 'number'
     ? `${gutScore}/10`
-    : 'not provided; calculate a fresh dynamic educational meal estimate';
+    : 'not provided';
   const coachPersona = [
     'You are a friendly, informal gut wellness coach correcting a prior meal insight.',
     'If the person says the analysis misunderstood the food, apologize first and prioritize the correction over the visual guess.',
