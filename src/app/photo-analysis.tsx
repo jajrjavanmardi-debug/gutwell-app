@@ -2923,6 +2923,42 @@ export default function PhotoAnalysisScreen() {
             {wizardStep === 1 ? (
               <>
                 {shouldShowCameraFallback ? (
+                  <>
+                  <View style={styles.step1LanguageSwitcherContainer}>
+                    <View
+                      style={styles.languageSwitcherRow}
+                      accessibilityRole="radiogroup"
+                      accessibilityLabel={t.languageSelectorA11yLabel}
+                    >
+                      {APP_LANGUAGE_OPTIONS.map((option) => {
+                        const selected = language === option.value;
+                        return (
+                          <Pressable
+                            key={option.value}
+                            onPress={() => handleSelectLanguage(option.value)}
+                            accessibilityRole="radio"
+                            accessibilityState={{ selected }}
+                            accessibilityLabel={option.label}
+                            hitSlop={6}
+                            style={({ pressed }) => [
+                              styles.languageSwitcherButton,
+                              selected && styles.languageSwitcherButtonSelected,
+                              pressed && styles.pressed,
+                            ]}
+                          >
+                            <Text
+                              style={[
+                                styles.languageSwitcherText,
+                                selected && styles.languageSwitcherTextSelected,
+                              ]}
+                            >
+                              {option.value.toUpperCase()}
+                            </Text>
+                          </Pressable>
+                        );
+                      })}
+                    </View>
+                  </View>
                   <View style={styles.cameraFallbackCard}>
                     <View style={[styles.demoModePill, isRtlLanguage && styles.rtlRow]}>
                       <Ionicons name="phone-portrait" size={14} color="#D8FBEA" />
@@ -2982,6 +3018,7 @@ export default function PhotoAnalysisScreen() {
                       })}
                     </View>
                   </View>
+                  </>
                 ) : (
                   <>
                     <View style={[styles.cameraModeCard, isRtlLanguage && styles.rtlRow]}>
@@ -3629,6 +3666,11 @@ const styles = createStyles({
   },
   headerTextBlock: {
     flex: 1,
+  },
+  step1LanguageSwitcherContainer: {
+    width: '100%',
+    alignItems: 'center',
+    marginBottom: Spacing.md,
   },
   languageSwitcherRow: {
     flexDirection: 'row',
