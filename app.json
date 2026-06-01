@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "NutriFlow",
+    "name": "GutWell",
     "slug": "gutwell",
     "version": "1.0.0",
     "sdkVersion": "54.0.0",
@@ -15,11 +15,11 @@
       "bundleIdentifier": "com.parallellabs.gutwell",
       "buildNumber": "1",
       "infoPlist": {
-        "NSPhotoLibraryUsageDescription": "NutriFlow uses your photo library to let you attach photos to your food logs.",
+        "NSPhotoLibraryUsageDescription": "GutWell uses your photo library to let you attach photos to your food logs.",
         "NSCameraUsageDescription": "This app uses the camera to take meal photos for gut-health analysis.",
         "NSLocationWhenInUseUsageDescription": "This app needs location to find healthy food nearby.",
-        "NSMicrophoneUsageDescription": "NutriFlow uses the microphone to turn your voice corrections into text.",
-        "NSSpeechRecognitionUsageDescription": "NutriFlow uses speech recognition so you can correct meal analysis by voice."
+        "NSMicrophoneUsageDescription": "GutWell uses the microphone to turn your voice corrections into text.",
+        "NSSpeechRecognitionUsageDescription": "GutWell uses speech recognition so you can correct meal analysis by voice."
       }
     },
     "android": {
@@ -44,8 +44,8 @@
       [
         "expo-image-picker",
         {
-          "photosPermission": "NutriFlow uses your photo library to let you attach photos to your food logs.",
-          "cameraPermission": "NutriFlow uses your camera to let you photograph meals for your food log."
+          "photosPermission": "GutWell uses your photo library to let you attach photos to your food logs.",
+          "cameraPermission": "GutWell uses your camera to let you photograph meals for your food log."
         }
       ],
       [
@@ -73,21 +73,21 @@
       [
         "expo-location",
         {
-          "locationWhenInUsePermission": "NutriFlow uses your approximate location to suggest healthier food alternatives available near you."
+          "locationWhenInUsePermission": "GutWell uses your approximate location to suggest healthier food alternatives available near you."
         }
       ],
       [
         "@react-native-voice/voice",
         {
-          "microphonePermission": "NutriFlow uses the microphone for speech-to-text when you describe meals or corrections.",
-          "speechRecognitionPermission": "NutriFlow uses speech recognition so you can speak meal descriptions and corrections."
+          "microphonePermission": "GutWell uses the microphone for speech-to-text when you describe meals or corrections.",
+          "speechRecognitionPermission": "GutWell uses speech recognition so you can speak meal descriptions and corrections."
         }
       ],
       [
         "expo-speech-recognition",
         {
-          "microphonePermission": "NutriFlow uses the microphone for speech-to-text when you describe meals or corrections.",
-          "speechRecognitionPermission": "NutriFlow uses speech recognition so you can speak meal descriptions and corrections."
+          "microphonePermission": "GutWell uses the microphone for speech-to-text when you describe meals or corrections.",
+          "speechRecognitionPermission": "GutWell uses speech recognition so you can speak meal descriptions and corrections."
         }
       ]
     ],

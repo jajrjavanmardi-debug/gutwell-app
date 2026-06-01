@@ -89,7 +89,7 @@ function RootLayoutNav() {
         <Stack.Screen name="weekly-digest" options={{ presentation: 'modal' }} />
         <Stack.Screen name="settings" options={{ title: 'Settings', presentation: 'modal' }} />
         <Stack.Screen name="edit-checkin" options={{ title: 'Edit Check-in', presentation: 'modal' }} />
-        <Stack.Screen name="paywall" options={{ title: 'NutriFlow Premium', presentation: 'modal', headerShown: false }} />
+        <Stack.Screen name="paywall" options={{ title: 'GutWell Premium', presentation: 'modal', headerShown: false }} />
       </Stack>
       <HealthDisclaimerModal
         visible={showDisclaimer}
