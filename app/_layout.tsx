@@ -42,10 +42,6 @@ function RootLayoutNav() {
   const { session, profile } = useAuth();
   const [showDisclaimer, setShowDisclaimer] = useState(false);
 
-  useEffect(() => {
-    console.log('NutriFlow Core Updated: Focus English/German, Voice Active, Memory Cleared');
-  }, []);
-
   // Check health disclaimer after entering tabs
   useEffect(() => {
     if (session && profile?.onboarding_completed) {

@@ -7,7 +7,7 @@ type TriggerFoodItem = {
   foodName: string;
   riskLevel: 'high' | 'medium' | 'low';
   correlationPct: number;
-  topSymptom?: string;
+  topSymptom?: string | null;
 };
 
 type TriggerFoodsBoxProps = {
