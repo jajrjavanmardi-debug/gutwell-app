@@ -79,7 +79,6 @@ function RootLayoutNav() {
         <Stack.Screen name="privacy-policy" options={{ presentation: 'modal' }} />
         <Stack.Screen name="terms-of-service" options={{ presentation: 'modal' }} />
         <Stack.Screen name="reminders" options={{ presentation: 'modal' }} />
-        <Stack.Screen name="scan-food" options={{ presentation: 'modal' }} />
         <Stack.Screen name="photo-analysis" options={{ presentation: 'modal' }} />
         <Stack.Screen name="food-history" />
         <Stack.Screen name="weekly-digest" options={{ presentation: 'modal' }} />

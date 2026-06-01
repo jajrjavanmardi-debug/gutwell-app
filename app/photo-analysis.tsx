@@ -522,10 +522,6 @@ export default function PhotoAnalysisScreen() {
   }, []);
 
   useEffect(() => {
-    console.log('NutriFlow Core Updated: Focus English/German, Voice Active, Memory Cleared');
-  }, []);
-
-  useEffect(() => {
     Promise.all([getRecentSupplements(12), getUserProgressProfile()])
       .then(([supplements, progress]) => {
         setTodaysSupplements(supplements);
