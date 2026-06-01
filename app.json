@@ -66,7 +66,7 @@
         {
           "widgetsFolder": "widgets",
           "groupIdentifier": "group.com.parallellabs.gutwell",
-          "deploymentTarget": "16.0"
+          "deploymentTarget": "17.0"
         }
       ],
       "expo-web-browser",
