@@ -56,7 +56,7 @@ type ScoreStatus = 'poor' | 'moderate' | 'excellent';
 
 const translations = {
   en: {
-    appEyebrow: 'NutriFlow nutrition guide',
+    appEyebrow: 'GutWell nutrition guide',
     welcome: "How's your gut today?",
     heroSubtitle:
       'Share your energy, digestion, cravings, or symptoms. We will look for supportive nutrients and turn trusted USDA data into a gentle nutrition idea.',
@@ -81,7 +81,7 @@ const translations = {
     emptyAlertMessage: 'Please describe how you are feeling before generating a nutrition plan.',
     errorTitle: 'Nutrition plan failed',
     genericErrorMessage: 'Something went wrong while generating your nutrition plan.',
-    shareTitle: 'My NutriFlow recommendation',
+    shareTitle: 'My GutWell recommendation',
     shareFeeling: 'Feeling',
     shareNutrients: 'Helpful nutrients',
     shareButton: 'Share with friends',
@@ -134,7 +134,7 @@ const translations = {
     },
     welcomeEmptyTitle: 'Tell me how you feel to start your nutrition journey.',
     welcomeEmptyText:
-      'NutriFlow will turn your check-in into supportive nutrients, USDA food ideas, and a warm next step.',
+      'GutWell will turn your check-in into supportive nutrients, USDA food ideas, and a warm next step.',
     diseases: {
       ibs: 'IBS',
       gastritis: 'Gastritis',
@@ -160,7 +160,7 @@ const translations = {
     },
   },
   de: {
-    appEyebrow: 'NutriFlow Ernährungsbegleiter',
+    appEyebrow: 'GutWell Ernährungsbegleiter',
     welcome: "Wie geht's deinem Bauch?",
     heroSubtitle:
       'Teile deine Energie, Verdauung, Gelüste oder Symptome. Wir finden unterstützende Nährstoffe und passende USDA-Lebensmittelideen.',
@@ -185,7 +185,7 @@ const translations = {
     emptyAlertMessage: 'Beschreibe bitte zuerst, wie du dich fühlst.',
     errorTitle: 'Empfehlung fehlgeschlagen',
     genericErrorMessage: 'Beim Erstellen deiner Ernährungsempfehlung ist etwas schiefgelaufen.',
-    shareTitle: 'Meine NutriFlow-Empfehlung',
+    shareTitle: 'Meine GutWell-Empfehlung',
     shareFeeling: 'Gefühl',
     shareNutrients: 'Hilfreiche Nährstoffe',
     shareButton: 'Mit Freunden teilen',
@@ -238,7 +238,7 @@ const translations = {
     },
     welcomeEmptyTitle: 'Sag mir, wie du dich fühlst, um deine Ernährungsreise zu starten.',
     welcomeEmptyText:
-      'NutriFlow macht aus deinem Check-in unterstützende Nährstoffe, USDA-Lebensmittelideen und einen freundlichen nächsten Schritt.',
+      'GutWell macht aus deinem Check-in unterstützende Nährstoffe, USDA-Lebensmittelideen und einen freundlichen nächsten Schritt.',
     diseases: {
       ibs: 'Reizdarmsyndrom',
       gastritis: 'Gastritis',
@@ -594,7 +594,7 @@ export default function HomeScreen() {
     if (!localizedResult) return '';
 
     return [
-      'NutriFlow Snapshot',
+      'GutWell Snapshot',
       t.shareTitle,
       `${t.shareFeeling}: ${localizedResult.feeling}`,
       `${t.conditions}: ${localizedConditionSummary}`,

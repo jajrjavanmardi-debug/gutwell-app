@@ -7,6 +7,17 @@ export type StreakSnapshot = {
   lastCheckInDate: string | null;
 };
 
+/**
+ * Log a non-fatal failure without crashing the caller. Streak reads/writes are
+ * best-effort (they back a cosmetic counter), but swallowing errors silently
+ * hides real outages (e.g. RLS misconfig, network). Surface them via warn so
+ * they show up in logs / Sentry breadcrumbs.
+ */
+function reportStreakError(context: string, error: unknown): void {
+  // eslint-disable-next-line no-console
+  console.warn(`[streaks] ${context}`, error);
+}
+
 const EMPTY_STREAK: StreakSnapshot = {
   currentStreak: 0,
   bestStreak: 0,
@@ -71,7 +82,11 @@ async function getFallbackFromCheckIns(userId: string): Promise<StreakSnapshot> 
     .eq('user_id', userId)
     .order('entry_date', { ascending: true });
 
-  if (error || !data) return EMPTY_STREAK;
+  if (error) {
+    reportStreakError('failed to load check-ins for streak recompute', error);
+    return EMPTY_STREAK;
+  }
+  if (!data) return EMPTY_STREAK;
   return calculateStreakFromDates(data.map((row) => row.entry_date));
 }
 
@@ -92,28 +107,63 @@ async function upsertStreakRow(userId: string, snapshot: StreakSnapshot): Promis
   }
 }
 
+/**
+ * Read the streak for display.
+ *
+ * The cached `streaks` row stores `current_streak` as last written by a check-in,
+ * so after a missed day it goes stale and over-reports until the next check-in
+ * refreshes it. To avoid showing a stale-too-high streak, we treat the recompute
+ * from `check_ins` dates (`calculateStreakFromDates`, which breaks a streak with
+ * no check-in today/yesterday) as the source of truth for DISPLAY, and use the DB
+ * row only as a cache.
+ *
+ * The two sources are reconciled: the recompute drives `currentStreak` /
+ * `lastCheckInDate`, while `bestStreak` takes the max of the recompute and the
+ * cached value (so an all-time best survives even if old check-ins were pruned).
+ * If the recompute diverges from the cache, we write the reconciled value back so
+ * the cache self-heals.
+ */
 export async function getStreakSnapshot(userId: string): Promise<StreakSnapshot> {
-  const { data, error } = await supabase
+  const { data: cacheRow, error: cacheError } = await supabase
     .from('streaks')
     .select('current_streak, best_streak, last_check_in_date')
     .eq('user_id', userId)
     .maybeSingle();
 
-  if (!error && data) {
-    return {
-      currentStreak: data.current_streak ?? 0,
-      bestStreak: data.best_streak ?? 0,
-      lastCheckInDate: data.last_check_in_date ?? null,
-    };
+  if (cacheError) {
+    reportStreakError('failed to read cached streak row', cacheError);
   }
 
-  const fallback = await getFallbackFromCheckIns(userId);
-  await upsertStreakRow(userId, fallback).catch(() => {});
-  return fallback;
+  const recomputed = await getFallbackFromCheckIns(userId);
+
+  const cachedBest = !cacheError && cacheRow ? cacheRow.best_streak ?? 0 : 0;
+  const reconciled: StreakSnapshot = {
+    currentStreak: recomputed.currentStreak,
+    bestStreak: Math.max(recomputed.bestStreak, cachedBest),
+    lastCheckInDate: recomputed.lastCheckInDate,
+  };
+
+  // Self-heal the cache when it disagrees with the authoritative recompute
+  // (e.g. it went stale across a missed day, or best_streak grew).
+  const cacheIsStale =
+    cacheError ||
+    !cacheRow ||
+    (cacheRow.current_streak ?? 0) !== reconciled.currentStreak ||
+    (cacheRow.best_streak ?? 0) !== reconciled.bestStreak ||
+    (cacheRow.last_check_in_date ?? null) !== reconciled.lastCheckInDate;
+  if (cacheIsStale) {
+    await upsertStreakRow(userId, reconciled).catch((error) =>
+      reportStreakError('failed to refresh stale streak cache', error)
+    );
+  }
+
+  return reconciled;
 }
 
 export async function refreshStreakSnapshot(userId: string): Promise<StreakSnapshot> {
   const fallback = await getFallbackFromCheckIns(userId);
-  await upsertStreakRow(userId, fallback).catch(() => {});
+  await upsertStreakRow(userId, fallback).catch((error) =>
+    reportStreakError('failed to persist refreshed streak', error)
+  );
   return fallback;
 }

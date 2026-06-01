@@ -84,7 +84,7 @@ const copy = {
     chooseGallery: 'Choose from Gallery',
     chooseGalleryText: 'Pick a meal photo, then tap Next.',
     analyzing: 'Analyzing your photo and notes with your gut profile...',
-    analyzingBrand: 'NutriFlow',
+    analyzingBrand: 'GutWell',
     resultTitle: 'Personalized gut guidance',
     symptomsLabel: 'Symptoms & notes',
     symptomsPlaceholder: 'Before taking a photo you can note symptoms; after capture, describe how you feel.',
@@ -96,8 +96,8 @@ const copy = {
     feelingsRequiredMessage: 'Speak or type how you feel (and what the food is if you want)—then tap Generate Analysis.',
     share: 'Share Result',
     scoreLabel: 'Meal Impact Score',
-    shareTitle: 'My NutriFlow meal analysis',
-    snapshotHeading: 'NutriFlow meal snapshot',
+    shareTitle: 'My GutWell meal analysis',
+    snapshotHeading: 'GutWell meal snapshot',
     shareErrorTitle: 'Sharing unavailable',
     shareErrorMessage: 'Unable to open sharing right now.',
     disagree: "This didn't work for my body",
@@ -114,9 +114,9 @@ const copy = {
     newScan: 'New Scan',
     voiceUnavailableTitle: 'Voice unavailable',
     voiceUnavailableMessage:
-      'Speech-to-text could not start. You can still type. If this persists, check microphone and speech recognition permissions for NutriFlow.',
+      'Speech-to-text could not start. You can still type. If this persists, check microphone and speech recognition permissions for GutWell.',
     microphoneDisabledToast:
-      'Microphone disabled. Please enable Microphone permissions in your Phone Settings (Settings > NutriFlow > Microphone).',
+      'Microphone disabled. Please enable Microphone permissions in your Phone Settings (Settings > GutWell > Microphone).',
     voiceInputA11yLabel: 'Voice input',
     voiceInputA11yHint: 'Hold to record; release to finish.',
     correcting: 'Updating with your correction...',
@@ -168,7 +168,7 @@ const copy = {
     chooseGallery: 'Aus Galerie wählen',
     chooseGalleryText: 'Wähle ein Mahlzeitenfoto, dann tippe auf Weiter.',
     analyzing: 'Foto und Notizen werden mit deinem Darmprofil ausgewertet...',
-    analyzingBrand: 'NutriFlow',
+    analyzingBrand: 'GutWell',
     resultTitle: 'Personalisierte Darm-Empfehlung',
     symptomsLabel: 'Symptome & Notizen',
     symptomsPlaceholder: 'Vor dem Foto optional Symptome; nach der Aufnahme beschreibst du dein Befinden.',
@@ -180,8 +180,8 @@ const copy = {
     feelingsRequiredMessage: 'Bitte per Sprache oder Text beschreiben, wie du dich fühlst (und optional das Essen)—danach „Analyse erstellen“.',
     share: 'Ergebnis teilen',
     scoreLabel: 'Mahlzeiten-Score',
-    shareTitle: 'Meine NutriFlow-Mahlzeitenanalyse',
-    snapshotHeading: 'NutriFlow Mahlzeiten-Snapshot',
+    shareTitle: 'Meine GutWell-Mahlzeitenanalyse',
+    snapshotHeading: 'GutWell Mahlzeiten-Snapshot',
     shareErrorTitle: 'Teilen nicht verfügbar',
     shareErrorMessage: 'Teilen kann gerade nicht geöffnet werden.',
     disagree: "Das hat meinem Körper nicht gutgetan",
@@ -198,9 +198,9 @@ const copy = {
     newScan: 'Neuer Scan',
     voiceUnavailableTitle: 'Sprache nicht verfügbar',
     voiceUnavailableMessage:
-      'Spracherkennung konnte nicht gestartet werden. Du kannst tippen. Prüfe ggf. Mikrofon- und Spracherkennungs-Berechtigungen für NutriFlow.',
+      'Spracherkennung konnte nicht gestartet werden. Du kannst tippen. Prüfe ggf. Mikrofon- und Spracherkennungs-Berechtigungen für GutWell.',
     microphoneDisabledToast:
-      'Mikrofon deaktiviert. Bitte aktiviere die Mikrofon-Berechtigung in den Telefoneinstellungen (Einstellungen > NutriFlow > Mikrofon).',
+      'Mikrofon deaktiviert. Bitte aktiviere die Mikrofon-Berechtigung in den Telefoneinstellungen (Einstellungen > GutWell > Mikrofon).',
     voiceInputA11yLabel: 'Spracheingabe',
     voiceInputA11yHint: 'Halten zum Aufnehmen; loslassen zum Beenden.',
     correcting: 'Analyse wird mit deiner Korrektur aktualisiert...',
@@ -519,10 +519,6 @@ export default function PhotoAnalysisScreen() {
         }
       })
       .catch(console.warn);
-  }, []);
-
-  useEffect(() => {
-    console.log('NutriFlow Core Updated: Focus English/German, Voice Active, Memory Cleared');
   }, []);
 
   useEffect(() => {

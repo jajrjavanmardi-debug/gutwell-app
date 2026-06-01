@@ -17,6 +17,35 @@ function asClampedNumber(value: unknown, min: number, max: number): number | nul
   return Math.min(max, Math.max(min, value));
 }
 
+// ─── Scoring constants ────────────────────────────────────────────────────────
+
+/** Points subtracted per same-day symptom. */
+const SYMPTOM_PENALTY_PER_SYMPTOM = -5;
+/**
+ * Floor for the total symptom penalty. Symptoms degrade the score but must not
+ * single-handedly zero it — other healthy signals (good stool, low pain, energy)
+ * should still be reflected. -25 caps the penalty at five symptoms' worth.
+ */
+const SYMPTOM_PENALTY_FLOOR = -25;
+
+/**
+ * Number of check-ins in the trailing 7 days required to earn the regularity
+ * bonus.
+ *
+ * TODO: Ideally this should honor the user's configured daily goal. As of now,
+ * the only user goal/units settings live in AsyncStorage (`gutwell_settings` in
+ * app/settings.tsx) where `dailyGoal` is a qualitative category ('Reduce
+ * Bloating', etc.) and `metricUnits` is unrelated to scoring — there is no
+ * numeric check-in target, and scoring runs against Supabase with no path to
+ * AsyncStorage (it is also invoked headlessly via updateTodayScore). If a
+ * numeric weekly/daily check-in goal is later persisted to the DB (e.g. a
+ * profiles/user_settings column), thread it through calculateGutScore and use it
+ * here instead of this hardcoded threshold.
+ */
+const REGULARITY_BONUS_MIN_CHECKINS = 5;
+/** Points awarded when the regularity threshold is met. */
+const REGULARITY_BONUS_POINTS = 5;
+
 /**
  * Calculate a gut health score (0-100) for a given user on a given date.
  *
@@ -118,10 +147,17 @@ export async function calculateGutScore(
     }
   }
 
-  const symptomPenalty = symptomCount ? symptomCount * -5 : 0;
+  // Clamp the symptom penalty so a high symptom count cannot single-handedly
+  // floor the score; positive health signals still count.
+  const symptomPenalty = symptomCount
+    ? Math.max(SYMPTOM_PENALTY_FLOOR, symptomCount * SYMPTOM_PENALTY_PER_SYMPTOM)
+    : 0;
   score += symptomPenalty;
 
-  const regularityBonus = weeklyCheckIns && weeklyCheckIns >= 5 ? 5 : 0;
+  const regularityBonus =
+    weeklyCheckIns && weeklyCheckIns >= REGULARITY_BONUS_MIN_CHECKINS
+      ? REGULARITY_BONUS_POINTS
+      : 0;
   score += regularityBonus;
 
   const finalScore = Math.max(0, Math.min(100, Math.round(score)));

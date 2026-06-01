@@ -406,25 +406,29 @@ export default function ProgressScreen() {
           }))}
         />
 
-        {/* Premium Banner (future-proofing) */}
-        {!hasPremium && (
+        {/* Food-symptom insights — PREMIUM gated. Free users see an upsell that
+            routes to the paywall; the real correlation engine output (trigger
+            foods, safe foods) is only rendered for premium subscribers. */}
+        {!hasPremium ? (
           <RecommendationBox
             text="Unlock food-symptom insights with Premium"
             onPress={() => router.push('/paywall')}
           />
-        )}
+        ) : (
+          <>
+            {/* Trigger Foods — new engine */}
+            <TriggerFoodsBox triggerFoods={triggerFoods} />
 
-        {/* Trigger Foods — new engine */}
-        <TriggerFoodsBox triggerFoods={triggerFoods} />
+            {/* Safe Foods — new engine */}
+            <SafeFoodsBox safeFoods={safeFoods} />
 
-        {/* Safe Foods — new engine */}
-        <SafeFoodsBox safeFoods={safeFoods} />
-
-        {safeFoods.length === 0 && triggerFoods.length === 0 && !correlations && (
-          <View style={styles.insufficientCard}>
-            <Ionicons name="leaf-outline" size={24} color={Colors.textTertiary} />
-            <Text style={styles.insufficientText}>Safe foods appear after consistent tracking.</Text>
-          </View>
+            {safeFoods.length === 0 && triggerFoods.length === 0 && !correlations && (
+              <View style={styles.insufficientCard}>
+                <Ionicons name="leaf-outline" size={24} color={Colors.textTertiary} />
+                <Text style={styles.insufficientText}>Safe foods appear after consistent tracking.</Text>
+              </View>
+            )}
+          </>
         )}
 
         {checkInCount === 0 && foodCount === 0 && topSymptoms.length === 0 && (

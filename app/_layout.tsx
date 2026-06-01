@@ -20,6 +20,7 @@ import {
 import NetInfo from '@react-native-community/netinfo';
 import * as Sentry from '@sentry/react-native';
 import { initAnalytics, identifyUser } from '../lib/analytics';
+import { initSubscription } from '../lib/subscription';
 import { flush } from '../lib/offline-queue';
 import * as SplashScreen from 'expo-splash-screen';
 
@@ -42,10 +43,6 @@ function RootLayoutNav() {
   const { session, profile } = useAuth();
   const [showDisclaimer, setShowDisclaimer] = useState(false);
 
-  useEffect(() => {
-    console.log('NutriFlow Core Updated: Focus English/German, Voice Active, Memory Cleared');
-  }, []);
-
   // Check health disclaimer after entering tabs
   useEffect(() => {
     if (session && profile?.onboarding_completed) {
@@ -60,6 +57,14 @@ function RootLayoutNav() {
     if (session?.user?.id) {
       identifyUser(session.user.id);
     }
+  }, [session?.user?.id]);
+
+  // Configure RevenueCat (no-op until EXPO_PUBLIC_REVENUECAT_IOS_KEY is set) and
+  // identify the Supabase user so premium entitlements follow the account.
+  useEffect(() => {
+    initSubscription(session?.user?.id).catch(() => {
+      // Never let subscription setup break startup.
+    });
   }, [session?.user?.id]);
 
   // Flush offline queue when connectivity is restored
@@ -83,13 +88,12 @@ function RootLayoutNav() {
         <Stack.Screen name="privacy-policy" options={{ presentation: 'modal' }} />
         <Stack.Screen name="terms-of-service" options={{ presentation: 'modal' }} />
         <Stack.Screen name="reminders" options={{ presentation: 'modal' }} />
-        <Stack.Screen name="scan-food" options={{ presentation: 'modal' }} />
         <Stack.Screen name="photo-analysis" options={{ presentation: 'modal' }} />
         <Stack.Screen name="food-history" />
         <Stack.Screen name="weekly-digest" options={{ presentation: 'modal' }} />
         <Stack.Screen name="settings" options={{ title: 'Settings', presentation: 'modal' }} />
         <Stack.Screen name="edit-checkin" options={{ title: 'Edit Check-in', presentation: 'modal' }} />
-        <Stack.Screen name="paywall" options={{ title: 'NutriFlow Premium', presentation: 'modal', headerShown: false }} />
+        <Stack.Screen name="paywall" options={{ title: 'GutWell Premium', presentation: 'modal', headerShown: false }} />
       </Stack>
       <HealthDisclaimerModal
         visible={showDisclaimer}

@@ -3,6 +3,12 @@ import { supabase } from './supabase';
 
 const QUEUE_KEY = 'offline_queue';
 
+// Tables whose offline writes must be idempotent. Each queued row is tagged with
+// a stable `client_uuid` (the queue item id) and upserted on (user_id, client_uuid)
+// so a re-flush after a partial success cannot create duplicates. Requires
+// migration 007_offline_dedup.sql; falls back to plain insert if not yet applied.
+const DEDUPE_TABLES = new Set<string>(['food_logs', 'symptoms']);
+
 export interface QueueItem {
   id: string;
   table: string;
@@ -79,11 +85,30 @@ export async function flush(): Promise<number> {
       continue;
     }
 
-    const operation = item.operation || 'insert';
-    const result = operation === 'upsert'
-      ? await supabase.from(item.table).upsert(item.payload, item.onConflict ? { onConflict: item.onConflict } : undefined)
-      : await supabase.from(item.table).insert(item.payload);
-    const { error } = result;
+    let operation = item.operation || 'insert';
+    let payload = item.payload;
+    let onConflict = item.onConflict;
+
+    // Idempotent offline sync for dedupe-prone tables: tag with a stable
+    // client_uuid and upsert on it so a re-flush can't duplicate rows.
+    if (DEDUPE_TABLES.has(item.table)) {
+      payload = { ...item.payload, client_uuid: item.id };
+      operation = 'upsert';
+      onConflict = 'user_id,client_uuid';
+    }
+
+    let { error } = operation === 'upsert'
+      ? await supabase.from(item.table).upsert(payload, onConflict ? { onConflict } : undefined)
+      : await supabase.from(item.table).insert(payload);
+
+    // Backward-compat: if migration 007 hasn't been applied yet the client_uuid
+    // column won't exist (Postgres undefined_column = 42703). Fall back to a
+    // plain insert of the original payload so offline sync still works.
+    if (error?.code === '42703' && DEDUPE_TABLES.has(item.table)) {
+      const res = await supabase.from(item.table).insert(item.payload);
+      error = res.error;
+    }
+
     if (error) {
       failed.push(item);
     } else {

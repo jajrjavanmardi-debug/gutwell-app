@@ -75,7 +75,7 @@ export function ShareCard({
   const handleShare = async () => {
     try {
       await Share.share({
-        message: `My NutriFlow gut score this week: ${score ?? '--'}/100 🌿 Day ${streak} streak! Download NutriFlow to track your gut health.`,
+        message: `My GutWell gut score this week: ${score ?? '--'}/100 🌿 Day ${streak} streak! Download GutWell to track your gut health.`,
       });
     } catch {
       // Share cancelled — no action needed
@@ -132,7 +132,7 @@ export function ShareCard({
             {/* Brand header */}
             <View style={styles.brandRow}>
               <Ionicons name="leaf" size={14} color={Colors.secondary} />
-              <Text style={styles.brandName}>NutriFlow</Text>
+              <Text style={styles.brandName}>GutWell</Text>
             </View>
 
             {/* Score Circle */}

@@ -82,7 +82,7 @@ export default function WelcomeScreen() {
         </View>
 
         {/* App name */}
-        <Text style={styles.appName}>NutriFlow</Text>
+        <Text style={styles.appName}>GutWell</Text>
 
         {/* Animated tagline */}
         <View style={styles.taglineContainer}>
