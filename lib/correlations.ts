@@ -52,12 +52,26 @@ export async function computeCorrelations(userId: string, daysBack = 90): Promis
     const entry = foodMap.get(key)!;
     entry.total++;
 
-    // Find symptoms logged within 1–8 hours after this meal
-    const mealTime = new Date(f.logged_at).getTime();
-    const nextMealTime = idx < orderedMeals.length - 1
-      ? new Date(orderedMeals[idx + 1].logged_at).getTime()
-      : Number.POSITIVE_INFINITY;
-    const windowEnd = Math.min(mealTime + 8 * 3600 * 1000, nextMealTime);
+    // Find symptoms logged within up to 8 hours after this meal.
+    // Cap the window so it does not span a day boundary: a meal before a
+    // multi-day gap must not claim a full 8h window into the next day, and a
+    // symptom should be attributed to a meal on the SAME calendar day. The end
+    // is the earliest of: meal+8h, end-of-day (local midnight), and the next
+    // meal — but the next meal only caps the window if it falls on the same day.
+    const mealDate = new Date(f.logged_at);
+    const mealTime = mealDate.getTime();
+    const endOfDay = new Date(
+      mealDate.getFullYear(),
+      mealDate.getMonth(),
+      mealDate.getDate() + 1,
+      0, 0, 0, 0
+    ).getTime();
+    const nextMeal = idx < orderedMeals.length - 1 ? orderedMeals[idx + 1] : null;
+    const nextMealTime = nextMeal ? new Date(nextMeal.logged_at).getTime() : Number.POSITIVE_INFINITY;
+    // Only let the next meal truncate the window if it is on the same day;
+    // otherwise end-of-day already bounds it.
+    const nextMealSameDayTime = nextMealTime < endOfDay ? nextMealTime : Number.POSITIVE_INFINITY;
+    const windowEnd = Math.min(mealTime + 8 * 3600 * 1000, endOfDay, nextMealSameDayTime);
     const relatedSymptoms = (symptomLogs || []).filter(s => {
       const sTime = new Date(s.logged_at).getTime();
       return sTime > mealTime && sTime <= windowEnd;
@@ -189,7 +203,10 @@ export async function analyzeCorrelations(
     };
   }
 
-  const symptomTimestamps = symptoms.map(s => ({
+  // Keep a stable identity (the array index) for each symptom event so the same
+  // event is never counted twice for a given (food, symptom) pair.
+  const symptomTimestamps = symptoms.map((s, index) => ({
+    id: index,
     type: s.symptom_type as string,
     time: new Date(s.logged_at).getTime(),
   }));
@@ -197,10 +214,14 @@ export async function analyzeCorrelations(
   const windowMinMs = windowHours.min * 3600_000;
   const windowMaxMs = windowHours.max * 3600_000;
 
-  // Build per-food tracking
+  // Build per-food tracking. For each symptom type we record the SET of distinct
+  // symptom-event ids that fell in any of this food's meal windows — not a raw
+  // counter. This de-duplicates a single symptom event that would otherwise be
+  // counted once per meal whose window covers it (overlapping windows when the
+  // same food is eaten repeatedly), so triggers are not over-reported.
   const foodMap = new Map<string, {
     totalMeals: number;
-    symptomFollows: Map<string, number>;
+    symptomFollows: Map<string, Set<number>>;
   }>();
 
   for (const meal of mealsWithFoods) {
@@ -211,13 +232,16 @@ export async function analyzeCorrelations(
       const entry = foodMap.get(food)!;
       entry.totalMeals++;
 
-      // Check which symptoms followed this meal within the window
-      const matchedTypes = new Set<string>();
+      // Record which distinct symptom events followed this meal within the window.
       for (const s of symptomTimestamps) {
         const diff = s.time - meal.loggedAt;
-        if (diff >= windowMinMs && diff <= windowMaxMs && !matchedTypes.has(s.type)) {
-          matchedTypes.add(s.type);
-          entry.symptomFollows.set(s.type, (entry.symptomFollows.get(s.type) ?? 0) + 1);
+        if (diff >= windowMinMs && diff <= windowMaxMs) {
+          let ids = entry.symptomFollows.get(s.type);
+          if (!ids) {
+            ids = new Set<number>();
+            entry.symptomFollows.set(s.type, ids);
+          }
+          ids.add(s.id);
         }
       }
     }
@@ -251,8 +275,10 @@ export async function analyzeCorrelations(
   for (const [food, data] of foodMap) {
     let hasAnySymptom = false;
 
-    for (const [symptomType, occurrences] of data.symptomFollows) {
+    for (const [symptomType, symptomEventIds] of data.symptomFollows) {
       hasAnySymptom = true;
+      // Count each distinct symptom event once for this (food, symptom) pair.
+      const occurrences = symptomEventIds.size;
       const correlationRate = occurrences / data.totalMeals;
       const baseline = baselineRates.get(symptomType) ?? 0;
       const riskMultiplier = baseline > 0
