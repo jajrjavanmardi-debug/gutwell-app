@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { AuthProvider, useAuth } from '../contexts/AuthContext';
+import { ErrorBoundary } from '../components/ErrorBoundary';
 import { HealthDisclaimerModal, hasAcceptedDisclaimer } from '../components/HealthDisclaimerModal';
 import { useFonts } from 'expo-font';
 import {
@@ -131,9 +132,11 @@ function RootLayout() {
   }, []);
 
   return (
-    <AuthProvider>
-      <RootLayoutNav />
-    </AuthProvider>
+    <ErrorBoundary>
+      <AuthProvider>
+        <RootLayoutNav />
+      </AuthProvider>
+    </ErrorBoundary>
   );
 }
 

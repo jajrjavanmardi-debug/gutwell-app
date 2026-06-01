@@ -12,6 +12,11 @@ import { useAuth } from '../../contexts/AuthContext';
 import { FontFamily } from '../../constants/theme';
 import StarFieldBackground from '../../components/StarFieldBackground';
 import { track, Events } from '../../lib/analytics';
+import {
+  requestPermissions,
+  scheduleDailyCheckInReminder,
+  scheduleWeeklyDigestNotification,
+} from '../../lib/notifications';
 
 const BENEFITS = [
   { icon: 'time-outline' as const, text: 'Daily check-in reminder at your chosen time' },
@@ -79,6 +84,19 @@ export default function NotificationsScreen() {
   };
 
   const requestPermission = async () => {
+    // Actually ask the OS for notification permission, then set up the default
+    // reminders this screen promises (daily check-in + Sunday digest). We proceed
+    // to completeOnboarding regardless of the outcome so a denial never traps the
+    // user, and everything is crash-safe (the lib no-ops in Expo Go / on web).
+    try {
+      const granted = await requestPermissions();
+      if (granted) {
+        await scheduleDailyCheckInReminder(20, 0); // 8:00 PM daily check-in
+        await scheduleWeeklyDigestNotification(9, 0); // Sunday 9:00 AM digest
+      }
+    } catch (err) {
+      console.warn('[onboarding] enabling notifications failed', err);
+    }
     await completeOnboarding();
   };
 

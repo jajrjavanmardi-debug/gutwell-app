@@ -123,8 +123,27 @@ async function invokeAnalyzeFood<T>(
   const { data, error } = await Promise.race([invokePromise, timeoutPromise]);
 
   if (error) {
-    // supabase wraps non-2xx responses; surface a clean message.
-    const code = (error as { context?: { code?: string } })?.context?.code;
+    // supabase-js wraps a non-2xx as FunctionsHttpError whose `context` is the
+    // raw Response — the structured error code lives in the JSON body, not on
+    // `context` directly. Read the body to recover the edge function's { code }
+    // so specific messages (rate-limited, image-too-large, expired session) are
+    // surfaced instead of always collapsing to the generic fallback.
+    let code: string | undefined;
+    const ctx = (error as { context?: unknown }).context;
+    if (ctx && typeof (ctx as Response).json === 'function') {
+      try {
+        const errorBody = await (ctx as Response).json();
+        if (
+          errorBody &&
+          typeof errorBody === 'object' &&
+          typeof (errorBody as { code?: unknown }).code === 'string'
+        ) {
+          code = (errorBody as { code: string }).code;
+        }
+      } catch {
+        // Body wasn't JSON or was already consumed — fall back to the generic message.
+      }
+    }
     throw new Error(messageForErrorCode(code, fallbackMessage));
   }
 

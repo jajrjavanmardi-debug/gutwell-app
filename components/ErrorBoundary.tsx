@@ -1,6 +1,7 @@
 import React, { Component, type ReactNode } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import * as Sentry from '@sentry/react-native';
 import { Colors, FontFamily, FontSize, Spacing } from '../constants/theme';
 
 type Props = {
@@ -21,6 +22,9 @@ export class ErrorBoundary extends Component<Props, State> {
 
   componentDidCatch(error: Error) {
     console.warn('ErrorBoundary caught:', error);
+    // Still report to Sentry — this boundary handles the error, so Sentry's own
+    // wrapper boundary would otherwise never see it.
+    Sentry.captureException(error);
   }
 
   handleRetry = () => {
