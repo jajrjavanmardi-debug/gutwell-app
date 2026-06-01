@@ -20,6 +20,7 @@ import {
 import NetInfo from '@react-native-community/netinfo';
 import * as Sentry from '@sentry/react-native';
 import { initAnalytics, identifyUser } from '../lib/analytics';
+import { initSubscription } from '../lib/subscription';
 import { flush } from '../lib/offline-queue';
 import * as SplashScreen from 'expo-splash-screen';
 
@@ -56,6 +57,14 @@ function RootLayoutNav() {
     if (session?.user?.id) {
       identifyUser(session.user.id);
     }
+  }, [session?.user?.id]);
+
+  // Configure RevenueCat (no-op until EXPO_PUBLIC_REVENUECAT_IOS_KEY is set) and
+  // identify the Supabase user so premium entitlements follow the account.
+  useEffect(() => {
+    initSubscription(session?.user?.id).catch(() => {
+      // Never let subscription setup break startup.
+    });
   }, [session?.user?.id]);
 
   // Flush offline queue when connectivity is restored

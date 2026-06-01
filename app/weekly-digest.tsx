@@ -19,6 +19,7 @@ import { calculateLevel } from '../lib/levels';
 import { EmptyState } from '../components/ui/EmptyState';
 import { Colors, Spacing, FontSize, BorderRadius, Shadows, FontFamily } from '../constants/theme';
 import { addDaysToLocalDateKey, getLocalDateKey, localDateKeyToDate } from '../lib/date';
+import { isPremiumFeature, refreshPremiumStatus } from '../lib/subscription';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -70,9 +71,32 @@ export default function WeeklyDigestScreen() {
   const [isLoading, setIsLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [showShareCard, setShowShareCard] = useState(false);
+  // Weekly Digest is a PREMIUM feature. Seed from the synchronous cached
+  // entitlement, then confirm against RevenueCat.
+  const [hasPremium, setHasPremium] = useState<boolean>(isPremiumFeature('weekly_digest'));
+
+  useEffect(() => {
+    let active = true;
+    refreshPremiumStatus()
+      .then((status) => {
+        if (active) setHasPremium(status);
+      })
+      .catch(() => {
+        /* keep cached value */
+      });
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const loadDigest = useCallback(async () => {
     if (!user) return;
+    // Don't run the (expensive) digest queries for non-premium users — the
+    // content is gated behind the paywall below.
+    if (!hasPremium) {
+      setIsLoading(false);
+      return;
+    }
     setIsLoading(true);
     try {
 
@@ -222,7 +246,7 @@ export default function WeeklyDigestScreen() {
     } finally {
       setIsLoading(false);
     }
-  }, [user]);
+  }, [user, hasPremium]);
 
   useEffect(() => { loadDigest(); }, [loadDigest]);
 
@@ -271,7 +295,26 @@ export default function WeeklyDigestScreen() {
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.secondary} />
         }
       >
-        {isLoading ? (
+        {!hasPremium ? (
+          <View style={styles.lockedContainer}>
+            <View style={styles.lockedIconWrap}>
+              <Ionicons name="lock-closed" size={32} color={Colors.secondary} />
+            </View>
+            <Text style={styles.lockedTitle}>Weekly Digest is Premium</Text>
+            <Text style={styles.lockedMessage}>
+              Unlock your weekly gut health recap — average score, best and toughest
+              days, top symptoms, and your full week trend.
+            </Text>
+            <TouchableOpacity
+              style={styles.lockedCta}
+              onPress={() => router.push('/paywall')}
+              activeOpacity={0.85}
+            >
+              <Text style={styles.lockedCtaText}>Unlock with Premium</Text>
+              <Ionicons name="chevron-forward" size={16} color="#FFFFFF" />
+            </TouchableOpacity>
+          </View>
+        ) : isLoading ? (
           <>
             <LoadingSkeleton height={200} borderRadius={BorderRadius.xl} style={{ marginBottom: Spacing.md }} />
             <LoadingSkeleton height={80} borderRadius={BorderRadius.lg} style={{ marginBottom: Spacing.md }} />
@@ -458,6 +501,54 @@ export default function WeeklyDigestScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background },
+
+  // ── Premium Lock ──
+  lockedContainer: {
+    alignItems: 'center',
+    paddingVertical: Spacing.xxl,
+    paddingHorizontal: Spacing.lg,
+  },
+  lockedIconWrap: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: Colors.secondary + '18',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: Spacing.lg,
+    borderWidth: 1,
+    borderColor: Colors.secondary + '30',
+  },
+  lockedTitle: {
+    fontFamily: FontFamily.displayMedium,
+    fontSize: FontSize.xl,
+    color: Colors.text,
+    textAlign: 'center',
+    marginBottom: Spacing.sm,
+  },
+  lockedMessage: {
+    fontFamily: FontFamily.sansRegular,
+    fontSize: FontSize.sm,
+    color: Colors.textSecondary,
+    textAlign: 'center',
+    lineHeight: 20,
+    marginBottom: Spacing.xl,
+  },
+  lockedCta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: Colors.secondary,
+    borderRadius: BorderRadius.full,
+    paddingHorizontal: Spacing.xl,
+    paddingVertical: Spacing.md,
+    ...Shadows.sm,
+  },
+  lockedCtaText: {
+    fontFamily: FontFamily.sansSemiBold,
+    fontSize: FontSize.md,
+    color: '#FFFFFF',
+  },
 
   header: {
     flexDirection: 'row',

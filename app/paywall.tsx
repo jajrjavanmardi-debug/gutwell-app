@@ -7,11 +7,14 @@ import {
   TouchableOpacity,
   Alert,
   StatusBar,
+  ActivityIndicator,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import type { PurchasesOffering, PurchasesPackage } from 'react-native-purchases';
+import { useAuth } from '../contexts/AuthContext';
 import { Colors, FontFamily, FontSize, Spacing, BorderRadius } from '../constants/theme';
 import { track, Events } from '../lib/analytics';
 import { getPaywallOffering, initSubscription, purchasePlan, restorePurchases } from '../lib/subscription';
@@ -25,22 +28,74 @@ const FEATURES = [
   '🏆 Unlimited achievement tracking',
 ];
 
+/** Pick the package matching a plan from an offering, mirroring lib/subscription. */
+function packageForPlan(
+  offering: PurchasesOffering | null,
+  plan: 'monthly' | 'annual',
+): PurchasesPackage | null {
+  if (!offering) return null;
+  if (plan === 'annual') {
+    return (
+      offering.annual ??
+      offering.availablePackages.find(
+        (p) => p.packageType === 'ANNUAL' || p.product.subscriptionPeriod === 'P1Y',
+      ) ??
+      null
+    );
+  }
+  return (
+    offering.monthly ??
+    offering.availablePackages.find(
+      (p) => p.packageType === 'MONTHLY' || p.product.subscriptionPeriod === 'P1M',
+    ) ??
+    null
+  );
+}
+
 export default function PaywallScreen() {
+  const { user } = useAuth();
   const [selectedPlan, setSelectedPlan] = useState<'monthly' | 'annual'>('annual');
   const [purchasing, setPurchasing] = useState(false);
   const [restoring, setRestoring] = useState(false);
+  const [offering, setOffering] = useState<PurchasesOffering | null>(null);
+  const [loadingOffering, setLoadingOffering] = useState(true);
 
   useEffect(() => {
+    let active = true;
     track(Events.PAYWALL_VIEWED);
-    initSubscription()
-      .then(() => getPaywallOffering())
-      .catch((error) => {
+    (async () => {
+      try {
+        await initSubscription(user?.id);
+        const current = await getPaywallOffering();
+        if (active) setOffering(current);
+      } catch (error) {
         console.warn('Failed to load offerings:', error);
-      });
-  }, []);
+      } finally {
+        if (active) setLoadingOffering(false);
+      }
+    })();
+    return () => {
+      active = false;
+    };
+  }, [user?.id]);
+
+  // Real store prices when RevenueCat is configured; fall back to the static
+  // marketing prices below when there is no offering (unconfigured / Expo Go).
+  const monthlyPkg = packageForPlan(offering, 'monthly');
+  const annualPkg = packageForPlan(offering, 'annual');
+  const monthlyPrice = monthlyPkg?.product.priceString ?? '$6.99';
+  const annualPrice = annualPkg?.product.priceString ?? '$39.99';
+  const canPurchase = offering != null;
 
   const handleCTA = async () => {
     if (purchasing) return;
+    if (!canPurchase) {
+      Alert.alert(
+        'Coming Soon',
+        'Subscriptions are not available yet. Please try again later.',
+      );
+      return;
+    }
     setPurchasing(true);
     const result = await purchasePlan(selectedPlan);
     setPurchasing(false);
@@ -128,7 +183,7 @@ export default function PaywallScreen() {
               onPress={() => setSelectedPlan('monthly')}
               activeOpacity={0.8}
             >
-              <Text style={styles.pricingAmount}>$6.99</Text>
+              <Text style={styles.pricingAmount}>{monthlyPrice}</Text>
               <Text style={styles.pricingPeriod}>/mo</Text>
               <Text style={styles.pricingBilled}>Billed monthly</Text>
             </TouchableOpacity>
@@ -145,7 +200,7 @@ export default function PaywallScreen() {
               <View style={styles.bestValueBadge}>
                 <Text style={styles.bestValueText}>BEST VALUE</Text>
               </View>
-              <Text style={styles.pricingAmount}>$39.99</Text>
+              <Text style={styles.pricingAmount}>{annualPrice}</Text>
               <Text style={styles.pricingPeriod}>/yr</Text>
               <Text style={styles.pricingSubPrice}>Just $3.33/mo</Text>
               <Text style={styles.pricingBilled}>Billed annually — save 52%</Text>
@@ -154,9 +209,10 @@ export default function PaywallScreen() {
 
           {/* CTA Button */}
           <TouchableOpacity
-            style={styles.ctaWrapper}
+            style={[styles.ctaWrapper, (purchasing || loadingOffering) && styles.ctaWrapperDisabled]}
             onPress={handleCTA}
             activeOpacity={0.85}
+            disabled={purchasing || loadingOffering}
           >
             <LinearGradient
               colors={['#52B788', '#2D6A4F']}
@@ -164,7 +220,15 @@ export default function PaywallScreen() {
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 0 }}
             >
-              <Text style={styles.ctaText}>Start 7-Day Free Trial</Text>
+              {purchasing || loadingOffering ? (
+                <ActivityIndicator color="#FFFFFF" />
+              ) : (
+                <Text style={styles.ctaText}>
+                  {annualPkg?.product.introPrice
+                    ? 'Start 7-Day Free Trial'
+                    : 'Continue'}
+                </Text>
+              )}
             </LinearGradient>
           </TouchableOpacity>
 
@@ -174,7 +238,7 @@ export default function PaywallScreen() {
           </Text>
 
           {/* Restore Purchases */}
-          <TouchableOpacity onPress={handleRestore} activeOpacity={0.7}>
+          <TouchableOpacity onPress={handleRestore} activeOpacity={0.7} disabled={restoring || purchasing}>
             <Text style={styles.restoreText}>{restoring ? 'Restoring...' : 'Restore Purchases'}</Text>
           </TouchableOpacity>
         </ScrollView>
@@ -337,6 +401,9 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.35,
     shadowRadius: 12,
     elevation: 8,
+  },
+  ctaWrapperDisabled: {
+    opacity: 0.7,
   },
   ctaButton: {
     paddingVertical: 18,
