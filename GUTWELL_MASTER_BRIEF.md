@@ -28,6 +28,8 @@ What's left is now **mostly operational** (your accounts: Apple, Supabase restor
 | #22 | Production-readiness sweep | 9 fixes, one agent each (see below). |
 | #23 | Launch-blocker fixes | Onboarding notification opt-in (was fake), edge-function error parsing, root error boundary. |
 | #24 | Launch operations runbook | `LAUNCH_OPERATIONS.md` — store copy, privacy answers, IAP spec, key-rotation steps. |
+| #25 | This master brief | Consolidated status + customer feature review (this document). |
+| #26 | Customer-review fixes | **Gut score now credits honest symptom logging** (logging a symptom no longer scores worse than hiding it); **free top-trigger correlation teaser** shown before the paywall. |
 
 **PR #22 detail (the big one):**
 - **Security 🔴** — removed client-bundled Groq + USDA API keys; all AI now runs server-side through the `analyze-food` edge function (Gemini). Eliminated the "keys extractable from the IPA" hole.
@@ -93,10 +95,10 @@ What's left is now **mostly operational** (your accounts: Apple, Supabase restor
 - **Data ownership (export + delete).** For *health* data this matters a lot to me. Builds trust. ✅
 
 ### What doesn't make logical sense to me (I'd raise an eyebrow)
-1. **My score drops when I log symptoms.** This is backwards. The app *rewards me for hiding how bad I feel* — the more honestly I track a flare-up, the worse my "gut score" looks. The score should reflect **consistency and trend**, not punish honesty. This is the single most important logic flaw. ⚠️
+1. **My score drops when I log symptoms.** This is backwards. The app *rewards me for hiding how bad I feel* — the more honestly I track a flare-up, the worse my "gut score" looks. The score should reflect **consistency and trend**, not punish honesty. This was the single most important logic flaw. ✅ **Fixed in PR #26** — honest logging is now *credited* (the first symptom nets to zero; the penalty is softened and capped), so tracking how you feel never scores worse than hiding it.
 2. **The "Analysing…" screen is fake.** A 2.6-second progress animation when there's nothing real to compute reads as theater. The moment I realize it's staged, I trust *everything else* a little less. For a health app, credibility > hype — cut it or make it real. ⚠️
 3. **The 7-question quiz → "gut profile type" feels like a personality test.** "Reactive Gut / Sensitive Gut / …" is fun, but if my answers don't actually change how the app scores or coaches me, it's a BuzzFeed gimmick bolted onto a medical-adjacent product. Either *use* the answers to personalize, or drop the theater. ⚠️
-4. **The one insight I came for is behind the paywall.** Correlations ("X correlates with your bloating") *are the product*. Gating 100% of it means I can't see that GutWell works before paying. Let me see **one real correlation free** — prove the value, then charge for the full picture. Right now it feels like my own data's answers are held hostage. ⚠️
+4. **The one insight I came for is behind the paywall.** Correlations ("X correlates with your bloating") *are the product*. Gating 100% of it means I can't see that GutWell works before paying. Let me see **one real correlation free** — prove the value, then charge for the full picture. It felt like my own data's answers were held hostage. ✅ **Fixed in PR #26** — free users now see their single strongest trigger food before the paywall.
 5. **It wants my location to "find healthy food nearby."** I downloaded a symptom tracker, not Yelp. Asking for location for a tangential feature adds a permission prompt, a privacy worry, and scope creep — all friction against the core loop. Cut it or make it clearly optional/late. ⚠️
 6. **XP, levels, and achievements feel juvenile for a health concern.** Streaks fit (consistency matters). But "leveling up" while I'm trying to figure out why I'm in pain feels tonally off — like gamifying a doctor's visit. Mild, but it slightly undercuts the clinical credibility the Bristol chart earned. ⚠️
 
@@ -106,11 +108,11 @@ What's left is now **mostly operational** (your accounts: Apple, Supabase restor
 - **Trust > conversion tricks.** The strongest version of GutWell leans into its clinical credibility (Bristol chart, honest data, real insights) and drops the conversion theater (fake loader, gimmick profiles, XP). A gut-health audience is anxious and skeptical; earnest beats hypey.
 
 ### If I were prioritizing as the product owner
-1. **Fix the score incentive** so honest symptom logging doesn't punish me (trend/consistency-based).
-2. **Give one free correlation** to prove value pre-paywall.
-3. **Make the onboarding quiz actually personalize** the experience (or simplify it).
-4. **Cut or postpone location**; lead with the food↔symptom loop.
-5. Keep streaks, **dial back XP/levels** to match a health tone.
+1. ~~**Fix the score incentive**~~ — ✅ **Done (PR #26):** honest symptom logging no longer punishes the score.
+2. ~~**Give one free correlation**~~ — ✅ **Done (PR #26):** free users see their top trigger before the paywall.
+3. **Make the onboarding quiz actually personalize** the experience (or simplify it). *(still open)*
+4. **Cut or postpone location**; lead with the food↔symptom loop. *(still open)*
+5. Keep streaks, **dial back XP/levels** to match a health tone. *(still open)*
 
 **Bottom line as a customer:** the *bones are genuinely good* and I'd want this to exist — but a few choices optimize for conversion at the cost of the trust a gut-health app lives or dies on. Tighten those and it's a product I'd pay for and recommend.
 
@@ -119,7 +121,7 @@ What's left is now **mostly operational** (your accounts: Apple, Supabase restor
 ## 6. Definition of done (v1 launch)
 
 **Must-have:** Supabase restored + Pro · edge function deployed · keys rotated · Apple enrolled + `eas.json` filled · ASC listing + screenshots + privacy questionnaire · one production EAS build through TestFlight.
-**Should-have:** root error boundary (done) · a11y on auth/onboarding · a minimal test suite + CI · fix the score-incentive logic.
+**Should-have:** root error boundary (done) · score-incentive fix (done) · free correlation teaser (done) · a11y on auth/onboarding · a minimal test suite + CI.
 **Recommended:** launch **free**, validate retention with the now-real analytics + notifications, turn on paid in v1.1.
 
 *Full operational detail lives in `LAUNCH_OPERATIONS.md`.*
