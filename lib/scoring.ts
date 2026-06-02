@@ -19,14 +19,23 @@ function asClampedNumber(value: unknown, min: number, max: number): number | nul
 
 // ─── Scoring constants ────────────────────────────────────────────────────────
 
-/** Points subtracted per same-day symptom. */
-const SYMPTOM_PENALTY_PER_SYMPTOM = -5;
 /**
- * Floor for the total symptom penalty. Symptoms degrade the score but must not
- * single-handedly zero it — other healthy signals (good stool, low pain, energy)
- * should still be reflected. -25 caps the penalty at five symptoms' worth.
+ * Points per same-day symptom. Deliberately gentle: symptoms inform the score
+ * but must never dominate it, and — combined with the awareness credit below —
+ * honestly logging how you feel should never score WORSE than hiding it.
  */
-const SYMPTOM_PENALTY_FLOOR = -25;
+const SYMPTOM_PENALTY_PER_SYMPTOM = -3;
+/** Floor for the raw symptom penalty (before the awareness credit). */
+const SYMPTOM_PENALTY_FLOOR = -12;
+/**
+ * Awareness credit applied whenever the user logs at least one symptom. The
+ * behavior we want to reinforce is *honest tracking*, not symptom-free days, so
+ * this fully offsets the first symptom's penalty: logging one symptom is
+ * net-neutral rather than punishing the user for being honest. Additional
+ * symptoms still nudge the score down to reflect a rougher day, but gently and
+ * capped (net floor ≈ -9).
+ */
+const SYMPTOM_AWARENESS_BONUS = 3;
 
 /**
  * Number of check-ins in the trailing 7 days required to earn the regularity
@@ -54,7 +63,7 @@ const REGULARITY_BONUS_POINTS = 5;
  * - Low bloating & pain
  * - High energy
  * - Mood (gut-brain axis factor)
- * - Symptom count (fewer = better)
+ * - Symptom awareness (honest logging is credited, never punished)
  * - Check-in regularity bonus
  */
 export async function calculateGutScore(
@@ -147,11 +156,14 @@ export async function calculateGutScore(
     }
   }
 
-  // Clamp the symptom penalty so a high symptom count cannot single-handedly
-  // floor the score; positive health signals still count.
-  const symptomPenalty = symptomCount
+  // Symptom impact = a gentle, capped penalty OFFSET by an awareness credit, so
+  // honestly logging a symptom is never worse than not logging one (the first
+  // symptom nets to zero). This removes the perverse "tracking hurts my score"
+  // incentive while still letting a genuinely rough day register.
+  const rawSymptomPenalty = symptomCount
     ? Math.max(SYMPTOM_PENALTY_FLOOR, symptomCount * SYMPTOM_PENALTY_PER_SYMPTOM)
     : 0;
+  const symptomPenalty = rawSymptomPenalty + (symptomCount ? SYMPTOM_AWARENESS_BONUS : 0);
   score += symptomPenalty;
 
   const regularityBonus =

@@ -406,14 +406,31 @@ export default function ProgressScreen() {
           }))}
         />
 
-        {/* Food-symptom insights — PREMIUM gated. Free users see an upsell that
-            routes to the paywall; the real correlation engine output (trigger
-            foods, safe foods) is only rendered for premium subscribers. */}
+        {/* Food-symptom insights. Free users get a TEASER — their single
+            strongest trigger food — so they can see a real, personalized insight
+            before paying; the full set (all triggers + safe foods) is premium. */}
         {!hasPremium ? (
-          <RecommendationBox
-            text="Unlock food-symptom insights with Premium"
-            onPress={() => router.push('/paywall')}
-          />
+          (() => {
+            const topTrigger = triggerFoods.length
+              ? [...triggerFoods].sort(
+                  (a, b) => (b.correlationPct ?? 0) - (a.correlationPct ?? 0),
+                )[0]
+              : null;
+            return topTrigger ? (
+              <>
+                <TriggerFoodsBox triggerFoods={[topTrigger]} />
+                <RecommendationBox
+                  text="See all your trigger foods and safe foods with Premium"
+                  onPress={() => router.push('/paywall')}
+                />
+              </>
+            ) : (
+              <RecommendationBox
+                text="Unlock food-symptom insights with Premium"
+                onPress={() => router.push('/paywall')}
+              />
+            );
+          })()
         ) : (
           <>
             {/* Trigger Foods — new engine */}
