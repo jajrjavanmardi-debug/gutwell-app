@@ -3004,10 +3004,6 @@ export default function PhotoAnalysisScreen() {
                       })}
                     </View>
                   </View>
-                  {/* TEMP DEBUG MARKER — remove after deploy confirmed */}
-                  <Text style={{ fontSize: 10, color: '#888', textAlign: 'center', marginBottom: 4 }}>
-                    Build marker: scoring-suppression active
-                  </Text>
                   <View style={styles.cameraFallbackCard}>
                     <View style={[styles.demoModePill, isRtlLanguage && styles.rtlRow]}>
                       <Ionicons name="phone-portrait" size={14} color="#D8FBEA" />
