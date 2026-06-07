@@ -316,6 +316,47 @@ function formatRetailLocationHint(place?: {
   return [...new Set(parts.map(String))].join(', ');
 }
 
+function sanitizeMealScoring(text: string): string {
+  const lines = text.split('\n');
+  const result: string[] = [];
+  const scoreSectionHeadings = [
+    /^##?\s*برآورد تناسب وعده/,
+    /^##?\s*Meal Fit Estimate/i,
+    /^##?\s*Orientierende Mahlzeiten-Einschätzung/i,
+  ];
+  const scoreLinePatterns = [
+    /برآورد آموزشی وعده غذایی\s*:/,
+    /^Educational Meal Estimate\s*:/i,
+    /^Orientierende Mahlzeiten-Einschätzung\s*:/i,
+    /برآورد مبتنی بر الگو/,
+    /^Pattern-based estimate/i,
+    /^Musterbasierte Einschätzung/i,
+    /\[#{1,20}[-─\s]*\].*\/10/,
+    /\[[-─\s]*#{1,20}\].*\/10/,
+    /\b\d{1,2}\/10\b/,
+    /[۰-۹]{1,2}\/10/,
+    /^This is an educational estimate based on your profile/i,
+    /^این یک برآورد آموزشی بر اساس پروفایل/,
+    /^Dies ist eine orientierende Einschätzung/i,
+  ];
+  let skipSection = false;
+  for (const line of lines) {
+    const startsScoreSection = scoreSectionHeadings.some(p => p.test(line));
+    if (startsScoreSection) { skipSection = true; continue; }
+    if (skipSection) {
+      const isNewHeading = /^##?\s/.test(line);
+      if (isNewHeading && !scoreSectionHeadings.some(p => p.test(line))) {
+        skipSection = false;
+      } else {
+        continue;
+      }
+    }
+    if (scoreLinePatterns.some(p => p.test(line))) continue;
+    result.push(line);
+  }
+  return result.join('\n').replace(/\n{3,}/g, '\n\n').trim();
+}
+
 function ensurePainApology(analysis: string, apology: string, hasPainSymptom: boolean): string {
   if (!hasPainSymptom) return analysis;
   return analysis.trim().startsWith(apology) ? analysis : `${apology}\n\n${analysis}`;
@@ -400,6 +441,7 @@ export default function PhotoAnalysisScreen() {
   const hasPainSymptom = currentSymptoms.some((symptom) =>
     hasPainText(symptom)
   );
+  const shouldShowMealScoreBadge = false; // Product rule: NutriFlow does not rate food
   const mealImpactScore = extractMealImpactScore(analysis);
   const wizardSubtitle =
     wizardStep === 1 ? t.wizardStep1Subtitle : wizardStep === 2 ? t.wizardStep2Subtitle : t.wizardStep3Subtitle;
@@ -569,7 +611,7 @@ export default function PhotoAnalysisScreen() {
     try {
       const summary = [
         t.snapshotHeading,
-        `${t.scoreLabel}: ${mealImpactScore ?? t.pendingScore}`,
+
         `${t.profileContext}`,
         '',
         analysis,
@@ -592,13 +634,13 @@ export default function PhotoAnalysisScreen() {
     }
 
     const mealName = extractMealName(analysis).trim().slice(0, 200) || t.photoMealDefault;
-    const scoreNote = mealImpactScore ? `${t.scoreLabel}: ${mealImpactScore}` : `${t.scoreLabel}: ${t.pendingScore}`;
+
     const payload = {
       user_id: user.id,
       meal_name: mealName,
       meal_type: getMealTypeForClock(),
       foods: null as string[] | null,
-      note: `${scoreNote}. ${analysis.slice(0, 600)}`,
+      note: `${sanitizeMealScoring(analysis).slice(0, 600)}`,
       logged_at: new Date().toISOString(),
     };
 
@@ -1262,7 +1304,7 @@ export default function PhotoAnalysisScreen() {
                         <Text style={[styles.resultTitle, isRtlLanguage && styles.rtlText]}>{t.resultTitle}</Text>
                       </View>
                     </View>
-                    {mealImpactScore ? (
+                    {shouldShowMealScoreBadge && mealImpactScore ? (
                       <View style={[
                         styles.scoreBadge,
                         hasPainSymptom && styles.scorePainBadge,
@@ -1273,7 +1315,7 @@ export default function PhotoAnalysisScreen() {
                         <Text style={styles.scoreBadgeValue}>{mealImpactScore}</Text>
                       </View>
                     ) : null}
-                    <Text style={[styles.resultText, isRtlLanguage && styles.rtlText]}>{analysis}</Text>
+                    <Text style={[styles.resultText, isRtlLanguage && styles.rtlText]}>{sanitizeMealScoring(analysis)}</Text>
                     {hasPainSymptom ? (
                       <View style={styles.instantReliefCard}>
                         <View style={[styles.instantReliefHeader, isRtlLanguage && styles.rtlRow]}>
