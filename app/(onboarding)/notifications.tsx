@@ -155,12 +155,14 @@ export default function NotificationsScreen() {
           <TouchableOpacity
             style={styles.allowButton}
             onPress={requestPermission}
+            accessibilityRole="button"
+            accessibilityLabel="Enable notifications"
             activeOpacity={0.88}
           >
             <Text style={styles.allowButtonText}>Enable Notifications</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity onPress={completeOnboarding} activeOpacity={0.7}>
+          <TouchableOpacity onPress={completeOnboarding} accessibilityRole="button" accessibilityLabel="Skip notifications for now" activeOpacity={0.7}>
             <Text style={styles.skipText}>Skip for now</Text>
           </TouchableOpacity>
         </Animated.View>

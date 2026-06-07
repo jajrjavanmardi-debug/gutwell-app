@@ -237,6 +237,8 @@ export default function QuestionsScreen() {
           <TouchableOpacity
             style={styles.backButton}
             onPress={handleBack}
+            accessibilityRole="button"
+            accessibilityLabel="Go back"
             activeOpacity={0.7}
           >
             <Ionicons name="chevron-back" size={24} color="#FFFFFF" />
@@ -285,6 +287,8 @@ export default function QuestionsScreen() {
                   <TouchableOpacity
                     style={styles.optionButton}
                     onPress={() => handleOptionPress(option.label)}
+                    accessibilityRole="button"
+                    accessibilityLabel={option.label}
                     activeOpacity={0.75}
                   >
                     <View style={styles.emojiCircle}>
