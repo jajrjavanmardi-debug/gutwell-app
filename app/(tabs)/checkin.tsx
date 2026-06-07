@@ -22,6 +22,7 @@ import { StreakPopup } from '../../components/StreakPopup';
 import * as StoreReview from 'expo-store-review';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getStreakSnapshot, refreshStreakSnapshot } from '../../lib/streaks';
+import { scheduleStreakAtRiskAlert } from '../../lib/notifications';
 import { getLocalDateKey } from '../../lib/date';
 
 const STREAK_MILESTONES = [7, 14, 30, 100, 180, 366];
@@ -138,7 +139,11 @@ export default function CheckinScreen() {
       return;
     }
     getStreakSnapshot(user.id)
-      .then((snapshot) => setCurrentStreak(snapshot?.currentStreak ?? 0))
+      .then((snapshot) => {
+        const streak = snapshot?.currentStreak ?? 0;
+        setCurrentStreak(streak);
+        if (streak > 0) { scheduleStreakAtRiskAlert(streak).catch(() => {}); }
+      })
       .catch(() => setCurrentStreak(0));
   }, [user]);
 
