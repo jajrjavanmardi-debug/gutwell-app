@@ -1151,6 +1151,9 @@ function sanitizeMealScoring(text: string): string {
     /\[[-─\s]*#{1,20}\].*\/10/,
     /\b\d{1,2}\/10\b/,
     /[۰-۹]{1,2}\/10/,
+    /^This is an educational estimate based on your profile/i,
+    /^این یک برآورد آموزشی بر اساس پروفایل/,
+    /^Dies ist eine orientierende Einschätzung/i,
   ];
   let skipSection = false;
   for (const line of lines) {
@@ -1772,7 +1775,7 @@ export default function PhotoAnalysisScreen() {
     try {
       const summary = [
         t.snapshotHeading,
-        `${t.scoreLabel}: ${mealImpactScore ?? t.pendingScore}`,
+
         `${t.confidenceLabel}: ${t.confidenceLevels[estimateConfidenceLevel]}`,
         t.scoreHelperNote,
         `${t.profileContext}`,
@@ -1810,14 +1813,14 @@ export default function PhotoAnalysisScreen() {
     }
 
     const mealName = extractMealName(analysis).trim().slice(0, 200) || t.photoMealDefault;
-    const scoreNote = mealImpactScore ? `${t.scoreLabel}: ${mealImpactScore}` : `${t.scoreLabel}: ${t.pendingScore}`;
+
     const confidenceNote = `${t.confidenceLabel}: ${t.confidenceLevels[estimateConfidenceLevel]}`;
     const payload = {
       user_id: user.id,
       meal_name: mealName,
       meal_type: getMealTypeForClock(),
       foods: null as string[] | null,
-      note: `${scoreNote}. ${confidenceNote}. ${displayAnalysisText.slice(0, 600)}`,
+      note: `${confidenceNote}. ${displayAnalysisText.slice(0, 600)}`,
       logged_at: new Date().toISOString(),
     };
 
