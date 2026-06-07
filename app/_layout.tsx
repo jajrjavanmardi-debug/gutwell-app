@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Stack } from 'expo-router';
+import { Stack, router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { AuthProvider, useAuth } from '../contexts/AuthContext';
 import { ErrorBoundary } from '../components/ErrorBoundary';
@@ -24,6 +24,7 @@ import { initAnalytics, identifyUser } from '../lib/analytics';
 import { initSubscription } from '../lib/subscription';
 import { flush } from '../lib/offline-queue';
 import * as SplashScreen from 'expo-splash-screen';
+import * as Notifications from 'expo-notifications';
 
 export const unstable_settings = {
   initialRouteName: '(tabs)',
@@ -67,6 +68,19 @@ function RootLayoutNav() {
       // Never let subscription setup break startup.
     });
   }, [session?.user?.id]);
+
+  // Route notification taps to the correct screen
+  useEffect(() => {
+    const sub = Notifications.addNotificationResponseReceivedListener((response) => {
+      const reminderType = response.notification.request.content.data?.reminderType;
+      if (reminderType === 'checkin' || reminderType === 'streak') {
+        router.push('/(tabs)/checkin');
+      } else if (reminderType === 'weekly') {
+        router.push('/weekly-digest');
+      }
+    });
+    return () => sub.remove();
+  }, []);
 
   // Flush offline queue when connectivity is restored
   useEffect(() => {
