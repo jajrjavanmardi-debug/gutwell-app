@@ -768,7 +768,7 @@ export default function PhotoAnalysisScreen() {
     try {
       const result = await ImagePicker.launchCameraAsync({
         mediaTypes: ['images'],
-        quality: 0.72,
+        quality: 0.4,
         base64: true,
       });
       if (!result.canceled && result.assets[0]) {
@@ -795,7 +795,7 @@ export default function PhotoAnalysisScreen() {
 
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images'],
-      quality: 0.72,
+      quality: 0.4,
       base64: true,
     });
 

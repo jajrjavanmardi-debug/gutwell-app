@@ -76,7 +76,7 @@ export type NutritionRecommendationResult = {
 };
 
 const ANALYZE_FOOD_FUNCTION = 'analyze-food';
-const REQUEST_TIMEOUT_MS = 25000;
+const REQUEST_TIMEOUT_MS = 55000;
 
 /**
  * Maps the edge function's structured error codes to a user-facing message.
