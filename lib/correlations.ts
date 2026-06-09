@@ -233,9 +233,13 @@ export async function analyzeCorrelations(
       entry.totalMeals++;
 
       // Record which distinct symptom events followed this meal within the window.
+      // Cap window at end-of-day so symptoms do not bleed across midnight.
+      const mealDate = new Date(meal.loggedAt);
+      const endOfMealDay = new Date(mealDate.getFullYear(), mealDate.getMonth(), mealDate.getDate() + 1).getTime() - 1;
+      const legacyWindowEnd = Math.min(meal.loggedAt + windowMaxMs, endOfMealDay);
       for (const s of symptomTimestamps) {
         const diff = s.time - meal.loggedAt;
-        if (diff >= windowMinMs && diff <= windowMaxMs) {
+        if (diff >= windowMinMs && s.time <= legacyWindowEnd) {
           let ids = entry.symptomFollows.get(s.type);
           if (!ids) {
             ids = new Set<number>();
