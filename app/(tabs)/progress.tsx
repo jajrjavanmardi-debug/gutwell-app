@@ -14,6 +14,7 @@ import { analyzeCorrelations, CorrelationSummary, computeCorrelations, FoodCorre
 import { ShareCard } from '../../components/ShareCard';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { ErrorState } from '../../components/ui/ErrorState';
+import { useFocusEffect } from 'expo-router';
 import { isPremiumFeature, refreshPremiumStatus } from '../../lib/subscription';
 import ScoreCard from '../../components/ScoreCard';
 import TrendBox from '../../components/TrendBox';
@@ -166,7 +167,7 @@ export default function ProgressScreen() {
 
   useEffect(() => { loadData(); }, [loadData]);
 
-  useEffect(() => {
+  useFocusEffect(useCallback(() => {
     let active = true;
     const syncPremium = async () => {
       const status = await refreshPremiumStatus().catch(() => false);
