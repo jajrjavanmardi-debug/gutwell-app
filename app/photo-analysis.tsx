@@ -615,11 +615,8 @@ export default function PhotoAnalysisScreen() {
     try {
       const summary = [
         t.snapshotHeading,
-
-        `${t.profileContext}`,
-        '',
-        analysis,
-      ].join('\n');
+        sanitizeMealScoring(analysis).slice(0, 500),
+      ].join('\n\n');
 
       await Share.share({
         title: t.shareTitle,
