@@ -97,6 +97,8 @@ export default function WelcomeScreen() {
         <TouchableOpacity
           style={styles.primaryButton}
           onPress={() => router.push('/(onboarding)/features')}
+          accessibilityRole="button"
+          accessibilityLabel="Build my gut plan"
           activeOpacity={0.88}
         >
           <Text style={styles.primaryButtonText}>Build My Gut Plan</Text>
@@ -106,6 +108,8 @@ export default function WelcomeScreen() {
           <Text style={styles.signInPrompt}>Already have an account? </Text>
           <TouchableOpacity
             onPress={() => router.replace('/(tabs)')}
+            accessibilityRole="button"
+            accessibilityLabel="Sign in to existing account"
             activeOpacity={0.7}
           >
             <Text style={styles.signInLink}>Sign in</Text>
