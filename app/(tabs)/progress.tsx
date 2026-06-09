@@ -179,7 +179,7 @@ export default function ProgressScreen() {
     return () => {
       active = false;
     };
-  }, []);
+  }, []));
 
   const onRefresh = async () => { setRefreshing(true); await loadData(); setRefreshing(false); };
 
