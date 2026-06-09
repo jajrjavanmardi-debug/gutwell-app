@@ -10,7 +10,7 @@ const FONT_DISPLAY_STACK =
   "EB Garamond, Garamond, Georgia, 'Times New Roman', serif";
 const FONT_UI_STACK =
   "Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif";
-const APP_DISPLAY_NAME = 'NutriFlow';
+const APP_DISPLAY_NAME = 'GutWell';
 
 /** NutriFlow / Thrive-inspired palette (aligned with `constants/theme.ts`). */
 const BRAND_DEEP_GREEN = '#1B4332';
