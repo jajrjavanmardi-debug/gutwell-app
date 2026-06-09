@@ -127,6 +127,8 @@ const copy = {
     photoUnavailableMessage: 'Could not read the photo data. Please try again.',
     cameraNeededTitle: 'Camera access needed',
     cameraNeededMessage: 'Please allow camera access to take a meal photo.',
+    cameraUnavailableTitle: 'Camera Unavailable',
+    cameraUnavailableMessage: 'Camera is not available on this device. Please choose a photo from your gallery.',
     libraryNeededTitle: 'Photo library access needed',
     libraryNeededMessage: 'Please allow photo library access to choose a meal photo.',
     correctionFailedTitle: 'Correction failed',
@@ -211,6 +213,8 @@ const copy = {
     photoUnavailableMessage: 'Die Fotodaten konnten nicht gelesen werden. Bitte erneut versuchen.',
     cameraNeededTitle: 'Kamerazugriff nötig',
     cameraNeededMessage: 'Bitte erlaube den Kamerazugriff, um ein Mahlzeitenfoto aufzunehmen.',
+    cameraUnavailableTitle: 'Kamera nicht verfügbar',
+    cameraUnavailableMessage: 'Die Kamera ist auf diesem Gerät nicht verfügbar. Bitte wählen Sie ein Foto aus Ihrer Galerie.',
     libraryNeededTitle: 'Fotomediathek-Zugriff nötig',
     libraryNeededMessage: 'Bitte erlaube den Zugriff auf die Fotomediathek, um ein Bild auszuwählen.',
     correctionFailedTitle: 'Korrektur fehlgeschlagen',
@@ -761,14 +765,22 @@ export default function PhotoAnalysisScreen() {
       return;
     }
 
-    const result = await ImagePicker.launchCameraAsync({
-      mediaTypes: ['images'],
-      quality: 0.72,
-      base64: true,
-    });
-
-    if (!result.canceled && result.assets[0]) {
-      storeCapturedPhoto(result.assets[0]);
+    try {
+      const result = await ImagePicker.launchCameraAsync({
+        mediaTypes: ['images'],
+        quality: 0.72,
+        base64: true,
+      });
+      if (!result.canceled && result.assets[0]) {
+        storeCapturedPhoto(result.assets[0]);
+      }
+    } catch (error) {
+      const msg = error instanceof Error ? error.message.toLowerCase() : '';
+      if (msg.includes('camera') || msg.includes('not available')) {
+        Alert.alert(t.cameraUnavailableTitle, t.cameraUnavailableMessage);
+      } else {
+        Alert.alert(t.photoUnavailableTitle, t.photoAnalysisFailedTryAgain);
+      }
     }
   };
 
