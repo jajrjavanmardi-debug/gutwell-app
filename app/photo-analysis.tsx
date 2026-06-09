@@ -361,6 +361,25 @@ function sanitizeMealScoring(text: string): string {
   return result.join('\n').replace(/\n{3,}/g, '\n\n').trim();
 }
 
+function sanitizeAnalysisForDisplay(text: string): string {
+  return sanitizeMealScoring(text)
+    // Remove heading prefixes: ###, ##, #
+    .replace(/^#{1,3}\s*/gm, '')
+    // Remove bold/italic markers: **, *, __,  _
+    .replace(/\*\*(.+?)\*\*/g, '$1')
+    .replace(/\_\_(.+?)\_\_/g, '$1')
+    .replace(/\*(.+?)\*/g, '$1')
+    .replace(/\_(.+?)\_/g, '$1')
+    // Remove leading bullet markers: * or - at line start (but not inside words)
+    .replace(/^[\*\-]\s+/gm, '')
+    // Collapse excess blank lines
+    .replace(/
+{3,}/g, '
+
+')
+    .trim();
+}
+
 function ensurePainApology(analysis: string, apology: string, hasPainSymptom: boolean): string {
   if (!hasPainSymptom) return analysis;
   return analysis.trim().startsWith(apology) ? analysis : `${apology}\n\n${analysis}`;
@@ -615,7 +634,7 @@ export default function PhotoAnalysisScreen() {
     try {
       const summary = [
         t.snapshotHeading,
-        sanitizeMealScoring(analysis).slice(0, 500),
+        sanitizeAnalysisForDisplay(analysis).slice(0, 500),
       ].join('\n\n');
 
       await Share.share({
@@ -1324,7 +1343,7 @@ export default function PhotoAnalysisScreen() {
                         <Text style={styles.scoreBadgeValue}>{mealImpactScore}</Text>
                       </View>
                     ) : null}
-                    <Text style={[styles.resultText, isRtlLanguage && styles.rtlText]}>{sanitizeMealScoring(analysis)}</Text>
+                    <Text style={[styles.resultText, isRtlLanguage && styles.rtlText]}>{sanitizeAnalysisForDisplay(analysis)}</Text>
                     {hasPainSymptom ? (
                       <View style={styles.instantReliefCard}>
                         <View style={[styles.instantReliefHeader, isRtlLanguage && styles.rtlRow]}>
