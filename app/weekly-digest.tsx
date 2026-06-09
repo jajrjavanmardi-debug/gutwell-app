@@ -19,6 +19,7 @@ import { calculateLevel } from '../lib/levels';
 import { EmptyState } from '../components/ui/EmptyState';
 import { Colors, Spacing, FontSize, BorderRadius, Shadows, FontFamily } from '../constants/theme';
 import { addDaysToLocalDateKey, getLocalDateKey, localDateKeyToDate } from '../lib/date';
+import { useFocusEffect } from 'expo-router';
 import { isPremiumFeature, refreshPremiumStatus } from '../lib/subscription';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -75,7 +76,7 @@ export default function WeeklyDigestScreen() {
   // entitlement, then confirm against RevenueCat.
   const [hasPremium, setHasPremium] = useState<boolean>(isPremiumFeature('weekly_digest'));
 
-  useEffect(() => {
+  useFocusEffect(useCallback(() => {
     let active = true;
     refreshPremiumStatus()
       .then((status) => {
@@ -87,7 +88,7 @@ export default function WeeklyDigestScreen() {
     return () => {
       active = false;
     };
-  }, []);
+  }, []));
 
   const loadDigest = useCallback(async () => {
     if (!user) return;
