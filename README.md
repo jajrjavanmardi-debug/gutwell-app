@@ -1,50 +1,75 @@
-# Welcome to your Expo app 👋
+# GutWell
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+**GutWell** is a gut-health tracking iOS app: log your food and symptoms, discover your trigger foods.
 
-## Get started
+Built with Expo SDK 54 · React Native · TypeScript · Supabase
 
-1. Install dependencies
+---
 
-   ```bash
-   npm install
-   ```
+## Get the project running
 
-2. Start the app
+### Prerequisites (one-time setup)
+1. **Mac** — iOS development requires macOS
+2. **Xcode** — Mac App Store, open once to accept the license, install an iOS Simulator
+3. **Node.js 20+** — https://nodejs.org. Check: `node --version`
+4. **Homebrew** — https://brew.sh
+5. **CocoaPods & Watchman** — `brew install cocoapods watchman`
+6. **Git** — usually pre-installed. Check: `git --version`
+7. Ask Hojir to add you as a GitHub collaborator
 
-   ```bash
-   npx expo start
-   ```
-
-In the output, you'll find options to open the app in a
-
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
-
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
-
+### Installation
 ```bash
-npm run reset-project
+git clone https://github.com/jajrjavanmardi-debug/gutwell-app.git
+cd gutwell-app
+npm install
+cp .env.example .env.local   # fill in values from Hojir
+npx expo run:ios              # first run takes ~10-15 min
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+> GutWell uses native modules — it **cannot** run in Expo Go. Use `npx expo run:ios`.
 
-## Learn more
+### Common first-run issues
+| Error | Fix |
+|-------|-----|
+| CocoaPods Unicode error | `export LANG=en_US.UTF-8` then re-run |
+| Sentry build error | `export SENTRY_DISABLE_AUTO_UPLOAD=true` then re-run |
+| "no such module" | Delete `ios/` folder and re-run `npx expo run:ios` |
 
-To learn more about developing your project with Expo, look at the following resources:
+---
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+## Project structure
+| Path | Purpose |
+|------|---------|
+| `app/(auth)/` | Login, signup, forgot-password |
+| `app/(onboarding)/` | 7-step welcome flow |
+| `app/(tabs)/` | Home, check-in, food, progress, profile |
+| `app/photo-analysis.tsx` | AI meal-photo wizard |
+| `components/` | Reusable UI pieces |
+| `lib/` | Business logic (scoring, streaks, correlations) |
+| `contexts/` | AuthContext |
+| `constants/theme.ts` | Colors, fonts, spacing — use these, never hardcode |
+| `supabase/migrations/` | Database schema (SQL) |
+| `supabase/functions/` | Edge functions (AI runs here, never on client) |
+| `widgets/` | iOS home-screen widget (Swift) |
 
-## Join the community
+---
 
-Join our community of developers creating universal apps.
+## Making a change safely
+```bash
+git checkout main && git pull
+git checkout -b fix/short-description
+# make your change
+npx tsc --noEmit        # must show no NEW errors in app/ or lib/
+git add <your files>    # never commit .env.local or ios/
+git commit -m "fix: what you did"
+git push -u origin fix/short-description
+# open a Pull Request on GitHub
+```
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+---
+
+## Owner / environment
+- **Owner:** Hojir / Parallel Labs Pte. Ltd.
+- **Bundle ID:** com.parallellabs.gutwell
+- **Backend:** Supabase — must be active (ask Hojir to restore if paused)
+- **Launch checklist:** `LAUNCH_OPERATIONS.md`
