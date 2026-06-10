@@ -25,10 +25,6 @@ import { initSubscription } from '../lib/subscription';
 import { flush } from '../lib/offline-queue';
 import * as SplashScreen from 'expo-splash-screen';
 
-export const unstable_settings = {
-  initialRouteName: '(tabs)',
-};
-
 // Initialize Sentry for crash reporting
 Sentry.init({
   dsn: process.env.EXPO_PUBLIC_SENTRY_DSN,
@@ -81,7 +77,8 @@ function RootLayoutNav() {
   return (
     <>
       <StatusBar style="light" />
-      <Stack initialRouteName="(tabs)" screenOptions={{ headerShown: false }}>
+      <Stack screenOptions={{ headerShown: false }}>
+        <Stack.Screen name="index" />
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="(auth)" />
         <Stack.Screen name="(onboarding)" />

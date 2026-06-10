@@ -111,10 +111,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
       setSession(session);
       if (session?.user) {
-        fetchProfile(session.user.id);
+        // Await so the auth gate (app/index.tsx) sees onboarding_completed on
+        // cold start instead of routing on a not-yet-loaded profile.
+        await fetchProfile(session.user.id).catch(() => {});
       }
       setLoading(false);
     });

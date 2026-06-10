@@ -45,7 +45,12 @@ export default function NotificationsScreen() {
   }, [buttonAnim]);
 
   const completeOnboarding = async () => {
-    if (!user) return;
+    if (!user) {
+      // Shouldn't happen in the normal flow (results routes through signup),
+      // but never strand the user on a button that does nothing.
+      router.replace('/(auth)/signup');
+      return;
+    }
     try {
       const [rawName, rawAnswers] = await Promise.all([
         AsyncStorage.getItem('onboarding_name'),

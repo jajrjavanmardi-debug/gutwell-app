@@ -51,11 +51,10 @@ export default function SignupScreen() {
     if (error) {
       setToast({ visible: true, message: error.message, type: 'error' });
     } else {
-      setToast({
-        visible: true,
-        message: 'Account created! Please check your email to verify.',
-        type: 'success',
-      });
+      setToast({ visible: true, message: 'Welcome to GutWell!', type: 'success' });
+      // Auto-confirm is on, so a session exists now — finish onboarding
+      // (notification opt-in + profile save) before entering the app.
+      setTimeout(() => router.replace('/(onboarding)/notifications'), 600);
     }
   };
 

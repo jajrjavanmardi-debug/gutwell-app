@@ -16,6 +16,7 @@ import { StatusBar } from 'expo-status-bar';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { FontFamily } from '../../constants/theme';
 import StarFieldBackground from '../../components/StarFieldBackground';
+import { useAuth } from '../../contexts/AuthContext';
 
 type GutProfile = {
   type: string;
@@ -86,6 +87,7 @@ const NEXT_STEPS = [
 ];
 
 export default function ResultsScreen() {
+  const { session } = useAuth();
   const [profile, setProfile] = useState<GutProfile | null>(null);
   const [answers, setAnswers] = useState<Record<string, string>>({});
 
@@ -204,7 +206,11 @@ export default function ResultsScreen() {
         >
           <TouchableOpacity
             style={styles.ctaButton}
-            onPress={() => router.push('/(onboarding)/notifications')}
+            onPress={() =>
+              // Completing onboarding writes to the profile, which needs an
+              // account — new users create one here, returning users skip it.
+              router.push(session ? '/(onboarding)/notifications' : '/(auth)/signup')
+            }
             activeOpacity={0.88}
           >
             <Text style={styles.ctaText}>I'm Ready to Start</Text>

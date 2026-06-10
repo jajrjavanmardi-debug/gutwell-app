@@ -107,7 +107,7 @@ export default function WelcomeScreen() {
         <View style={styles.signInRow}>
           <Text style={styles.signInPrompt}>Already have an account? </Text>
           <TouchableOpacity
-            onPress={() => router.replace('/(tabs)')}
+            onPress={() => router.push('/(auth)/login')}
             accessibilityRole="button"
             accessibilityLabel="Sign in to existing account"
             activeOpacity={0.7}

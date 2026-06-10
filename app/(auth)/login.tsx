@@ -8,7 +8,7 @@ import {
   ScrollView,
   TouchableOpacity,
 } from 'react-native';
-import { Link } from 'expo-router';
+import { Link, router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -44,6 +44,10 @@ export default function LoginScreen() {
         message: /network request failed/i.test(msg) ? `${msg}\n\n${networkHint}` : msg,
         type: 'error',
       });
+    } else {
+      // Back through the gate: it routes to tabs, or into onboarding if this
+      // account never finished it.
+      router.replace('/');
     }
   };
 
@@ -58,6 +62,8 @@ export default function LoginScreen() {
         message: /network request failed/i.test(msg) ? `${msg}\n\n${networkHint}` : msg,
         type: 'error',
       });
+    } else {
+      router.replace('/');
     }
   };
 

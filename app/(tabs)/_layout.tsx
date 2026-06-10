@@ -1,5 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
-import { Tabs } from 'expo-router';
+import { Redirect, Tabs } from 'expo-router';
+import { useAuth } from '../../contexts/AuthContext';
 import * as Haptics from 'expo-haptics';
 import { Platform, StyleSheet, View, Text, TouchableOpacity } from 'react-native';
 import { BlurView } from 'expo-blur';
@@ -72,6 +73,13 @@ const ebStyles = StyleSheet.create({
 });
 
 export default function TabLayout() {
+  const { session, loading } = useAuth();
+
+  // Session guard: tabs are meaningless without an account (every data call
+  // is RLS-scoped to auth.uid()). The index gate owns the routing decision.
+  if (loading) return null;
+  if (!session) return <Redirect href="/" />;
+
   const renderTabIcon = (
     focused: boolean,
     activeIcon: keyof typeof Ionicons.glyphMap,

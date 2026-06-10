@@ -4,7 +4,7 @@
     "slug": "gutwell",
     "version": "1.0.0",
     "sdkVersion": "54.0.0",
-    "platforms": ["android", "ios"],
+    "platforms": ["android", "ios", "web"],
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "gutwellapp",
