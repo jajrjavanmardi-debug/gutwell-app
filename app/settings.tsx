@@ -25,6 +25,8 @@ import {
   scheduleDailyCheckInReminder,
   cancelDailyCheckInReminder,
 } from '../lib/notifications';
+import { flush, getPendingCount } from '../lib/offline-queue';
+import * as StoreReview from 'expo-store-review';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -272,6 +274,7 @@ export default function SettingsScreen() {
   const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
   const [dietModalVisible, setDietModalVisible] = useState(false);
   const [timeModalVisible, setTimeModalVisible] = useState(false);
+  const [pendingSyncCount, setPendingSyncCount] = useState(0);
 
   // Load settings on mount
   useEffect(() => {
@@ -285,6 +288,24 @@ export default function SettingsScreen() {
         }
       }
     });
+    getPendingCount().then(setPendingSyncCount).catch(() => {});
+  }, []);
+
+  const handleSyncNow = useCallback(async () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    try {
+      const synced = await flush();
+      const remaining = await getPendingCount();
+      setPendingSyncCount(remaining);
+      Alert.alert(
+        remaining === 0 ? 'All synced' : 'Partially synced',
+        remaining === 0
+          ? `${synced} ${synced === 1 ? 'entry' : 'entries'} uploaded.`
+          : `${synced} uploaded, ${remaining} still waiting — check your connection and try again.`,
+      );
+    } catch {
+      Alert.alert('Sync failed', 'Check your connection and try again.');
+    }
   }, []);
 
   const save = useCallback((partial: Partial<Settings>) => {
@@ -411,13 +432,16 @@ export default function SettingsScreen() {
     );
   };
 
-  const handleRateApp = () => {
-    const url = Platform.OS === 'ios'
-      ? 'itms-apps://itunes.apple.com/app/id0000000000?action=write-review'
-      : 'market://details?id=com.gutwell.app';
-    Linking.canOpenURL(url).then((can) => {
-      if (can) Linking.openURL(url);
-    });
+  const handleRateApp = async () => {
+    // Native in-app review sheet — no store IDs needed and works the moment
+    // the app is live. Falls back silently where unsupported (e.g. web).
+    try {
+      if (await StoreReview.hasAction()) {
+        await StoreReview.requestReview();
+      }
+    } catch {
+      // Review prompt is best-effort.
+    }
   };
 
   return (
@@ -497,12 +521,24 @@ export default function SettingsScreen() {
         {/* DATA */}
         <SectionHeader title="DATA" />
         <View style={styles.card}>
+          {pendingSyncCount > 0 && (
+            <>
+              <SettingsRow
+                icon="cloud-upload-outline"
+                label="Waiting to sync"
+                subtitle={`${pendingSyncCount} ${pendingSyncCount === 1 ? 'entry' : 'entries'} saved offline — tap to sync now`}
+                onPress={handleSyncNow}
+                isFirst
+              />
+              <Divider />
+            </>
+          )}
           <SettingsRow
             icon="download-outline"
             label="Export My Data"
             subtitle="Download all your records as JSON"
             onPress={handleExportData}
-            isFirst
+            isFirst={pendingSyncCount === 0}
           />
           <Divider />
           <SettingsRow

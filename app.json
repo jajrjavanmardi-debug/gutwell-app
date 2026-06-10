@@ -8,7 +8,7 @@
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "gutwellapp",
-    "userInterfaceStyle": "automatic",
+    "userInterfaceStyle": "dark",
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
@@ -61,10 +61,7 @@
           "image": "./assets/images/splash-icon.png",
           "imageWidth": 200,
           "resizeMode": "contain",
-          "backgroundColor": "#FAFDF7",
-          "dark": {
-            "backgroundColor": "#0D2218"
-          }
+          "backgroundColor": "#0D2218"
         }
       ],
       "@sentry/react-native",

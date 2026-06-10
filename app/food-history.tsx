@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { BorderRadius, FontFamily, FontSize, Spacing } from '../constants/theme';
+import { BorderRadius, Colors, FontFamily, FontSize, Spacing } from '../constants/theme';
 import { getPhotoAnalysisHistory, type PhotoAnalysisHistoryItem } from '../lib/photo-analysis-history';
 
 export default function FoodHistoryScreen() {
@@ -51,7 +51,7 @@ export default function FoodHistoryScreen() {
                 <Text style={styles.date}>{new Date(item.createdAt).toLocaleDateString()}</Text>
                 <Text numberOfLines={1} style={styles.mealName}>{item.mealName}</Text>
                 <View style={styles.scoreBadge}>
-                  <Ionicons name="speedometer" size={13} color="#2DCE89" />
+                  <Ionicons name="speedometer" size={13} color={Colors.secondary} />
                   <Text style={styles.scoreText}>{item.mealImpactScore ?? 'Score pending'}</Text>
                 </View>
               </View>
@@ -60,7 +60,7 @@ export default function FoodHistoryScreen() {
           ))
         ) : (
           <View style={styles.emptyCard}>
-            <Ionicons name="images-outline" size={28} color="#2DCE89" />
+            <Ionicons name="images-outline" size={28} color={Colors.secondary} />
             <Text style={styles.emptyTitle}>No meal scans yet</Text>
             <Text style={styles.emptyText}>Your saved photo analyses will appear here after the first scan.</Text>
           </View>
@@ -96,7 +96,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   kicker: {
-    color: '#2DCE89',
+    color: Colors.secondary,
     fontFamily: FontFamily.sansBold,
     fontSize: FontSize.xs,
     letterSpacing: 0.8,
@@ -132,7 +132,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   date: {
-    color: '#2DCE89',
+    color: Colors.secondary,
     fontFamily: FontFamily.sansBold,
     fontSize: FontSize.xs,
     marginBottom: 4,
@@ -154,7 +154,7 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
   },
   scoreText: {
-    color: '#2DCE89',
+    color: Colors.secondary,
     fontFamily: FontFamily.sansBold,
     fontSize: FontSize.xs,
   },

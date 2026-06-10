@@ -6,6 +6,7 @@ import {
   Modal,
   Animated,
   Easing,
+  ScrollView,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -99,6 +100,11 @@ export function HealthDisclaimerModal({ visible, onAccept, userId }: Props) {
               },
             ]}
           >
+            <ScrollView
+              contentContainerStyle={styles.scrollInner}
+              showsVerticalScrollIndicator={false}
+              bounces={false}
+            >
             {/* Icon */}
             <View style={styles.iconRing}>
               <Ionicons name="medical-outline" size={36} color="#52B788" />
@@ -127,6 +133,7 @@ export function HealthDisclaimerModal({ visible, onAccept, userId }: Props) {
               By continuing, you acknowledge that GutWell does not diagnose,
               treat, cure, or prevent any disease or medical condition.
             </Text>
+            </ScrollView>
           </Animated.View>
 
           {/* Buttons */}
@@ -136,6 +143,7 @@ export function HealthDisclaimerModal({ visible, onAccept, userId }: Props) {
               onPress={handleAccept}
               size="lg"
               style={styles.primaryButton}
+              textStyle={styles.primaryButtonText}
             />
             <Button
               title="View Privacy Policy"
@@ -168,9 +176,13 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
-    justifyContent: 'center',
     paddingHorizontal: 32,
+  },
+  scrollInner: {
+    flexGrow: 1,
+    justifyContent: 'center',
     gap: Spacing.md,
+    paddingVertical: Spacing.lg,
   },
   iconRing: {
     width: 72,
@@ -218,6 +230,11 @@ const styles = StyleSheet.create({
   },
   primaryButton: {
     backgroundColor: '#FFFFFF',
+  },
+  primaryButtonText: {
+    // The Button primary variant uses white text; on this white pill the
+    // label must be dark or it disappears entirely.
+    color: '#0B2618',
   },
   ghostButton: {
     alignSelf: 'center',

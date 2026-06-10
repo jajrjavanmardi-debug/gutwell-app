@@ -215,6 +215,8 @@ export default function ProgressScreen() {
               style={styles.iconButton}
               onPress={() => setShowShare(true)}
               activeOpacity={0.7}
+              accessibilityRole="button"
+              accessibilityLabel="Share your progress"
             >
               <Ionicons name="share-outline" size={20} color={Colors.primary} />
             </TouchableOpacity>
@@ -222,6 +224,8 @@ export default function ProgressScreen() {
               style={styles.digestButton}
               onPress={() => router.push('/weekly-digest')}
               activeOpacity={0.7}
+              accessibilityRole="button"
+              accessibilityLabel="Open weekly digest"
             >
               <Ionicons name="document-text-outline" size={16} color={Colors.primary} />
               <Text style={styles.digestButtonText}>Weekly Digest</Text>
@@ -256,6 +260,9 @@ export default function ProgressScreen() {
             <TouchableOpacity
               key={p}
               style={[styles.periodBtn, period === p && styles.periodSelected]}
+              accessibilityRole="button"
+              accessibilityState={{ selected: period === p }}
+              accessibilityLabel={p === 'W' ? 'Show last week' : p === 'M' ? 'Show last month' : 'Show last six months'}
               onPress={() => {
                 setPeriod(p);
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);

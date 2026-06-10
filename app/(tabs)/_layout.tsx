@@ -94,7 +94,7 @@ export default function TabLayout() {
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: '#2DCE89',
+        tabBarActiveTintColor: Colors.secondary,
         tabBarInactiveTintColor: '#777777',
         headerShown: false,
         tabBarBackground: () => <BlurView intensity={60} tint="dark" style={StyleSheet.absoluteFill} />,
@@ -179,6 +179,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   iconWrapFocused: {
-    backgroundColor: 'rgba(45,206,137,0.14)',
+    backgroundColor: Colors.secondary + '24',
   },
 });

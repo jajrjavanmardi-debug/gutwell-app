@@ -647,7 +647,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: Spacing.xs,
-    backgroundColor: '#FEF3C7',
+    backgroundColor: Colors.warning + '18',
     borderRadius: BorderRadius.md,
     padding: Spacing.sm,
     marginTop: Spacing.sm,
@@ -656,7 +656,7 @@ const styles = StyleSheet.create({
     flex: 1,
     fontFamily: FontFamily.sansRegular,
     fontSize: FontSize.xs,
-    color: '#92400E',
+    color: Colors.warning,
     lineHeight: 18,
   },
 

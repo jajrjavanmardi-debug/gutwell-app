@@ -2,7 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as ImagePicker from 'expo-image-picker';
 import { router, useLocalSearchParams } from 'expo-router';
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -62,10 +62,10 @@ const copy = {
   en: {
     back: 'Back',
     title: 'Photo Analysis',
-    wizardStep1Subtitle: 'Step 1 of 4 — Capture',
-    wizardStep2Subtitle: 'Step 2 of 4 — Voice & feeling',
-    wizardStep3Subtitle: 'Step 3 of 4 — Analysis',
-    wizardStep4Hint: 'Step 4 of 4 — Final check',
+    wizardStep1Subtitle: 'Step 1 of 3 — Capture',
+    wizardStep2Subtitle: 'Step 2 of 3 — Describe',
+    wizardStep3Subtitle: 'Step 3 of 3 — Analysis',
+    wizardStep4Hint: 'Final check',
     wizardNext: 'Next',
     changePhoto: 'Change photo',
     step2Prompt: 'What is this food? How do you feel?',
@@ -149,10 +149,10 @@ const copy = {
   de: {
     back: 'Zurück',
     title: 'Fotoanalyse',
-    wizardStep1Subtitle: 'Schritt 1 von 4 — Aufnahme',
-    wizardStep2Subtitle: 'Schritt 2 von 4 — Stimme & Befinden',
-    wizardStep3Subtitle: 'Schritt 3 von 4 — Analyse',
-    wizardStep4Hint: 'Schritt 4 von 4 — Abschluss',
+    wizardStep1Subtitle: 'Schritt 1 von 3 — Aufnahme',
+    wizardStep2Subtitle: 'Schritt 2 von 3 — Beschreiben',
+    wizardStep3Subtitle: 'Schritt 3 von 3 — Analyse',
+    wizardStep4Hint: 'Abschluss',
     wizardNext: 'Weiter',
     changePhoto: 'Foto ändern',
     step2Prompt: 'Was ist das für Essen? Wie fühlst du dich?',
@@ -1452,7 +1452,7 @@ export default function PhotoAnalysisScreen() {
                     {planBMessage ? (
                       <View style={styles.planBCard}>
                         <View style={[styles.planBHeader, isRtlLanguage && styles.rtlRow]}>
-                          <Ionicons name="shield-checkmark" size={18} color="#2DCE89" />
+                          <Ionicons name="shield-checkmark" size={18} color={Colors.secondary} />
                           <Text style={[styles.planBTitle, isRtlLanguage && styles.rtlText]}>{t.planBTitle}</Text>
                         </View>
                         <Text style={[styles.planBText, isRtlLanguage && styles.rtlText]}>{planBMessage}</Text>
@@ -1613,7 +1613,7 @@ export default function PhotoAnalysisScreen() {
 
                 <View style={[styles.wizardFooterRow, { paddingBottom: Spacing.md + insets.bottom }]}>
                   <Pressable onPress={handleNewScan} style={({ pressed }) => [styles.newScanButton, pressed && styles.pressed]}>
-                    <Ionicons name="scan" size={16} color="#2DCE89" />
+                    <Ionicons name="scan" size={16} color={Colors.secondary} />
                     <Text style={styles.newScanText}>{t.newScan}</Text>
                   </Pressable>
                 </View>
@@ -1807,7 +1807,7 @@ const styles = StyleSheet.create({
   analyzeCombinedButton: {
     alignItems: 'center',
     alignSelf: 'stretch',
-    backgroundColor: '#2DCE89',
+    backgroundColor: Colors.secondary,
     borderRadius: BorderRadius.lg,
     flexDirection: 'row',
     gap: Spacing.sm,
@@ -2014,7 +2014,7 @@ const styles = StyleSheet.create({
     opacity: 0.9,
   },
   scoreBadgeValue: {
-    color: '#2DCE89',
+    color: Colors.secondary,
     fontFamily: FontFamily.sansBold,
     fontSize: FontSize.md,
   },
@@ -2052,7 +2052,7 @@ const styles = StyleSheet.create({
   },
   planBCard: {
     backgroundColor: '#101010',
-    borderColor: '#2DCE8944',
+    borderColor: Colors.secondary + '44',
     borderRadius: BorderRadius.lg,
     borderWidth: 1,
     marginTop: Spacing.lg,
@@ -2141,7 +2141,7 @@ const styles = StyleSheet.create({
   },
   shareButton: {
     alignItems: 'center',
-    backgroundColor: '#2DCE89',
+    backgroundColor: Colors.secondary,
     borderRadius: BorderRadius.lg,
     flex: 1,
     flexDirection: 'row',
@@ -2216,7 +2216,7 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
   },
   newScanText: {
-    color: '#2DCE89',
+    color: Colors.secondary,
     fontFamily: FontFamily.sansBold,
     fontSize: FontSize.xs,
   },
@@ -2267,7 +2267,7 @@ const styles = StyleSheet.create({
   },
   sendButton: {
     alignItems: 'center',
-    backgroundColor: '#2DCE89',
+    backgroundColor: Colors.secondary,
     borderRadius: BorderRadius.full,
     height: 42,
     justifyContent: 'center',
@@ -2368,7 +2368,7 @@ const styles = StyleSheet.create({
   wizardNextButton: {
     alignItems: 'center',
     alignSelf: 'stretch',
-    backgroundColor: '#2DCE89',
+    backgroundColor: Colors.secondary,
     borderRadius: BorderRadius.lg,
     flexDirection: 'row',
     gap: Spacing.sm,
@@ -2421,7 +2421,7 @@ const styles = StyleSheet.create({
   },
   accuracyChipSelectedYes: {
     backgroundColor: 'rgba(45,206,137,0.2)',
-    borderColor: '#2DCE89',
+    borderColor: Colors.secondary,
   },
   accuracyChipSelectedNo: {
     backgroundColor: 'rgba(248,113,113,0.12)',
@@ -2469,7 +2469,7 @@ const styles = StyleSheet.create({
   applyCorrectionButton: {
     alignItems: 'center',
     alignSelf: 'stretch',
-    backgroundColor: '#2DCE89',
+    backgroundColor: Colors.secondary,
     borderRadius: BorderRadius.lg,
     justifyContent: 'center',
     minHeight: 46,
