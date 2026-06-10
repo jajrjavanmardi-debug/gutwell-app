@@ -17,6 +17,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Haptics from 'expo-haptics';
 import { FontFamily } from '../../constants/theme';
 import StarFieldBackground from '../../components/StarFieldBackground';
+import { track, Events } from '../../lib/analytics';
 
 const { width } = Dimensions.get('window');
 
@@ -165,6 +166,7 @@ export default function QuestionsScreen() {
       useNativeDriver: true,
     }).start(() => {
       if (isLast) {
+        track(Events.ONBOARDING_STEP, { step: 'quiz_completed' });
         router.push('/(onboarding)/analysing');
         return;
       }

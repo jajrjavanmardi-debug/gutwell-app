@@ -15,6 +15,7 @@ import { Colors, Spacing, FontSize, BorderRadius, Shadows, FontFamily } from '..
 import { EmptyState } from '../../components/ui/EmptyState';
 import { ErrorState } from '../../components/ui/ErrorState';
 import { enqueue } from '../../lib/offline-queue';
+import { track, Events } from '../../lib/analytics';
 
 function formatMealTime(iso: string): string {
   const date = new Date(iso);
@@ -225,6 +226,7 @@ export default function FoodScreen() {
         setToast({ visible: true, message: 'Failed to save food log', type: 'error' });
       }
     } else {
+      track(Events.MEAL_LOGGED);
       setToast({ visible: true, message: 'Meal logged!', type: 'success' });
       setRecentMeals((prev) => [
         {
@@ -296,18 +298,27 @@ export default function FoodScreen() {
       setToast({ visible: true, message: 'Please log in to continue', type: 'error' });
       return;
     }
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    const { error } = await supabase
-      .from('food_logs')
-      .delete()
-      .eq('id', id)
-      .eq('user_id', user.id);
-    if (error) {
-      setToast({ visible: true, message: 'Failed to remove meal', type: 'error' });
-    } else {
-      setToast({ visible: true, message: 'Meal removed', type: 'success' });
-      loadRecentMeals();
-    }
+    Alert.alert('Remove this meal?', 'It will disappear from your food log and correlations.', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Remove',
+        style: 'destructive',
+        onPress: async () => {
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+          const { error } = await supabase
+            .from('food_logs')
+            .delete()
+            .eq('id', id)
+            .eq('user_id', user.id);
+          if (error) {
+            setToast({ visible: true, message: 'Failed to remove meal', type: 'error' });
+          } else {
+            setToast({ visible: true, message: 'Meal removed', type: 'success' });
+            loadRecentMeals();
+          }
+        },
+      },
+    ]);
   };
 
   const getMealIcon = (type: string): string => {
@@ -332,7 +343,7 @@ export default function FoodScreen() {
         )}
 
         {/* Scan Button - Premium solid card */}
-        <TouchableOpacity style={styles.scanButton} onPress={() => router.push('/photo-analysis')} activeOpacity={0.7}>
+        <TouchableOpacity style={styles.scanButton} onPress={() => router.push('/photo-analysis')} activeOpacity={0.7} accessibilityRole="button" accessibilityLabel="Scan a meal photo with AI">
           <View style={styles.scanIcon}>
             <Ionicons name="camera" size={22} color={Colors.primary} />
           </View>
@@ -359,6 +370,8 @@ export default function FoodScreen() {
                   onLongPress={() => handleDeleteFavorite(fav)}
                   delayLongPress={400}
                   activeOpacity={0.7}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Quick log ${fav.meal_name}. Long press to remove from favorites`}
                 >
                   <Ionicons name="add-circle" size={16} color={Colors.primary} />
                   <Text style={styles.favoriteText} numberOfLines={1}>{fav.meal_name}</Text>
@@ -377,6 +390,9 @@ export default function FoodScreen() {
               style={[styles.mealTypeBtn, mealType === m.key && styles.mealTypeSelected]}
               onPress={() => setMealType(m.key)}
               activeOpacity={0.7}
+              accessibilityRole="button"
+              accessibilityState={{ selected: mealType === m.key }}
+              accessibilityLabel={`Meal type ${m.key}`}
             >
               <Ionicons
                 name={m.icon}
@@ -395,7 +411,7 @@ export default function FoodScreen() {
 
         {/* Today's Meals */}
         <View style={styles.todaysMealsSection}>
-          <Text style={styles.sectionLabel}>Today's meals</Text>
+          <Text style={styles.sectionLabel}>Today&apos;s meals</Text>
           {todaysMeals.length > 0 ? (
             <View style={styles.todaysMealsList}>
               {todaysMeals.map((meal) => (
@@ -409,8 +425,9 @@ export default function FoodScreen() {
                   <TouchableOpacity
                     style={styles.todaysMealDeleteBtn}
                     activeOpacity={0.7}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Delete ${meal.meal_name}`}
                     onPress={() => {
-                      setRecentMeals((prev) => prev.filter((m) => m.id !== meal.id));
                       handleDeleteMeal(meal.id);
                     }}
                   >
@@ -435,7 +452,7 @@ export default function FoodScreen() {
         {foods.length > 0 && (
           <View style={styles.foodTags}>
             {foods.map((food, i) => (
-              <TouchableOpacity key={i} style={styles.foodTag} onPress={() => setFoods(foods.filter((_, idx) => idx !== i))} activeOpacity={0.7}>
+              <TouchableOpacity key={i} style={styles.foodTag} onPress={() => setFoods(foods.filter((_, idx) => idx !== i))} activeOpacity={0.7} accessibilityRole="button" accessibilityLabel={`Remove ${food} from this meal`}>
                 <Text style={styles.foodTagText}>{food}</Text>
                 <Ionicons name="close" size={14} color={Colors.primary} />
               </TouchableOpacity>
@@ -452,6 +469,8 @@ export default function FoodScreen() {
           onPress={handleSave}
           activeOpacity={0.8}
           disabled={loading}
+          accessibilityRole="button"
+          accessibilityLabel="Log this meal"
         >
           <Ionicons name="checkmark-circle" size={20} color={Colors.textInverse} />
           <Text style={styles.logButtonText}>{loading ? 'Saving...' : 'Log Meal'}</Text>

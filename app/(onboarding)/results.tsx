@@ -16,6 +16,7 @@ import { StatusBar } from 'expo-status-bar';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { FontFamily } from '../../constants/theme';
 import StarFieldBackground from '../../components/StarFieldBackground';
+import { useAuth } from '../../contexts/AuthContext';
 
 type GutProfile = {
   type: string;
@@ -58,7 +59,7 @@ function computeProfile(answers: Record<string, string>): GutProfile {
       emoji: '🌿',
       color: '#52B788',
       description:
-        "Your gut is sensitive, but without knowing your triggers you're flying blind. Just 14 days of tracking will change everything.",
+        "Your gut is sensitive, but without knowing your triggers you're flying blind. Two weeks of consistent tracking can reveal your first patterns.",
     };
   }
   if (hasEnergyIssues) {
@@ -67,7 +68,7 @@ function computeProfile(answers: Record<string, string>): GutProfile {
       emoji: '🔋',
       color: '#D4A373',
       description:
-        "Your gut-energy connection is disrupted. What you eat is directly affecting how you feel and perform. GutWell will show you exactly how.",
+        "Your gut and energy seem connected. Tracking meals alongside how you feel can help you see which foods line up with your good days.",
     };
   }
   return {
@@ -86,6 +87,7 @@ const NEXT_STEPS = [
 ];
 
 export default function ResultsScreen() {
+  const { session } = useAuth();
   const [profile, setProfile] = useState<GutProfile | null>(null);
   const [answers, setAnswers] = useState<Record<string, string>>({});
 
@@ -204,10 +206,14 @@ export default function ResultsScreen() {
         >
           <TouchableOpacity
             style={styles.ctaButton}
-            onPress={() => router.push('/(onboarding)/notifications')}
+            onPress={() =>
+              // Completing onboarding writes to the profile, which needs an
+              // account — new users create one here, returning users skip it.
+              router.push(session ? '/(onboarding)/notifications' : '/(auth)/signup')
+            }
             activeOpacity={0.88}
           >
-            <Text style={styles.ctaText}>I'm Ready to Start</Text>
+            <Text style={styles.ctaText}>I&apos;m Ready to Start</Text>
           </TouchableOpacity>
         </Animated.View>
       </SafeAreaView>

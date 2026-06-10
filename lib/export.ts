@@ -6,11 +6,14 @@ import { supabase } from './supabase';
  * Export all user data as CSV and open the share sheet.
  */
 export async function exportUserData(userId: string) {
-  // Fetch all data
-  const [checkIns, foodLogs, symptoms] = await Promise.all([
+  // Fetch all user-owned data — a GDPR access request must return it all.
+  const [checkIns, foodLogs, symptoms, waterLogs, gutScores, favorites] = await Promise.all([
     supabase.from('check_ins').select('*').eq('user_id', userId).order('created_at', { ascending: false }),
     supabase.from('food_logs').select('*').eq('user_id', userId).order('logged_at', { ascending: false }),
     supabase.from('symptoms').select('*').eq('user_id', userId).order('logged_at', { ascending: false }),
+    supabase.from('water_logs').select('*').eq('user_id', userId).order('logged_at', { ascending: false }),
+    supabase.from('gut_scores').select('*').eq('user_id', userId).order('date', { ascending: false }),
+    supabase.from('favorites').select('*').eq('user_id', userId),
   ]);
 
   let csv = 'GutWell Data Export\n\n';
@@ -34,6 +37,27 @@ export async function exportUserData(userId: string) {
   csv += 'Date,Symptom,Severity,Note\n';
   (symptoms.data || []).forEach(s => {
     csv += `${s.logged_at?.split('T')[0] || ''},${s.symptom_type},${s.severity},"${(s.note || '').replace(/"/g, '""')}"\n`;
+  });
+
+  // Gut scores
+  csv += '\n=== GUT SCORES ===\n';
+  csv += 'Date,Score\n';
+  (gutScores.data || []).forEach(g => {
+    csv += `${g.date},${g.score}\n`;
+  });
+
+  // Water logs
+  csv += '\n=== WATER LOGS ===\n';
+  csv += 'Date,Amount (ml)\n';
+  (waterLogs.data || []).forEach(w => {
+    csv += `${w.logged_at?.split('T')[0] || ''},${w.amount_ml ?? ''}\n`;
+  });
+
+  // Favorites
+  csv += '\n=== FAVORITE MEALS ===\n';
+  csv += 'Meal Name,Meal Type\n';
+  (favorites.data || []).forEach(f => {
+    csv += `"${(f.meal_name || '').replace(/"/g, '""')}",${f.meal_type || ''}\n`;
   });
 
   // Write to temp file

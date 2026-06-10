@@ -36,7 +36,7 @@ function isMissingRelationError(error: any): boolean {
   return error?.code === '42P01' || String(error?.message || '').includes('relation');
 }
 
-function calculateStreakFromDates(inputDates: string[]): StreakSnapshot {
+export function calculateStreakFromDates(inputDates: string[]): StreakSnapshot {
   if (inputDates.length === 0) return EMPTY_STREAK;
 
   const uniqueSorted = Array.from(new Set(inputDates.map(normalizeDate))).sort((a, b) => a.localeCompare(b));

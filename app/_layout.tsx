@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Stack } from 'expo-router';
+import { Platform } from 'react-native';
+import { router, Stack } from 'expo-router';
+import * as Notifications from 'expo-notifications';
 import { StatusBar } from 'expo-status-bar';
 import { AuthProvider, useAuth } from '../contexts/AuthContext';
 import { ErrorBoundary } from '../components/ErrorBoundary';
@@ -25,10 +27,6 @@ import { initSubscription } from '../lib/subscription';
 import { flush } from '../lib/offline-queue';
 import * as SplashScreen from 'expo-splash-screen';
 
-export const unstable_settings = {
-  initialRouteName: '(tabs)',
-};
-
 // Initialize Sentry for crash reporting
 Sentry.init({
   dsn: process.env.EXPO_PUBLIC_SENTRY_DSN,
@@ -44,14 +42,15 @@ function RootLayoutNav() {
   const { session, profile } = useAuth();
   const [showDisclaimer, setShowDisclaimer] = useState(false);
 
-  // Check health disclaimer after entering tabs
+  // Show the health disclaimer as soon as an account exists (i.e. before any
+  // health data can be synced), once per user per device.
   useEffect(() => {
-    if (session && profile?.onboarding_completed) {
-      hasAcceptedDisclaimer().then((accepted) => {
+    if (session?.user?.id) {
+      hasAcceptedDisclaimer(session.user.id).then((accepted) => {
         if (!accepted) setShowDisclaimer(true);
       });
     }
-  }, [session, profile?.onboarding_completed]);
+  }, [session?.user?.id]);
 
   // Identify user for analytics when authenticated
   useEffect(() => {
@@ -78,10 +77,31 @@ function RootLayoutNav() {
     return () => unsubscribe();
   }, []);
 
+  // Route notification taps to the screen they advertise (a check-in
+  // reminder opens Check-in, the digest notification opens the digest).
+  useEffect(() => {
+    if (Platform.OS === 'web') return;
+    const sub = Notifications.addNotificationResponseReceivedListener((response) => {
+      const reminderType = response.notification.request.content.data?.reminderType;
+      const route =
+        reminderType === 'digest' ? '/weekly-digest'
+        : reminderType === 'food' ? '/(tabs)/food'
+        : reminderType === 'symptom' ? '/log-symptom'
+        : reminderType === 'checkin' ? '/(tabs)/checkin'
+        : null;
+      if (route) {
+        // Defer until the router has mounted on cold starts.
+        setTimeout(() => router.push(route as any), 300);
+      }
+    });
+    return () => sub.remove();
+  }, []);
+
   return (
     <>
       <StatusBar style="light" />
-      <Stack initialRouteName="(tabs)" screenOptions={{ headerShown: false }}>
+      <Stack screenOptions={{ headerShown: false }}>
+        <Stack.Screen name="index" />
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="(auth)" />
         <Stack.Screen name="(onboarding)" />
@@ -98,6 +118,7 @@ function RootLayoutNav() {
       </Stack>
       <HealthDisclaimerModal
         visible={showDisclaimer}
+        userId={session?.user?.id}
         onAccept={() => setShowDisclaimer(false)}
       />
     </>

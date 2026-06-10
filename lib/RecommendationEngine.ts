@@ -5,8 +5,8 @@
  * authenticated request (the session JWT is attached automatically by
  * supabase.functions.invoke) and renders the returned text/JSON.
  *
- * Prompts and `preferredLanguage` remain scoped to English (`en`) and German
- * (`de`) only. User-supplied symptoms/corrections are opaque text passed through.
+ * Prompts and `preferredLanguage` support English (`en`), German (`de`), and
+ * Persian (`fa`). User-supplied symptoms/corrections are opaque text passed through.
  */
 import { supabase } from './supabase';
 
@@ -40,7 +40,7 @@ export type FoodNutrition = {
 };
 
 export type MealPhotoAnalysisContext = {
-  preferredLanguage?: 'en' | 'de';
+  preferredLanguage?: 'en' | 'de' | 'fa';
   gutScore?: number;
   conditions?: string[];
   symptoms?: string[];
@@ -55,7 +55,7 @@ export type MealPhotoAnalysisContext = {
 };
 
 export type MealCorrectionContext = {
-  preferredLanguage?: 'en' | 'de';
+  preferredLanguage?: 'en' | 'de' | 'fa';
   previousAnalysis: string;
   correction: string;
   gutScore?: number;
@@ -104,23 +104,28 @@ function messageForErrorCode(code: string | undefined, fallback: string): string
 
 /**
  * Invokes the analyze-food edge function with an auth header (attached
- * automatically by supabase) and a 25s timeout, then returns the parsed JSON.
+ * automatically by supabase) and a 55s timeout, then returns the parsed JSON.
  * Throws an Error with a user-friendly message on failure.
  */
 async function invokeAnalyzeFood<T>(
   body: Record<string, unknown>,
   fallbackMessage: string,
 ): Promise<T> {
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
   const timeoutPromise = new Promise<never>((_, reject) => {
-    const timeoutId = setTimeout(() => {
-      clearTimeout(timeoutId);
-      reject(new Error('Analysis timeout'));
-    }, REQUEST_TIMEOUT_MS);
+    timeoutId = setTimeout(() => reject(new Error('Analysis timeout')), REQUEST_TIMEOUT_MS);
   });
 
   const invokePromise = supabase.functions.invoke(ANALYZE_FOOD_FUNCTION, { body });
 
-  const { data, error } = await Promise.race([invokePromise, timeoutPromise]);
+  let data, error;
+  try {
+    ({ data, error } = await Promise.race([invokePromise, timeoutPromise]));
+  } finally {
+    // Clear on BOTH outcomes — a resolved request must not leave a 55s timer
+    // alive (it kept the JS event loop busy after every successful analysis).
+    clearTimeout(timeoutId);
+  }
 
   if (error) {
     // supabase-js wraps a non-2xx as FunctionsHttpError whose `context` is the

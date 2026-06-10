@@ -45,7 +45,12 @@ export default function NotificationsScreen() {
   }, [buttonAnim]);
 
   const completeOnboarding = async () => {
-    if (!user) return;
+    if (!user) {
+      // Shouldn't happen in the normal flow (results routes through signup),
+      // but never strand the user on a button that does nothing.
+      router.replace('/(auth)/signup');
+      return;
+    }
     try {
       const [rawName, rawAnswers] = await Promise.all([
         AsyncStorage.getItem('onboarding_name'),
@@ -67,7 +72,8 @@ export default function NotificationsScreen() {
         .eq('id', user.id);
 
       await refreshProfile();
-      track(Events.ONBOARDING_COMPLETED, { name: name || 'unknown' });
+      // Event only — no personal names in analytics.
+      track(Events.ONBOARDING_COMPLETED);
 
       // Show celebration moment before navigating
       setShowCelebration(true);
@@ -180,7 +186,7 @@ export default function NotificationsScreen() {
             <View style={styles.celebrationIcon}>
               <Ionicons name="leaf" size={48} color="#52B788" />
             </View>
-            <Text style={styles.celebrationTitle}>You're all set!</Text>
+            <Text style={styles.celebrationTitle}>You&apos;re all set!</Text>
             <Text style={styles.celebrationSubtitle}>
               Your gut health journey starts now
             </Text>

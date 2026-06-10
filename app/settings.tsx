@@ -11,7 +11,6 @@ import {
   Platform,
   ActionSheetIOS,
   Modal,
-  Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -25,6 +24,9 @@ import {
   scheduleDailyCheckInReminder,
   cancelDailyCheckInReminder,
 } from '../lib/notifications';
+import { flush, getPendingCount } from '../lib/offline-queue';
+import * as StoreReview from 'expo-store-review';
+import { track, Events } from '../lib/analytics';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -54,7 +56,6 @@ const DEFAULT_SETTINGS: Settings = {
 const SETTINGS_KEY = 'gutwell_settings';
 
 const DIET_OPTIONS: DietType[] = ['Standard', 'Vegan', 'Vegetarian', 'Gluten-Free', 'Dairy-Free', 'Low-FODMAP'];
-const GOAL_OPTIONS: DailyGoal[] = ['Reduce Bloating', 'Improve Regularity', 'Track Symptoms', 'General Wellness'];
 
 const HOUR_OPTIONS = Array.from({ length: 12 }, (_, i) => i + 1); // 1-12
 const MINUTE_OPTIONS = [0, 15, 30, 45];
@@ -272,8 +273,8 @@ export default function SettingsScreen() {
   const { user } = useAuth();
   const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
   const [dietModalVisible, setDietModalVisible] = useState(false);
-  const [goalModalVisible, setGoalModalVisible] = useState(false);
   const [timeModalVisible, setTimeModalVisible] = useState(false);
+  const [pendingSyncCount, setPendingSyncCount] = useState(0);
 
   // Load settings on mount
   useEffect(() => {
@@ -287,6 +288,24 @@ export default function SettingsScreen() {
         }
       }
     });
+    getPendingCount().then(setPendingSyncCount).catch(() => {});
+  }, []);
+
+  const handleSyncNow = useCallback(async () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    try {
+      const synced = await flush();
+      const remaining = await getPendingCount();
+      setPendingSyncCount(remaining);
+      Alert.alert(
+        remaining === 0 ? 'All synced' : 'Partially synced',
+        remaining === 0
+          ? `${synced} ${synced === 1 ? 'entry' : 'entries'} uploaded.`
+          : `${synced} uploaded, ${remaining} still waiting — check your connection and try again.`,
+      );
+    } catch {
+      Alert.alert('Sync failed', 'Check your connection and try again.');
+    }
   }, []);
 
   const save = useCallback((partial: Partial<Settings>) => {
@@ -297,7 +316,18 @@ export default function SettingsScreen() {
       // Sync notification scheduling when reminder settings change
       if ('dailyReminderEnabled' in partial || 'reminderHour' in partial || 'reminderMinute' in partial) {
         if (next.dailyReminderEnabled) {
-          scheduleDailyCheckInReminder(next.reminderHour, next.reminderMinute).catch(console.warn);
+          scheduleDailyCheckInReminder(next.reminderHour, next.reminderMinute)
+            .then((id) => {
+              if (id === null) {
+                // Scheduling refused (time falls in 22:00–08:00 quiet hours) —
+                // tell the user instead of silently never reminding them.
+                Alert.alert(
+                  'Reminder not scheduled',
+                  'That time falls within quiet hours (10 PM – 8 AM). Pick a time outside quiet hours to get your daily reminder.',
+                );
+              }
+            })
+            .catch(console.warn);
         } else if ('dailyReminderEnabled' in partial && !partial.dailyReminderEnabled) {
           cancelDailyCheckInReminder().catch(console.warn);
         }
@@ -328,50 +358,41 @@ export default function SettingsScreen() {
     }
   };
 
-  // Goal picker
-  const openGoalPicker = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    if (Platform.OS === 'ios') {
-      ActionSheetIOS.showActionSheetWithOptions(
-        {
-          options: [...GOAL_OPTIONS, 'Cancel'],
-          cancelButtonIndex: GOAL_OPTIONS.length,
-          title: 'Daily Goal',
-        },
-        (index) => {
-          if (index < GOAL_OPTIONS.length) {
-            save({ dailyGoal: GOAL_OPTIONS[index] });
-          }
-        }
-      );
-    } else {
-      setGoalModalVisible(true);
-    }
-  };
-
   const handleExportData = async () => {
     if (!user) return;
     Alert.alert('Preparing your data...', undefined, undefined, { cancelable: false });
 
     try {
-      const [checkIns, foodLogs, symptomLogs] = await Promise.all([
+      // Every user-owned table — a GDPR access request must return it all.
+      const [checkIns, foodLogs, symptomLogs, waterLogs, gutScores, favorites, reminders, profileRow] = await Promise.all([
         supabase.from('check_ins').select('*').eq('user_id', user.id),
         supabase.from('food_logs').select('*').eq('user_id', user.id),
         supabase.from('symptoms').select('*').eq('user_id', user.id),
+        supabase.from('water_logs').select('*').eq('user_id', user.id),
+        supabase.from('gut_scores').select('*').eq('user_id', user.id),
+        supabase.from('favorites').select('*').eq('user_id', user.id),
+        supabase.from('reminders').select('*').eq('user_id', user.id),
+        supabase.from('profiles').select('*').eq('id', user.id).maybeSingle(),
       ]);
 
       const exportData = {
         exportedAt: new Date().toISOString(),
+        profile: profileRow.data ?? null,
         checkIns: checkIns.data || [],
         foodLogs: foodLogs.data || [],
         symptomLogs: symptomLogs.data || [],
+        waterLogs: waterLogs.data || [],
+        gutScores: gutScores.data || [],
+        favorites: favorites.data || [],
+        reminders: reminders.data || [],
       };
 
       await Share.share({
         message: JSON.stringify(exportData, null, 2),
         title: 'GutWell Data Export',
       });
-    } catch (err) {
+      track(Events.DATA_EXPORTED);
+    } catch {
       Alert.alert('Export Failed', 'Could not export your data. Please try again.');
     }
   };
@@ -380,7 +401,7 @@ export default function SettingsScreen() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     Alert.alert(
       'Clear All Data',
-      'This will permanently delete all your check-ins, food logs, and symptom records. This cannot be undone.',
+      'This will permanently delete all your check-ins, food logs, symptoms, water logs, gut scores, favorites, and streaks. Your account stays; the data cannot be recovered.',
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -388,25 +409,40 @@ export default function SettingsScreen() {
           style: 'destructive',
           onPress: async () => {
             if (!user) return;
-            await Promise.all([
+            const results = await Promise.all([
               supabase.from('check_ins').delete().eq('user_id', user.id),
               supabase.from('food_logs').delete().eq('user_id', user.id),
               supabase.from('symptoms').delete().eq('user_id', user.id),
+              supabase.from('water_logs').delete().eq('user_id', user.id),
+              supabase.from('gut_scores').delete().eq('user_id', user.id),
+              supabase.from('favorites').delete().eq('user_id', user.id),
+              supabase.from('streaks').delete().eq('user_id', user.id),
             ]);
-            Alert.alert('Done', 'All your data has been cleared.');
+            const failed = results.filter((r) => r.error);
+            if (failed.length > 0) {
+              Alert.alert(
+                'Partially cleared',
+                'Some records could not be deleted. Please check your connection and try again.',
+              );
+            } else {
+              Alert.alert('Done', 'All your data has been cleared.');
+            }
           },
         },
       ]
     );
   };
 
-  const handleRateApp = () => {
-    const url = Platform.OS === 'ios'
-      ? 'itms-apps://itunes.apple.com/app/id0000000000?action=write-review'
-      : 'market://details?id=com.gutwell.app';
-    Linking.canOpenURL(url).then((can) => {
-      if (can) Linking.openURL(url);
-    });
+  const handleRateApp = async () => {
+    // Native in-app review sheet — no store IDs needed and works the moment
+    // the app is live. Falls back silently where unsupported (e.g. web).
+    try {
+      if (await StoreReview.hasAction()) {
+        await StoreReview.requestReview();
+      }
+    } catch {
+      // Review prompt is best-effort.
+    }
   };
 
   return (
@@ -434,36 +470,6 @@ export default function SettingsScreen() {
             onPress={openDietPicker}
             isFirst
           />
-          <Divider />
-          <SettingsRow
-            icon="flag-outline"
-            label="Daily Goal"
-            subtitle={settings.dailyGoal}
-            onPress={openGoalPicker}
-          />
-          <Divider />
-          <SettingsRow
-            icon="speedometer-outline"
-            label="Units"
-            right={
-              <View style={styles.toggleRow}>
-                <Text style={[styles.unitLabel, !settings.metricUnits && styles.unitLabelActive]}>
-                  Imperial
-                </Text>
-                <Switch
-                  value={settings.metricUnits}
-                  onValueChange={(v) => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); save({ metricUnits: v }); }}
-                  trackColor={{ false: Colors.border, true: Colors.secondary }}
-                  thumbColor={Colors.surface}
-                  accessibilityLabel="Toggle metric or imperial units"
-                />
-                <Text style={[styles.unitLabel, settings.metricUnits && styles.unitLabelActive]}>
-                  Metric
-                </Text>
-              </View>
-            }
-            isLast
-          />
         </View>
 
         {/* NOTIFICATIONS */}
@@ -487,7 +493,7 @@ export default function SettingsScreen() {
           <SettingsRow
             icon="flame-outline"
             label="Streak Alerts"
-            subtitle="9PM reminder when streak is at risk"
+            subtitle="8 PM reminder when streak is at risk"
             right={
               <Switch
                 value={settings.streakAlertsEnabled}
@@ -516,12 +522,24 @@ export default function SettingsScreen() {
         {/* DATA */}
         <SectionHeader title="DATA" />
         <View style={styles.card}>
+          {pendingSyncCount > 0 && (
+            <>
+              <SettingsRow
+                icon="cloud-upload-outline"
+                label="Waiting to sync"
+                subtitle={`${pendingSyncCount} ${pendingSyncCount === 1 ? 'entry' : 'entries'} saved offline — tap to sync now`}
+                onPress={handleSyncNow}
+                isFirst
+              />
+              <Divider />
+            </>
+          )}
           <SettingsRow
             icon="download-outline"
             label="Export My Data"
             subtitle="Download all your records as JSON"
             onPress={handleExportData}
-            isFirst
+            isFirst={pendingSyncCount === 0}
           />
           <Divider />
           <SettingsRow
@@ -580,14 +598,6 @@ export default function SettingsScreen() {
         selected={settings.dietType}
         onSelect={(v) => save({ dietType: v })}
         onClose={() => setDietModalVisible(false)}
-      />
-      <PickerModal
-        visible={goalModalVisible}
-        title="Daily Goal"
-        options={GOAL_OPTIONS}
-        selected={settings.dailyGoal}
-        onSelect={(v) => save({ dailyGoal: v })}
-        onClose={() => setGoalModalVisible(false)}
       />
       <TimePickerModal
         visible={timeModalVisible}

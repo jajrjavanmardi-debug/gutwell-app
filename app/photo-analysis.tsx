@@ -2,7 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as ImagePicker from 'expo-image-picker';
 import { router, useLocalSearchParams } from 'expo-router';
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -39,9 +39,9 @@ import {
 } from '../lib/photo-analysis-history';
 import { getRecentSupplements, type SupplementHistoryItem } from '../lib/supplement-history';
 import { supabase } from '../lib/supabase';
+import { track, Events } from '../lib/analytics';
 import {
-  addXpForAction,
-  getUserProgressProfile,
+  getTriggerMemories,
   recordTriggerFeedback,
   type TriggerFeedbackItem,
 } from '../lib/user-progress';
@@ -51,19 +51,22 @@ type WizardStep = 1 | 2 | 3;
 const APP_LANGUAGE_STORAGE_KEY = 'gutwell_app_language';
 /** When set to `Germany`, skips GPS and fixes AI context to Nürtingen (dev/testing only). */
 const DEV_LOCATION_OVERRIDE = process.env.EXPO_PUBLIC_DEV_LOCATION_OVERRIDE?.trim() ?? '';
-const TEST_GUT_PROFILE = {
-  gutScore: 4,
-  conditions: ['IBS', 'Bloating'],
-};
+/**
+ * The user's real gut context sent to the AI: their latest computed gut score
+ * (0–100, mapped to the prompt's 1–10 scale) and the conditions/concerns they
+ * actually told us about. Empty when unknown — the server prompt treats
+ * missing context as "not provided" instead of assuming a condition.
+ */
+type GutProfileContext = { gutScore: number | null; conditions: string[]; dietType: string | null };
 
 const copy = {
   en: {
     back: 'Back',
     title: 'Photo Analysis',
-    wizardStep1Subtitle: 'Step 1 of 4 — Capture',
-    wizardStep2Subtitle: 'Step 2 of 4 — Voice & feeling',
-    wizardStep3Subtitle: 'Step 3 of 4 — Analysis',
-    wizardStep4Hint: 'Step 4 of 4 — Final check',
+    wizardStep1Subtitle: 'Step 1 of 3 — Capture',
+    wizardStep2Subtitle: 'Step 2 of 3 — Describe',
+    wizardStep3Subtitle: 'Step 3 of 3 — Analysis',
+    wizardStep4Hint: 'Final check',
     wizardNext: 'Next',
     changePhoto: 'Change photo',
     step2Prompt: 'What is this food? How do you feel?',
@@ -75,10 +78,12 @@ const copy = {
     applyCorrection: 'Apply correction',
     recommendationUnchanged: 'Recommendation remains unchanged.',
     subtitle: 'Four steps: capture a photo, describe with voice or text, review the analysis, then confirm accuracy.',
-    profileContext: 'Personalized for Gut Score 4/10, IBS and bloating',
+    profileContextPrefix: 'Personalized for ',
+    profileContextEmpty: 'General gut guidance — complete check-ins to personalize',
+    profileContextScore: 'Gut Score',
     findingLocation: 'Finding nearby food options...',
     usingLocation: 'Using local context:',
-    locationUnavailable: 'Location unavailable. Suggestions will stay general.',
+    locationOptIn: 'Tap to enable local food suggestions (uses your approximate location)',
     takePhoto: 'Take a Photo',
     takePhotoText: 'Opens your camera. When you have a clear shot, tap Next.',
     chooseGallery: 'Choose from Gallery',
@@ -103,12 +108,11 @@ const copy = {
     disagree: "This didn't work for my body",
     planBTitle: 'Plan B',
     planBText: "I'm sorry this suggestion bothered you. I marked it as a trigger and your safer Plan B is: pause this food for now, sip ginger or peppermint tea, hydrate, and choose a very simple meal like rice, banana, or soup until your gut settles.",
-    instantReliefTitle: 'Instant Relief',
-    instantReliefText: 'Try peppermint tea, a warm compress on your belly, slow breathing, hydration, and rest. Pause the suspected trigger food for now. If pain is severe, worsening, or unusual, get medical help.',
+    instantReliefTitle: 'Gentle comfort ideas',
+    instantReliefText: 'Some people find warm peppermint or ginger tea, a warm compress, slow breathing, water, and rest comforting. Consider pausing the suspected trigger food for now. If pain is severe, worsening, or unusual, seek medical care promptly.',
     painApology: "I'm sorry this food may have bothered your body. Let's switch to a safer Plan B first.",
     medicalDisclaimer:
       'Important note: This analysis is for informational purposes only and does not replace a medical diagnosis. Seek medical care if you notice severe symptoms.',
-    rankUp: 'Rank Up',
     chatPlaceholder: 'Correct or add details...',
     send: 'Send',
     newScan: 'New Scan',
@@ -146,10 +150,10 @@ const copy = {
   de: {
     back: 'Zurück',
     title: 'Fotoanalyse',
-    wizardStep1Subtitle: 'Schritt 1 von 4 — Aufnahme',
-    wizardStep2Subtitle: 'Schritt 2 von 4 — Stimme & Befinden',
-    wizardStep3Subtitle: 'Schritt 3 von 4 — Analyse',
-    wizardStep4Hint: 'Schritt 4 von 4 — Abschluss',
+    wizardStep1Subtitle: 'Schritt 1 von 3 — Aufnahme',
+    wizardStep2Subtitle: 'Schritt 2 von 3 — Beschreiben',
+    wizardStep3Subtitle: 'Schritt 3 von 3 — Analyse',
+    wizardStep4Hint: 'Abschluss',
     wizardNext: 'Weiter',
     changePhoto: 'Foto ändern',
     step2Prompt: 'Was ist das für Essen? Wie fühlst du dich?',
@@ -161,10 +165,12 @@ const copy = {
     applyCorrection: 'Korrektur anwenden',
     recommendationUnchanged: 'Die Empfehlung bleibt unverändert.',
     subtitle: 'Vier Schritte: Foto, Beschreibung per Sprache oder Text, Analyse prüfen, Genauigkeit bestätigen.',
-    profileContext: 'Personalisiert für Darm-Score 4/10, IBS und Blähungen',
+    profileContextPrefix: 'Personalisiert für ',
+    profileContextEmpty: 'Allgemeine Darm-Hinweise — Check-ins vervollständigen das Profil',
+    profileContextScore: 'Darm-Score',
     findingLocation: 'Suche nach lokalen Essensoptionen...',
     usingLocation: 'Lokaler Kontext:',
-    locationUnavailable: 'Standort nicht verfügbar. Vorschläge bleiben allgemein.',
+    locationOptIn: 'Tippe für lokale Lebensmittel-Vorschläge (nutzt deinen ungefähren Standort)',
     takePhoto: 'Foto aufnehmen',
     takePhotoText: 'Öffnet die Kamera. Wenn das Foto passt, tippe auf Weiter.',
     chooseGallery: 'Aus Galerie wählen',
@@ -189,12 +195,11 @@ const copy = {
     disagree: "Das hat meinem Körper nicht gutgetan",
     planBTitle: 'Plan B',
     planBText: 'Es tut mir leid, dass diese Empfehlung dir nicht gutgetan hat. Ich habe sie als Trigger gespeichert. Sicherer Plan B: pausiere dieses Lebensmittel, trinke Ingwer- oder Pfefferminztee, bleib hydriert und iss vorerst etwas Einfaches wie Reis, Banane oder Suppe.',
-    instantReliefTitle: 'Soforthilfe',
-    instantReliefText: 'Versuche Pfefferminztee, eine warme Kompresse auf dem Bauch, ruhiges Atmen, Wasser und etwas Ruhe. Pausiere das vermutete Trigger-Lebensmittel. Bei starken, zunehmenden oder ungewöhnlichen Schmerzen bitte medizinische Hilfe holen.',
+    instantReliefTitle: 'Sanfte Wohlfühl-Tipps',
+    instantReliefText: 'Viele empfinden warmen Pfefferminz- oder Ingwertee, eine warme Kompresse, ruhiges Atmen, Wasser und etwas Ruhe als angenehm. Pausiere das vermutete Trigger-Lebensmittel vorerst. Bei starken, zunehmenden oder ungewöhnlichen Schmerzen bitte umgehend medizinische Hilfe holen.',
     painApology: 'Es tut mir leid, dass dieses Essen deinem Körper nicht gutgetan haben könnte. Lass uns zuerst zu einem sichereren Plan B wechseln.',
     medicalDisclaimer:
       'Wichtiger Hinweis: Diese Analyse dient nur der Information und ersetzt keine ärztliche Diagnose. Suchen Sie bei schweren Symptomen einen Arzt auf.',
-    rankUp: 'Levelaufstieg',
     chatPlaceholder: 'Korrigieren oder Details ergänzen...',
     send: 'Senden',
     newScan: 'Neuer Scan',
@@ -234,16 +239,17 @@ const copy = {
 type NativeLocationModule = {
   Accuracy: { Balanced: number };
   requestForegroundPermissionsAsync: () => Promise<{ status: string }>;
+  getForegroundPermissionsAsync: () => Promise<{ status: string }>;
   getCurrentPositionAsync: (options: { accuracy: number }) => Promise<{
     coords: { latitude: number; longitude: number };
   }>;
-  reverseGeocodeAsync: (coords: { latitude: number; longitude: number }) => Promise<Array<{
+  reverseGeocodeAsync: (coords: { latitude: number; longitude: number }) => Promise<{
     city?: string | null;
     district?: string | null;
     subregion?: string | null;
     region?: string | null;
     country?: string | null;
-  }>>;
+  }[]>;
 };
 
 type VoiceModule = {
@@ -300,11 +306,10 @@ function formatLocationContext(
     place?.region,
     place?.country,
   ].filter(Boolean);
-  const area = Array.from(new Set(areaParts)).join(', ') || 'Unknown area';
-  const latitude = coordinates.latitude.toFixed(4);
-  const longitude = coordinates.longitude.toFixed(4);
-
-  return `${area} (${latitude}, ${longitude})`;
+  // Privacy: only coarse place names ever leave the device — never raw
+  // coordinates. (The coords parameter remains for reverse geocoding only.)
+  void coordinates;
+  return Array.from(new Set(areaParts)).join(', ');
 }
 
 /** City / region / country for AI retail prompts (no coordinates). */
@@ -399,6 +404,7 @@ function getVoiceLocale(language: AppLanguage): string {
   return {
     en: 'en-US',
     de: 'de-DE',
+    fa: 'fa-IR',
   }[language];
 }
 
@@ -437,7 +443,6 @@ export default function PhotoAnalysisScreen() {
   const [todaysSupplements, setTodaysSupplements] = useState<SupplementHistoryItem[]>([]);
   const [triggerMemories, setTriggerMemories] = useState<TriggerFeedbackItem[]>([]);
   const [planBMessage, setPlanBMessage] = useState('');
-  const [rankUpBadge, setRankUpBadge] = useState('');
   /** Remount results ScrollView after a fresh analysis so the pane scrolls cleanly away from prior inputs. */
   const [resultsScrollKey, setResultsScrollKey] = useState(0);
   const micGlowOpacity = useRef(new Animated.Value(1)).current;
@@ -448,23 +453,87 @@ export default function PhotoAnalysisScreen() {
   const voiceHoldActiveRef = useRef(false);
   /** Pulse scale + glow opacity while the mic is actively listening. */
   const recordingPulse = useRef(new Animated.Value(1)).current;
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const [toast, setToast] = useState({
     visible: false,
     message: '',
     type: 'success' as 'success' | 'error' | 'info',
   });
+  const [gutProfileContext, setGutProfileContext] = useState<GutProfileContext>({
+    gutScore: null,
+    conditions: [],
+    dietType: null,
+  });
+
+  useEffect(() => {
+    if (!user) {
+      setGutProfileContext({ gutScore: null, conditions: [], dietType: null });
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      const conditions = new Set<string>();
+      if (profile?.gut_concern?.trim()) {
+        conditions.add(profile.gut_concern.trim().replace(/_/g, ' '));
+      }
+      try {
+        const { data } = await supabase
+          .from('user_profiles')
+          .select('medical_conditions')
+          .eq('user_id', user.id)
+          .maybeSingle();
+        if (Array.isArray(data?.medical_conditions)) {
+          for (const condition of data.medical_conditions) {
+            if (typeof condition === 'string' && condition.trim()) conditions.add(condition.trim());
+          }
+        }
+      } catch {
+        // Optional context — analysis still works without it.
+      }
+      let gutScore: number | null = null;
+      try {
+        const { data } = await supabase
+          .from('gut_scores')
+          .select('score')
+          .eq('user_id', user.id)
+          .order('date', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        if (typeof data?.score === 'number') {
+          gutScore = Math.min(10, Math.max(1, Math.round(data.score / 10)));
+        }
+      } catch {
+        // No score yet (new user) — send nothing rather than a fake number.
+      }
+      let dietType: string | null = null;
+      try {
+        const rawSettings = await AsyncStorage.getItem('gutwell_settings');
+        const parsed = rawSettings ? JSON.parse(rawSettings) : null;
+        if (typeof parsed?.dietType === 'string' && parsed.dietType !== 'Standard') {
+          dietType = parsed.dietType;
+        }
+      } catch {
+        // Settings unreadable — diet context is optional.
+      }
+      if (!cancelled) setGutProfileContext({ gutScore, conditions: [...conditions], dietType });
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [user, profile?.gut_concern]);
   const [isLoggingMeal, setIsLoggingMeal] = useState(false);
-  const t = copy[language];
+  // UI chrome has EN/DE translations; Persian users get English chrome while
+  // the AI analysis itself responds in Persian (server prompt handles fa).
+  const t = copy[language === 'de' ? 'de' : 'en'];
   /** Dev client / standalone only — Expo Go has no custom native STT modules. */
   const voiceNativeEnabled = canUseNativeSpeechToText();
-  const isRtlLanguage = false;
+  const isRtlLanguage = language === 'fa';
   const userEnteredSymptoms = mealDescription
       .split(/[,\n]+/)
       .map((symptom) => symptom.trim())
       .filter(Boolean);
   const currentSymptoms = [
-    ...TEST_GUT_PROFILE.conditions,
+    ...gutProfileContext.conditions,
     ...userEnteredSymptoms,
   ];
   const hasPainSymptom = currentSymptoms.some((symptom) =>
@@ -519,61 +588,71 @@ export default function PhotoAnalysisScreen() {
     return () => loop.stop();
   }, [voiceNativeEnabled, isListening, voiceTarget, recordingPulse, micGlowOpacity]);
 
+  /**
+   * Location is strictly OPT-IN: no permission prompt on mount. The user taps
+   * the location chip to enable local suggestions; the choice persists. On
+   * later visits we only load location if the OS permission is ALREADY
+   * granted (silent check, never a prompt).
+   */
+  const loadLocation = useCallback(async (requestPermission: boolean) => {
+    if (DEV_LOCATION_OVERRIDE.toLowerCase() === 'germany') {
+      setLocationContext('Nürtingen, Germany');
+      setRetailLocationHint('Nürtingen, Baden-Württemberg, Germany');
+      setIsLocationLoading(false);
+      return;
+    }
+
+    if (Platform.OS === 'web') {
+      setLocationContext('');
+      setRetailLocationHint('');
+      setIsLocationLoading(false);
+      return;
+    }
+
+    setIsLocationLoading(true);
+    try {
+      const Location = await import('expo-location') as NativeLocationModule;
+      const { status } = requestPermission
+        ? await Location.requestForegroundPermissionsAsync()
+        : await Location.getForegroundPermissionsAsync();
+
+      if (status !== 'granted') {
+        setLocationContext('');
+        setRetailLocationHint('');
+        return;
+      }
+
+      const position = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.Balanced,
+      });
+      const places = await Location.reverseGeocodeAsync(position.coords);
+      const place = places[0];
+      setLocationContext(formatLocationContext(position.coords, place));
+      setRetailLocationHint(formatRetailLocationHint(place));
+      await AsyncStorage.setItem('gutwell_location_suggestions', 'on');
+    } catch (error) {
+      console.warn('Location lookup failed:', error);
+      setLocationContext('');
+      setRetailLocationHint('');
+    } finally {
+      setIsLocationLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     let isMounted = true;
 
-    const loadLocation = async () => {
-      if (DEV_LOCATION_OVERRIDE.toLowerCase() === 'germany') {
-        if (isMounted) {
-          setLocationContext('User is in Nürtingen, Germany');
-          setRetailLocationHint('Nürtingen, Baden-Württemberg, Germany');
+    AsyncStorage.getItem('gutwell_location_suggestions')
+      .then((pref) => {
+        if (!isMounted) return;
+        if (pref === 'on') {
+          // Previously opted in — refresh silently (no permission prompt).
+          void loadLocation(false);
+        } else {
           setIsLocationLoading(false);
         }
-        return;
-      }
-
-      if (Platform.OS === 'web') {
-        setLocationContext('');
-        setRetailLocationHint('');
-        setIsLocationLoading(false);
-        return;
-      }
-
-      try {
-        const Location = await import('expo-location') as NativeLocationModule;
-        const { status } = await Location.requestForegroundPermissionsAsync();
-
-        if (status !== 'granted') {
-          if (isMounted) {
-            setLocationContext('');
-            setRetailLocationHint('');
-            setIsLocationLoading(false);
-          }
-          return;
-        }
-
-        const position = await Location.getCurrentPositionAsync({
-          accuracy: Location.Accuracy.Balanced,
-        });
-        const places = await Location.reverseGeocodeAsync(position.coords);
-
-        if (isMounted) {
-          const place = places[0];
-          setLocationContext(formatLocationContext(position.coords, place));
-          setRetailLocationHint(formatRetailLocationHint(place));
-        }
-      } catch (error) {
-        console.warn('Location lookup failed:', error);
-        if (isMounted) {
-          setLocationContext('');
-          setRetailLocationHint('');
-        }
-      } finally {
-        if (isMounted) setIsLocationLoading(false);
-      }
-    };
-
-    void loadLocation();
+      })
+      .catch(() => setIsLocationLoading(false));
 
     return () => {
       isMounted = false;
@@ -593,10 +672,10 @@ export default function PhotoAnalysisScreen() {
   }, []);
 
   useEffect(() => {
-    Promise.all([getRecentSupplements(12), getUserProgressProfile()])
-      .then(([supplements, progress]) => {
+    Promise.all([getRecentSupplements(12), getTriggerMemories()])
+      .then(([supplements, triggers]) => {
         setTodaysSupplements(supplements);
-        setTriggerMemories(progress.triggers);
+        setTriggerMemories(triggers);
       })
       .catch(console.warn);
   }, []);
@@ -627,7 +706,7 @@ export default function PhotoAnalysisScreen() {
         setCorrectionDraft('');
         setMealDescription(
           savedAnalysis.symptoms
-            .filter((symptom) => !TEST_GUT_PROFILE.conditions.includes(symptom))
+            .filter((symptom) => !gutProfileContext.conditions.includes(symptom))
             .join(', ')
         );
       })
@@ -716,17 +795,20 @@ export default function PhotoAnalysisScreen() {
     try {
       const rawResult = await analyzeMealPhoto(imageBase64, 'image/jpeg', {
         preferredLanguage: language,
-        gutScore: TEST_GUT_PROFILE.gutScore,
-        conditions: TEST_GUT_PROFILE.conditions,
+        gutScore: gutProfileContext.gutScore ?? undefined,
+        conditions: gutProfileContext.conditions,
         symptoms: currentSymptoms,
         userEnteredSymptoms,
         supplementsTakenToday: todaysSupplements.map((item) => `${item.name} (${item.dosage}, ${item.time})`),
         triggerMemories: [],
         locationContext,
         retailLocationHint,
-        userFeelingsNarrative: feelingsNarrative,
+        userFeelingsNarrative: gutProfileContext.dietType
+          ? `(My diet is ${gutProfileContext.dietType}.) ${feelingsNarrative}`
+          : feelingsNarrative,
       });
       setAnalysis(rawResult);
+      track(Events.FOOD_SCANNED);
       setResultsScrollKey((key) => key + 1);
       setWizardStep(3);
       setAccuracyAnswer(null);
@@ -737,18 +819,13 @@ export default function PhotoAnalysisScreen() {
         symptoms: currentSymptoms,
         mealImpactScore: extractMealImpactScore(rawResult),
       });
-      const xpResult = await addXpForAction(10);
       if (hasPainSymptom) {
-        const progress = await recordTriggerFeedback({
+        const triggers = await recordTriggerFeedback({
           mealName: extractMealName(rawResult),
           adviceSummary: rawResult.slice(0, 240),
           symptoms: currentSymptoms,
         });
-        setTriggerMemories(progress.triggers);
-      }
-      if (xpResult.leveledUp) {
-        setRankUpBadge(`${t.rankUp}: ${xpResult.profile.rank}`);
-        setTimeout(() => setRankUpBadge(''), 3600);
+        setTriggerMemories(triggers);
       }
     } catch (error) {
       console.error('Meal photo analysis failed:', error);
@@ -843,8 +920,8 @@ export default function PhotoAnalysisScreen() {
             analysis,
           ].join('\n\n'),
         correction,
-        gutScore: TEST_GUT_PROFILE.gutScore,
-        conditions: TEST_GUT_PROFILE.conditions,
+        gutScore: gutProfileContext.gutScore ?? undefined,
+        conditions: gutProfileContext.conditions,
         symptoms: [...currentSymptoms, correction],
         triggerMemories: [],
         locationContext,
@@ -863,19 +940,13 @@ export default function PhotoAnalysisScreen() {
       if (correctionIsDifferentFood) {
         setPlanBMessage('');
       }
-      const xpResult = await addXpForAction(5);
-      if (xpResult.leveledUp) {
-        setRankUpBadge(`${t.rankUp}: ${xpResult.profile.rank}`);
-        setTimeout(() => setRankUpBadge(''), 3600);
-      }
-
       if (hasPainSymptom || hasPainText(correction)) {
-        const progress = await recordTriggerFeedback({
+        const triggers = await recordTriggerFeedback({
           mealName: extractMealName(correctedAnalysis),
           adviceSummary: correctedAnalysis.slice(0, 240),
           symptoms: [...currentSymptoms, correction],
         });
-        setTriggerMemories(progress.triggers);
+        setTriggerMemories(triggers);
       }
       setCorrectionDraft('');
     } catch (error) {
@@ -1038,7 +1109,6 @@ export default function PhotoAnalysisScreen() {
     setLastImageBase64('');
     setAnalysis('');
     setPlanBMessage('');
-    setRankUpBadge('');
     setMealDescription('');
     setUserFeedback([]);
     setWizardStep(1);
@@ -1082,6 +1152,15 @@ export default function PhotoAnalysisScreen() {
             <Text style={[styles.title, isRtlLanguage && styles.rtlText]}>{t.title}</Text>
             <Text style={[styles.subtitle, isRtlLanguage && styles.rtlText]}>{wizardSubtitle}</Text>
           </View>
+          <Pressable
+            onPress={() => router.push('/food-history')}
+            hitSlop={10}
+            style={styles.historyButton}
+            accessibilityRole="button"
+            accessibilityLabel="View past meal scans"
+          >
+            <Ionicons name="time-outline" size={22} color="#FFFFFF" />
+          </Pressable>
         </View>
 
         {wizardStep === 2 ? (
@@ -1298,20 +1377,38 @@ export default function PhotoAnalysisScreen() {
                     color={hasPainSymptom ? '#F59E0B' : Colors.primary}
                   />
                   <Text style={[styles.profileText, isRtlLanguage && styles.rtlText]}>
-                    {t.profileContext}
+                    {(() => {
+                      const parts: string[] = [];
+                      if (gutProfileContext.gutScore != null) {
+                        parts.push(`${t.profileContextScore} ${gutProfileContext.gutScore}/10`);
+                      }
+                      if (gutProfileContext.conditions.length > 0) {
+                        parts.push(gutProfileContext.conditions.join(', '));
+                      }
+                      return parts.length > 0
+                        ? `${t.profileContextPrefix}${parts.join(' · ')}`
+                        : t.profileContextEmpty;
+                    })()}
                   </Text>
                 </View>
 
-                <View style={styles.locationCard}>
+                <Pressable
+                  style={styles.locationCard}
+                  onPress={() => {
+                    if (!locationContext && !isLocationLoading) void loadLocation(true);
+                  }}
+                  accessibilityRole="button"
+                  accessibilityLabel={locationContext ? 'Location suggestions enabled' : 'Enable local food suggestions using your location'}
+                >
                   <Ionicons name="location-outline" size={17} color={Colors.primary} />
                   <Text style={[styles.locationText, isRtlLanguage && styles.rtlText]}>
                     {isLocationLoading
                       ? t.findingLocation
                       : locationContext
                         ? `${t.usingLocation} ${locationContext}`
-                        : t.locationUnavailable}
+                        : t.locationOptIn}
                   </Text>
-                </View>
+                </Pressable>
 
                 {(isAnalyzing || isCorrecting) && analysis ? (
                   <View style={styles.scanNotice}>
@@ -1326,12 +1423,6 @@ export default function PhotoAnalysisScreen() {
                 {analysis ? (
                   <>
                   <View style={styles.resultCard}>
-                    {rankUpBadge ? (
-                      <View style={[styles.rankUpBadge, isRtlLanguage && styles.rtlRow]}>
-                        <Ionicons name="trophy" size={15} color="#000000" />
-                        <Text style={styles.rankUpBadgeText}>{rankUpBadge}</Text>
-                      </View>
-                    ) : null}
                     <View style={styles.resultHeader}>
                       <View style={styles.resultTitleRow}>
                         <Ionicons name="nutrition" size={20} color={Colors.secondary} />
@@ -1366,7 +1457,7 @@ export default function PhotoAnalysisScreen() {
                     {planBMessage ? (
                       <View style={styles.planBCard}>
                         <View style={[styles.planBHeader, isRtlLanguage && styles.rtlRow]}>
-                          <Ionicons name="shield-checkmark" size={18} color="#2DCE89" />
+                          <Ionicons name="shield-checkmark" size={18} color={Colors.secondary} />
                           <Text style={[styles.planBTitle, isRtlLanguage && styles.rtlText]}>{t.planBTitle}</Text>
                         </View>
                         <Text style={[styles.planBText, isRtlLanguage && styles.rtlText]}>{sanitizeAnalysisForDisplay(planBMessage)}</Text>
@@ -1527,7 +1618,7 @@ export default function PhotoAnalysisScreen() {
 
                 <View style={[styles.wizardFooterRow, { paddingBottom: Spacing.md + insets.bottom }]}>
                   <Pressable onPress={handleNewScan} style={({ pressed }) => [styles.newScanButton, pressed && styles.pressed]}>
-                    <Ionicons name="scan" size={16} color="#2DCE89" />
+                    <Ionicons name="scan" size={16} color={Colors.secondary} />
                     <Text style={styles.newScanText}>{t.newScan}</Text>
                   </Pressable>
                 </View>
@@ -1597,6 +1688,16 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontFamily: FontFamily.sansBold,
     fontSize: FontSize.sm,
+  },
+  historyButton: {
+    alignItems: 'center',
+    backgroundColor: '#101010',
+    borderColor: '#242424',
+    borderRadius: BorderRadius.full,
+    borderWidth: 1,
+    height: 40,
+    justifyContent: 'center',
+    width: 40,
   },
   iconButton: {
     alignItems: 'center',
@@ -1711,7 +1812,7 @@ const styles = StyleSheet.create({
   analyzeCombinedButton: {
     alignItems: 'center',
     alignSelf: 'stretch',
-    backgroundColor: '#2DCE89',
+    backgroundColor: Colors.secondary,
     borderRadius: BorderRadius.lg,
     flexDirection: 'row',
     gap: Spacing.sm,
@@ -1871,22 +1972,6 @@ const styles = StyleSheet.create({
     padding: Spacing.lg,
     ...Shadows.sm,
   },
-  rankUpBadge: {
-    alignItems: 'center',
-    alignSelf: 'flex-start',
-    backgroundColor: '#2DCE89',
-    borderRadius: BorderRadius.full,
-    flexDirection: 'row',
-    gap: 6,
-    marginBottom: Spacing.md,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: 7,
-  },
-  rankUpBadgeText: {
-    color: '#000000',
-    fontFamily: FontFamily.sansBold,
-    fontSize: FontSize.xs,
-  },
   resultHeader: {
     alignItems: 'center',
     flexDirection: 'row',
@@ -1934,7 +2019,7 @@ const styles = StyleSheet.create({
     opacity: 0.9,
   },
   scoreBadgeValue: {
-    color: '#2DCE89',
+    color: Colors.secondary,
     fontFamily: FontFamily.sansBold,
     fontSize: FontSize.md,
   },
@@ -1972,7 +2057,7 @@ const styles = StyleSheet.create({
   },
   planBCard: {
     backgroundColor: '#101010',
-    borderColor: '#2DCE8944',
+    borderColor: Colors.secondary + '44',
     borderRadius: BorderRadius.lg,
     borderWidth: 1,
     marginTop: Spacing.lg,
@@ -2061,7 +2146,7 @@ const styles = StyleSheet.create({
   },
   shareButton: {
     alignItems: 'center',
-    backgroundColor: '#2DCE89',
+    backgroundColor: Colors.secondary,
     borderRadius: BorderRadius.lg,
     flex: 1,
     flexDirection: 'row',
@@ -2136,7 +2221,7 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
   },
   newScanText: {
-    color: '#2DCE89',
+    color: Colors.secondary,
     fontFamily: FontFamily.sansBold,
     fontSize: FontSize.xs,
   },
@@ -2187,7 +2272,7 @@ const styles = StyleSheet.create({
   },
   sendButton: {
     alignItems: 'center',
-    backgroundColor: '#2DCE89',
+    backgroundColor: Colors.secondary,
     borderRadius: BorderRadius.full,
     height: 42,
     justifyContent: 'center',
@@ -2288,7 +2373,7 @@ const styles = StyleSheet.create({
   wizardNextButton: {
     alignItems: 'center',
     alignSelf: 'stretch',
-    backgroundColor: '#2DCE89',
+    backgroundColor: Colors.secondary,
     borderRadius: BorderRadius.lg,
     flexDirection: 'row',
     gap: Spacing.sm,
@@ -2341,7 +2426,7 @@ const styles = StyleSheet.create({
   },
   accuracyChipSelectedYes: {
     backgroundColor: 'rgba(45,206,137,0.2)',
-    borderColor: '#2DCE89',
+    borderColor: Colors.secondary,
   },
   accuracyChipSelectedNo: {
     backgroundColor: 'rgba(248,113,113,0.12)',
@@ -2389,7 +2474,7 @@ const styles = StyleSheet.create({
   applyCorrectionButton: {
     alignItems: 'center',
     alignSelf: 'stretch',
-    backgroundColor: '#2DCE89',
+    backgroundColor: Colors.secondary,
     borderRadius: BorderRadius.lg,
     justifyContent: 'center',
     minHeight: 46,

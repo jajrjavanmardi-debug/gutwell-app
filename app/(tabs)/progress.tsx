@@ -2,7 +2,7 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
+import { router , useFocusEffect } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
@@ -14,7 +14,6 @@ import { analyzeCorrelations, CorrelationSummary, computeCorrelations, FoodCorre
 import { ShareCard } from '../../components/ShareCard';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { ErrorState } from '../../components/ui/ErrorState';
-import { useFocusEffect } from 'expo-router';
 import { isPremiumFeature, refreshPremiumStatus } from '../../lib/subscription';
 import ScoreCard from '../../components/ScoreCard';
 import TrendBox from '../../components/TrendBox';
@@ -24,6 +23,7 @@ import History from '../../components/History';
 import TriggerFoodsBox from '../../components/TriggerFoodsBox';
 import SafeFoodsBox from '../../components/SafeFoodsBox';
 import { addDaysToLocalDateKey, getLocalDateKey } from '../../lib/date';
+import { track, Events } from '../../lib/analytics';
 
 type Period = 'W' | 'M' | '6M';
 
@@ -213,8 +213,13 @@ export default function ProgressScreen() {
           <View style={styles.headerActions}>
             <TouchableOpacity
               style={styles.iconButton}
-              onPress={() => setShowShare(true)}
+              onPress={() => {
+                track(Events.SHARE_OPENED, { source: 'progress' });
+                setShowShare(true);
+              }}
               activeOpacity={0.7}
+              accessibilityRole="button"
+              accessibilityLabel="Share your progress"
             >
               <Ionicons name="share-outline" size={20} color={Colors.primary} />
             </TouchableOpacity>
@@ -222,6 +227,8 @@ export default function ProgressScreen() {
               style={styles.digestButton}
               onPress={() => router.push('/weekly-digest')}
               activeOpacity={0.7}
+              accessibilityRole="button"
+              accessibilityLabel="Open weekly digest"
             >
               <Ionicons name="document-text-outline" size={16} color={Colors.primary} />
               <Text style={styles.digestButtonText}>Weekly Digest</Text>
@@ -256,6 +263,9 @@ export default function ProgressScreen() {
             <TouchableOpacity
               key={p}
               style={[styles.periodBtn, period === p && styles.periodSelected]}
+              accessibilityRole="button"
+              accessibilityState={{ selected: period === p }}
+              accessibilityLabel={p === 'W' ? 'Show last week' : p === 'M' ? 'Show last month' : 'Show last six months'}
               onPress={() => {
                 setPeriod(p);
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -422,13 +432,13 @@ export default function ProgressScreen() {
                 <TriggerFoodsBox triggerFoods={[topTrigger]} />
                 <RecommendationBox
                   text="See all your trigger foods and safe foods with Premium"
-                  onPress={() => router.push('/paywall')}
+                  onPress={() => router.push({ pathname: '/paywall', params: { source: 'progress' } })}
                 />
               </>
             ) : (
               <RecommendationBox
                 text="Unlock food-symptom insights with Premium"
-                onPress={() => router.push('/paywall')}
+                onPress={() => router.push({ pathname: '/paywall', params: { source: 'progress' } })}
               />
             );
           })()

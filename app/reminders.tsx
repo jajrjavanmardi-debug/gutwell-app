@@ -353,7 +353,7 @@ export default function RemindersScreen() {
               <View style={styles.quietWarning}>
                 <Ionicons name="moon-outline" size={15} color={Colors.warning ?? '#F59E0B'} />
                 <Text style={styles.quietWarningText}>
-                  This time falls within quiet hours (10 PM – 8 AM). The notification won't fire unless quiet hours are turned off.
+                  This time falls within quiet hours (10 PM – 8 AM). The notification won&apos;t fire unless quiet hours are turned off.
                 </Text>
               </View>
             )}
@@ -647,7 +647,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: Spacing.xs,
-    backgroundColor: '#FEF3C7',
+    backgroundColor: Colors.warning + '18',
     borderRadius: BorderRadius.md,
     padding: Spacing.sm,
     marginTop: Spacing.sm,
@@ -656,7 +656,7 @@ const styles = StyleSheet.create({
     flex: 1,
     fontFamily: FontFamily.sansRegular,
     fontSize: FontSize.xs,
-    color: '#92400E',
+    color: Colors.warning,
     lineHeight: 18,
   },
 

@@ -18,7 +18,7 @@ const TIPS: WellnessTip[] = [
   },
   {
     title: 'Morning hydration',
-    body: 'Drinking a glass of warm water first thing helps stimulate your digestive system and flush toxins.',
+    body: 'Drinking a glass of warm water first thing in the morning is a gentle way to wake up your digestive system.',
     category: 'lifestyle',
     icon: 'water',
     tags: ['hydration', 'digestion', 'general'],
@@ -53,7 +53,7 @@ const TIPS: WellnessTip[] = [
   },
   {
     title: 'Walk after meals',
-    body: 'A 10-15 minute walk after eating improves digestion and can reduce blood sugar spikes by 30%.',
+    body: 'A 10-15 minute walk after eating supports digestion — many people find it helps them feel lighter after meals.',
     category: 'lifestyle',
     icon: 'walk',
     tags: ['digestion', 'bloating', 'energy'],
@@ -102,7 +102,7 @@ const TIPS: WellnessTip[] = [
   },
   {
     title: 'Food journaling works',
-    body: 'People who track their food consistently are 2x more likely to identify their trigger foods.',
+    body: 'Consistent food tracking makes patterns much easier to spot — the more you log, the clearer your triggers become.',
     category: 'science',
     icon: 'journal',
     tags: ['digestion', 'bloating', 'general'],
@@ -116,7 +116,7 @@ const TIPS: WellnessTip[] = [
   },
   {
     title: 'Antibiotics caution',
-    body: 'One course of antibiotics can reduce gut diversity for up to a year. Always follow with probiotics.',
+    body: "Antibiotics can affect your gut bacteria. If you're prescribed them, ask your doctor or pharmacist whether probiotics make sense for you.",
     category: 'science',
     icon: 'medical',
     tags: ['digestion', 'general'],
@@ -137,7 +137,7 @@ const TIPS: WellnessTip[] = [
   },
   {
     title: 'Cold exposure benefits',
-    body: 'Brief cold showers may reduce gut inflammation and improve immune function over time.',
+    body: 'Some people find brief cold showers invigorating as part of a morning routine — listen to your body if you try them.',
     category: 'lifestyle',
     icon: 'snow',
     tags: ['inflammation', 'energy'],
