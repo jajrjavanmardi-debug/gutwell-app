@@ -149,8 +149,8 @@ const LANGUAGE_LABEL: Record<Language, string> = { en: "English", de: "German" }
 
 function germanyRetailBoostPrompt(): string {
   return [
-    "Germany / Nürtingen-area shopping rule (mandatory when userLocation indicates Germany): Whenever you suggest where to buy alternatives or swaps, you MUST explicitly name REWE and Edeka (add Kaufland when it fits). Never omit REWE and Edeka.",
-    'Instead of vague store advice, prefer concrete sentences such as: English — "You can often find these low-FODMAP items at REWE, Edeka, or Kaufland near Nürtingen." German — "Solche low-FODMAP-Optionen findest du oft bei REWE, Edeka oder Kaufland in der Nähe von Nürtingen."',
+    "Germany shopping rule (mandatory when userLocation indicates Germany): Whenever you suggest where to buy alternatives or swaps, you MUST explicitly name REWE and Edeka (add Kaufland when it fits). Never omit REWE and Edeka.",
+    'Instead of vague store advice, prefer concrete sentences such as: English — "You can often find these low-FODMAP items at REWE, Edeka, or Kaufland near you." German — "Solche low-FODMAP-Optionen findest du oft bei REWE, Edeka oder Kaufland in deiner Nähe." Only name a specific city or district if it appears in userLocation.',
   ].join(" ");
 }
 
@@ -244,13 +244,13 @@ function buildMealTextPrompt(body: MealTextBody): string {
     'Provide a clear "Meal Impact Score" from 1 to 10 for this specific meal, where 1 is likely to worsen symptoms and 10 is very gut-supportive for this user.',
     "Explain how this specific meal may affect the user's current gut score when one is provided; if no score is provided, skip score-specific framing.",
     "Identify likely foods visible in the image when helpful, estimate whether the meal is gut-supportive, and explain the main reasons in friendly practical language.",
-    'Impact prediction requirement: include one explicit sentence with this meaning: "If you eat this [amount/frequency], your gut score might change by [+/- X] over [time period]." Localize the sentence into the preferred response language.',
+    "Impact framing: you may note qualitatively how this meal could affect how they feel (e.g. 'meals like this tend to be gentler on digestion'), but never promise or quantify outcomes — no numeric score-change predictions, percentages, or timeframes.",
     "If the food is unhealthy for the person's gut condition or symptoms, suggest 3 healthier alternatives that are commonly available in local grocery stores or restaurants.",
     "Localized suggestions requirement: suggest specific local store/product options, not generic foods only. If the user is in Germany, include realistic examples anchored on REWE and Edeka (plus Kaufland, Alnatura, dmBio when helpful) or local dishes such as Gemüsesuppe. Use specific product types such as lactose-free plain yogurt, peppermint tea, ginger tea, white rice, boiled potatoes, zucchini, low-FODMAP soup, or cooked vegetables when appropriate.",
     "IBS and bloating rule: do not suggest brown rice, barley bread, barley, or high-fiber whole grains for IBS/bloating relief. Prefer white rice, boiled potatoes, zucchini, carrots, low-FODMAP soup, peppermint tea, or ginger tea.",
     'When suggesting products, avoid pretending certainty about exact inventory. Phrase as "look for..." or "usually easy to find at..." when needed.',
-    "Use this concise structure: Likely meal, Meal Impact Score, Gut score prediction, Symptom notes, 3 local alternatives, Small tip.",
-    "Formatting rule: use plain text only. Do not use ASCII art, decorative boxes, Unicode box-drawing characters (corners or ruled lines), tables, or unusual symbols. Do not use any markdown syntax. Forbidden characters at line start or inline: #, ##, ###, *, **, _. Use plain ALL CAPS section labels instead (e.g. TIPS, ALTERNATIVES, SUMMARY). Include Dose, Duration, and Progress Tip when giving action steps.",
+    "Use this concise structure: Likely meal, Meal Impact Score, How it may affect you, Symptom notes, 3 local alternatives, Small tip.",
+    "Formatting rule: use plain text only. Do not use ASCII art, decorative boxes, Unicode box-drawing characters (corners or ruled lines), tables, or unusual symbols. Do not use any markdown syntax. Forbidden characters at line start or inline: #, ##, ###, *, **, _. Use plain ALL CAPS section labels instead (e.g. TIPS, ALTERNATIVES, SUMMARY). When giving action steps you may include a suggested amount and a practical timeframe phrased as friendly guidance (e.g. "try a small portion for the next week"), never as prescription-style Dose/Duration labels.",
     `Mandatory safety footer: end the analysis with a short medical disclaimer in the preferred response language. German exact text: "${DISCLAIMER.de}" English exact text: "${DISCLAIMER.en}"`,
     "When the image is unclear, say what extra detail would help instead of pretending certainty.",
     "Avoid medical claims. Keep it concise.",
@@ -278,7 +278,7 @@ function buildMealTextPrompt(body: MealTextBody): string {
         "",
         "Never apologize for visual ambiguity alone; do not open with a long apology about misreading the photo.",
         "Support rule: if they describe pain or distress, give practical calming guidance and a gentle Plan B (e.g. peppermint or ginger tea, hydration, rest, warm compress, pausing suspected triggers).",
-        'Pain relief rule: if their words or symptoms include stomach pain, abdominal pain, cramps, or belly pain, include a short section titled "Instant Relief" in English or "Soforthilfe" in German. Add a safety note to seek urgent care for severe, worsening, or unusual pain.',
+        'Comfort rule: if their words or symptoms include stomach pain, abdominal pain, cramps, or belly pain, include a short section titled "Gentle comfort ideas" in English or "Sanfte Wohlfühl-Tipps" in German with general wellness options (warm tea, rest, hydration). Do not frame these as treatment or relief of a medical condition. Always add: seek medical care promptly for severe, worsening, or unusual pain.',
         "IBS abdominal pain consistency: whenever IBS-related abdominal pain, cramps, bloating pain, or a flare is indicated (including from profile conditions such as IBS), prioritize peppermint tea, ginger tea, hydration, rest, warm compress, and a gentle Plan B before elaborate meal suggestions.",
         "Context rule: this is a fresh combined submission. Ignore unrelated prior guesses unless reflected in the symptom lists below.",
         ...sharedTail,
@@ -292,7 +292,7 @@ function buildMealTextPrompt(body: MealTextBody): string {
         "Context reset rule: this is a new meal scan. Ignore all previous meal guesses, cookies, trigger memories, or prior chat context unless they are explicitly included in the current user-entered symptoms for this scan.",
         "Priority rule: user-entered symptoms from the UI are more important than the default profile symptoms. If any user-entered symptom is present, make it one of the main points in the analysis, symptom notes, and gut score prediction.",
         "Empathy rule: if a negative reaction or pain symptom is present, start the response with a sincere apology in the preferred response language, then pivot immediately to a safer Plan B before discussing the original food. A safer Plan B can include ginger tea, peppermint tea, hydration, rest, a warm compress, or temporarily pausing food if the person feels irritated.",
-        'Pain relief rule: if the user-entered symptoms include stomach pain, abdominal pain, cramps, or belly pain, include a short section titled "Instant Relief" in English or "Soforthilfe" in German. Suggest gentle options such as peppermint tea, ginger tea, a warm compress, hydration, rest, and pausing the suspected trigger food. Add a safety note to seek urgent care for severe, worsening, or unusual pain.',
+        'Comfort rule: if the user-entered symptoms include stomach pain, abdominal pain, cramps, or belly pain, include a short section titled "Gentle comfort ideas" in English or "Sanfte Wohlfühl-Tipps" in German with general wellness options such as peppermint or ginger tea, a warm compress, hydration, rest, and pausing the suspected trigger food. Do not frame these as treatment or relief of a medical condition. Always add: seek medical care promptly for severe, worsening, or unusual pain.',
         "IBS abdominal pain consistency: whenever IBS-related abdominal pain, cramps, bloating pain, or a flare is indicated (including from profile conditions such as IBS), prioritize peppermint tea, ginger tea, hydration, rest, warm compress, and a gentle Plan B before elaborate meal suggestions.",
         ...sharedTail.slice(6),
       ].join("\n");
@@ -551,10 +551,10 @@ function buildNutrientRecommendationPrompt(
     "Write a warm, friendly recommendation in the preferred response language from the user context.",
     "Language rule: write the entire answer in English, German, or Persian (Farsi) only, matching the preferred response language.",
     "Avoid medical claims and keep the tone practical, like a supportive friend.",
-    "Formatting rule: use plain text only. Do not use ASCII art, decorative boxes, Unicode box-drawing characters (corners or ruled lines), tables, or unusual symbols. Do not use any markdown syntax. Forbidden: #, ##, ###, *, **, _. Use plain ALL CAPS section labels such as DOSE, DURATION, PROGRESS TIP.",
+    "Formatting rule: use plain text only. Do not use ASCII art, decorative boxes, Unicode box-drawing characters (corners or ruled lines), tables, or unusual symbols. Do not use any markdown syntax. Forbidden: #, ##, ###, *, **, _. Use plain ALL CAPS section labels such as SUGGESTION, HOW LONG TO TRY, PROGRESS TIP.",
     "If a Gut score is present, frame the advice as a small step to help improve the Gut Score from the current score toward 10.",
-    "Always include these clearly labeled parts: Dose, Duration, and Progress Tip. Use German equivalents only when the preferred language is German.",
-    "Dose should be a food or habit amount/frequency. Duration should be a practical timeframe. Progress Tip should tell the user what to track to see if their Gut Score improves.",
+    "Always include these clearly labeled parts: Suggestion, How long to try, and Progress Tip. Use German equivalents only when the preferred language is German.",
+    "Suggestion should be a food or habit with a sensible amount/frequency phrased as friendly guidance (never prescription-style dosing). How long to try should be a practical timeframe. Progress Tip should tell the user what to track to see if their Gut Score improves.",
     `Mandatory safety footer: end the analysis with a short medical disclaimer in English or German. German exact text: "${DISCLAIMER.de}" English exact text: "${DISCLAIMER.en}"`,
     "If the food is unhealthy for the user's gut condition, suggest 3 healthier alternatives that are commonly available in local grocery stores or restaurants.",
     "If IBS is listed as an underlying condition, never suggest high-sugar cookies, desserts, candy, sugary snacks, brown rice, barley bread, barley, or high-fiber whole grains. Prefer white rice, boiled potatoes, zucchini, carrots, ginger tea, peppermint tea, low-FODMAP soup, cooked vegetables, or plain yogurt when appropriate.",

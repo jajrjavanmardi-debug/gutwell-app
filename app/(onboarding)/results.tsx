@@ -59,7 +59,7 @@ function computeProfile(answers: Record<string, string>): GutProfile {
       emoji: '🌿',
       color: '#52B788',
       description:
-        "Your gut is sensitive, but without knowing your triggers you're flying blind. Just 14 days of tracking will change everything.",
+        "Your gut is sensitive, but without knowing your triggers you're flying blind. Two weeks of consistent tracking can reveal your first patterns.",
     };
   }
   if (hasEnergyIssues) {
@@ -68,7 +68,7 @@ function computeProfile(answers: Record<string, string>): GutProfile {
       emoji: '🔋',
       color: '#D4A373',
       description:
-        "Your gut-energy connection is disrupted. What you eat is directly affecting how you feel and perform. GutWell will show you exactly how.",
+        "Your gut and energy seem connected. Tracking meals alongside how you feel can help you see which foods line up with your good days.",
     };
   }
   return {

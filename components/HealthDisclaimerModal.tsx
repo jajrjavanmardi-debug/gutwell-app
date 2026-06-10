@@ -15,15 +15,25 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Button } from './ui/Button';
 import { Colors, FontFamily, FontSize, Spacing } from '../constants/theme';
+import { supabase } from '../lib/supabase';
 
-const STORAGE_KEY = 'health_disclaimer_accepted';
+// Per-user acceptance: a second account on the same device must see the
+// disclaimer again. Acceptance is also timestamped server-side for an
+// auditable consent trail (user_profiles.health_data_consent_*).
+const STORAGE_KEY_PREFIX = 'health_disclaimer_accepted';
+const CONSENT_VERSION = '2026-06-10';
+
+function storageKeyFor(userId?: string | null): string {
+  return userId ? `${STORAGE_KEY_PREFIX}:${userId}` : STORAGE_KEY_PREFIX;
+}
 
 type Props = {
   visible: boolean;
   onAccept: () => void;
+  userId?: string | null;
 };
 
-export function HealthDisclaimerModal({ visible, onAccept }: Props) {
+export function HealthDisclaimerModal({ visible, onAccept, userId }: Props) {
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
 
@@ -50,7 +60,24 @@ export function HealthDisclaimerModal({ visible, onAccept }: Props) {
   }, [visible]);
 
   const handleAccept = async () => {
-    await AsyncStorage.setItem(STORAGE_KEY, 'true');
+    await AsyncStorage.setItem(storageKeyFor(userId), 'true');
+    if (userId) {
+      // Best-effort consent trail; local acceptance is the gate either way.
+      supabase
+        .from('user_profiles')
+        .upsert(
+          {
+            user_id: userId,
+            health_data_consent_accepted: true,
+            health_data_consent_accepted_at: new Date().toISOString(),
+            health_data_consent_version: CONSENT_VERSION,
+          },
+          { onConflict: 'user_id' },
+        )
+        .then(({ error }) => {
+          if (error) console.warn('[disclaimer] consent upsert failed', error.message);
+        });
+    }
     onAccept();
   };
 
@@ -126,8 +153,8 @@ export function HealthDisclaimerModal({ visible, onAccept }: Props) {
 }
 
 /** Check if disclaimer has been accepted */
-export async function hasAcceptedDisclaimer(): Promise<boolean> {
-  const value = await AsyncStorage.getItem(STORAGE_KEY);
+export async function hasAcceptedDisclaimer(userId?: string | null): Promise<boolean> {
+  const value = await AsyncStorage.getItem(storageKeyFor(userId));
   return value === 'true';
 }
 

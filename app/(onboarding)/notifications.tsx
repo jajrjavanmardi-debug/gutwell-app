@@ -72,7 +72,8 @@ export default function NotificationsScreen() {
         .eq('id', user.id);
 
       await refreshProfile();
-      track(Events.ONBOARDING_COMPLETED, { name: name || 'unknown' });
+      // Event only — no personal names in analytics.
+      track(Events.ONBOARDING_COMPLETED);
 
       // Show celebration moment before navigating
       setShowCelebration(true);

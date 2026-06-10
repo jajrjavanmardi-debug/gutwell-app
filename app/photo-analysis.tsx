@@ -82,7 +82,7 @@ const copy = {
     profileContextScore: 'Gut Score',
     findingLocation: 'Finding nearby food options...',
     usingLocation: 'Using local context:',
-    locationUnavailable: 'Location unavailable. Suggestions will stay general.',
+    locationOptIn: 'Tap to enable local food suggestions (uses your approximate location)',
     takePhoto: 'Take a Photo',
     takePhotoText: 'Opens your camera. When you have a clear shot, tap Next.',
     chooseGallery: 'Choose from Gallery',
@@ -107,8 +107,8 @@ const copy = {
     disagree: "This didn't work for my body",
     planBTitle: 'Plan B',
     planBText: "I'm sorry this suggestion bothered you. I marked it as a trigger and your safer Plan B is: pause this food for now, sip ginger or peppermint tea, hydrate, and choose a very simple meal like rice, banana, or soup until your gut settles.",
-    instantReliefTitle: 'Instant Relief',
-    instantReliefText: 'Try peppermint tea, a warm compress on your belly, slow breathing, hydration, and rest. Pause the suspected trigger food for now. If pain is severe, worsening, or unusual, get medical help.',
+    instantReliefTitle: 'Gentle comfort ideas',
+    instantReliefText: 'Some people find warm peppermint or ginger tea, a warm compress, slow breathing, water, and rest comforting. Consider pausing the suspected trigger food for now. If pain is severe, worsening, or unusual, seek medical care promptly.',
     painApology: "I'm sorry this food may have bothered your body. Let's switch to a safer Plan B first.",
     medicalDisclaimer:
       'Important note: This analysis is for informational purposes only and does not replace a medical diagnosis. Seek medical care if you notice severe symptoms.',
@@ -169,7 +169,7 @@ const copy = {
     profileContextScore: 'Darm-Score',
     findingLocation: 'Suche nach lokalen Essensoptionen...',
     usingLocation: 'Lokaler Kontext:',
-    locationUnavailable: 'Standort nicht verfügbar. Vorschläge bleiben allgemein.',
+    locationOptIn: 'Tippe für lokale Lebensmittel-Vorschläge (nutzt deinen ungefähren Standort)',
     takePhoto: 'Foto aufnehmen',
     takePhotoText: 'Öffnet die Kamera. Wenn das Foto passt, tippe auf Weiter.',
     chooseGallery: 'Aus Galerie wählen',
@@ -194,8 +194,8 @@ const copy = {
     disagree: "Das hat meinem Körper nicht gutgetan",
     planBTitle: 'Plan B',
     planBText: 'Es tut mir leid, dass diese Empfehlung dir nicht gutgetan hat. Ich habe sie als Trigger gespeichert. Sicherer Plan B: pausiere dieses Lebensmittel, trinke Ingwer- oder Pfefferminztee, bleib hydriert und iss vorerst etwas Einfaches wie Reis, Banane oder Suppe.',
-    instantReliefTitle: 'Soforthilfe',
-    instantReliefText: 'Versuche Pfefferminztee, eine warme Kompresse auf dem Bauch, ruhiges Atmen, Wasser und etwas Ruhe. Pausiere das vermutete Trigger-Lebensmittel. Bei starken, zunehmenden oder ungewöhnlichen Schmerzen bitte medizinische Hilfe holen.',
+    instantReliefTitle: 'Sanfte Wohlfühl-Tipps',
+    instantReliefText: 'Viele empfinden warmen Pfefferminz- oder Ingwertee, eine warme Kompresse, ruhiges Atmen, Wasser und etwas Ruhe als angenehm. Pausiere das vermutete Trigger-Lebensmittel vorerst. Bei starken, zunehmenden oder ungewöhnlichen Schmerzen bitte umgehend medizinische Hilfe holen.',
     painApology: 'Es tut mir leid, dass dieses Essen deinem Körper nicht gutgetan haben könnte. Lass uns zuerst zu einem sichereren Plan B wechseln.',
     medicalDisclaimer:
       'Wichtiger Hinweis: Diese Analyse dient nur der Information und ersetzt keine ärztliche Diagnose. Suchen Sie bei schweren Symptomen einen Arzt auf.',
@@ -238,6 +238,7 @@ const copy = {
 type NativeLocationModule = {
   Accuracy: { Balanced: number };
   requestForegroundPermissionsAsync: () => Promise<{ status: string }>;
+  getForegroundPermissionsAsync: () => Promise<{ status: string }>;
   getCurrentPositionAsync: (options: { accuracy: number }) => Promise<{
     coords: { latitude: number; longitude: number };
   }>;
@@ -304,11 +305,10 @@ function formatLocationContext(
     place?.region,
     place?.country,
   ].filter(Boolean);
-  const area = Array.from(new Set(areaParts)).join(', ') || 'Unknown area';
-  const latitude = coordinates.latitude.toFixed(4);
-  const longitude = coordinates.longitude.toFixed(4);
-
-  return `${area} (${latitude}, ${longitude})`;
+  // Privacy: only coarse place names ever leave the device — never raw
+  // coordinates. (The coords parameter remains for reverse geocoding only.)
+  void coordinates;
+  return Array.from(new Set(areaParts)).join(', ');
 }
 
 /** City / region / country for AI retail prompts (no coordinates). */
@@ -584,61 +584,71 @@ export default function PhotoAnalysisScreen() {
     return () => loop.stop();
   }, [voiceNativeEnabled, isListening, voiceTarget, recordingPulse, micGlowOpacity]);
 
+  /**
+   * Location is strictly OPT-IN: no permission prompt on mount. The user taps
+   * the location chip to enable local suggestions; the choice persists. On
+   * later visits we only load location if the OS permission is ALREADY
+   * granted (silent check, never a prompt).
+   */
+  const loadLocation = useCallback(async (requestPermission: boolean) => {
+    if (DEV_LOCATION_OVERRIDE.toLowerCase() === 'germany') {
+      setLocationContext('Nürtingen, Germany');
+      setRetailLocationHint('Nürtingen, Baden-Württemberg, Germany');
+      setIsLocationLoading(false);
+      return;
+    }
+
+    if (Platform.OS === 'web') {
+      setLocationContext('');
+      setRetailLocationHint('');
+      setIsLocationLoading(false);
+      return;
+    }
+
+    setIsLocationLoading(true);
+    try {
+      const Location = await import('expo-location') as NativeLocationModule;
+      const { status } = requestPermission
+        ? await Location.requestForegroundPermissionsAsync()
+        : await Location.getForegroundPermissionsAsync();
+
+      if (status !== 'granted') {
+        setLocationContext('');
+        setRetailLocationHint('');
+        return;
+      }
+
+      const position = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.Balanced,
+      });
+      const places = await Location.reverseGeocodeAsync(position.coords);
+      const place = places[0];
+      setLocationContext(formatLocationContext(position.coords, place));
+      setRetailLocationHint(formatRetailLocationHint(place));
+      await AsyncStorage.setItem('gutwell_location_suggestions', 'on');
+    } catch (error) {
+      console.warn('Location lookup failed:', error);
+      setLocationContext('');
+      setRetailLocationHint('');
+    } finally {
+      setIsLocationLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     let isMounted = true;
 
-    const loadLocation = async () => {
-      if (DEV_LOCATION_OVERRIDE.toLowerCase() === 'germany') {
-        if (isMounted) {
-          setLocationContext('User is in Nürtingen, Germany');
-          setRetailLocationHint('Nürtingen, Baden-Württemberg, Germany');
+    AsyncStorage.getItem('gutwell_location_suggestions')
+      .then((pref) => {
+        if (!isMounted) return;
+        if (pref === 'on') {
+          // Previously opted in — refresh silently (no permission prompt).
+          void loadLocation(false);
+        } else {
           setIsLocationLoading(false);
         }
-        return;
-      }
-
-      if (Platform.OS === 'web') {
-        setLocationContext('');
-        setRetailLocationHint('');
-        setIsLocationLoading(false);
-        return;
-      }
-
-      try {
-        const Location = await import('expo-location') as NativeLocationModule;
-        const { status } = await Location.requestForegroundPermissionsAsync();
-
-        if (status !== 'granted') {
-          if (isMounted) {
-            setLocationContext('');
-            setRetailLocationHint('');
-            setIsLocationLoading(false);
-          }
-          return;
-        }
-
-        const position = await Location.getCurrentPositionAsync({
-          accuracy: Location.Accuracy.Balanced,
-        });
-        const places = await Location.reverseGeocodeAsync(position.coords);
-
-        if (isMounted) {
-          const place = places[0];
-          setLocationContext(formatLocationContext(position.coords, place));
-          setRetailLocationHint(formatRetailLocationHint(place));
-        }
-      } catch (error) {
-        console.warn('Location lookup failed:', error);
-        if (isMounted) {
-          setLocationContext('');
-          setRetailLocationHint('');
-        }
-      } finally {
-        if (isMounted) setIsLocationLoading(false);
-      }
-    };
-
-    void loadLocation();
+      })
+      .catch(() => setIsLocationLoading(false));
 
     return () => {
       isMounted = false;
@@ -1377,16 +1387,23 @@ export default function PhotoAnalysisScreen() {
                   </Text>
                 </View>
 
-                <View style={styles.locationCard}>
+                <Pressable
+                  style={styles.locationCard}
+                  onPress={() => {
+                    if (!locationContext && !isLocationLoading) void loadLocation(true);
+                  }}
+                  accessibilityRole="button"
+                  accessibilityLabel={locationContext ? 'Location suggestions enabled' : 'Enable local food suggestions using your location'}
+                >
                   <Ionicons name="location-outline" size={17} color={Colors.primary} />
                   <Text style={[styles.locationText, isRtlLanguage && styles.rtlText]}>
                     {isLocationLoading
                       ? t.findingLocation
                       : locationContext
                         ? `${t.usingLocation} ${locationContext}`
-                        : t.locationUnavailable}
+                        : t.locationOptIn}
                   </Text>
-                </View>
+                </Pressable>
 
                 {(isAnalyzing || isCorrecting) && analysis ? (
                   <View style={styles.scanNotice}>

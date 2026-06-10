@@ -196,7 +196,8 @@ export default function CheckinScreen() {
       // Today's check-in is in — the streak is no longer at risk.
       cancelStreakAtRiskAlert().catch(() => {});
 
-      track(Events.CHECKIN_LOGGED, { stool_type: stoolType, score: freshScore });
+      // Event only — never send health values (stool type, scores) to analytics.
+      track(Events.CHECKIN_LOGGED);
 
       // Update widget with latest data
       updateWidgetData({

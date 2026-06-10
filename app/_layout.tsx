@@ -42,14 +42,15 @@ function RootLayoutNav() {
   const { session, profile } = useAuth();
   const [showDisclaimer, setShowDisclaimer] = useState(false);
 
-  // Check health disclaimer after entering tabs
+  // Show the health disclaimer as soon as an account exists (i.e. before any
+  // health data can be synced), once per user per device.
   useEffect(() => {
-    if (session && profile?.onboarding_completed) {
-      hasAcceptedDisclaimer().then((accepted) => {
+    if (session?.user?.id) {
+      hasAcceptedDisclaimer(session.user.id).then((accepted) => {
         if (!accepted) setShowDisclaimer(true);
       });
     }
-  }, [session, profile?.onboarding_completed]);
+  }, [session?.user?.id]);
 
   // Identify user for analytics when authenticated
   useEffect(() => {
@@ -117,6 +118,7 @@ function RootLayoutNav() {
       </Stack>
       <HealthDisclaimerModal
         visible={showDisclaimer}
+        userId={session?.user?.id}
         onAccept={() => setShowDisclaimer(false)}
       />
     </>

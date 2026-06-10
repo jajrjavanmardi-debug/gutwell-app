@@ -342,17 +342,28 @@ export default function SettingsScreen() {
     Alert.alert('Preparing your data...', undefined, undefined, { cancelable: false });
 
     try {
-      const [checkIns, foodLogs, symptomLogs] = await Promise.all([
+      // Every user-owned table — a GDPR access request must return it all.
+      const [checkIns, foodLogs, symptomLogs, waterLogs, gutScores, favorites, reminders, profileRow] = await Promise.all([
         supabase.from('check_ins').select('*').eq('user_id', user.id),
         supabase.from('food_logs').select('*').eq('user_id', user.id),
         supabase.from('symptoms').select('*').eq('user_id', user.id),
+        supabase.from('water_logs').select('*').eq('user_id', user.id),
+        supabase.from('gut_scores').select('*').eq('user_id', user.id),
+        supabase.from('favorites').select('*').eq('user_id', user.id),
+        supabase.from('reminders').select('*').eq('user_id', user.id),
+        supabase.from('profiles').select('*').eq('id', user.id).maybeSingle(),
       ]);
 
       const exportData = {
         exportedAt: new Date().toISOString(),
+        profile: profileRow.data ?? null,
         checkIns: checkIns.data || [],
         foodLogs: foodLogs.data || [],
         symptomLogs: symptomLogs.data || [],
+        waterLogs: waterLogs.data || [],
+        gutScores: gutScores.data || [],
+        favorites: favorites.data || [],
+        reminders: reminders.data || [],
       };
 
       await Share.share({
@@ -368,7 +379,7 @@ export default function SettingsScreen() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     Alert.alert(
       'Clear All Data',
-      'This will permanently delete all your check-ins, food logs, and symptom records. This cannot be undone.',
+      'This will permanently delete all your check-ins, food logs, symptoms, water logs, gut scores, favorites, and streaks. Your account stays; the data cannot be recovered.',
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -376,12 +387,24 @@ export default function SettingsScreen() {
           style: 'destructive',
           onPress: async () => {
             if (!user) return;
-            await Promise.all([
+            const results = await Promise.all([
               supabase.from('check_ins').delete().eq('user_id', user.id),
               supabase.from('food_logs').delete().eq('user_id', user.id),
               supabase.from('symptoms').delete().eq('user_id', user.id),
+              supabase.from('water_logs').delete().eq('user_id', user.id),
+              supabase.from('gut_scores').delete().eq('user_id', user.id),
+              supabase.from('favorites').delete().eq('user_id', user.id),
+              supabase.from('streaks').delete().eq('user_id', user.id),
             ]);
-            Alert.alert('Done', 'All your data has been cleared.');
+            const failed = results.filter((r) => r.error);
+            if (failed.length > 0) {
+              Alert.alert(
+                'Partially cleared',
+                'Some records could not be deleted. Please check your connection and try again.',
+              );
+            } else {
+              Alert.alert('Done', 'All your data has been cleared.');
+            }
           },
         },
       ]
