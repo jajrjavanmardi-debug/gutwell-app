@@ -362,22 +362,28 @@ function sanitizeMealScoring(text: string): string {
 }
 
 function sanitizeAnalysisForDisplay(text: string): string {
-  return sanitizeMealScoring(text)
-    // Remove heading prefixes: ###, ##, #
-    .replace(/^#{1,3}\s*/gm, '')
-    // Remove bold/italic markers: **, *, __,  _
-    .replace(/\*\*(.+?)\*\*/g, '$1')
-    .replace(/\_\_(.+?)\_\_/g, '$1')
-    .replace(/\*(.+?)\*/g, '$1')
-    .replace(/\_(.+?)\_/g, '$1')
-    // Remove leading bullet markers: * or - at line start (but not inside words)
-    .replace(/^[\*\-]\s+/gm, '')
-    // Collapse excess blank lines
-    .replace(/
-{3,}/g, '
-
-')
+  const cleaned = sanitizeMealScoring(text)
+    // 1. Remove heading prefixes: ###, ##, # (with optional leading whitespace)
+    .replace(/^\s*#{1,3}\s*/gm, '')
+    // 2. Remove markdown table separator rows: | --- | :--- | ---: |
+    .replace(/^\|?[\s:\-|]+\|?\s*$/gm, '')
+    // 3. Strip outer pipes from table rows: | a | b | -> a  b
+    .replace(/^\|(.+)\|\s*$/gm, (_: string, inner: string) =>
+      inner.split('|').map((c: string) => c.trim()).filter(Boolean).join('  '))
+    // 4. Remove bold: **text** -> text
+    .replace(/\*\*([^*]+?)\*\*/g, '$1')
+    // 5. Remove italic: *text* -> text (not inside words)
+    .replace(/(^|\s)\*([^*\n]+?)\*(\s|$)/gm, '$1$2$3')
+    // 6. Remove __bold__
+    .replace(/__([^_]+?)__/g, '$1')
+    // 7. Remove _italic_
+    .replace(/(?<![\w])_([^_\n]+?)_(?![\w])/g, '$1')
+    // 8. Remove leading bullets: * item, - item, • item
+    .replace(/^\s*[*\-\u2022]\s+/gm, '')
+    // 9. Collapse 3+ blank lines to 2
+    .replace(/\n{3,}/g, '\n\n')
     .trim();
+  return cleaned;
 }
 
 function ensurePainApology(analysis: string, apology: string, hasPainSymptom: boolean): string {
