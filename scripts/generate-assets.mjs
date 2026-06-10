@@ -1,9 +1,13 @@
 import sharp from 'sharp';
+import { mkdirSync } from 'fs';
 import { resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ASSETS_DIR = resolve(__dirname, '../assets/images');
+// The generated PNGs are gitignored, so on a fresh checkout (CI) the output
+// directory doesn't exist yet.
+mkdirSync(ASSETS_DIR, { recursive: true });
 
 /** Matches app typography (`constants/theme.ts`): EB Garamond–style display + Inter-style UI sans. */
 const FONT_DISPLAY_STACK =
