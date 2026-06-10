@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import type { PurchasesOffering, PurchasesPackage } from 'react-native-purchases';
 import { useAuth } from '../contexts/AuthContext';
@@ -61,6 +61,7 @@ function packageForPlan(
 
 export default function PaywallScreen() {
   const { user } = useAuth();
+  const { source } = useLocalSearchParams<{ source?: string }>();
   const [selectedPlan, setSelectedPlan] = useState<'monthly' | 'annual'>('annual');
 
   // Free-launch mode: nothing routes here, but guard against deep links —
@@ -79,7 +80,7 @@ export default function PaywallScreen() {
 
   useEffect(() => {
     let active = true;
-    track(Events.PAYWALL_VIEWED);
+    track(Events.PAYWALL_VIEWED, { source: source ?? 'unknown' });
     (async () => {
       try {
         await initSubscription(user?.id);

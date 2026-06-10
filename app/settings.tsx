@@ -26,6 +26,7 @@ import {
 } from '../lib/notifications';
 import { flush, getPendingCount } from '../lib/offline-queue';
 import * as StoreReview from 'expo-store-review';
+import { track, Events } from '../lib/analytics';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -390,6 +391,7 @@ export default function SettingsScreen() {
         message: JSON.stringify(exportData, null, 2),
         title: 'GutWell Data Export',
       });
+      track(Events.DATA_EXPORTED);
     } catch {
       Alert.alert('Export Failed', 'Could not export your data. Please try again.');
     }

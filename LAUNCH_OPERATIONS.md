@@ -1,65 +1,53 @@
 # GutWell — Launch Operations Runbook
 
-Status of the five operational blockers, what's done, and exactly what only you can do.
+**Updated: 10 June 2026** (post-acquisition overhaul — see `ACQUISITION_IMPROVEMENT_PLAN.md` for the full audit and what changed).
 Project ref: `peipdakrqtgabnvpazrc` · Bundle id: `com.parallellabs.gutwell` · Publisher: Parallel Labs Pte. Ltd.
 
 ---
 
-## 🔴 #0 (NEW, must do first) — Restore the paused Supabase project
+## ✅ Done (was blocking, now resolved)
 
-The GutWell Supabase project is **INACTIVE (paused)** — free-tier projects auto-pause after ~7 days of inactivity. **The whole backend is down** (DB, auth, edge functions) until restored.
-
-1. Open https://supabase.com/dashboard/project/peipdakrqtgabnvpazrc
-2. Click **Restore project** (takes ~2 min).
-3. **Upgrade to Pro ($25/mo) before launch** — otherwise it will pause again and take production down. Non-negotiable for a shipping app.
-
-→ The moment it's active, tell me and I deploy the edge function (#1) in one command.
-
----
-
-## #1 — Deploy the edge function ✅ READY (blocked only by #0)
-
-All prepped. `GEMINI_API_KEY` is **already set** on the project. As soon as #0 is done I run:
-```
-supabase functions deploy analyze-food --project-ref peipdakrqtgabnvpazrc
-```
-Then meal photo analysis + nutrient recommendations work. (I'll smoke-test it after.)
+| Item | Status |
+|---|---|
+| Supabase project | **ACTIVE** (eu-west-1). Still on free tier — see #1 below |
+| Edge function `analyze-food` | **DEPLOYED** (10 Jun) with wellness-compliant prompts + real per-user personalization |
+| Production DB security | **FIXED**: legacy "Public can read/insert" policies dropped; check-in unique constraint restored; offline-dedup schema applied; local/remote migration histories identical |
+| Auth & onboarding funnel | **RESTORED** (was unreachable since 2 May); welcome → quiz → signup → notifications → tabs, verified end-to-end |
+| Free-launch mode | Code ships free cleanly: all premium gates unlocked, paywall unreachable while `EXPO_PUBLIC_REVENUECAT_IOS_KEY` is unset (no dead "Coming Soon" purchase UI) |
+| Privacy | In-app policy rewritten (names all processors); analytics carries no health values or names; location strictly opt-in, city-only; per-user disclaimer with server-side consent timestamp |
+| Tests & CI | 26 unit tests + GitHub Actions (tsc, lint, jest) on every PR |
 
 ---
 
-## #2 — Rotate the leaked keys
+## 🔴 Owner-only items (in order)
 
-The old **Groq** and **USDA** keys shipped in the app bundle → treat as compromised.
+### #1 — Supabase Pro upgrade ($25/mo)
+Free-tier projects auto-pause after ~7 days idle, which takes production down. Non-negotiable before launch.
+https://supabase.com/dashboard/project/peipdakrqtgabnvpazrc/settings/billing
 
-- **Groq:** the app no longer uses Groq at all (the security fix moved everything to Gemini). So just **revoke** the old key in the Groq console — no replacement needed. https://console.groq.com/keys
-- **USDA:** still used (server-side now), and **not yet set** as a secret. Generate a fresh key (https://fdc.nal.usda.gov/api-key-signup.html), then either you run, or paste it to me and I'll run:
+### #2 — Rotate / set API keys
+- **Groq:** the app no longer uses Groq — **revoke** the old leaked key: https://console.groq.com/keys
+- **USDA:** generate a fresh key (https://fdc.nal.usda.gov/api-key-signup.html) then:
   ```
   supabase secrets set USDA_API_KEY=<new_key> --project-ref peipdakrqtgabnvpazrc
   ```
-  (Without it, the home "recommended foods" cards are empty — core analysis still works on Gemini.)
-- **Gemini:** already a server secret, never exposed — leave as is.
+  (Without it the nutrient-recommendation enrichment stays disabled; core analysis works on Gemini.)
+- **Gemini:** already a server secret — leave as is.
 
----
+### #3 — Apple Developer + eas.json
+- Enroll: https://developer.apple.com/programs/enroll/ ($99/yr)
+- Then provide the 3 values for `eas.json → submit.production.ios`:
+  `appleId` (your Apple ID email) · `appleTeamId` (10-char) · `ascAppId` (numeric, after #4)
 
-## #3 — Apple Developer + eas.json
-
-- **Apple Developer Program enrollment** ($99/yr) — requires your identity + payment; I can't do this. https://developer.apple.com/programs/enroll/
-- Once enrolled, I need **3 values** to fill `eas.json` (the `submit.production.ios` block) — give them to me and I'll edit it:
-  - `appleId` — your Apple ID email
-  - `appleTeamId` — 10-char Team ID (developer.apple.com → Membership)
-  - `ascAppId` — App Store Connect App ID (numeric; created when you add the app in ASC, step #4)
-
----
-
-## #4 — App Store Connect listing (copy below is ready to paste)
-
-Creating the app record + uploading is yours (needs your Apple account). The **content is done** — paste these in. All copy is wellness-framed (no medical/diagnostic claims) for App Store + FTC compliance.
+### #4 — App Store Connect listing (copy ready below)
 
 **Name:** GutWell
 **Subtitle (30):** Gut health, food & symptoms
 **Promotional text (170):** Understand how food affects how you feel. Log meals and symptoms, spot your patterns, and build a daily gut-health habit — with a personal gut score and AI meal insights.
 
-**Keywords (100):** `gut health,digestion,bloating,food diary,symptom tracker,meal log,microbiome,wellness,fodmap,habit`
+**Keywords (100):**
+`ibs,gut health,digestion,bloating,food diary,symptom tracker,meal log,fodmap,microbiome,stool`
+> Changed from the old set: added **ibs** (highest-intent term in the category) and **stool**; dropped words duplicated by the subtitle/name (gut, health, wellness, habit) — Apple indexes title+subtitle words automatically, so repeating them wastes characters.
 
 **Description:**
 > GutWell helps you understand the connection between what you eat and how you feel.
@@ -75,44 +63,45 @@ Creating the app record + uploading is yours (needs your Apple account). The **c
 >
 > GutWell provides general wellness information only and is not a substitute for professional medical advice. Always consult a qualified healthcare provider about your health.
 
-**Support URL:** https://theparallellab.com · **Privacy Policy URL:** (your hosted privacy page)
+**Support URL:** https://theparallellab.com · **Privacy Policy URL:** host the policy (in-app copy in `app/privacy-policy.tsx` is the source of truth — must be published on the web before submission)
 **Category:** Health & Fitness · **Age rating:** 4+
+**Devices:** iPhone only (`supportsTablet` is now false — no iPad screenshots or iPad QA needed)
 
-### App Privacy questionnaire answers (ASC → App Privacy)
-"Do you collect data?" → **Yes**. None used to **track** you across other companies' apps (answer **No** to tracking). Collected types:
-| Data type | Collected | Linked to identity | Used for tracking | Purpose |
+### App Privacy questionnaire answers (ASC → App Privacy) — UPDATED
+"Do you collect data?" → **Yes**. Tracking across other companies' apps → **No**.
+| Data type | Collected | Linked to identity | Tracking | Purpose |
 |---|---|---|---|---|
 | Email address | Yes | Yes | No | App functionality (account) |
 | Health & Fitness (food logs, symptoms, gut score) | Yes | Yes | No | App functionality |
-| Coarse location | Yes | Yes | No | App functionality (nearby food suggestions) |
-| Usage data (product interaction) | Yes | Yes | No | Analytics (PostHog) |
+| Photos (meal photos, only when user scans) | Yes | Yes | No | App functionality (AI analysis) |
+| Coarse location (ONLY if user opts in; city-level, never raw GPS) | Yes | Yes | No | App functionality (local food suggestions) |
+| Usage data (interaction events, NO health values) | Yes | Yes | No | Analytics (PostHog) |
 | Crash data / diagnostics | Yes | No | No | App functionality (Sentry) |
 | User ID | Yes | Yes | No | App functionality |
 
-**Screenshots:** still needed — 6.7"/6.9" set, min 3 (Home/gut score, Check-in, Food insights, Photo analysis, Progress). I can capture raw simulator frames on request; polished marketing frames are a design pass.
+**Screenshots:** 6.7"/6.9" set, min 3 — suggested: Home (new core-loop screen), Check-in, Photo analysis, Progress, Weekly digest.
+
+### #5 — Subscriptions (v1.1, not launch)
+Launch **free** (current code is configured for it). When ready for paid:
+1. ASC → Subscriptions group "GutWell Premium": `gutwell_premium_monthly` $6.99/mo · `gutwell_premium_annual` $39.99/yr (optional 7-day trial intro offer)
+2. RevenueCat: entitlement **`premium`**, offering **`current`**, packages `$rc_monthly`/`$rc_annual`
+3. Set `EXPO_PUBLIC_REVENUECAT_IOS_KEY` in the EAS build env — that single env var turns on all gates, upsells, and the paywall (with required legal links + price-derived claims already built)
 
 ---
 
-## #5 — Subscriptions (RevenueCat) — spec ready; recommend launching FREE first
+## Build & submit
 
-**Recommendation:** launch **free** (the code safely no-ops without a key), validate retention with the now-real analytics + notifications, then turn on paid in v1.1. If you want paid at launch, here's the exact config — creating it needs your App Store Connect + RevenueCat accounts:
+```bash
+eas build --platform ios --profile production
+eas submit --platform ios   # after eas.json values are filled
+```
 
-**App Store Connect → Subscriptions** (group "GutWell Premium"):
-| Product ID | Type | Price (match paywall fallbacks) |
-|---|---|---|
-| `gutwell_premium_monthly` | Auto-renewable | $6.99 / mo |
-| `gutwell_premium_annual` | Auto-renewable | $39.99 / yr (optional 7-day free trial intro offer) |
+Pre-flight: `npx tsc --noEmit` · `npx expo lint` · `npx jest` (CI runs all three on every PR).
 
-**RevenueCat dashboard:**
-- Entitlement identifier: **`premium`** (must match code exactly — `lib/subscription.ts`)
-- Offering identifier: **`current`**, with packages **`$rc_monthly`** and **`$rc_annual`** mapped to the two products above, both attached to the `premium` entitlement.
-- Copy the **Apple App Store public key** (`appl_…`) → give it to me or set `EXPO_PUBLIC_REVENUECAT_IOS_KEY` in your EAS env / `.env`.
-
----
-
-## What I need from you (the short list)
-1. **Restore the Supabase project** (#0) → then I deploy #1.
-2. **New USDA key** value (#2) → I set the secret.
-3. **3 Apple values** (#3) → I fill `eas.json`.
-4. **Free or paid at launch?** (#5) — recommend free.
-Everything else above (revoke old keys, Apple enrollment, ASC listing/screenshots, RevenueCat product creation) requires your accounts and is yours to action with the runbook above.
+## What I need from you (short list)
+1. Supabase Pro upgrade (#1)
+2. New USDA key value (#2) → I set the secret
+3. Revoke old Groq key (#2)
+4. Apple enrollment + 3 values (#3) → I fill `eas.json`
+5. Host the privacy policy at a public URL (#4)
+6. Create the ASC listing with the copy above + screenshots (#4)

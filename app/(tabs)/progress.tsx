@@ -23,6 +23,7 @@ import History from '../../components/History';
 import TriggerFoodsBox from '../../components/TriggerFoodsBox';
 import SafeFoodsBox from '../../components/SafeFoodsBox';
 import { addDaysToLocalDateKey, getLocalDateKey } from '../../lib/date';
+import { track, Events } from '../../lib/analytics';
 
 type Period = 'W' | 'M' | '6M';
 
@@ -212,7 +213,10 @@ export default function ProgressScreen() {
           <View style={styles.headerActions}>
             <TouchableOpacity
               style={styles.iconButton}
-              onPress={() => setShowShare(true)}
+              onPress={() => {
+                track(Events.SHARE_OPENED, { source: 'progress' });
+                setShowShare(true);
+              }}
               activeOpacity={0.7}
               accessibilityRole="button"
               accessibilityLabel="Share your progress"
@@ -428,13 +432,13 @@ export default function ProgressScreen() {
                 <TriggerFoodsBox triggerFoods={[topTrigger]} />
                 <RecommendationBox
                   text="See all your trigger foods and safe foods with Premium"
-                  onPress={() => router.push('/paywall')}
+                  onPress={() => router.push({ pathname: '/paywall', params: { source: 'progress' } })}
                 />
               </>
             ) : (
               <RecommendationBox
                 text="Unlock food-symptom insights with Premium"
-                onPress={() => router.push('/paywall')}
+                onPress={() => router.push({ pathname: '/paywall', params: { source: 'progress' } })}
               />
             );
           })()

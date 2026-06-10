@@ -39,6 +39,7 @@ import {
 } from '../lib/photo-analysis-history';
 import { getRecentSupplements, type SupplementHistoryItem } from '../lib/supplement-history';
 import { supabase } from '../lib/supabase';
+import { track, Events } from '../lib/analytics';
 import {
   getTriggerMemories,
   recordTriggerFeedback,
@@ -804,6 +805,7 @@ export default function PhotoAnalysisScreen() {
           : feelingsNarrative,
       });
       setAnalysis(rawResult);
+      track(Events.FOOD_SCANNED);
       setResultsScrollKey((key) => key + 1);
       setWizardStep(3);
       setAccuracyAnswer(null);

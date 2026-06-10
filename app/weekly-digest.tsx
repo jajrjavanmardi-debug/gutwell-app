@@ -307,7 +307,7 @@ export default function WeeklyDigestScreen() {
             </Text>
             <TouchableOpacity
               style={styles.lockedCta}
-              onPress={() => router.push('/paywall')}
+              onPress={() => router.push({ pathname: '/paywall', params: { source: 'weekly_digest' } })}
               activeOpacity={0.85}
             >
               <Text style={styles.lockedCtaText}>Unlock with Premium</Text>

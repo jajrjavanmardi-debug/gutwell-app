@@ -12,6 +12,7 @@ import { Toast } from '../components/ui/Toast';
 import { Colors, Spacing, FontSize, BorderRadius, FontFamily } from '../constants/theme';
 import { updateTodayScore } from '../lib/scoring';
 import { enqueue } from '../lib/offline-queue';
+import { track, Events } from '../lib/analytics';
 
 const SYMPTOM_TYPES = [
   { key: 'bloating', label: 'Bloating', icon: 'ellipse' as const },
@@ -102,6 +103,7 @@ export default function LogSymptomScreen() {
       }
     } else {
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      track(Events.SYMPTOM_LOGGED);
       setToast({ visible: true, message: 'Symptom logged!', type: 'success' });
       setTodaysSymptoms((prev) => [
         {

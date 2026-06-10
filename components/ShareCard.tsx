@@ -82,10 +82,6 @@ export function ShareCard({
     }
   };
 
-  const handleSaveScreenshot = () => {
-    Alert.alert('Save Screenshot', 'Take a screenshot to save your progress card.');
-  };
-
   return (
     <Modal
       transparent
@@ -191,9 +187,6 @@ export function ShareCard({
               <Text style={styles.shareBtnText}>Share</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity style={styles.screenshotBtn} onPress={handleSaveScreenshot} activeOpacity={0.7}>
-              <Text style={styles.screenshotBtnText}>Save Screenshot</Text>
-            </TouchableOpacity>
           </View>
         </View>
       </Animated.View>

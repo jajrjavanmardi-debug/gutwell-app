@@ -65,6 +65,9 @@ export function resetAnalytics(): void {
 // ─── Event names (use these constants for consistency) ──────────────────────
 
 export const Events = {
+  ONBOARDING_STARTED: 'onboarding_started',
+  ONBOARDING_STEP: 'onboarding_step',
+  SIGNUP_COMPLETED: 'signup_completed',
   ONBOARDING_COMPLETED: 'onboarding_completed',
   CHECKIN_LOGGED: 'checkin_logged',
   MEAL_LOGGED: 'meal_logged',
@@ -73,4 +76,5 @@ export const Events = {
   STREAK_MILESTONE: 'streak_milestone',
   FOOD_SCANNED: 'food_scanned',
   DATA_EXPORTED: 'data_exported',
+  SHARE_OPENED: 'share_opened',
 } as const;

@@ -15,6 +15,7 @@ import { StatusBar } from 'expo-status-bar';
 import { useAuth } from '../../contexts/AuthContext';
 import { FontFamily } from '../../constants/theme';
 import StarFieldBackground from '../../components/StarFieldBackground';
+import { track, Events } from '../../lib/analytics';
 
 const { width } = Dimensions.get('window');
 
@@ -96,7 +97,10 @@ export default function WelcomeScreen() {
       <View style={styles.bottomSection}>
         <TouchableOpacity
           style={styles.primaryButton}
-          onPress={() => router.push('/(onboarding)/features')}
+          onPress={() => {
+            track(Events.ONBOARDING_STARTED);
+            router.push('/(onboarding)/features');
+          }}
           accessibilityRole="button"
           accessibilityLabel="Build my gut plan"
           activeOpacity={0.88}

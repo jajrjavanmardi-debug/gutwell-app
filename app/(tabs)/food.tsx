@@ -15,6 +15,7 @@ import { Colors, Spacing, FontSize, BorderRadius, Shadows, FontFamily } from '..
 import { EmptyState } from '../../components/ui/EmptyState';
 import { ErrorState } from '../../components/ui/ErrorState';
 import { enqueue } from '../../lib/offline-queue';
+import { track, Events } from '../../lib/analytics';
 
 function formatMealTime(iso: string): string {
   const date = new Date(iso);
@@ -225,6 +226,7 @@ export default function FoodScreen() {
         setToast({ visible: true, message: 'Failed to save food log', type: 'error' });
       }
     } else {
+      track(Events.MEAL_LOGGED);
       setToast({ visible: true, message: 'Meal logged!', type: 'success' });
       setRecentMeals((prev) => [
         {
