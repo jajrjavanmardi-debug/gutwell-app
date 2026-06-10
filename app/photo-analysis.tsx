@@ -404,6 +404,7 @@ function getVoiceLocale(language: AppLanguage): string {
   return {
     en: 'en-US',
     de: 'de-DE',
+    fa: 'fa-IR',
   }[language];
 }
 
@@ -521,10 +522,12 @@ export default function PhotoAnalysisScreen() {
     };
   }, [user, profile?.gut_concern]);
   const [isLoggingMeal, setIsLoggingMeal] = useState(false);
-  const t = copy[language];
+  // UI chrome has EN/DE translations; Persian users get English chrome while
+  // the AI analysis itself responds in Persian (server prompt handles fa).
+  const t = copy[language === 'de' ? 'de' : 'en'];
   /** Dev client / standalone only — Expo Go has no custom native STT modules. */
   const voiceNativeEnabled = canUseNativeSpeechToText();
-  const isRtlLanguage = false;
+  const isRtlLanguage = language === 'fa';
   const userEnteredSymptoms = mealDescription
       .split(/[,\n]+/)
       .map((symptom) => symptom.trim())

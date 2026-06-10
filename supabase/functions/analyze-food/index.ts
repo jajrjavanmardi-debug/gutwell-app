@@ -53,10 +53,10 @@ function jsonResponse(
   });
 }
 
-type Language = "en" | "de";
+type Language = "en" | "de" | "fa";
 
 function normalizeLanguage(value: unknown): Language {
-  return value === "de" ? "de" : "en";
+  return value === "de" || value === "fa" ? value : "en";
 }
 
 function asStringArray(value: unknown): string[] {
@@ -143,9 +143,11 @@ const DISCLAIMER: Record<Language, string> = {
     "Important note: This analysis is for informational purposes only and does not replace a medical diagnosis. Seek medical care if you notice severe symptoms.",
   de:
     "Wichtiger Hinweis: Diese Analyse dient nur der Information und ersetzt keine ärztliche Diagnose. Suchen Sie bei schweren Symptomen einen Arzt auf.",
+  fa:
+    "نکته مهم: این تحلیل صرفاً جنبه اطلاع‌رسانی دارد و جایگزین تشخیص پزشکی نیست. در صورت علائم شدید به پزشک مراجعه کنید.",
 };
 
-const LANGUAGE_LABEL: Record<Language, string> = { en: "English", de: "German" };
+const LANGUAGE_LABEL: Record<Language, string> = { en: "English", de: "German", fa: "Persian (Farsi)" };
 
 function germanyRetailBoostPrompt(): string {
   return [
@@ -251,7 +253,7 @@ function buildMealTextPrompt(body: MealTextBody): string {
     'When suggesting products, avoid pretending certainty about exact inventory. Phrase as "look for..." or "usually easy to find at..." when needed.',
     "Use this concise structure: Likely meal, Meal Impact Score, How it may affect you, Symptom notes, 3 local alternatives, Small tip.",
     "Formatting rule: use plain text only. Do not use ASCII art, decorative boxes, Unicode box-drawing characters (corners or ruled lines), tables, or unusual symbols. Do not use any markdown syntax. Forbidden characters at line start or inline: #, ##, ###, *, **, _. Use plain ALL CAPS section labels instead (e.g. TIPS, ALTERNATIVES, SUMMARY). When giving action steps you may include a suggested amount and a practical timeframe phrased as friendly guidance (e.g. 'try a small portion for the next week'), never as prescription-style Dose/Duration labels.",
-    `Mandatory safety footer: end the analysis with a short medical disclaimer in the preferred response language. German exact text: "${DISCLAIMER.de}" English exact text: "${DISCLAIMER.en}"`,
+    `Mandatory safety footer: end the analysis with a short medical disclaimer in the preferred response language. German exact text: "${DISCLAIMER.de}" English exact text: "${DISCLAIMER.en}" Persian exact text: "${DISCLAIMER.fa}"`,
     "When the image is unclear, say what extra detail would help instead of pretending certainty.",
     "Avoid medical claims. Keep it concise.",
   ];
@@ -555,7 +557,7 @@ function buildNutrientRecommendationPrompt(
     "If a Gut score is present, frame the advice as a small step to help improve the Gut Score from the current score toward 10.",
     "Always include these clearly labeled parts: Suggestion, How long to try, and Progress Tip. Use German equivalents only when the preferred language is German.",
     "Suggestion should be a food or habit with a sensible amount/frequency phrased as friendly guidance (never prescription-style dosing). How long to try should be a practical timeframe. Progress Tip should tell the user what to track to see if their Gut Score improves.",
-    `Mandatory safety footer: end the analysis with a short medical disclaimer in English or German. German exact text: "${DISCLAIMER.de}" English exact text: "${DISCLAIMER.en}"`,
+    `Mandatory safety footer: end the analysis with a short medical disclaimer in the preferred response language. German exact text: "${DISCLAIMER.de}" English exact text: "${DISCLAIMER.en}" Persian exact text: "${DISCLAIMER.fa}"`,
     "If the food is unhealthy for the user's gut condition, suggest 3 healthier alternatives that are commonly available in local grocery stores or restaurants.",
     "If IBS is listed as an underlying condition, never suggest high-sugar cookies, desserts, candy, sugary snacks, brown rice, barley bread, barley, or high-fiber whole grains. Prefer white rice, boiled potatoes, zucchini, carrots, ginger tea, peppermint tea, low-FODMAP soup, cooked vegetables, or plain yogurt when appropriate.",
     "When USDA results are generic, incomplete, or not clearly gut-supportive, do not overfit the recommendation to cookies or processed snacks. Suggest natural whole foods and practical habits tied to the nutrient list.",
