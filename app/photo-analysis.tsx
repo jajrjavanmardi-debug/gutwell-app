@@ -51,10 +51,13 @@ type WizardStep = 1 | 2 | 3;
 const APP_LANGUAGE_STORAGE_KEY = 'gutwell_app_language';
 /** When set to `Germany`, skips GPS and fixes AI context to Nürtingen (dev/testing only). */
 const DEV_LOCATION_OVERRIDE = process.env.EXPO_PUBLIC_DEV_LOCATION_OVERRIDE?.trim() ?? '';
-const TEST_GUT_PROFILE = {
-  gutScore: 4,
-  conditions: ['IBS', 'Bloating'],
-};
+/**
+ * The user's real gut context sent to the AI: their latest computed gut score
+ * (0–100, mapped to the prompt's 1–10 scale) and the conditions/concerns they
+ * actually told us about. Empty when unknown — the server prompt treats
+ * missing context as "not provided" instead of assuming a condition.
+ */
+type GutProfileContext = { gutScore: number | null; conditions: string[] };
 
 const copy = {
   en: {
@@ -75,7 +78,9 @@ const copy = {
     applyCorrection: 'Apply correction',
     recommendationUnchanged: 'Recommendation remains unchanged.',
     subtitle: 'Four steps: capture a photo, describe with voice or text, review the analysis, then confirm accuracy.',
-    profileContext: 'Personalized for Gut Score 4/10, IBS and bloating',
+    profileContextPrefix: 'Personalized for ',
+    profileContextEmpty: 'General gut guidance — complete check-ins to personalize',
+    profileContextScore: 'Gut Score',
     findingLocation: 'Finding nearby food options...',
     usingLocation: 'Using local context:',
     locationUnavailable: 'Location unavailable. Suggestions will stay general.',
@@ -161,7 +166,9 @@ const copy = {
     applyCorrection: 'Korrektur anwenden',
     recommendationUnchanged: 'Die Empfehlung bleibt unverändert.',
     subtitle: 'Vier Schritte: Foto, Beschreibung per Sprache oder Text, Analyse prüfen, Genauigkeit bestätigen.',
-    profileContext: 'Personalisiert für Darm-Score 4/10, IBS und Blähungen',
+    profileContextPrefix: 'Personalisiert für ',
+    profileContextEmpty: 'Allgemeine Darm-Hinweise — Check-ins vervollständigen das Profil',
+    profileContextScore: 'Darm-Score',
     findingLocation: 'Suche nach lokalen Essensoptionen...',
     usingLocation: 'Lokaler Kontext:',
     locationUnavailable: 'Standort nicht verfügbar. Vorschläge bleiben allgemein.',
@@ -448,12 +455,63 @@ export default function PhotoAnalysisScreen() {
   const voiceHoldActiveRef = useRef(false);
   /** Pulse scale + glow opacity while the mic is actively listening. */
   const recordingPulse = useRef(new Animated.Value(1)).current;
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const [toast, setToast] = useState({
     visible: false,
     message: '',
     type: 'success' as 'success' | 'error' | 'info',
   });
+  const [gutProfileContext, setGutProfileContext] = useState<GutProfileContext>({
+    gutScore: null,
+    conditions: [],
+  });
+
+  useEffect(() => {
+    if (!user) {
+      setGutProfileContext({ gutScore: null, conditions: [] });
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      const conditions = new Set<string>();
+      if (profile?.gut_concern?.trim()) {
+        conditions.add(profile.gut_concern.trim().replace(/_/g, ' '));
+      }
+      try {
+        const { data } = await supabase
+          .from('user_profiles')
+          .select('medical_conditions')
+          .eq('user_id', user.id)
+          .maybeSingle();
+        if (Array.isArray(data?.medical_conditions)) {
+          for (const condition of data.medical_conditions) {
+            if (typeof condition === 'string' && condition.trim()) conditions.add(condition.trim());
+          }
+        }
+      } catch {
+        // Optional context — analysis still works without it.
+      }
+      let gutScore: number | null = null;
+      try {
+        const { data } = await supabase
+          .from('gut_scores')
+          .select('score')
+          .eq('user_id', user.id)
+          .order('date', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        if (typeof data?.score === 'number') {
+          gutScore = Math.min(10, Math.max(1, Math.round(data.score / 10)));
+        }
+      } catch {
+        // No score yet (new user) — send nothing rather than a fake number.
+      }
+      if (!cancelled) setGutProfileContext({ gutScore, conditions: [...conditions] });
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [user, profile?.gut_concern]);
   const [isLoggingMeal, setIsLoggingMeal] = useState(false);
   const t = copy[language];
   /** Dev client / standalone only — Expo Go has no custom native STT modules. */
@@ -464,7 +522,7 @@ export default function PhotoAnalysisScreen() {
       .map((symptom) => symptom.trim())
       .filter(Boolean);
   const currentSymptoms = [
-    ...TEST_GUT_PROFILE.conditions,
+    ...gutProfileContext.conditions,
     ...userEnteredSymptoms,
   ];
   const hasPainSymptom = currentSymptoms.some((symptom) =>
@@ -627,7 +685,7 @@ export default function PhotoAnalysisScreen() {
         setCorrectionDraft('');
         setMealDescription(
           savedAnalysis.symptoms
-            .filter((symptom) => !TEST_GUT_PROFILE.conditions.includes(symptom))
+            .filter((symptom) => !gutProfileContext.conditions.includes(symptom))
             .join(', ')
         );
       })
@@ -716,8 +774,8 @@ export default function PhotoAnalysisScreen() {
     try {
       const rawResult = await analyzeMealPhoto(imageBase64, 'image/jpeg', {
         preferredLanguage: language,
-        gutScore: TEST_GUT_PROFILE.gutScore,
-        conditions: TEST_GUT_PROFILE.conditions,
+        gutScore: gutProfileContext.gutScore ?? undefined,
+        conditions: gutProfileContext.conditions,
         symptoms: currentSymptoms,
         userEnteredSymptoms,
         supplementsTakenToday: todaysSupplements.map((item) => `${item.name} (${item.dosage}, ${item.time})`),
@@ -843,8 +901,8 @@ export default function PhotoAnalysisScreen() {
             analysis,
           ].join('\n\n'),
         correction,
-        gutScore: TEST_GUT_PROFILE.gutScore,
-        conditions: TEST_GUT_PROFILE.conditions,
+        gutScore: gutProfileContext.gutScore ?? undefined,
+        conditions: gutProfileContext.conditions,
         symptoms: [...currentSymptoms, correction],
         triggerMemories: [],
         locationContext,
@@ -1298,7 +1356,18 @@ export default function PhotoAnalysisScreen() {
                     color={hasPainSymptom ? '#F59E0B' : Colors.primary}
                   />
                   <Text style={[styles.profileText, isRtlLanguage && styles.rtlText]}>
-                    {t.profileContext}
+                    {(() => {
+                      const parts: string[] = [];
+                      if (gutProfileContext.gutScore != null) {
+                        parts.push(`${t.profileContextScore} ${gutProfileContext.gutScore}/10`);
+                      }
+                      if (gutProfileContext.conditions.length > 0) {
+                        parts.push(gutProfileContext.conditions.join(', '));
+                      }
+                      return parts.length > 0
+                        ? `${t.profileContextPrefix}${parts.join(' · ')}`
+                        : t.profileContextEmpty;
+                    })()}
                   </Text>
                 </View>
 
