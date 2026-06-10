@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Stack } from 'expo-router';
+import { Platform } from 'react-native';
+import { router, Stack } from 'expo-router';
+import * as Notifications from 'expo-notifications';
 import { StatusBar } from 'expo-status-bar';
 import { AuthProvider, useAuth } from '../contexts/AuthContext';
 import { ErrorBoundary } from '../components/ErrorBoundary';
@@ -72,6 +74,26 @@ function RootLayoutNav() {
       }
     });
     return () => unsubscribe();
+  }, []);
+
+  // Route notification taps to the screen they advertise (a check-in
+  // reminder opens Check-in, the digest notification opens the digest).
+  useEffect(() => {
+    if (Platform.OS === 'web') return;
+    const sub = Notifications.addNotificationResponseReceivedListener((response) => {
+      const reminderType = response.notification.request.content.data?.reminderType;
+      const route =
+        reminderType === 'digest' ? '/weekly-digest'
+        : reminderType === 'food' ? '/(tabs)/food'
+        : reminderType === 'symptom' ? '/log-symptom'
+        : reminderType === 'checkin' ? '/(tabs)/checkin'
+        : null;
+      if (route) {
+        // Defer until the router has mounted on cold starts.
+        setTimeout(() => router.push(route as any), 300);
+      }
+    });
+    return () => sub.remove();
   }, []);
 
   return (

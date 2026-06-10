@@ -54,7 +54,6 @@ const DEFAULT_SETTINGS: Settings = {
 const SETTINGS_KEY = 'gutwell_settings';
 
 const DIET_OPTIONS: DietType[] = ['Standard', 'Vegan', 'Vegetarian', 'Gluten-Free', 'Dairy-Free', 'Low-FODMAP'];
-const GOAL_OPTIONS: DailyGoal[] = ['Reduce Bloating', 'Improve Regularity', 'Track Symptoms', 'General Wellness'];
 
 const HOUR_OPTIONS = Array.from({ length: 12 }, (_, i) => i + 1); // 1-12
 const MINUTE_OPTIONS = [0, 15, 30, 45];
@@ -272,7 +271,6 @@ export default function SettingsScreen() {
   const { user } = useAuth();
   const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
   const [dietModalVisible, setDietModalVisible] = useState(false);
-  const [goalModalVisible, setGoalModalVisible] = useState(false);
   const [timeModalVisible, setTimeModalVisible] = useState(false);
 
   // Load settings on mount
@@ -297,7 +295,18 @@ export default function SettingsScreen() {
       // Sync notification scheduling when reminder settings change
       if ('dailyReminderEnabled' in partial || 'reminderHour' in partial || 'reminderMinute' in partial) {
         if (next.dailyReminderEnabled) {
-          scheduleDailyCheckInReminder(next.reminderHour, next.reminderMinute).catch(console.warn);
+          scheduleDailyCheckInReminder(next.reminderHour, next.reminderMinute)
+            .then((id) => {
+              if (id === null) {
+                // Scheduling refused (time falls in 22:00–08:00 quiet hours) —
+                // tell the user instead of silently never reminding them.
+                Alert.alert(
+                  'Reminder not scheduled',
+                  'That time falls within quiet hours (10 PM – 8 AM). Pick a time outside quiet hours to get your daily reminder.',
+                );
+              }
+            })
+            .catch(console.warn);
         } else if ('dailyReminderEnabled' in partial && !partial.dailyReminderEnabled) {
           cancelDailyCheckInReminder().catch(console.warn);
         }
@@ -325,27 +334,6 @@ export default function SettingsScreen() {
       );
     } else {
       setDietModalVisible(true);
-    }
-  };
-
-  // Goal picker
-  const openGoalPicker = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    if (Platform.OS === 'ios') {
-      ActionSheetIOS.showActionSheetWithOptions(
-        {
-          options: [...GOAL_OPTIONS, 'Cancel'],
-          cancelButtonIndex: GOAL_OPTIONS.length,
-          title: 'Daily Goal',
-        },
-        (index) => {
-          if (index < GOAL_OPTIONS.length) {
-            save({ dailyGoal: GOAL_OPTIONS[index] });
-          }
-        }
-      );
-    } else {
-      setGoalModalVisible(true);
     }
   };
 
@@ -434,36 +422,6 @@ export default function SettingsScreen() {
             onPress={openDietPicker}
             isFirst
           />
-          <Divider />
-          <SettingsRow
-            icon="flag-outline"
-            label="Daily Goal"
-            subtitle={settings.dailyGoal}
-            onPress={openGoalPicker}
-          />
-          <Divider />
-          <SettingsRow
-            icon="speedometer-outline"
-            label="Units"
-            right={
-              <View style={styles.toggleRow}>
-                <Text style={[styles.unitLabel, !settings.metricUnits && styles.unitLabelActive]}>
-                  Imperial
-                </Text>
-                <Switch
-                  value={settings.metricUnits}
-                  onValueChange={(v) => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); save({ metricUnits: v }); }}
-                  trackColor={{ false: Colors.border, true: Colors.secondary }}
-                  thumbColor={Colors.surface}
-                  accessibilityLabel="Toggle metric or imperial units"
-                />
-                <Text style={[styles.unitLabel, settings.metricUnits && styles.unitLabelActive]}>
-                  Metric
-                </Text>
-              </View>
-            }
-            isLast
-          />
         </View>
 
         {/* NOTIFICATIONS */}
@@ -487,7 +445,7 @@ export default function SettingsScreen() {
           <SettingsRow
             icon="flame-outline"
             label="Streak Alerts"
-            subtitle="9PM reminder when streak is at risk"
+            subtitle="8 PM reminder when streak is at risk"
             right={
               <Switch
                 value={settings.streakAlertsEnabled}
@@ -580,14 +538,6 @@ export default function SettingsScreen() {
         selected={settings.dietType}
         onSelect={(v) => save({ dietType: v })}
         onClose={() => setDietModalVisible(false)}
-      />
-      <PickerModal
-        visible={goalModalVisible}
-        title="Daily Goal"
-        options={GOAL_OPTIONS}
-        selected={settings.dailyGoal}
-        onSelect={(v) => save({ dailyGoal: v })}
-        onClose={() => setGoalModalVisible(false)}
       />
       <TimePickerModal
         visible={timeModalVisible}

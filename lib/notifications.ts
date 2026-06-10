@@ -1,4 +1,5 @@
 import { Platform } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Notifications from 'expo-notifications';
 import { SchedulableTriggerInputTypes } from 'expo-notifications';
 import { supabase } from './supabase';
@@ -149,6 +150,7 @@ export async function scheduleDailyCheckInReminder(
         title: 'Time for your check-in',
         body: 'Log how your gut feels today to keep your insights sharp.',
         sound: true,
+        data: { reminderType: 'checkin' },
         ...(Platform.OS === 'android' ? { channelId: ANDROID_CHANNEL_ID } : {}),
       },
       trigger: {
@@ -194,6 +196,7 @@ export async function scheduleWeeklyDigestNotification(
         title: 'Your weekly gut report is ready',
         body: 'See your trends, top triggers, and wins from the past week.',
         sound: true,
+        data: { reminderType: 'digest' },
         ...(Platform.OS === 'android' ? { channelId: ANDROID_CHANNEL_ID } : {}),
       },
       trigger: {
@@ -227,6 +230,13 @@ export async function scheduleStreakAtRiskAlert(streakDays: number): Promise<voi
   if (!canSchedule()) return;
   if (streakDays <= 0) return;
   try {
+    // Honor the Settings > Streak Alerts toggle (default on).
+    try {
+      const raw = await AsyncStorage.getItem('gutwell_settings');
+      if (raw && JSON.parse(raw)?.streakAlertsEnabled === false) return;
+    } catch {
+      // unreadable settings -> default on
+    }
     if (!(await hasPermission())) return; // never prompt for a background nudge
     await ensureAndroidChannel();
     await Notifications.cancelScheduledNotificationAsync(ID_STREAK_AT_RISK).catch(() => {});
@@ -243,6 +253,7 @@ export async function scheduleStreakAtRiskAlert(streakDays: number): Promise<voi
         title: `Keep your ${streakDays}-day streak alive`,
         body: 'You have not checked in yet today. A quick log keeps your streak going.',
         sound: true,
+        data: { reminderType: 'checkin' },
         ...(Platform.OS === 'android' ? { channelId: ANDROID_CHANNEL_ID } : {}),
       },
       trigger: {

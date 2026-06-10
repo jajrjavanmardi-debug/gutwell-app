@@ -56,7 +56,7 @@ const DEV_LOCATION_OVERRIDE = process.env.EXPO_PUBLIC_DEV_LOCATION_OVERRIDE?.tri
  * actually told us about. Empty when unknown — the server prompt treats
  * missing context as "not provided" instead of assuming a condition.
  */
-type GutProfileContext = { gutScore: number | null; conditions: string[] };
+type GutProfileContext = { gutScore: number | null; conditions: string[]; dietType: string | null };
 
 const copy = {
   en: {
@@ -460,11 +460,12 @@ export default function PhotoAnalysisScreen() {
   const [gutProfileContext, setGutProfileContext] = useState<GutProfileContext>({
     gutScore: null,
     conditions: [],
+    dietType: null,
   });
 
   useEffect(() => {
     if (!user) {
-      setGutProfileContext({ gutScore: null, conditions: [] });
+      setGutProfileContext({ gutScore: null, conditions: [], dietType: null });
       return;
     }
     let cancelled = false;
@@ -502,7 +503,17 @@ export default function PhotoAnalysisScreen() {
       } catch {
         // No score yet (new user) — send nothing rather than a fake number.
       }
-      if (!cancelled) setGutProfileContext({ gutScore, conditions: [...conditions] });
+      let dietType: string | null = null;
+      try {
+        const rawSettings = await AsyncStorage.getItem('gutwell_settings');
+        const parsed = rawSettings ? JSON.parse(rawSettings) : null;
+        if (typeof parsed?.dietType === 'string' && parsed.dietType !== 'Standard') {
+          dietType = parsed.dietType;
+        }
+      } catch {
+        // Settings unreadable — diet context is optional.
+      }
+      if (!cancelled) setGutProfileContext({ gutScore, conditions: [...conditions], dietType });
     })();
     return () => {
       cancelled = true;
@@ -778,7 +789,9 @@ export default function PhotoAnalysisScreen() {
         triggerMemories: [],
         locationContext,
         retailLocationHint,
-        userFeelingsNarrative: feelingsNarrative,
+        userFeelingsNarrative: gutProfileContext.dietType
+          ? `(My diet is ${gutProfileContext.dietType}.) ${feelingsNarrative}`
+          : feelingsNarrative,
       });
       setAnalysis(rawResult);
       setResultsScrollKey((key) => key + 1);

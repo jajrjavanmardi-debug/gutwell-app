@@ -22,6 +22,7 @@ import { StreakPopup } from '../../components/StreakPopup';
 import * as StoreReview from 'expo-store-review';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getStreakSnapshot, refreshStreakSnapshot } from '../../lib/streaks';
+import { cancelStreakAtRiskAlert } from '../../lib/notifications';
 import { getLocalDateKey } from '../../lib/date';
 
 const STREAK_MILESTONES = [7, 14, 30, 100, 180, 366];
@@ -191,6 +192,9 @@ export default function CheckinScreen() {
       const streakSnapshot = await refreshStreakSnapshot(user.id).catch(() => ({ currentStreak: 0 }));
       const newStreak = streakSnapshot?.currentStreak ?? 0;
       setCurrentStreak(newStreak);
+
+      // Today's check-in is in — the streak is no longer at risk.
+      cancelStreakAtRiskAlert().catch(() => {});
 
       track(Events.CHECKIN_LOGGED, { stool_type: stoolType, score: freshScore });
 
