@@ -17,7 +17,13 @@ import type { PurchasesOffering, PurchasesPackage } from 'react-native-purchases
 import { useAuth } from '../contexts/AuthContext';
 import { Colors, FontFamily, FontSize, Spacing, BorderRadius } from '../constants/theme';
 import { track, Events } from '../lib/analytics';
-import { getPaywallOffering, initSubscription, purchasePlan, restorePurchases } from '../lib/subscription';
+import {
+  getPaywallOffering,
+  initSubscription,
+  isMonetizationEnabled,
+  purchasePlan,
+  restorePurchases,
+} from '../lib/subscription';
 
 const FEATURES = [
   '🔬 Food-symptom correlation analysis',
@@ -55,6 +61,16 @@ function packageForPlan(
 export default function PaywallScreen() {
   const { user } = useAuth();
   const [selectedPlan, setSelectedPlan] = useState<'monthly' | 'annual'>('annual');
+
+  // Free-launch mode: nothing routes here, but guard against deep links —
+  // a paywall that cannot transact must never render (Guideline 2.1).
+  useEffect(() => {
+    if (!isMonetizationEnabled()) {
+      if (router.canGoBack()) router.back();
+      else router.replace('/');
+    }
+  }, []);
+
   const [purchasing, setPurchasing] = useState(false);
   const [restoring, setRestoring] = useState(false);
   const [offering, setOffering] = useState<PurchasesOffering | null>(null);

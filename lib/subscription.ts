@@ -56,6 +56,17 @@ function isReady(): boolean {
   return Boolean(RC_IOS_KEY) && configured;
 }
 
+/**
+ * Whether the app is being sold with a premium tier at all. False = "free
+ * launch" mode: every feature is unlocked, no upsell UI, and the paywall is
+ * unreachable — shipping a reachable paywall that cannot transact is an App
+ * Review (Guideline 2.1) rejection. Flipping on monetization for v1.1 is just
+ * setting EXPO_PUBLIC_REVENUECAT_IOS_KEY in the build env.
+ */
+export function isMonetizationEnabled(): boolean {
+  return Boolean(RC_IOS_KEY);
+}
+
 /** Derive premium status from a CustomerInfo via the "premium" entitlement. */
 function entitlementActive(info: CustomerInfo | null): boolean {
   return Boolean(info?.entitlements.active[ENTITLEMENT_ID]?.isActive);
@@ -133,20 +144,24 @@ async function identifyUser(userId?: string): Promise<void> {
 }
 
 /**
- * Whether the user currently has the "premium" entitlement. Reads the cached
+ * Whether the user currently has access to premium features. Reads the cached
  * CustomerInfo (kept fresh by the update listener + refreshPremiumStatus).
- * Always false when monetization is unconfigured.
+ * Always TRUE in free-launch mode (monetization unconfigured) — features are
+ * never locked behind a paywall that cannot transact.
  */
 export async function isPremium(): Promise<boolean> {
+  if (!isMonetizationEnabled()) return true;
   if (!isReady()) return false;
   return entitlementActive(cachedCustomerInfo);
 }
 
 /**
  * Force a fresh CustomerInfo fetch from RevenueCat and return the resulting
- * premium status. Falls back to the cached value (or false) on error.
+ * premium-access status. Falls back to the cached value on error. Always TRUE
+ * in free-launch mode.
  */
 export async function refreshPremiumStatus(): Promise<boolean> {
+  if (!isMonetizationEnabled()) return true;
   if (!isReady()) return false;
   try {
     cachedCustomerInfo = await Purchases.getCustomerInfo();
@@ -159,13 +174,15 @@ export async function refreshPremiumStatus(): Promise<boolean> {
 /**
  * Synchronous gate used by UI to decide whether a premium feature is unlocked.
  * Driven entirely by the cached "premium" entitlement, so it is instant and
- * safe to call during render. False whenever monetization is unconfigured.
+ * safe to call during render. Always TRUE in free-launch mode; false only when
+ * monetization is live and the entitlement is inactive.
  *
  * The app currently sells a single "premium" tier that unlocks every feature,
  * so the specific feature argument is not yet differentiated — it is part of
  * the signature so per-feature entitlements can be added later without churn.
  */
 export function isPremiumFeature(_feature: PremiumFeature): boolean {
+  if (!isMonetizationEnabled()) return true;
   if (!isReady()) return false;
   return entitlementActive(cachedCustomerInfo);
 }

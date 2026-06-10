@@ -33,6 +33,16 @@ async function saveQueue(queue: QueueItem[]): Promise<void> {
   await AsyncStorage.setItem(QUEUE_KEY, JSON.stringify(queue));
 }
 
+// Serializes every read-modify-write of the stored queue. Without this, an
+// enqueue() racing a flush() could read the pre-flush queue and then be
+// overwritten by flush's final save — silently losing the new item.
+let storageLock: Promise<unknown> = Promise.resolve();
+function withStorageLock<T>(fn: () => Promise<T>): Promise<T> {
+  const run = storageLock.then(fn, fn);
+  storageLock = run.catch(() => {});
+  return run;
+}
+
 /**
  * Add an insert operation to the offline queue.
  * Deduplicates by table + JSON-stringified payload to avoid redundant entries.
@@ -42,37 +52,52 @@ export async function enqueue(
   payload: Record<string, unknown>,
   options?: { operation?: 'insert' | 'upsert'; onConflict?: string }
 ): Promise<void> {
-  const queue = await getQueue();
+  await withStorageLock(async () => {
+    const queue = await getQueue();
 
-  // Deduplicate: skip if an identical table + payload combination already exists
-  const payloadKey = JSON.stringify(payload);
-  const duplicate = queue.some(
-    (item) => item.table === table && JSON.stringify(item.payload) === payloadKey,
-  );
-  if (duplicate) return;
+    // Deduplicate: skip if an identical table + payload combination already exists
+    const payloadKey = JSON.stringify(payload);
+    const duplicate = queue.some(
+      (item) => item.table === table && JSON.stringify(item.payload) === payloadKey,
+    );
+    if (duplicate) return;
 
-  queue.push({
-    id: `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
-    table,
-    payload,
-    timestamp: Date.now(),
-    operation: options?.operation || 'insert',
-    onConflict: options?.onConflict,
+    queue.push({
+      id: `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+      table,
+      payload,
+      timestamp: Date.now(),
+      operation: options?.operation || 'insert',
+      onConflict: options?.onConflict,
+    });
+    await saveQueue(queue);
   });
-  await saveQueue(queue);
 }
 
 /**
  * Attempt to insert all queued items into Supabase.
  * Successfully inserted items are removed from the queue.
  */
+let flushInFlight: Promise<number> | null = null;
+
 export async function flush(): Promise<number> {
+  // Single-flight: NetInfo can fire several times in quick succession; a
+  // second concurrent flush would double-insert items the first one is
+  // still writing.
+  if (flushInFlight) return flushInFlight;
+  flushInFlight = doFlush().finally(() => {
+    flushInFlight = null;
+  });
+  return flushInFlight;
+}
+
+async function doFlush(): Promise<number> {
   const queue = await getQueue();
   if (queue.length === 0) return 0;
 
   const EXPIRY_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
   const now = Date.now();
-  const failed: QueueItem[] = [];
+  const resolvedIds = new Set<string>(); // synced or expired — safe to remove
   let synced = 0;
   let expired = 0;
 
@@ -82,6 +107,7 @@ export async function flush(): Promise<number> {
     // Skip expired items (older than 7 days)
     if (now - item.timestamp > EXPIRY_MS) {
       expired++;
+      resolvedIds.add(item.id);
       continue;
     }
 
@@ -109,14 +135,18 @@ export async function flush(): Promise<number> {
       error = res.error;
     }
 
-    if (error) {
-      failed.push(item);
-    } else {
+    if (!error) {
       synced++;
+      resolvedIds.add(item.id);
     }
   }
 
-  await saveQueue(failed);
+  // Reconcile against CURRENT storage instead of overwriting with our
+  // snapshot: items enqueued while the network writes ran must survive.
+  await withStorageLock(async () => {
+    const current = await getQueue();
+    await saveQueue(current.filter((item) => !resolvedIds.has(item.id)));
+  });
   if (expired > 0) {
     console.warn(`[offline-queue] dropped ${expired} expired item(s)`);
   }
