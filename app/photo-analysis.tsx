@@ -46,7 +46,7 @@ import {
   type TriggerFeedbackItem,
 } from '../lib/user-progress';
 
-type AppLanguage = 'en' | 'de';
+type AppLanguage = 'en' | 'de' | 'fa';
 type WizardStep = 1 | 2 | 3;
 const APP_LANGUAGE_STORAGE_KEY = 'gutwell_app_language';
 /** When set to `Germany`, skips GPS and fixes AI context to Nürtingen (dev/testing only). */
@@ -583,7 +583,7 @@ export default function PhotoAnalysisScreen() {
   useEffect(() => {
     AsyncStorage.getItem(APP_LANGUAGE_STORAGE_KEY)
       .then((storedLanguage) => {
-        if (storedLanguage === 'en' || storedLanguage === 'de') {
+        if (storedLanguage === 'en' || storedLanguage === 'de' || storedLanguage === 'fa') {
           setLanguage(storedLanguage);
         } else {
           setLanguage('en');
@@ -1369,7 +1369,7 @@ export default function PhotoAnalysisScreen() {
                           <Ionicons name="shield-checkmark" size={18} color="#2DCE89" />
                           <Text style={[styles.planBTitle, isRtlLanguage && styles.rtlText]}>{t.planBTitle}</Text>
                         </View>
-                        <Text style={[styles.planBText, isRtlLanguage && styles.rtlText]}>{planBMessage}</Text>
+                        <Text style={[styles.planBText, isRtlLanguage && styles.rtlText]}>{sanitizeAnalysisForDisplay(planBMessage)}</Text>
                       </View>
                     ) : null}
                     <View style={styles.medicalDisclaimerBox}>
