@@ -1151,6 +1151,7 @@ export default function PhotoAnalysisScreen() {
           <View style={styles.headerTextBlock}>
             <Text style={[styles.title, isRtlLanguage && styles.rtlText]}>{t.title}</Text>
             <Text style={[styles.subtitle, isRtlLanguage && styles.rtlText]}>{wizardSubtitle}</Text>
+            <Text style={{ fontSize: 9, color: '#666', textAlign: 'center', marginTop: 2 }}>9f793c5 · FA+sanitize</Text>
           </View>
           <Pressable
             onPress={() => router.push('/food-history')}
