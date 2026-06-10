@@ -176,7 +176,7 @@ export default function LogSymptomScreen() {
           })}
         </View>
 
-        <Text style={styles.sectionLabel}>Today's symptoms</Text>
+        <Text style={styles.sectionLabel}>Today&apos;s symptoms</Text>
         {todaysSymptoms.length > 0 ? (
           <View style={styles.todaysSymptomsList}>
             {todaysSymptoms.map((item) => (

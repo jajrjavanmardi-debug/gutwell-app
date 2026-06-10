@@ -186,7 +186,7 @@ export default function NotificationsScreen() {
             <View style={styles.celebrationIcon}>
               <Ionicons name="leaf" size={48} color="#52B788" />
             </View>
-            <Text style={styles.celebrationTitle}>You're all set!</Text>
+            <Text style={styles.celebrationTitle}>You&apos;re all set!</Text>
             <Text style={styles.celebrationSubtitle}>
               Your gut health journey starts now
             </Text>

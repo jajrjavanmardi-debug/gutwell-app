@@ -10,16 +10,15 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
 import { LoadingSkeleton } from '../components/ui/LoadingSkeleton';
-import { ShareCard, ShareCardProps } from '../components/ShareCard';
+import { ShareCard } from '../components/ShareCard';
 import { calculateLevel } from '../lib/levels';
 import { EmptyState } from '../components/ui/EmptyState';
 import { Colors, Spacing, FontSize, BorderRadius, Shadows, FontFamily } from '../constants/theme';
 import { addDaysToLocalDateKey, getLocalDateKey, localDateKeyToDate } from '../lib/date';
-import { useFocusEffect } from 'expo-router';
 import { isPremiumFeature, refreshPremiumStatus } from '../lib/subscription';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -330,7 +329,7 @@ export default function WeeklyDigestScreen() {
               end={{ x: 0.4, y: 1 }}
               style={styles.heroCard}
             >
-              <Text style={styles.heroLabel}>This Week's Average</Text>
+              <Text style={styles.heroLabel}>This Week&apos;s Average</Text>
               <View style={styles.heroScoreRow}>
                 <Text style={[styles.heroScore, { color: getScoreColor(data.avgScore) }]}>
                   {data.avgScore != null ? data.avgScore : '--'}

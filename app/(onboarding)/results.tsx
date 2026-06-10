@@ -213,7 +213,7 @@ export default function ResultsScreen() {
             }
             activeOpacity={0.88}
           >
-            <Text style={styles.ctaText}>I'm Ready to Start</Text>
+            <Text style={styles.ctaText}>I&apos;m Ready to Start</Text>
           </TouchableOpacity>
         </Animated.View>
       </SafeAreaView>

@@ -11,7 +11,6 @@ import {
   Platform,
   ActionSheetIOS,
   Modal,
-  Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -391,7 +390,7 @@ export default function SettingsScreen() {
         message: JSON.stringify(exportData, null, 2),
         title: 'GutWell Data Export',
       });
-    } catch (err) {
+    } catch {
       Alert.alert('Export Failed', 'Could not export your data. Please try again.');
     }
   };

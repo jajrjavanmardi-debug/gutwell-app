@@ -242,13 +242,13 @@ type NativeLocationModule = {
   getCurrentPositionAsync: (options: { accuracy: number }) => Promise<{
     coords: { latitude: number; longitude: number };
   }>;
-  reverseGeocodeAsync: (coords: { latitude: number; longitude: number }) => Promise<Array<{
+  reverseGeocodeAsync: (coords: { latitude: number; longitude: number }) => Promise<{
     city?: string | null;
     district?: string | null;
     subregion?: string | null;
     region?: string | null;
     country?: string | null;
-  }>>;
+  }[]>;
 };
 
 type VoiceModule = {

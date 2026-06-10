@@ -30,62 +30,7 @@ type AuthContextType = {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-/** Must be false for Supabase inserts/selects — RLS uses JWT `auth.uid()`; a fake session never matches `user_id` in rows. */
-const BYPASS_AUTH_FOR_NATIVE_TESTING = false;
-const MOCK_USER_ID = '00000000-0000-4000-8000-000000000001';
-
-const mockUser: User = {
-  id: MOCK_USER_ID,
-  aud: 'authenticated',
-  role: 'authenticated',
-  email: 'tester@gutwell.local',
-  app_metadata: {},
-  user_metadata: { display_name: 'NutriFlow Tester' },
-  created_at: new Date(0).toISOString(),
-};
-
-const mockSession = {
-  access_token: 'native-testing-token',
-  refresh_token: 'native-testing-refresh-token',
-  expires_in: 3600,
-  token_type: 'bearer',
-  user: mockUser,
-} as Session;
-
-const mockProfile: Profile = {
-  id: MOCK_USER_ID,
-  display_name: 'NutriFlow Tester',
-  avatar_url: null,
-  onboarding_completed: true,
-  total_points: 0,
-  level: 'beginner',
-  gut_concern: null,
-  symptom_frequency: null,
-  goal: null,
-};
-
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  if (BYPASS_AUTH_FOR_NATIVE_TESTING) {
-    return (
-      <AuthContext.Provider
-        value={{
-          session: mockSession,
-          user: mockUser,
-          profile: mockProfile,
-          loading: false,
-          signUp: async () => ({ error: null }),
-          signIn: async () => ({ error: null }),
-          signOut: async () => {},
-          resetPassword: async () => ({ error: null }),
-          updatePassword: async () => ({ error: null }),
-          refreshProfile: async () => {},
-        }}
-      >
-        {children}
-      </AuthContext.Provider>
-    );
-  }
-
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);

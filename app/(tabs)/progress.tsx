@@ -2,7 +2,7 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
+import { router , useFocusEffect } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
@@ -14,7 +14,6 @@ import { analyzeCorrelations, CorrelationSummary, computeCorrelations, FoodCorre
 import { ShareCard } from '../../components/ShareCard';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { ErrorState } from '../../components/ui/ErrorState';
-import { useFocusEffect } from 'expo-router';
 import { isPremiumFeature, refreshPremiumStatus } from '../../lib/subscription';
 import ScoreCard from '../../components/ScoreCard';
 import TrendBox from '../../components/TrendBox';

@@ -28,7 +28,7 @@ import {
 // Only features that are actually premium-gated. Data export, reminders, and
 // achievements are free for everyone (export is a data-rights feature and
 // must never sit behind a paywall).
-const FEATURES: Array<{ icon: string; text: string }> = [
+const FEATURES: { icon: string; text: string }[] = [
   { icon: 'analytics-outline', text: 'Full trigger-food analysis — every correlation, not just your strongest' },
   { icon: 'shield-checkmark-outline', text: 'Your personal safe-foods list' },
   { icon: 'calendar-outline', text: 'Weekly gut health digest' },
