@@ -25,13 +25,14 @@ import {
   restorePurchases,
 } from '../lib/subscription';
 
-const FEATURES = [
-  '🔬 Food-symptom correlation analysis',
-  '📊 Weekly gut health digest',
-  '📈 Advanced trend insights',
-  '🔔 Smart streak & reminder alerts',
-  '📤 Export reports for your doctor',
-  '🏆 Unlimited achievement tracking',
+// Only features that are actually premium-gated. Data export, reminders, and
+// achievements are free for everyone (export is a data-rights feature and
+// must never sit behind a paywall).
+const FEATURES: Array<{ icon: string; text: string }> = [
+  { icon: 'analytics-outline', text: 'Full trigger-food analysis — every correlation, not just your strongest' },
+  { icon: 'shield-checkmark-outline', text: 'Your personal safe-foods list' },
+  { icon: 'calendar-outline', text: 'Weekly gut health digest' },
+  { icon: 'trending-up-outline', text: 'Advanced trends & mood insights' },
 ];
 
 /** Pick the package matching a plan from an offering, mirroring lib/subscription. */
@@ -102,6 +103,47 @@ export default function PaywallScreen() {
   const monthlyPrice = monthlyPkg?.product.priceString ?? '$6.99';
   const annualPrice = annualPkg?.product.priceString ?? '$39.99';
   const canPurchase = offering != null;
+
+  // Derive per-month and savings claims from the REAL store prices so they
+  // stay correct across currencies and price changes (hardcoded '$3.33' and
+  // '52%' would be false advertising the moment prices differ).
+  const annualProduct = annualPkg?.product;
+  const monthlyProduct = monthlyPkg?.product;
+  const perMonthLabel = (() => {
+    if (!annualProduct || typeof annualProduct.price !== 'number') return 'Just $3.33/mo';
+    try {
+      const perMonth = new Intl.NumberFormat(undefined, {
+        style: 'currency',
+        currency: annualProduct.currencyCode || 'USD',
+      }).format(annualProduct.price / 12);
+      return `Just ${perMonth}/mo`;
+    } catch {
+      return null;
+    }
+  })();
+  const savingsLabel = (() => {
+    if (
+      !annualProduct || !monthlyProduct ||
+      typeof annualProduct.price !== 'number' || typeof monthlyProduct.price !== 'number' ||
+      monthlyProduct.price <= 0
+    ) {
+      return 'Billed annually — save 52%';
+    }
+    const pct = Math.round((1 - annualProduct.price / (monthlyProduct.price * 12)) * 100);
+    return pct > 0 ? `Billed annually — save ${pct}%` : 'Billed annually';
+  })();
+
+  // Trial copy must reflect the SELECTED plan's actual introductory offer.
+  const selectedPkg = selectedPlan === 'annual' ? annualPkg : monthlyPkg;
+  const selectedIntro = selectedPkg?.product.introPrice;
+  const trialCtaLabel = (() => {
+    if (!selectedIntro || selectedIntro.price !== 0) return 'Continue';
+    const unit = selectedIntro.periodUnit?.toLowerCase() ?? 'day';
+    const n = selectedIntro.periodNumberOfUnits ?? 0;
+    if (!n) return 'Start Free Trial';
+    const unitLabel = unit.charAt(0).toUpperCase() + unit.slice(1);
+    return `Start ${n}-${unitLabel} Free Trial`;
+  })();
 
   const handleCTA = async () => {
     if (purchasing) return;
@@ -182,8 +224,8 @@ export default function PaywallScreen() {
           <View style={styles.featuresCard}>
             {FEATURES.map((feature, i) => (
               <View key={i} style={styles.featureRow}>
-                <Ionicons name="checkmark-circle" size={20} color={Colors.secondary} />
-                <Text style={styles.featureText}>{feature}</Text>
+                <Ionicons name={feature.icon as keyof typeof Ionicons.glyphMap} size={20} color={Colors.secondary} />
+                <Text style={styles.featureText}>{feature.text}</Text>
               </View>
             ))}
           </View>
@@ -218,8 +260,8 @@ export default function PaywallScreen() {
               </View>
               <Text style={styles.pricingAmount}>{annualPrice}</Text>
               <Text style={styles.pricingPeriod}>/yr</Text>
-              <Text style={styles.pricingSubPrice}>Just $3.33/mo</Text>
-              <Text style={styles.pricingBilled}>Billed annually — save 52%</Text>
+              {perMonthLabel ? <Text style={styles.pricingSubPrice}>{perMonthLabel}</Text> : null}
+              <Text style={styles.pricingBilled}>{savingsLabel}</Text>
             </TouchableOpacity>
           </View>
 
@@ -239,19 +281,28 @@ export default function PaywallScreen() {
               {purchasing || loadingOffering ? (
                 <ActivityIndicator color="#FFFFFF" />
               ) : (
-                <Text style={styles.ctaText}>
-                  {annualPkg?.product.introPrice
-                    ? 'Start 7-Day Free Trial'
-                    : 'Continue'}
-                </Text>
+                <Text style={styles.ctaText}>{trialCtaLabel}</Text>
               )}
             </LinearGradient>
           </TouchableOpacity>
 
           {/* Fine Print */}
           <Text style={styles.finePrint}>
-            Cancel anytime. Renews automatically. Restore purchases.
+            Payment is charged to your Apple ID at confirmation. Subscriptions renew
+            automatically unless cancelled at least 24 hours before the end of the
+            period. Manage or cancel anytime in App Store settings.
           </Text>
+
+          {/* Legal links — required on subscription paywalls (Guideline 3.1.2) */}
+          <View style={styles.legalRow}>
+            <TouchableOpacity onPress={() => router.push('/terms-of-service')} accessibilityRole="link">
+              <Text style={styles.legalLink}>Terms of Service</Text>
+            </TouchableOpacity>
+            <Text style={styles.legalDot}>·</Text>
+            <TouchableOpacity onPress={() => router.push('/privacy-policy')} accessibilityRole="link">
+              <Text style={styles.legalLink}>Privacy Policy</Text>
+            </TouchableOpacity>
+          </View>
 
           {/* Restore Purchases */}
           <TouchableOpacity onPress={handleRestore} activeOpacity={0.7} disabled={restoring || purchasing}>
@@ -449,5 +500,21 @@ const styles = StyleSheet.create({
     color: 'rgba(255,255,255,0.5)',
     textDecorationLine: 'underline',
     textAlign: 'center',
+  },
+  legalRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: Spacing.md,
+  },
+  legalLink: {
+    fontFamily: FontFamily.sansRegular,
+    fontSize: FontSize.xs,
+    color: 'rgba(255,255,255,0.7)',
+    textDecorationLine: 'underline',
+  },
+  legalDot: {
+    color: 'rgba(255,255,255,0.4)',
   },
 });
