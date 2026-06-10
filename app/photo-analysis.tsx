@@ -40,8 +40,7 @@ import {
 import { getRecentSupplements, type SupplementHistoryItem } from '../lib/supplement-history';
 import { supabase } from '../lib/supabase';
 import {
-  addXpForAction,
-  getUserProgressProfile,
+  getTriggerMemories,
   recordTriggerFeedback,
   type TriggerFeedbackItem,
 } from '../lib/user-progress';
@@ -113,7 +112,6 @@ const copy = {
     painApology: "I'm sorry this food may have bothered your body. Let's switch to a safer Plan B first.",
     medicalDisclaimer:
       'Important note: This analysis is for informational purposes only and does not replace a medical diagnosis. Seek medical care if you notice severe symptoms.',
-    rankUp: 'Rank Up',
     chatPlaceholder: 'Correct or add details...',
     send: 'Send',
     newScan: 'New Scan',
@@ -201,7 +199,6 @@ const copy = {
     painApology: 'Es tut mir leid, dass dieses Essen deinem Körper nicht gutgetan haben könnte. Lass uns zuerst zu einem sichereren Plan B wechseln.',
     medicalDisclaimer:
       'Wichtiger Hinweis: Diese Analyse dient nur der Information und ersetzt keine ärztliche Diagnose. Suchen Sie bei schweren Symptomen einen Arzt auf.',
-    rankUp: 'Levelaufstieg',
     chatPlaceholder: 'Korrigieren oder Details ergänzen...',
     send: 'Senden',
     newScan: 'Neuer Scan',
@@ -444,7 +441,6 @@ export default function PhotoAnalysisScreen() {
   const [todaysSupplements, setTodaysSupplements] = useState<SupplementHistoryItem[]>([]);
   const [triggerMemories, setTriggerMemories] = useState<TriggerFeedbackItem[]>([]);
   const [planBMessage, setPlanBMessage] = useState('');
-  const [rankUpBadge, setRankUpBadge] = useState('');
   /** Remount results ScrollView after a fresh analysis so the pane scrolls cleanly away from prior inputs. */
   const [resultsScrollKey, setResultsScrollKey] = useState(0);
   const micGlowOpacity = useRef(new Animated.Value(1)).current;
@@ -651,10 +647,10 @@ export default function PhotoAnalysisScreen() {
   }, []);
 
   useEffect(() => {
-    Promise.all([getRecentSupplements(12), getUserProgressProfile()])
-      .then(([supplements, progress]) => {
+    Promise.all([getRecentSupplements(12), getTriggerMemories()])
+      .then(([supplements, triggers]) => {
         setTodaysSupplements(supplements);
-        setTriggerMemories(progress.triggers);
+        setTriggerMemories(triggers);
       })
       .catch(console.warn);
   }, []);
@@ -795,18 +791,13 @@ export default function PhotoAnalysisScreen() {
         symptoms: currentSymptoms,
         mealImpactScore: extractMealImpactScore(rawResult),
       });
-      const xpResult = await addXpForAction(10);
       if (hasPainSymptom) {
-        const progress = await recordTriggerFeedback({
+        const triggers = await recordTriggerFeedback({
           mealName: extractMealName(rawResult),
           adviceSummary: rawResult.slice(0, 240),
           symptoms: currentSymptoms,
         });
-        setTriggerMemories(progress.triggers);
-      }
-      if (xpResult.leveledUp) {
-        setRankUpBadge(`${t.rankUp}: ${xpResult.profile.rank}`);
-        setTimeout(() => setRankUpBadge(''), 3600);
+        setTriggerMemories(triggers);
       }
     } catch (error) {
       console.error('Meal photo analysis failed:', error);
@@ -921,19 +912,13 @@ export default function PhotoAnalysisScreen() {
       if (correctionIsDifferentFood) {
         setPlanBMessage('');
       }
-      const xpResult = await addXpForAction(5);
-      if (xpResult.leveledUp) {
-        setRankUpBadge(`${t.rankUp}: ${xpResult.profile.rank}`);
-        setTimeout(() => setRankUpBadge(''), 3600);
-      }
-
       if (hasPainSymptom || hasPainText(correction)) {
-        const progress = await recordTriggerFeedback({
+        const triggers = await recordTriggerFeedback({
           mealName: extractMealName(correctedAnalysis),
           adviceSummary: correctedAnalysis.slice(0, 240),
           symptoms: [...currentSymptoms, correction],
         });
-        setTriggerMemories(progress.triggers);
+        setTriggerMemories(triggers);
       }
       setCorrectionDraft('');
     } catch (error) {
@@ -1096,7 +1081,6 @@ export default function PhotoAnalysisScreen() {
     setLastImageBase64('');
     setAnalysis('');
     setPlanBMessage('');
-    setRankUpBadge('');
     setMealDescription('');
     setUserFeedback([]);
     setWizardStep(1);
@@ -1140,6 +1124,15 @@ export default function PhotoAnalysisScreen() {
             <Text style={[styles.title, isRtlLanguage && styles.rtlText]}>{t.title}</Text>
             <Text style={[styles.subtitle, isRtlLanguage && styles.rtlText]}>{wizardSubtitle}</Text>
           </View>
+          <Pressable
+            onPress={() => router.push('/food-history')}
+            hitSlop={10}
+            style={styles.historyButton}
+            accessibilityRole="button"
+            accessibilityLabel="View past meal scans"
+          >
+            <Ionicons name="time-outline" size={22} color="#FFFFFF" />
+          </Pressable>
         </View>
 
         {wizardStep === 2 ? (
@@ -1395,12 +1388,6 @@ export default function PhotoAnalysisScreen() {
                 {analysis ? (
                   <>
                   <View style={styles.resultCard}>
-                    {rankUpBadge ? (
-                      <View style={[styles.rankUpBadge, isRtlLanguage && styles.rtlRow]}>
-                        <Ionicons name="trophy" size={15} color="#000000" />
-                        <Text style={styles.rankUpBadgeText}>{rankUpBadge}</Text>
-                      </View>
-                    ) : null}
                     <View style={styles.resultHeader}>
                       <View style={styles.resultTitleRow}>
                         <Ionicons name="nutrition" size={20} color={Colors.secondary} />
@@ -1666,6 +1653,16 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontFamily: FontFamily.sansBold,
     fontSize: FontSize.sm,
+  },
+  historyButton: {
+    alignItems: 'center',
+    backgroundColor: '#101010',
+    borderColor: '#242424',
+    borderRadius: BorderRadius.full,
+    borderWidth: 1,
+    height: 40,
+    justifyContent: 'center',
+    width: 40,
   },
   iconButton: {
     alignItems: 'center',
@@ -1939,22 +1936,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     padding: Spacing.lg,
     ...Shadows.sm,
-  },
-  rankUpBadge: {
-    alignItems: 'center',
-    alignSelf: 'flex-start',
-    backgroundColor: '#2DCE89',
-    borderRadius: BorderRadius.full,
-    flexDirection: 'row',
-    gap: 6,
-    marginBottom: Spacing.md,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: 7,
-  },
-  rankUpBadgeText: {
-    color: '#000000',
-    fontFamily: FontFamily.sansBold,
-    fontSize: FontSize.xs,
   },
   resultHeader: {
     alignItems: 'center',
