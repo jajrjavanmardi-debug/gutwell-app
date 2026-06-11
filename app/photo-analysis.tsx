@@ -1047,22 +1047,31 @@ export default function PhotoAnalysisScreen() {
         }
       }
 
-      const stopExpo = await tryStartExpoSpeechRecognition(
-        locale,
-        pushTranscript,
-        () => {
-          voiceHoldActiveRef.current = false;
-          setIsListening(false);
-          setVoiceTarget(null);
-          micToast();
-        },
-        () => {
-          voiceHoldActiveRef.current = false;
-          setIsListening(false);
-          setVoiceTarget(null);
-          voiceToast();
-        },
-      );
+      let stopExpo: (() => void) | null = null;
+      try {
+        stopExpo = await tryStartExpoSpeechRecognition(
+          locale,
+          pushTranscript,
+          () => {
+            voiceHoldActiveRef.current = false;
+            setIsListening(false);
+            setVoiceTarget(null);
+            micToast();
+          },
+          () => {
+            voiceHoldActiveRef.current = false;
+            setIsListening(false);
+            setVoiceTarget(null);
+            voiceToast();
+          },
+        );
+      } catch {
+        voiceHoldActiveRef.current = false;
+        setIsListening(false);
+        setVoiceTarget(null);
+        Alert.alert(t.voiceUnavailableTitle, t.voiceUnavailableMessage);
+        return;
+      }
 
       if (!stopExpo) {
         voiceHoldActiveRef.current = false;
