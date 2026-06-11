@@ -1047,7 +1047,7 @@ export default function PhotoAnalysisScreen() {
         }
       }
 
-      let stopExpo: (() => void) | null = null;
+      let stopExpo: (() => Promise<void>) | null = null;
       try {
         stopExpo = await tryStartExpoSpeechRecognition(
           locale,
