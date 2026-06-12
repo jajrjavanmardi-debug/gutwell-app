@@ -413,7 +413,7 @@ function getCorrectionLanguage(correction: string, currentLanguage: AppLanguage)
     ? 'de'
     : currentLanguage === 'de'
       ? 'de'
-      : 'en';
+      : currentLanguage;
 }
 
 function isDifferentFoodCorrection(correction: string): boolean {
