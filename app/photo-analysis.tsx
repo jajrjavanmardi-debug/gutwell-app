@@ -1069,7 +1069,7 @@ export default function PhotoAnalysisScreen() {
         voiceHoldActiveRef.current = false;
         setIsListening(false);
         setVoiceTarget(null);
-        Alert.alert(t.voiceUnavailableTitle, t.voiceUnavailableMessage);
+        voiceToast();
         return;
       }
 
