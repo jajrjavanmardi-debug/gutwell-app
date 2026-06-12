@@ -34,7 +34,7 @@ const TIPS: WellnessTip[] = [
     title: 'Stress & your gut',
     body: 'The gut-brain axis means stress directly impacts digestion. Even 5 minutes of deep breathing helps.',
     category: 'science',
-    icon: 'brain',
+    icon: 'pulse-outline',
     tags: ['stress', 'digestion', 'general'],
   },
   {
