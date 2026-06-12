@@ -18,6 +18,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import * as Clipboard from 'expo-clipboard';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Toast } from '../components/ui/Toast';
@@ -105,6 +106,9 @@ const copy = {
     snapshotHeading: 'GutWell meal snapshot',
     shareErrorTitle: 'Sharing unavailable',
     shareErrorMessage: 'Unable to open sharing right now.',
+    copyResult: 'Copy Full Result',
+    copiedToast: 'Full analysis copied to clipboard.',
+    nothingToShareMessage: 'Generate an analysis first.',
     disagree: "This didn't work for my body",
     planBTitle: 'Plan B',
     planBText: "I'm sorry this suggestion bothered you. I marked it as a trigger and your safer Plan B is: pause this food for now, sip ginger or peppermint tea, hydrate, and choose a very simple meal like rice, banana, or soup until your gut settles.",
@@ -192,6 +196,9 @@ const copy = {
     snapshotHeading: 'GutWell Mahlzeiten-Snapshot',
     shareErrorTitle: 'Teilen nicht verfügbar',
     shareErrorMessage: 'Teilen kann gerade nicht geöffnet werden.',
+    copyResult: 'Vollständiges Ergebnis kopieren',
+    copiedToast: 'Analyse in die Zwischenablage kopiert.',
+    nothingToShareMessage: 'Bitte erst eine Analyse erstellen.',
     disagree: "Das hat meinem Körper nicht gutgetan",
     planBTitle: 'Plan B',
     planBText: 'Es tut mir leid, dass diese Empfehlung dir nicht gutgetan hat. Ich habe sie als Trigger gespeichert. Sicherer Plan B: pausiere dieses Lebensmittel, trinke Ingwer- oder Pfefferminztee, bleib hydriert und iss vorerst etwas Einfaches wie Reis, Banane oder Suppe.',
@@ -714,21 +721,36 @@ export default function PhotoAnalysisScreen() {
   }, [params.historyId]);
 
   const handleShareAnalysis = async () => {
-    if (!analysis) return;
-
+    if (!analysis) {
+      setToast({ visible: true, message: t.nothingToShareMessage, type: 'info' });
+      return;
+    }
     try {
       const summary = [
         t.snapshotHeading,
-        sanitizeAnalysisForDisplay(analysis).slice(0, 500),
+        sanitizeAnalysisForDisplay(analysis),
       ].join('\n\n');
-
-      await Share.share({
-        title: t.shareTitle,
-        message: summary,
-      });
+      const result = await Share.share({ title: t.shareTitle, message: summary });
+      if (result.action === Share.dismissedAction) {
+        setToast({ visible: true, message: t.shareErrorMessage, type: 'info' });
+      }
     } catch (error) {
       console.error('Photo analysis share failed:', error);
-      Alert.alert(t.shareErrorTitle, error instanceof Error ? error.message : t.shareErrorMessage);
+      Alert.alert(t.shareErrorTitle, t.shareErrorMessage);
+    }
+  };
+
+  const handleCopyAnalysis = async () => {
+    if (!analysis) {
+      setToast({ visible: true, message: t.nothingToShareMessage, type: 'info' });
+      return;
+    }
+    try {
+      await Clipboard.setStringAsync(sanitizeAnalysisForDisplay(analysis));
+      setToast({ visible: true, message: t.copiedToast, type: 'success' });
+    } catch (error) {
+      console.error('Copy failed:', error);
+      Alert.alert(t.shareErrorTitle, t.shareErrorMessage);
     }
   };
 
@@ -1505,6 +1527,16 @@ export default function PhotoAnalysisScreen() {
                       >
                         <Ionicons name="share-outline" size={18} color="#000000" />
                         <Text style={styles.shareButtonText}>{t.share}</Text>
+                      </Pressable>
+                      <Pressable
+                        onPress={() => void handleCopyAnalysis()}
+                        style={({ pressed }) => [
+                          styles.shareButton,
+                          pressed && styles.pressed,
+                        ]}
+                      >
+                        <Ionicons name="copy-outline" size={18} color="#000000" />
+                        <Text style={styles.shareButtonText}>{t.copyResult}</Text>
                       </Pressable>
                     </View>
                   </View>
