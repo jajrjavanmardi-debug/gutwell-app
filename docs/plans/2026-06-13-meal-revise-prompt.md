@@ -209,26 +209,24 @@ anything. Implementation is the §5a language-scope change. German is **kept** (
 market). No mid-flow language switch remains, because `fa` is no longer a possible
 state.
 
-### Q2 — Germany retail boost (REWE / Edeka) is dropped
-The current prompt force-names REWE/Edeka/Kaufland for German users
-(`germanyRetailBoostPrompt()`). The new prompt has no such rule, and the 120-word
-cap + "1 sentence per section" leaves little room for store names.
-**Decision:** intentionally drop enforced German store names in the revised
-report? Or keep a one-line store hint inside `✅ BETTER OPTION` for German
-`userLocation`? (Recommend: confirm drop, since brevity is the goal.)
+### Q2 — Germany retail boost (REWE / Edeka) is dropped ✅ RESOLVED (2026-06-13)
+**Decision: drop the enforced REWE/Edeka boost in the revised report.** Brevity
+(120 words, 1 sentence/section) wins. Store grounding still flows implicitly via
+the `userLocation` line, so the model can name a local store in `✅ BETTER OPTION`
+when it fits — it just isn't forced. The full localized boost remains on the
+initial `meal_text` analysis. Implemented in PR #52 (`germanyRetailBoostRevise`
+removed from `buildMealRevisePrompt`).
 
-### Q3 — Style mismatch with the initial analysis
-The first analysis (`meal_text` mode) is long, plain-text, ALL-CAPS labels, no
-emojis. The revised report will now be short with emoji sections. Is this
-intentional contrast acceptable, or should the initial analysis eventually adopt
-the same 5-section format for consistency? (Out of scope here — flagging only.)
+### Q3 — Style mismatch with the initial analysis ✅ RESOLVED (2026-06-13)
+**Decision: accept the contrast for now.** The correction report is intentionally
+short/emoji; the initial analysis stays long/plain-text. Aligning the initial
+analysis to the 5-section format is **deferred** (separate future task), not done
+in PR #52. Flagged so it isn't mistaken for an oversight.
 
-### Q4 — 120-word cap vs. required content
-Five sections + optional leading apology + a full disclaimer footer must fit in
-120 words. The disclaimer alone is ~25–30 words. Confirm the model is told the
-**120-word cap excludes the disclaimer footer**, or relax to ~150 words.
-Otherwise sections get squeezed. (Recommend: state "max 120 words excluding the
-safety footer.")
+### Q4 — 120-word cap vs. required content ✅ RESOLVED (2026-06-13)
+**Decision: "maximum 120 words, excluding the safety footer."** Implemented in
+PR #52 with that exact wording, so the five sections aren't squeezed by the
+~25–30-word disclaimer.
 
 ---
 
@@ -297,8 +295,14 @@ safety footer.")
 - **Review (2026-06-13):** panel review (Cagan / Beck / Majors) → *APPROVE WITH
   CHANGES*. Confirmed two real regressions R1 (score badge) and R2 (meal name);
   folded into §7. Mandatory before implementation: fix R1+R2 with unit tests.
-- Q2 (German store hint): _pending_ — recommend keeping a one-line REWE/Edeka hint
-  in `✅ BETTER OPTION` for German `userLocation`.
-- Q3 (style consistency vs. initial analysis): _pending_ — out of scope, flagged.
-- Q4 (120-word cap vs. footer): _pending_ — recommend "≤120 words excluding the
-  safety footer."
+- **Q2 (2026-06-13): RESOLVED** — drop the enforced REWE/Edeka boost in the revised
+  report; store grounding stays implicit via `userLocation`. Done in PR #52.
+- **Q3 (2026-06-13): RESOLVED** — accept the style contrast; aligning the initial
+  analysis is deferred to a separate task.
+- **Q4 (2026-06-13): RESOLVED** — "max 120 words, excluding the safety footer." Done in PR #52.
+- **Implementation (2026-06-13):** PR #52 (`feat/meal-revise-prompt-en-de`) — new
+  prompt, EN+DE only, R1/R2 parser fixes + unit tests (11/11 logic checks pass).
+- **Deploy strategy (2026-06-13):** server + client are coupled — deploying the
+  edge function to production alone would break the currently-released app (old
+  parsers can't read the new emoji format). Plan: deploy to a **Supabase preview
+  branch** for testing; promote to production only together with the app release.
