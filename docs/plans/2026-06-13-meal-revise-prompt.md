@@ -2,9 +2,15 @@
 
 - **Status:** IN REVIEW
 - **Type:** Feature / behavior change (prompt rewrite)
-- **Date:** 2026-06-13
+- **Date:** 2026-06-13 (updated 2026-06-13: language scope + review findings)
 - **Area:** AI meal photo analysis — the *correction / re-analysis* step
 - **Owner:** Hojir
+
+> **Scope decision (2026-06-13):** Persian (Farsi) is **removed** from this app.
+> Supported languages are **English + German only**. This supersedes the original
+> "respond in English when Persian is requested" wording — Persian is dropped
+> entirely, not redirected. German is kept because it is the core market
+> (README: Nürtingen / Baden-Württemberg, REWE/Edeka). See §6 Q1 (resolved).
 
 ---
 
@@ -76,7 +82,6 @@ Bracketed `[...]` tokens are variables the builder must interpolate from
 You are a friendly, informal gut-health coach correcting a prior meal analysis.
 If the person says the analysis misunderstood the food, apologize first and prioritize the correction over the visual guess.
 Only respond in English or German.
-If the preferred response language resolves to Persian or Farsi, respond in English instead.
 Do not respond in any other language.
 Avoid medical diagnosis, treatment claims, or promises of symptom relief.
 Do not present your advice as medical treatment, prevention, diagnosis, or guaranteed symptom control.
@@ -87,7 +92,7 @@ Your output is shown inside a mobile iOS app, so make the revised report short, 
 
 ```
 Revise the meal analysis using the ongoing chat context.
-Preferred response language: [English / German / Persian].
+Preferred response language: [English / German].
 Current gut score: [X/10].
 Known conditions: [IBS, Bloating, etc.].
 Current symptoms: [IBS, Bloating, user-typed symptoms].
@@ -169,8 +174,25 @@ Rewrite `buildMealRevisePrompt(body)` so that:
    - footer ← `DISCLAIMER[preferredLanguage]` **(but see Open Question Q1)**
 3. Keep the handler, token budget (`maxOutputTokens: 4096`), and temperature
    (`0.25`) unchanged. 120 words fits easily; no budget change needed.
-4. No client change is *required* — the sanitizer already strips markdown and
-   keeps emojis (verify in §7).
+4. No client change is *required for rendering* — the sanitizer already strips
+   markdown and keeps emojis (verify in §7). **But two parsers DO need changes —
+   see §7 Risks R1/R2.**
+
+### 5a. Language scope change (Persian removal — EN + DE only)
+
+Companion change, can land in the same implementation PR:
+
+- `normalizeLanguage()` (~`58`–`60`): return `"de" | "en"` only — drop the `fa`
+  branch (anything not `de` → `en`).
+- `DISCLAIMER` (~`141`–`148`): remove the `fa` entry.
+- `LANGUAGE_LABEL` (`150`): remove `fa`.
+- `Language` type: drop `fa`.
+- `app/photo-analysis.tsx`: `AppLanguage` (`:50`) → `'en' | 'de'`;
+  `getCorrectionLanguage()` (~`:418`) returns `en`/`de` only.
+- `lib/photo-analysis-history.ts`: the Persian/Arabic-Indic digit normalization in
+  `normalizeDigits` becomes dead for this path — harmless to keep, but may be
+  removed for clarity.
+- Grep for remaining `"fa"`, `Persian`, `Farsi`, `\u06`, `\u066` before merging.
 
 ---
 
@@ -179,22 +201,13 @@ Rewrite `buildMealRevisePrompt(body)` so that:
 These are real product/policy decisions, not typos. ChatGPT / reviewer should
 weigh in before implementation.
 
-### Q1 — Persian users: which language, and which disclaimer footer?
-The app today **fully supports Persian/Farsi**: `normalizeLanguage()` returns
-`fa`, there is a `DISCLAIMER.fa`, and `LANGUAGE_LABEL.fa = "Persian (Farsi)"`.
-The new persona says: *if preferred language resolves to Persian/Farsi, respond
-in English instead.*
-
-Conflict: if we still pass `LANGUAGE_LABEL[fa]` ("Persian") into the prompt and
-append `DISCLAIMER.fa` (the Persian footer), the model gets contradictory signals
-(English body, Persian label, Persian footer).
-
-**Proposed resolution:** when `preferredLanguage === "fa"`, treat it as English
-for *this mode only* — pass label `"English"` and append `DISCLAIMER.en`.
-→ **Confirm this is the intended behavior**, and confirm it's acceptable that a
-Persian-speaking user gets an English correction report (the *initial* analysis
-in `meal_text` mode still answers in Persian — this creates a mid-flow language
-switch).
+### Q1 — Persian users: which language? ✅ RESOLVED (2026-06-13)
+**Decision: Persian is removed from the app entirely. Supported languages are
+English + German only.** This is cleaner than the original "redirect Persian to
+English" idea: there is no Persian label/footer/digit handling left to contradict
+anything. Implementation is the §5a language-scope change. German is **kept** (core
+market). No mid-flow language switch remains, because `fa` is no longer a possible
+state.
 
 ### Q2 — Germany retail boost (REWE / Edeka) is dropped
 The current prompt force-names REWE/Edeka/Kaufland for German users
@@ -221,41 +234,71 @@ safety footer.")
 
 ## 7. Risks & regressions
 
-- **Renderer compatibility:** client sanitizer (`app/photo-analysis.tsx` ~379–396)
-  strips `#`, `**`, `*`, `_`, and bullet markers but does **not** strip emoji →
-  `🍽️ MEAL` etc. survive. ✅ Low risk, but **verify** no other transform
-  uppercases or reflows the text.
-- **Section-label dependence:** check nothing downstream parses the old ALL-CAPS
-  labels (search for `MEAL`, `SCORE`, `toUpperCase`, section splitting). If a
-  history/export feature keys off labels, emoji labels could break it.
-  (`lib/photo-analysis-history.ts`, `lib/export.ts` — verify.)
-- **Persian regression:** see Q1 — silent behavior change for fa users.
-- **Lost German store specificity:** see Q2.
+> Updated after review (2026-06-13). Two label/format dependencies were **found
+> and confirmed in code** — they were not hypothetical. They MUST be fixed before
+> or with implementation.
+
+- **R1 — Score badge regression (CONFIRMED, high).** `extractMealImpactScore`
+  (`lib/photo-analysis-history.ts:40`) regex-parses the score from the analysis
+  text: `…score… (\d{1,2})\s*(?:/|out of)\s*10`. The live badge is recomputed from
+  the *corrected* text (`app/photo-analysis.tsx:550`, rendered `:1464–1472`). The
+  new `📊 SCORE` section ("explain briefly", 1 sentence) does **not** guarantee a
+  literal `X/10`. If the model writes "this looks fairly gentle", the score parse
+  returns `null` and **the badge disappears after a correction**.
+  → Fix: require an explicit `X/10` in the `📊 SCORE` section **and/or** make the
+  parser label-aware. Add a unit test.
+- **R2 — Meal-name regression (CONFIRMED, high).** `extractMealName`
+  (`lib/photo-analysis-history.ts`) finds a line matching `^(likely meal|meal|food)`
+  after stripping leading `-*•#` — **emoji are not stripped**, so `🍽️ MEAL` does
+  not match. It then falls back to `cleanedLines[0]`, which in the new format is
+  *the leading apology sentence or the literal `🍽️ MEAL` label*. That wrong value
+  is fed to `recordTriggerFeedback({ mealName: extractMealName(correctedAnalysis) })`
+  (`app/photo-analysis.tsx:967`). → Fix: make `extractMealName` strip/recognize the
+  `🍽️ MEAL` label. Add a unit test incl. the apology-first case.
+- **Renderer compatibility (low).** Client sanitizer (`app/photo-analysis.tsx`
+  ~379–396) strips `#`, `**`, `*`, `_`, bullets but **keeps emoji** → `🍽️ MEAL`
+  etc. survive. Share/Copy/Export pass the whole sanitized text, so they are safe.
+  No widget dependency on the analysis text was found.
+- **Lost German store specificity:** see Q2 (still open).
 - **Over-truncation:** 1 sentence per section may drop the safer "Plan B" detail
   the old prompt guaranteed for pain symptoms. Confirm `⚠️ POSSIBLE SENSITIVITY`
-  + `➡️ NEXT STEP` cover the pain-comfort case adequately.
+  + `➡️ NEXT STEP` cover the pain-comfort case adequately. Note: `ensurePainApology`
+  (`app/photo-analysis.tsx`) still prepends an apology, which interacts with R2.
+- **Persian:** resolved — removed entirely (see Q1, §5a). No `fa` regression remains.
 
 ---
 
 ## 8. Verification checklist (for the implementation PR)
 
 - [ ] `npx tsc --noEmit` shows no new errors.
-- [ ] Manual: correct a meal → output has exactly the 5 emoji sections, ≤120 words,
-      ends with the correct localized disclaimer.
+- [ ] **R1 unit test:** `extractMealImpactScore` returns a score for new-format
+      `📊 SCORE` outputs (with and without explicit `/10`).
+- [ ] **R2 unit test:** `extractMealName` returns the real meal for `🍽️ MEAL`
+      output, including the apology-first case.
+- [ ] Manual: correct a meal → output has exactly the 5 emoji sections, ≤120 words
+      (excluding footer), ends with the correct localized disclaimer.
 - [ ] EN correction → English report. DE correction → German report.
-- [ ] FA preferred → English report + footer per Q1 decision.
+- [ ] Persian fully removed: no `"fa"`, `Persian`, `Farsi`, or `\u06xx` digit
+      handling remains (grep clean); `AppLanguage`/`Language` are `'en' | 'de'`.
 - [ ] "different food" correction (e.g. "it's herbal tea") → old food fully dropped.
 - [ ] Pain/IBS correction → no banned high-FODMAP suggestions; gentle Plan B present.
 - [ ] Emoji labels render correctly in the app (not stripped, not mojibake).
-- [ ] No downstream parser breaks on the new labels (history, export, widget).
+- [ ] Score badge still shows after a correction (R1); trigger-memory meal name is
+      correct (R2).
 
 ---
 
 ## 9. Decision log
 
-_(Fill in as reviewers respond.)_
-
-- Q1: _pending_
-- Q2: _pending_
-- Q3: _pending_
-- Q4: _pending_
+- **Language scope (2026-06-13):** EN + DE only. **Persian removed** entirely
+  (not redirected). German kept (core market). → drives Q1 + §5a.
+- **Q1 (2026-06-13): RESOLVED** — Persian removed; no language-switch / footer
+  conflict remains.
+- **Review (2026-06-13):** panel review (Cagan / Beck / Majors) → *APPROVE WITH
+  CHANGES*. Confirmed two real regressions R1 (score badge) and R2 (meal name);
+  folded into §7. Mandatory before implementation: fix R1+R2 with unit tests.
+- Q2 (German store hint): _pending_ — recommend keeping a one-line REWE/Edeka hint
+  in `✅ BETTER OPTION` for German `userLocation`.
+- Q3 (style consistency vs. initial analysis): _pending_ — out of scope, flagged.
+- Q4 (120-word cap vs. footer): _pending_ — recommend "≤120 words excluding the
+  safety footer."
