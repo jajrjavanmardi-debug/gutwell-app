@@ -1,5 +1,11 @@
 # .maestro — iOS Simulator E2E (Maestro)
 
+> 🟡 **LATER / NOT NOW — future proposal.** Testing is **manual-first** for now
+> (decision 2026-06-13). Do **not** set up Maestro/Playwright/Appium/Detox or
+> install E2E dependencies yet. This folder is inert YAML kept as a proposal; it
+> runs nothing on its own. Validate changes manually in the iOS Simulator + local
+> Expo first. See `docs/plans/2026-06-13-ios-e2e-testing.md`.
+
 Native iOS E2E for GutWell. See the full rationale and the
 local-vs-build matrix in `docs/plans/2026-06-13-ios-e2e-testing.md`.
 

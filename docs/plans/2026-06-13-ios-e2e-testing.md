@@ -1,12 +1,30 @@
 # Plan: iOS Simulator E2E testing for the meal_revise change
 
-- **Status:** IN REVIEW
+- **Status:** 🟡 FUTURE PROPOSAL — **LATER / NOT NOW**
 - **Type:** Test infrastructure (additive, no app behavior change)
-- **Date:** 2026-06-13
+- **Date:** 2026-06-13 (deferred 2026-06-13)
 - **Goal:** Verify the `meal_revise` change works in the **real Expo iOS app**, not
   only in Jest unit tests.
 - **Companion to:** `docs/plans/2026-06-13-meal-revise-prompt.md` and
   `docs/plans/CODEX_PROMPT.md` (R1 score badge / R2 meal name).
+
+> ## ⛔️ Testing approach: manual-first (decision 2026-06-13)
+>
+> We will validate changes **manually** in the iOS Simulator and local Expo
+> environment before adding Maestro/Playwright/Appium automation. Automated E2E
+> remains a **later phase** once the flows are stable.
+>
+> **For now, do NOT implement Maestro, Playwright, Detox, Appium, or any other
+> automated E2E framework**, and do not install testing dependencies for it.
+> The immediate goal is to build the feature/RFCs and validate them manually on:
+> - the local Expo dev server,
+> - the iOS Simulator,
+> - and, if needed, a physical iPhone.
+>
+> This document and the `.maestro/` scaffold stay as a **future proposal only**.
+> The scaffold is inert YAML — it installs nothing and runs nothing until someone
+> deliberately picks this up later. **Jest unit tests remain in use now** (they are
+> not E2E and are the primary automated guarantee for R1/R2).
 
 ---
 

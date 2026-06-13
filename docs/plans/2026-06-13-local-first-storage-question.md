@@ -98,3 +98,13 @@ Suggested execution order (audits first, they inform the RFCs):
 
 Phase mapping (from the decision): Phase 1 = status quo (done) · Phase 2 = #55, #58 ·
 Phase 3 = #57 → #54 · Phases 4–5 = #56.
+
+## Testing approach: manual-first (decision 2026-06-13)
+
+We will validate changes **manually** in the iOS Simulator and local Expo
+environment before adding Maestro/Playwright/Appium automation. Automated E2E
+remains a **later phase** once the flows are stable. For now we do **not** stand up
+Maestro/Playwright/Detox/Appium or install E2E dependencies — the iOS E2E plan
+(`docs/plans/2026-06-13-ios-e2e-testing.md`) and the `.maestro/` scaffold stay as a
+future proposal, explicitly *later / not now*. Jest unit tests remain in use (they
+are not E2E). Any future automation work should be labelled `future-automation`.
