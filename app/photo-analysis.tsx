@@ -349,8 +349,6 @@ function sanitizeMealScoring(text: string): string {
     /^Musterbasierte Einschätzung/i,
     /\[#{1,20}[-─\s]*\].*\/10/,
     /\[[-─\s]*#{1,20}\].*\/10/,
-    /\b\d{1,2}\/10\b/,
-    /[۰-۹]{1,2}\/10/,
     /^This is an educational estimate based on your profile/i,
     /^این یک برآورد آموزشی بر اساس پروفایل/,
     /^Dies ist eine orientierende Einschätzung/i,
