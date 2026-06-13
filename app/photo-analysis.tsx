@@ -47,7 +47,7 @@ import {
   type TriggerFeedbackItem,
 } from '../lib/user-progress';
 
-type AppLanguage = 'en' | 'de' | 'fa';
+type AppLanguage = 'en' | 'de';
 type WizardStep = 1 | 2 | 3;
 const APP_LANGUAGE_STORAGE_KEY = 'gutwell_app_language';
 /** When set to `Germany`, skips GPS and fixes AI context to Nürtingen (dev/testing only). */
@@ -349,8 +349,6 @@ function sanitizeMealScoring(text: string): string {
     /^Musterbasierte Einschätzung/i,
     /\[#{1,20}[-─\s]*\].*\/10/,
     /\[[-─\s]*#{1,20}\].*\/10/,
-    /\b\d{1,2}\/10\b/,
-    /[۰-۹]{1,2}\/10/,
     /^This is an educational estimate based on your profile/i,
     /^این یک برآورد آموزشی بر اساس پروفایل/,
     /^Dies ist eine orientierende Einschätzung/i,
@@ -411,7 +409,6 @@ function getVoiceLocale(language: AppLanguage): string {
   return {
     en: 'en-US',
     de: 'de-DE',
-    fa: 'fa-IR',
   }[language];
 }
 
@@ -529,12 +526,12 @@ export default function PhotoAnalysisScreen() {
     };
   }, [user, profile?.gut_concern]);
   const [isLoggingMeal, setIsLoggingMeal] = useState(false);
-  // UI chrome has EN/DE translations; Persian users get English chrome while
-  // the AI analysis itself responds in Persian (server prompt handles fa).
+  // UI chrome and AI analysis are English + German only.
   const t = copy[language === 'de' ? 'de' : 'en'];
   /** Dev client / standalone only — Expo Go has no custom native STT modules. */
   const voiceNativeEnabled = canUseNativeSpeechToText();
-  const isRtlLanguage = language === 'fa';
+  // No RTL languages are supported (English + German only); kept for styling call sites.
+  const isRtlLanguage = false;
   const userEnteredSymptoms = mealDescription
       .split(/[,\n]+/)
       .map((symptom) => symptom.trim())
@@ -669,9 +666,10 @@ export default function PhotoAnalysisScreen() {
   useEffect(() => {
     AsyncStorage.getItem(APP_LANGUAGE_STORAGE_KEY)
       .then((storedLanguage) => {
-        if (storedLanguage === 'en' || storedLanguage === 'de' || storedLanguage === 'fa') {
+        if (storedLanguage === 'en' || storedLanguage === 'de') {
           setLanguage(storedLanguage);
         } else {
+          // Legacy 'fa' or unknown values fall back to English.
           setLanguage('en');
         }
       })
