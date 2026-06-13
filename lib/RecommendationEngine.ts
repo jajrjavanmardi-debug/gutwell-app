@@ -5,8 +5,8 @@
  * authenticated request (the session JWT is attached automatically by
  * supabase.functions.invoke) and renders the returned text/JSON.
  *
- * Prompts and `preferredLanguage` support English (`en`), German (`de`), and
- * Persian (`fa`). User-supplied symptoms/corrections are opaque text passed through.
+ * Prompts and `preferredLanguage` support English (`en`) and German (`de`).
+ * User-supplied symptoms/corrections are opaque text passed through.
  */
 import { supabase } from './supabase';
 
@@ -40,7 +40,7 @@ export type FoodNutrition = {
 };
 
 export type MealPhotoAnalysisContext = {
-  preferredLanguage?: 'en' | 'de' | 'fa';
+  preferredLanguage?: 'en' | 'de';
   gutScore?: number;
   conditions?: string[];
   symptoms?: string[];
@@ -55,7 +55,7 @@ export type MealPhotoAnalysisContext = {
 };
 
 export type MealCorrectionContext = {
-  preferredLanguage?: 'en' | 'de' | 'fa';
+  preferredLanguage?: 'en' | 'de';
   previousAnalysis: string;
   correction: string;
   gutScore?: number;

@@ -1,6 +1,6 @@
 /**
- * Persisted history for meal photo analyses. Parsing helpers assume AI output follows EN/DE meal-score
- * patterns; digit normalization handles extended Arabic/Persian digits only when parsing stored text.
+ * Persisted history for meal photo analyses. Parsing helpers assume AI output follows the
+ * EN/DE meal-score and section-label patterns produced by the analyze-food edge function.
  */
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -28,17 +28,10 @@ function keepRecentItems(items: PhotoAnalysisHistoryItem[]): PhotoAnalysisHistor
     .sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt));
 }
 
-/** Normalize Persian / Arabic-Indic digits to ASCII for regex parsing (no locale-specific literals in source). */
-function normalizeDigits(value: string): string {
-  return value
-    .replace(/[\u06f0-\u06f9]/g, (ch) => String.fromCharCode(48 + ch.charCodeAt(0) - 0x06f0))
-    .replace(/[\u0660-\u0669]/g, (ch) => String.fromCharCode(48 + ch.charCodeAt(0) - 0x0660));
-}
-
 export function extractMealImpactScore(aiText: string): string | null {
-  const normalizedText = normalizeDigits(aiText);
-  const scoreMatch = normalizedText.match(/(?:meal impact score|impact score|score)[^\d]{0,24}(\d{1,2})\s*(?:\/|out of)\s*10/i)
-    ?? normalizedText.match(/(\d{1,2})\s*(?:\/|out of)\s*10/i);
+  // EN/DE outputs use ASCII digits; the "📊 SCORE" section states the score as "X/10".
+  const scoreMatch = aiText.match(/(?:meal impact score|impact score|score)[^\d]{0,24}(\d{1,2})\s*(?:\/|out of)\s*10/i)
+    ?? aiText.match(/(\d{1,2})\s*(?:\/|out of)\s*10/i);
 
   if (!scoreMatch) return null;
 
@@ -48,18 +41,34 @@ export function extractMealImpactScore(aiText: string): string | null {
   return `${score}/10`;
 }
 
+/**
+ * Strip leading decoration (emoji, punctuation, whitespace) from the start of a line
+ * so emoji section labels like "🍽️ MEAL" are recognizable. Keeps letters
+ * (incl. German umlauts in the Latin-1 range) and digits.
+ */
+function stripLeadingDecoration(line: string): string {
+  return line.replace(/^[^A-Za-z0-9À-ÿ]+/, '').trim();
+}
+
 export function extractMealName(aiText: string): string {
   const cleanedLines = aiText
     .split('\n')
-    .map((line) => line.replace(/^[-*•#\s]+/, '').trim())
+    .map(stripLeadingDecoration)
     .filter(Boolean);
-  const mealLine = cleanedLines.find((line) =>
-    /^(likely meal|meal|food)\b/i.test(line)
-  );
-  const rawMealName = (mealLine ?? cleanedLines[0] ?? 'Meal photo')
-    .replace(/^(likely meal|meal|food)\s*[:：-]\s*/i, '')
-    .trim();
 
+  const mealLabel = /^(likely meal|meal|gericht|mahlzeit|food)\b/i;
+  const labelIndex = cleanedLines.findIndex((line) => mealLabel.test(line));
+
+  let rawMealName: string | undefined;
+  if (labelIndex !== -1) {
+    // Content may be inline ("MEAL: Herbal tea") or on the next line (emoji format).
+    const inline = cleanedLines[labelIndex]
+      .replace(/^(likely meal|meal|gericht|mahlzeit|food)\s*[:：-]?\s*/i, '')
+      .trim();
+    rawMealName = inline || cleanedLines[labelIndex + 1];
+  }
+
+  rawMealName = (rawMealName ?? cleanedLines[0] ?? 'Meal photo').trim();
   return rawMealName.slice(0, 80) || 'Meal photo';
 }
 
