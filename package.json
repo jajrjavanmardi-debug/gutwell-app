@@ -11,7 +11,8 @@
     "ios": "expo start --ios",
     "web": "expo start --web",
     "lint": "expo lint",
-    "test": "jest"
+    "test": "jest",
+    "test:e2e:ios": "maestro test .maestro"
   },
   "dependencies": {
     "@expo-google-fonts/eb-garamond": "^0.4.2",
