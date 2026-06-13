@@ -74,3 +74,27 @@ key inside the app is a security non-starter. So:
    hybrid — with the migration path and the top 3 risks.
 
 Constraints for the answer: **opinion/review only, no code changes, no deploy.**
+
+---
+
+## Decision (2026-06-13): HYBRID — keep Supabase
+
+Recorded in [#53](https://github.com/jajrjavanmardi-debug/gutwell-app/issues/53#issuecomment-4698624210).
+Supabase stays by design (Auth, RLS data, deletion/export/consent, RevenueCat
+linking, the stateless `analyze-food` AI proxy, server-side Gemini/USDA secrets).
+Local-first is a **direction for free-tier user data only**, gated behind
+encryption and explicit consent — never a "no backend" claim. AI calls always go
+through the Edge Function (the Gemini key must not ship in the app).
+
+## Follow-up tracking — milestone "Local-first HYBRID roadmap"
+
+Suggested execution order (audits first, they inform the RFCs):
+
+- [ ] **#57** — Audit: AsyncStorage health-related data today · `audit` `phase-3`
+- [ ] **#55** — RFC: Stateless `analyze-food` logging & privacy rules · `rfc` `phase-2`
+- [ ] **#58** — Audit: Privacy-policy wording for local-first + AI proxy · `audit` `phase-2`
+- [ ] **#54** — RFC: Encrypted local storage design · `rfc` `phase-3`
+- [ ] **#56** — RFC: Paid sync migration local → Supabase · `rfc` `phase-4-5`
+
+Phase mapping (from the decision): Phase 1 = status quo (done) · Phase 2 = #55, #58 ·
+Phase 3 = #57 → #54 · Phases 4–5 = #56.
