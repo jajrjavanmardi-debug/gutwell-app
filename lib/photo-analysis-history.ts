@@ -16,6 +16,11 @@ export type PhotoAnalysisHistoryItem = {
 
 const PHOTO_ANALYSIS_HISTORY_KEY = 'gutwell_photo_analysis_history';
 const HISTORY_WINDOW_MS = 14 * 24 * 60 * 60 * 1000;
+// Hard cap on stored entries (in addition to the 14-day window). The whole history
+// is one AsyncStorage value, and on Android AsyncStorage is SQLite-backed with a
+// ~2MB CursorWindow per-row limit; an unbounded array eventually exceeds it and the
+// read throws "Row too big to fit into CursorWindow". Capping keeps the row small.
+const MAX_HISTORY_ITEMS = 50;
 
 function keepRecentItems(items: PhotoAnalysisHistoryItem[]): PhotoAnalysisHistoryItem[] {
   const cutoff = Date.now() - HISTORY_WINDOW_MS;
@@ -25,7 +30,8 @@ function keepRecentItems(items: PhotoAnalysisHistoryItem[]): PhotoAnalysisHistor
       const createdAt = Date.parse(item.createdAt);
       return Number.isFinite(createdAt) && createdAt >= cutoff;
     })
-    .sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt));
+    .sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt))
+    .slice(0, MAX_HISTORY_ITEMS);
 }
 
 /** Normalize Persian / Arabic-Indic digits to ASCII for regex parsing (no locale-specific literals in source). */
@@ -64,7 +70,20 @@ export function extractMealName(aiText: string): string {
 }
 
 export async function getPhotoAnalysisHistory(): Promise<PhotoAnalysisHistoryItem[]> {
-  const raw = await AsyncStorage.getItem(PHOTO_ANALYSIS_HISTORY_KEY);
+  let raw: string | null = null;
+  try {
+    raw = await AsyncStorage.getItem(PHOTO_ANALYSIS_HISTORY_KEY);
+  } catch {
+    // Android CursorWindow: an oversized value (>~2MB SQLite row) throws on read.
+    // Drop the unreadable key so future saves/reads recover, and never let this
+    // crash the photo-analysis flow. removeItem failures are ignored on purpose.
+    try {
+      await AsyncStorage.removeItem(PHOTO_ANALYSIS_HISTORY_KEY);
+    } catch {
+      // ignore — best effort
+    }
+    return [];
+  }
   if (!raw) return [];
 
   try {
@@ -111,8 +130,13 @@ export async function savePhotoAnalysisHistoryItem(payload: {
     mealImpactScore: payload.mealImpactScore ?? extractMealImpactScore(aiText),
   };
 
-  await AsyncStorage.setItem(
-    PHOTO_ANALYSIS_HISTORY_KEY,
-    JSON.stringify([newItem, ...existing]),
-  );
+  // Cap the stored array so the single AsyncStorage row stays well under Android's
+  // ~2MB CursorWindow limit (existing is already capped on read; slice again to be safe).
+  const next = [newItem, ...existing].slice(0, MAX_HISTORY_ITEMS);
+
+  try {
+    await AsyncStorage.setItem(PHOTO_ANALYSIS_HISTORY_KEY, JSON.stringify(next));
+  } catch {
+    // Never let a history-write failure break the analysis flow it's called from.
+  }
 }
