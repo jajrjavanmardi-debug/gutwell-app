@@ -1203,7 +1203,13 @@ export default function PhotoAnalysisScreen() {
           >
             <ScrollView
               style={styles.scrollFlex}
-              contentContainerStyle={[styles.content, styles.wizardStep2Content]}
+              contentContainerStyle={[
+                styles.content,
+                styles.wizardStep2Content,
+                // Android: keep the Generate button clear of the gesture/nav bar.
+                // iOS keeps its existing spacing (inset added on Android only).
+                Platform.OS === 'android' ? { paddingBottom: Spacing.xl * 2 + insets.bottom } : undefined,
+              ]}
               keyboardShouldPersistTaps="handled"
               showsVerticalScrollIndicator={false}
             >
@@ -1333,6 +1339,11 @@ export default function PhotoAnalysisScreen() {
             contentContainerStyle={[
               styles.content,
               wizardStep === 3 && analysis ? styles.analysisResultsContent : undefined,
+              // Android: keep Step 3 Copy/Share clear of the gesture/nav bar.
+              // iOS keeps its existing spacing (inset added on Android only).
+              Platform.OS === 'android' && wizardStep === 3 && analysis
+                ? { paddingBottom: Spacing.xl * 3 + insets.bottom }
+                : undefined,
             ]}
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
