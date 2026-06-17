@@ -19,7 +19,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Haptics from 'expo-haptics';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
-import { Colors, Spacing, FontSize, BorderRadius, Shadows, FontFamily } from '../constants/theme';
+import { Colors, Spacing, FontSize, BorderRadius, FontFamily } from '../constants/theme';
 import {
   scheduleDailyCheckInReminder,
   cancelDailyCheckInReminder,
@@ -450,7 +450,7 @@ export default function SettingsScreen() {
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity style={styles.backButton} onPress={() => router.back()} accessibilityRole="button" accessibilityLabel="Go back">
-          <Ionicons name="chevron-back" size={24} color={Colors.textInverse} />
+          <Ionicons name="chevron-back" size={24} color={Colors.text} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Settings</Text>
         <View style={styles.backButton} />
@@ -620,12 +620,13 @@ const styles = StyleSheet.create({
 
   // Header
   header: {
-    backgroundColor: Colors.primary,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.divider,
   },
   backButton: {
     width: 44,
@@ -634,9 +635,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   headerTitle: {
-    fontFamily: FontFamily.displayMedium,
-    fontSize: FontSize.xl,
-    color: Colors.textInverse,
+    fontFamily: FontFamily.sansSemiBold,
+    fontSize: FontSize.lg,
+    color: Colors.text,
   },
 
   // Scroll
@@ -648,12 +649,11 @@ const styles = StyleSheet.create({
   // Section Header
   sectionHeader: {
     fontFamily: FontFamily.sansSemiBold,
-    fontSize: FontSize.xs,
+    fontSize: FontSize.sm,
     color: Colors.textSecondary,
-    textTransform: 'uppercase',
-    letterSpacing: 0.8,
+    letterSpacing: 0.2,
     marginBottom: Spacing.sm,
-    marginTop: Spacing.md,
+    marginTop: Spacing.lg,
     paddingLeft: Spacing.xs,
   },
 
@@ -663,7 +663,8 @@ const styles = StyleSheet.create({
     borderRadius: BorderRadius.lg,
     overflow: 'hidden',
     marginBottom: Spacing.xs,
-    ...Shadows.sm,
+    borderWidth: 1,
+    borderColor: Colors.border,
   },
 
   // Row

@@ -80,6 +80,15 @@ export const Colors = {
   onboardingOptionBg: '#143728',
   onboardingOptionBorder: '#52B788',
 
+  // Cal AI–style primitive tokens (rings, segmented toggles, pickers, overlays)
+  ringTrack: '#1A1A1A',          // unfilled track of the Gut Score / progress ring
+  ringFill: '#52B788',           // filled arc of the progress ring
+  segmentTrack: '#111111',       // background of segmented toggles (90D/6M/1Y/ALL)
+  segmentActive: '#1B4332',      // selected pill within a segmented toggle
+  pickerHighlight: '#151515',    // centered selection pill in wheel/ruler pickers
+  overlayScrim: 'rgba(0,0,0,0.6)', // dim behind the "+" FAB action menu
+  fabTile: '#0B0B0B',            // action-menu tile background
+
   // Level system
   level: {
     beginner: '#95D5B2',

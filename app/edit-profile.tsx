@@ -3,9 +3,7 @@ import {
   View,
   Text,
   StyleSheet,
-  TextInput,
   TouchableOpacity,
-  ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
@@ -15,12 +13,12 @@ import { router } from 'expo-router';
 import { useAuth } from '../contexts/AuthContext';
 import { supabase } from '../lib/supabase';
 import { Toast } from '../components/ui/Toast';
+import { Input } from '../components/ui/Input';
+import { Button } from '../components/ui/Button';
 import {
   Colors,
   Spacing,
   FontSize,
-  BorderRadius,
-  Shadows,
   FontFamily,
 } from '../constants/theme';
 
@@ -67,8 +65,13 @@ export default function EditProfileScreen() {
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
-          <Ionicons name="chevron-back" size={24} color={Colors.textInverse} />
+        <TouchableOpacity
+          style={styles.backButton}
+          onPress={() => router.back()}
+          accessibilityRole="button"
+          accessibilityLabel="Go back"
+        >
+          <Ionicons name="chevron-back" size={24} color={Colors.text} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Edit Profile</Text>
         <View style={styles.backButton} />
@@ -80,13 +83,11 @@ export default function EditProfileScreen() {
       >
         <View style={styles.content}>
           {/* Display Name */}
-          <Text style={styles.label}>Display Name</Text>
-          <TextInput
-            style={styles.input}
+          <Input
+            label="Display Name"
             value={displayName}
             onChangeText={setDisplayName}
             placeholder="Enter your name"
-            placeholderTextColor={Colors.textTertiary}
             autoCapitalize="words"
             autoCorrect={false}
             maxLength={50}
@@ -95,18 +96,15 @@ export default function EditProfileScreen() {
           />
 
           {/* Save Button */}
-          <TouchableOpacity
-            style={[styles.saveButton, saving && styles.saveButtonDisabled]}
+          <Button
+            title="Save"
             onPress={handleSave}
-            disabled={saving}
-            activeOpacity={0.7}
-          >
-            {saving ? (
-              <ActivityIndicator size="small" color={Colors.textInverse} />
-            ) : (
-              <Text style={styles.saveButtonText}>Save</Text>
-            )}
-          </TouchableOpacity>
+            loading={saving}
+            shape="pill"
+            fullWidth
+            size="lg"
+            style={styles.saveButton}
+          />
         </View>
       </KeyboardAvoidingView>
 
@@ -126,12 +124,13 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.background,
   },
   header: {
-    backgroundColor: Colors.primary,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.divider,
   },
   backButton: {
     width: 44,
@@ -140,50 +139,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   headerTitle: {
-    fontFamily: FontFamily.displayMedium,
-    fontSize: FontSize.xl,
-    color: Colors.textInverse,
+    fontFamily: FontFamily.sansSemiBold,
+    fontSize: FontSize.lg,
+    color: Colors.text,
   },
   content: {
     paddingHorizontal: Spacing.lg,
     paddingTop: Spacing.xl,
-  },
-  label: {
-    fontFamily: FontFamily.sansSemiBold,
-    fontSize: FontSize.xs,
-    color: Colors.textSecondary,
-    textTransform: 'uppercase',
-    letterSpacing: 0.8,
-    marginBottom: Spacing.sm,
-    paddingLeft: Spacing.xs,
-  },
-  input: {
-    backgroundColor: Colors.surface,
-    borderRadius: BorderRadius.lg,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.md,
-    fontFamily: FontFamily.sansRegular,
-    fontSize: FontSize.md,
-    color: Colors.text,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    marginBottom: Spacing.lg,
-    ...Shadows.sm,
+    gap: Spacing.lg,
   },
   saveButton: {
-    backgroundColor: Colors.primary,
-    borderRadius: BorderRadius.lg,
-    paddingVertical: Spacing.md,
-    alignItems: 'center',
-    justifyContent: 'center',
-    minHeight: 52,
-  },
-  saveButtonDisabled: {
-    opacity: 0.6,
-  },
-  saveButtonText: {
-    fontFamily: FontFamily.sansBold,
-    fontSize: FontSize.md,
-    color: Colors.textInverse,
+    marginTop: Spacing.sm,
   },
 });

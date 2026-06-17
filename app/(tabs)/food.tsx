@@ -333,6 +333,20 @@ export default function FoodScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
+      {/* Header — pushed view, needs a back affordance */}
+      <View style={styles.navHeader}>
+        <TouchableOpacity
+          style={styles.backBtn}
+          onPress={() => router.back()}
+          activeOpacity={0.7}
+          accessibilityRole="button"
+          accessibilityLabel="Go back"
+        >
+          <Ionicons name="chevron-back" size={22} color={Colors.text} />
+        </TouchableOpacity>
+        <Text style={styles.navTitle}>Food Log</Text>
+        <View style={styles.backBtn} />
+      </View>
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
         <Text style={styles.title}>Track Your Plate</Text>
@@ -464,17 +478,16 @@ export default function FoodScreen() {
         <Input label="Notes (optional)" placeholder="How did it make you feel?" value={note} onChangeText={setNote} multiline numberOfLines={2} style={{ minHeight: 60, textAlignVertical: 'top' }} />
 
         {/* Log Meal Button */}
-        <TouchableOpacity
-          style={[styles.logButton, loading && styles.logButtonDisabled]}
+        <Button
+          title="Log Meal"
           onPress={handleSave}
-          activeOpacity={0.8}
-          disabled={loading}
-          accessibilityRole="button"
-          accessibilityLabel="Log this meal"
-        >
-          <Ionicons name="checkmark-circle" size={20} color={Colors.textInverse} />
-          <Text style={styles.logButtonText}>{loading ? 'Saving...' : 'Log Meal'}</Text>
-        </TouchableOpacity>
+          loading={loading}
+          size="lg"
+          shape="pill"
+          fullWidth
+          icon={<Ionicons name="checkmark-circle" size={20} color={Colors.textInverse} />}
+          style={styles.logButton}
+        />
 
         {/* Recent Meals */}
         {recentMeals.length === 0 && !isLoading && (
@@ -546,6 +559,31 @@ const styles = StyleSheet.create({
     padding: Spacing.lg,
     paddingBottom: Spacing.xxl + 20,
   },
+
+  // Nav header (back chevron + centered title)
+  navHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.sm,
+  },
+  backBtn: {
+    width: 42,
+    height: 42,
+    borderRadius: BorderRadius.full,
+    backgroundColor: Colors.surface,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  navTitle: {
+    fontFamily: FontFamily.sansSemiBold,
+    fontSize: FontSize.lg,
+    color: Colors.text,
+  },
+
   title: {
     fontFamily: FontFamily.displayMedium,
     fontSize: FontSize.xxl,
@@ -757,24 +795,7 @@ const styles = StyleSheet.create({
 
   // Log Button
   logButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: Spacing.sm,
-    backgroundColor: Colors.primary,
-    borderRadius: BorderRadius.lg,
-    paddingVertical: Spacing.md,
     marginTop: Spacing.lg,
-    ...Shadows.md,
-  },
-  logButtonDisabled: {
-    opacity: 0.6,
-  },
-  logButtonText: {
-    fontFamily: FontFamily.sansBold,
-    fontSize: FontSize.md,
-    color: Colors.textInverse,
-    letterSpacing: 0.3,
   },
 
   // Recent Meals

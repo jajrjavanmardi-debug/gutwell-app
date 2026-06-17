@@ -26,16 +26,22 @@ export default function FoodHistoryScreen() {
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.header}>
-        <Pressable onPress={() => router.back()} hitSlop={10} style={styles.backButton}>
-          <Ionicons name="chevron-back" size={20} color="#FFFFFF" />
+        <Pressable
+          onPress={() => router.back()}
+          hitSlop={10}
+          style={styles.backButton}
+          accessibilityRole="button"
+          accessibilityLabel="Go back"
+        >
+          <Ionicons name="chevron-back" size={22} color={Colors.text} />
         </Pressable>
-        <View style={styles.headerCopy}>
-          <Text style={styles.kicker}>Last 14 days</Text>
-          <Text style={styles.title}>Meal History</Text>
-        </View>
+        <Text style={styles.headerTitle}>History</Text>
+        <View style={styles.backButton} />
       </View>
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        <Text style={styles.heading}>Meal History</Text>
+        <Text style={styles.subheading}>Your last 14 days of meal scans</Text>
         {history.length > 0 ? (
           history.map((item) => (
             <Pressable
@@ -55,7 +61,7 @@ export default function FoodHistoryScreen() {
                   <Text style={styles.scoreText}>{item.mealImpactScore ?? 'Score pending'}</Text>
                 </View>
               </View>
-              <Ionicons name="chevron-forward" size={18} color="#777777" />
+              <Ionicons name="chevron-forward" size={18} color={Colors.textTertiary} />
             </Pressable>
           ))
         ) : (
@@ -72,41 +78,42 @@ export default function FoodHistoryScreen() {
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: '#000000',
+    backgroundColor: Colors.background,
     flex: 1,
   },
   header: {
     alignItems: 'center',
     flexDirection: 'row',
-    gap: Spacing.md,
-    padding: Spacing.lg,
-    paddingBottom: Spacing.md,
+    justifyContent: 'space-between',
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.sm,
   },
   backButton: {
     alignItems: 'center',
-    backgroundColor: '#101010',
-    borderColor: '#242424',
+    backgroundColor: Colors.surface,
+    borderColor: Colors.border,
     borderRadius: BorderRadius.full,
     borderWidth: 1,
     height: 42,
     justifyContent: 'center',
     width: 42,
   },
-  headerCopy: {
-    flex: 1,
+  headerTitle: {
+    color: Colors.text,
+    fontFamily: FontFamily.sansSemiBold,
+    fontSize: FontSize.lg,
   },
-  kicker: {
-    color: Colors.secondary,
-    fontFamily: FontFamily.sansBold,
-    fontSize: FontSize.xs,
-    letterSpacing: 0.8,
-    textTransform: 'uppercase',
+  heading: {
+    color: Colors.text,
+    fontFamily: FontFamily.displayMedium,
+    fontSize: FontSize.hero,
   },
-  title: {
-    color: '#FFFFFF',
-    fontFamily: FontFamily.displayBold,
-    fontSize: FontSize.xxl,
-    marginTop: 2,
+  subheading: {
+    color: Colors.textSecondary,
+    fontFamily: FontFamily.sansRegular,
+    fontSize: FontSize.md,
+    marginBottom: Spacing.md,
+    marginTop: Spacing.xs,
   },
   content: {
     gap: Spacing.md,
@@ -115,8 +122,8 @@ const styles = StyleSheet.create({
   },
   card: {
     alignItems: 'center',
-    backgroundColor: '#0B0B0B',
-    borderColor: '#242424',
+    backgroundColor: Colors.surface,
+    borderColor: Colors.border,
     borderRadius: BorderRadius.xl,
     borderWidth: 1,
     flexDirection: 'row',
@@ -138,7 +145,7 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   mealName: {
-    color: '#FFFFFF',
+    color: Colors.text,
     fontFamily: FontFamily.sansBold,
     fontSize: FontSize.md,
     marginBottom: Spacing.sm,
@@ -146,7 +153,7 @@ const styles = StyleSheet.create({
   scoreBadge: {
     alignItems: 'center',
     alignSelf: 'flex-start',
-    backgroundColor: '#102C20',
+    backgroundColor: Colors.primary + '26',
     borderRadius: BorderRadius.full,
     flexDirection: 'row',
     gap: 4,
@@ -160,20 +167,20 @@ const styles = StyleSheet.create({
   },
   emptyCard: {
     alignItems: 'center',
-    backgroundColor: '#0B0B0B',
-    borderColor: '#242424',
+    backgroundColor: Colors.surface,
+    borderColor: Colors.border,
     borderRadius: BorderRadius.xl,
     borderWidth: 1,
     padding: Spacing.xl,
   },
   emptyTitle: {
-    color: '#FFFFFF',
+    color: Colors.text,
     fontFamily: FontFamily.sansBold,
     fontSize: FontSize.lg,
     marginTop: Spacing.md,
   },
   emptyText: {
-    color: '#A7A7A7',
+    color: Colors.textSecondary,
     fontFamily: FontFamily.sansRegular,
     fontSize: FontSize.sm,
     lineHeight: 21,
