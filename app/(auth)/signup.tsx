@@ -12,6 +12,7 @@ import { Link, router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { StatusBar } from 'expo-status-bar';
 import { useAuth } from '../../contexts/AuthContext';
 import { Input } from '../../components/ui/Input';
 import { Button } from '../../components/ui/Button';
@@ -62,119 +63,115 @@ export default function SignupScreen() {
 
   return (
     <View style={styles.container}>
-      {/* Dark gradient header */}
-      <LinearGradient
-        colors={['#0B1F14', '#1B4332']}
-        style={styles.header}
-      >
-        <SafeAreaView edges={['top']}>
-          <View style={styles.logoSection}>
-            <View style={styles.logoCircle}>
-              <Ionicons name="leaf" size={40} color="white" />
-            </View>
-            <Text style={styles.appName}>GutWell</Text>
-            <Text style={styles.tagline}>Create Account</Text>
-          </View>
-        </SafeAreaView>
-      </LinearGradient>
+      <StatusBar style="light" />
+      <LinearGradient colors={['#0B1F14', '#1B4332']} style={StyleSheet.absoluteFill} />
 
-      {/* White form card — rises over gradient with rounded top corners */}
-      <KeyboardAvoidingView
-        style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      >
-        <ScrollView
-          style={styles.formCard}
-          contentContainerStyle={styles.formScroll}
-          keyboardShouldPersistTaps="handled"
-          showsVerticalScrollIndicator={false}
+      <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
+        <KeyboardAvoidingView
+          style={styles.flex}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         >
-          <View style={styles.formInner}>
-            <Text style={styles.formTitle}>Join GutWell</Text>
-            <Text style={styles.subtitle}>Create your account and start tracking in minutes.</Text>
+          <ScrollView
+            contentContainerStyle={styles.scroll}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+          >
+            <View style={styles.inner}>
+              {/* Brand mark */}
+              <View style={styles.iconCircle}>
+                <Ionicons name="leaf" size={32} color="#FFFFFF" />
+              </View>
 
-            {/* ── Form ── */}
-            <View style={styles.form}>
-              <Input
-                label="Name"
-                placeholder="Your name"
-                value={name}
-                onChangeText={setName}
-                autoCapitalize="words"
-                autoComplete="name"
-              />
-              <Input
-                label="Email"
-                placeholder="you@example.com"
-                value={email}
-                onChangeText={setEmail}
-                keyboardType="email-address"
-                autoCapitalize="none"
-                autoComplete="email"
-              />
-              <Input
-                label="Password"
-                placeholder="At least 6 characters"
-                value={password}
-                onChangeText={setPassword}
-                secureTextEntry
-              />
-              <Input
-                label="Confirm Password"
-                placeholder="Repeat your password"
-                value={confirmPassword}
-                onChangeText={setConfirmPassword}
-                secureTextEntry
-              />
-              {/* Terms checkbox */}
-              <TouchableOpacity
-                style={styles.termsRow}
-                onPress={() => setTermsAccepted(!termsAccepted)}
-                activeOpacity={0.7}
-              >
-                <View style={[styles.checkbox, termsAccepted && styles.checkboxChecked]}>
-                  {termsAccepted && <Ionicons name="checkmark" size={14} color="#FFFFFF" />}
-                </View>
-                <Text style={styles.termsText}>
-                  I agree to the{' '}
-                  <Text
-                    style={styles.termsLink}
-                    onPress={() => router.push('/terms-of-service')}
-                  >
-                    Terms of Service
-                  </Text>
-                  {' '}and{' '}
-                  <Text
-                    style={styles.termsLink}
-                    onPress={() => router.push('/privacy-policy')}
-                  >
-                    Privacy Policy
-                  </Text>
-                </Text>
-              </TouchableOpacity>
+              {/* Title + subtitle */}
+              <Text style={styles.title}>Create your account</Text>
+              <Text style={styles.subtitle}>Start tracking your gut health in minutes.</Text>
 
+              {/* ── Form ── */}
+              <View style={styles.form}>
+                <Input
+                  label="Name"
+                  placeholder="Your name"
+                  value={name}
+                  onChangeText={setName}
+                  autoCapitalize="words"
+                  autoComplete="name"
+                />
+                <Input
+                  label="Email"
+                  placeholder="you@example.com"
+                  value={email}
+                  onChangeText={setEmail}
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                  autoComplete="email"
+                />
+                <Input
+                  label="Password"
+                  placeholder="At least 6 characters"
+                  value={password}
+                  onChangeText={setPassword}
+                  secureTextEntry
+                />
+                <Input
+                  label="Confirm Password"
+                  placeholder="Repeat your password"
+                  value={confirmPassword}
+                  onChangeText={setConfirmPassword}
+                  secureTextEntry
+                />
+
+                {/* Terms checkbox */}
+                <TouchableOpacity
+                  style={styles.termsRow}
+                  onPress={() => setTermsAccepted(!termsAccepted)}
+                  activeOpacity={0.7}
+                >
+                  <View style={[styles.checkbox, termsAccepted && styles.checkboxChecked]}>
+                    {termsAccepted && <Ionicons name="checkmark" size={14} color="#FFFFFF" />}
+                  </View>
+                  <Text style={styles.termsText}>
+                    I agree to the{' '}
+                    <Text
+                      style={styles.termsLink}
+                      onPress={() => router.push('/terms-of-service')}
+                    >
+                      Terms of Service
+                    </Text>
+                    {' '}and{' '}
+                    <Text
+                      style={styles.termsLink}
+                      onPress={() => router.push('/privacy-policy')}
+                    >
+                      Privacy Policy
+                    </Text>
+                  </Text>
+                </TouchableOpacity>
+              </View>
+
+              {/* Primary CTA */}
               <Button
                 title="Create Account"
                 onPress={handleSignup}
                 loading={loading}
                 size="lg"
+                shape="pill"
+                fullWidth
+                style={styles.cta}
               />
-            </View>
 
-            {/* ── Footer ── */}
-            <View style={styles.footer}>
-              <View style={styles.row}>
-                <Text style={styles.footerText}>Already have an account? </Text>
+              {/* Secondary link */}
+              <View style={styles.switchRow}>
+                <Text style={styles.switchText}>Already have an account? </Text>
                 <Link href="/(auth)/login" asChild>
                   <TouchableOpacity activeOpacity={0.7}>
-                    <Text style={styles.signinLink}>Sign In</Text>
+                    <Text style={styles.switchLink}>Sign In</Text>
                   </TouchableOpacity>
                 </Link>
               </View>
             </View>
-          </View>
-        </ScrollView>
-      </KeyboardAvoidingView>
+          </ScrollView>
+        </KeyboardAvoidingView>
+      </SafeAreaView>
 
       <Toast
         message={toast.message}
@@ -187,97 +184,50 @@ export default function SignupScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: Colors.background,
-  },
-
-  // ── Gradient header ──
-  header: {
-    paddingBottom: 32,
-  },
-  logoSection: {
-    alignItems: 'center',
-    paddingHorizontal: Spacing.lg,
-    paddingTop: 20,
-    paddingBottom: 8,
-    gap: 8,
-  },
-  logoCircle: {
-    width: 68,
-    height: 68,
-    borderRadius: 34,
-    backgroundColor: 'rgba(255,255,255,0.12)',
+  container: { flex: 1 },
+  safe: { flex: 1 },
+  flex: { flex: 1 },
+  scroll: {
+    flexGrow: 1,
     justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 4,
+    paddingHorizontal: 24,
+    paddingVertical: Spacing.xl,
   },
-  appName: {
-    fontFamily: FontFamily.displayBold,
-    fontSize: 42,
-    color: 'white',
-  },
-  tagline: {
-    color: 'rgba(255,255,255,0.65)',
-    fontFamily: FontFamily.sansRegular,
-    fontSize: 14,
-    textAlign: 'center',
-  },
-
-  // ── White form card ──
-  formCard: {
-    backgroundColor: Colors.surface,
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
-    marginTop: -20,
-    flex: 1,
-  },
-  formScroll: {
-    padding: 28,
-    paddingTop: 24,
-    paddingBottom: 40,
-  },
-  formInner: {
+  inner: {
     width: '100%',
     maxWidth: 420,
     alignSelf: 'center',
+    alignItems: 'center',
   },
-  formTitle: {
+  iconCircle: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.15)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: Spacing.lg,
+  },
+  title: {
     fontFamily: FontFamily.displayBold,
-    fontSize: 28,
-    color: Colors.primary,
-    marginBottom: 6,
+    fontSize: 36,
+    color: '#FFFFFF',
+    textAlign: 'center',
+    letterSpacing: -0.5,
   },
   subtitle: {
     fontFamily: FontFamily.sansRegular,
     fontSize: FontSize.md,
-    color: Colors.textSecondary,
-    marginBottom: Spacing.lg,
+    color: 'rgba(255,255,255,0.65)',
+    textAlign: 'center',
+    marginTop: Spacing.sm,
+    marginBottom: Spacing.xl,
   },
-
-  // ── Form ──
   form: {
+    width: '100%',
     gap: Spacing.md,
-  },
-
-  // ── Footer ──
-  footer: {
-    alignItems: 'center',
-    marginTop: Spacing.xl,
-  },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  footerText: {
-    fontFamily: FontFamily.sansRegular,
-    fontSize: FontSize.sm,
-    color: Colors.textSecondary,
-  },
-  signinLink: {
-    fontFamily: FontFamily.sansSemiBold,
-    fontSize: FontSize.sm,
-    color: Colors.secondary,
   },
 
   // ── Terms checkbox ──
@@ -292,7 +242,7 @@ const styles = StyleSheet.create({
     height: 22,
     borderRadius: 6,
     borderWidth: 2,
-    borderColor: Colors.border,
+    borderColor: 'rgba(255,255,255,0.3)',
     justifyContent: 'center',
     alignItems: 'center',
     marginTop: 1,
@@ -305,11 +255,31 @@ const styles = StyleSheet.create({
     flex: 1,
     fontFamily: FontFamily.sansRegular,
     fontSize: FontSize.sm,
-    color: Colors.textSecondary,
+    color: 'rgba(255,255,255,0.65)',
     lineHeight: 20,
   },
   termsLink: {
     fontFamily: FontFamily.sansSemiBold,
+    color: Colors.secondary,
+  },
+
+  cta: {
+    marginTop: Spacing.lg,
+  },
+  switchRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: Spacing.lg,
+  },
+  switchText: {
+    fontFamily: FontFamily.sansRegular,
+    fontSize: FontSize.sm,
+    color: 'rgba(255,255,255,0.55)',
+  },
+  switchLink: {
+    fontFamily: FontFamily.sansSemiBold,
+    fontSize: FontSize.sm,
     color: Colors.secondary,
   },
 });

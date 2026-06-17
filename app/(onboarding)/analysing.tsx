@@ -17,6 +17,7 @@ export default function AnalysingScreen() {
   const progressAnim = useRef(new Animated.Value(0)).current;
   const contentFade = useRef(new Animated.Value(0)).current;
   const [stepIndex, setStepIndex] = useState(0);
+  const [percent, setPercent] = useState(0);
   const stepFade = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
@@ -27,13 +28,22 @@ export default function AnalysingScreen() {
       useNativeDriver: true,
     }).start();
 
+    // Drive the big percentage counter (0 → 100) off the same animated value
+    // that fills the progress bar, so the number and bar stay in lockstep.
+    const percentListener = progressAnim.addListener(({ value }) => {
+      setPercent(Math.round(value * 100));
+    });
+
     // Progress bar animation over 2400ms
     Animated.timing(progressAnim, {
       toValue: 1,
       duration: 2400,
       easing: Easing.inOut(Easing.quad),
       useNativeDriver: false,
-    }).start();
+    }).start(() => {
+      // Guarantee we land exactly on 100% even if the last frame rounded down.
+      setPercent(100);
+    });
 
     // Step cycling every 600ms
     let step = 0;
@@ -66,7 +76,9 @@ export default function AnalysingScreen() {
     return () => {
       clearInterval(interval);
       clearTimeout(navTimer);
+      progressAnim.removeListener(percentListener);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const progressWidth = progressAnim.interpolate({
@@ -85,6 +97,12 @@ export default function AnalysingScreen() {
         <View style={styles.iconRing}>
           <Text style={styles.iconEmoji}>🔬</Text>
         </View>
+
+        {/* Big animated percentage counter (drives the bar below) */}
+        <Text style={styles.percent} accessibilityLabel={`${percent} percent complete`}>
+          {percent}
+          <Text style={styles.percentSign}>%</Text>
+        </Text>
 
         {/* Title */}
         <Text style={styles.title}>Analysing your answers</Text>
@@ -118,11 +136,25 @@ const styles = StyleSheet.create({
     marginBottom: 32,
   },
   iconEmoji: { fontSize: 40 },
+  percent: {
+    fontFamily: FontFamily.displayBold,
+    fontSize: 84,
+    color: '#FFFFFF',
+    textAlign: 'center',
+    lineHeight: 92,
+    letterSpacing: -2,
+  },
+  percentSign: {
+    fontFamily: FontFamily.displayBold,
+    fontSize: 48,
+    color: 'rgba(255,255,255,0.55)',
+  },
   title: {
     fontFamily: FontFamily.displayBold,
     fontSize: 28,
     color: '#FFFFFF',
     textAlign: 'center',
+    marginTop: 8,
     marginBottom: 36,
     lineHeight: 36,
   },

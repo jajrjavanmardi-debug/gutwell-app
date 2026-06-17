@@ -3,7 +3,6 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl } 
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router , useFocusEffect } from 'expo-router';
-import * as Haptics from 'expo-haptics';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
 import { Card } from '../../components/ui/Card';
@@ -22,20 +21,52 @@ import ChartComponent from '../../components/ChartComponent';
 import History from '../../components/History';
 import TriggerFoodsBox from '../../components/TriggerFoodsBox';
 import SafeFoodsBox from '../../components/SafeFoodsBox';
+import { SegmentedToggle } from '../../components/ui/SegmentedToggle';
+import { StatCard } from '../../components/ui/StatCard';
 import { addDaysToLocalDateKey, getLocalDateKey } from '../../lib/date';
 import { track, Events } from '../../lib/analytics';
+import { getStreakSnapshot } from '../../lib/streaks';
+import { calculatePoints, calculateLevel, getNextLevel, getLevelProgress } from '../../lib/levels';
 
-type Period = 'W' | 'M' | '6M';
+// Cal AI–style time ranges. Mapped to lookback windows in `loadData`.
+type Period = '7D' | '30D' | '90D' | 'ALL';
+
+const PERIOD_OPTIONS: { label: string; value: Period }[] = [
+  { label: '7D', value: '7D' },
+  { label: '30D', value: '30D' },
+  { label: '90D', value: '90D' },
+  { label: 'ALL', value: 'ALL' },
+];
+
+const PERIOD_DAYS: Record<Period, number> = {
+  '7D': 7,
+  '30D': 30,
+  '90D': 90,
+  ALL: 3650,
+};
+
+// Windows for the Cal AI "Changes" table. Fixed day-windows plus an "All Time"
+// entry computed over the full available score history.
+type ChangeWindow = { label: string; days: number | null };
+const CHANGE_WINDOWS: ChangeWindow[] = [
+  { label: '3 day', days: 3 },
+  { label: '7 day', days: 7 },
+  { label: '14 day', days: 14 },
+  { label: '30 day', days: 30 },
+  { label: '90 day', days: 90 },
+  { label: 'All Time', days: null },
+];
 
 export default function ProgressScreen() {
   const { user } = useAuth();
-  const [period, setPeriod] = useState<Period>('W');
+  const [period, setPeriod] = useState<Period>('7D');
   const [checkInCount, setCheckInCount] = useState(0);
   const [avgStoolType, setAvgStoolType] = useState<number | null>(null);
   const [symptomCounts, setSymptomCounts] = useState<Record<string, number>>({});
   const [foodCount, setFoodCount] = useState(0);
   const [stoolHistory, setStoolHistory] = useState<{ date: string; type: number }[]>([]);
   const [gutScores, setGutScores] = useState<{ x: number; y: number; label: string }[]>([]);
+  const [allScores, setAllScores] = useState<{ score: number; date: string }[]>([]);
   const [correlations, setCorrelations] = useState<CorrelationSummary | null>(null);
   const [triggerFoods, setTriggerFoods] = useState<FoodCorrelation[]>([]);
   const [safeFoods, setSafeFoods] = useState<SafeFood[]>([]);
@@ -48,11 +79,17 @@ export default function ProgressScreen() {
   const [avgMood, setAvgMood] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [hasPremium, setHasPremium] = useState<boolean>(isPremiumFeature('correlations'));
+  // Cal AI header / status-card data
+  const [currentStreak, setCurrentStreak] = useState(0);
+  const [bestStreak, setBestStreak] = useState(0);
+  const [totalPoints, setTotalPoints] = useState(0);
+  const [badgesEarned, setBadgesEarned] = useState(0);
+  const [currentScore, setCurrentScore] = useState<number | null>(null);
 
   const loadData = useCallback(async () => {
     if (!user) return;
     try {
-    const daysBack = period === 'W' ? 7 : period === 'M' ? 30 : 180;
+    const daysBack = PERIOD_DAYS[period];
     const sinceDateStr = addDaysToLocalDateKey(getLocalDateKey(), -daysBack);
 
     const { data: checkIns } = await supabase.from('check_ins').select('stool_type, entry_date, mood')
@@ -81,8 +118,10 @@ export default function ProgressScreen() {
     const { data: scores } = await supabase.from('gut_scores').select('score, date')
       .eq('user_id', user.id).gte('date', sinceDateStr).order('date', { ascending: true });
     if (scores && scores.length > 0) {
-      if (period === '6M') {
-        // Group by ISO week and show weekly averages
+      setAllScores(scores);
+      setCurrentScore(scores[scores.length - 1].score);
+      if (daysBack > 90) {
+        // Group by ISO week and show weekly averages for long ranges
         const weekMap: Record<string, { sum: number; count: number; firstDate: string }> = {};
         scores.forEach(s => {
           const d = new Date(s.date + 'T00:00:00');
@@ -109,6 +148,8 @@ export default function ProgressScreen() {
         })));
       }
     } else {
+      setAllScores([]);
+      setCurrentScore(null);
       setGutScores([]);
     }
 
@@ -139,6 +180,39 @@ export default function ProgressScreen() {
     const { count } = await supabase.from('food_logs').select('id', { count: 'exact', head: true })
       .eq('user_id', user.id).gte('logged_at', `${sinceDateStr}T00:00:00`);
     setFoodCount(count || 0);
+
+    // Streak + level/badges for the Cal AI header & status card. Counts are
+    // all-time (not period-scoped) so the streak/level matches Profile.
+    try {
+      const [allCheckIns, allFoodLogs, allSymptoms, streakSnapshot] = await Promise.all([
+        supabase.from('check_ins').select('id', { count: 'exact', head: true }).eq('user_id', user.id),
+        supabase.from('food_logs').select('id', { count: 'exact', head: true }).eq('user_id', user.id),
+        supabase.from('symptoms').select('id', { count: 'exact', head: true }).eq('user_id', user.id),
+        getStreakSnapshot(user.id),
+      ]);
+      setCurrentStreak(streakSnapshot.currentStreak);
+      setBestStreak(streakSnapshot.bestStreak);
+      const ci = allCheckIns.count ?? 0;
+      const fl = allFoodLogs.count ?? 0;
+      const sl = allSymptoms.count ?? 0;
+      const points = calculatePoints({
+        checkIns: ci,
+        foodLogs: fl,
+        symptomLogs: sl,
+        currentStreak: streakSnapshot.currentStreak,
+      });
+      setTotalPoints(points);
+      // Badges mirror Profile's unlock conditions.
+      const badges = [
+        ci >= 1,
+        points >= 50,
+        fl >= 10,
+        points >= 100,
+      ];
+      setBadgesEarned(badges.filter(Boolean).length);
+    } catch {
+      // Best-effort — header degrades to zeros.
+    }
 
     // Food-symptom correlations (legacy engine)
     try {
@@ -200,6 +274,27 @@ export default function ProgressScreen() {
     return Colors.severity[4];
   };
 
+  // Cal AI "Current Weight → Goal" analog: current Gut Score vs the next-level
+  // milestone, with a progress bar toward that milestone.
+  const level = calculateLevel(totalPoints);
+  const nextLevel = getNextLevel(totalPoints);
+  const levelProgress = getLevelProgress(totalPoints);
+
+  // Cal AI "Weight Changes" analog: gut-score change over fixed day windows,
+  // derived from the full score history (period-scoped via the toggle above).
+  const computeWindowChange = (days: number | null): number | null => {
+    if (allScores.length < 2) return null;
+    // "All Time" (days == null): change from earliest to latest data point.
+    if (days == null) {
+      return allScores[allScores.length - 1].score - allScores[0].score;
+    }
+    const todayKey = getLocalDateKey();
+    const windowStart = addDaysToLocalDateKey(todayKey, -days);
+    const inWindow = allScores.filter(s => s.date >= windowStart);
+    if (inWindow.length < 2) return null;
+    return inWindow[inWindow.length - 1].score - inWindow[0].score;
+  };
+
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <ScrollView
@@ -257,27 +352,59 @@ export default function ProgressScreen() {
           />
         )}
 
-        {/* Period Selector */}
-        <View style={styles.periodContainer}>
-          {(['W', 'M', '6M'] as Period[]).map(p => (
-            <TouchableOpacity
-              key={p}
-              style={[styles.periodBtn, period === p && styles.periodSelected]}
-              accessibilityRole="button"
-              accessibilityState={{ selected: period === p }}
-              accessibilityLabel={p === 'W' ? 'Show last week' : p === 'M' ? 'Show last month' : 'Show last six months'}
-              onPress={() => {
-                setPeriod(p);
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              }}
-              activeOpacity={0.7}
-            >
-              <Text style={[styles.periodText, period === p && styles.periodTextSelected]}>
-                {p}
-              </Text>
-            </TouchableOpacity>
-          ))}
+        {/* Cal AI header stat cards: Day Streak + Badges Earned */}
+        <View style={styles.headerStatsRow}>
+          <StatCard
+            icon={<Ionicons name="flame" size={22} color={Colors.accent} />}
+            value={String(currentStreak)}
+            label="Day Streak"
+            accentColor={Colors.accent}
+            style={styles.headerStatCard}
+          />
+          <StatCard
+            icon={<Ionicons name="ribbon" size={22} color={Colors.secondary} />}
+            value={String(badgesEarned)}
+            label="Badges Earned"
+            accentColor={Colors.secondary}
+            progress={badgesEarned / 4}
+            onPress={() => router.push('/(tabs)/profile')}
+            style={styles.headerStatCard}
+          />
         </View>
+
+        {/* Cal AI "Current Weight" analog: current Gut Score + next milestone */}
+        <Card style={styles.statusCard}>
+          <View style={styles.statusTopRow}>
+            <Text style={styles.statusLabel}>Current Gut Score</Text>
+            {nextLevel ? (
+              <View style={styles.statusPill}>
+                <Text style={styles.statusPillText}>Next: {nextLevel.name}</Text>
+              </View>
+            ) : (
+              <View style={styles.statusPill}>
+                <Text style={styles.statusPillText}>Max level</Text>
+              </View>
+            )}
+          </View>
+          <Text style={styles.statusValue}>{currentScore != null ? currentScore : '--'}<Text style={styles.statusUnit}> / 100</Text></Text>
+          <View style={styles.statusBarTrack}>
+            <View style={[styles.statusBarFill, { width: `${Math.round(levelProgress * 100)}%` }]} />
+          </View>
+          <View style={styles.statusBottomRow}>
+            <Text style={styles.statusMeta}>Level: <Text style={styles.statusMetaStrong}>{level.name}</Text></Text>
+            <Text style={styles.statusMeta}>
+              {nextLevel ? `${Math.round(levelProgress * 100)}% to next` : 'Top tier reached'}
+            </Text>
+          </View>
+        </Card>
+
+        {/* Time-range toggle (Cal AI's 90D / 6M / 1Y / ALL) */}
+        <SegmentedToggle
+          options={PERIOD_OPTIONS}
+          value={period}
+          onChange={setPeriod}
+          style={styles.toggle}
+        />
 
         {/* Weekly Insights Card */}
         {weekInsights && (
@@ -305,7 +432,7 @@ export default function ProgressScreen() {
           <ScoreCard icon="restaurant" iconColor={Colors.secondary} value={foodCount} label="Meals" />
         </View>
 
-        {/* Gut Score Trend */}
+        {/* Gut Score Trend — Cal AI's main "Weight Progress" chart card */}
         {gutScores.length >= 2 && (
           <>
             <ChartComponent title="Gut Score Trend">
@@ -323,6 +450,38 @@ export default function ProgressScreen() {
                 ))}
               </View>
             </ChartComponent>
+          </>
+        )}
+
+        {/* Cal AI "Weight Changes" analog: Gut Score change over day windows */}
+        {allScores.length >= 2 && (
+          <>
+            <Text style={styles.sectionTitle}>Score Changes</Text>
+            <Card style={styles.changesCard}>
+              {CHANGE_WINDOWS.map((window, idx) => {
+                const change = computeWindowChange(window.days);
+                const up = change != null && change > 0;
+                const down = change != null && change < 0;
+                const color = up ? Colors.secondary : down ? Colors.error : Colors.textTertiary;
+                const iconName = up ? 'arrow-up' : down ? 'arrow-down' : 'remove';
+                const tag = change == null ? 'No data' : up ? 'Improved' : down ? 'Declined' : 'No change';
+                return (
+                  <View
+                    key={window.label}
+                    style={[styles.changeRow, idx < CHANGE_WINDOWS.length - 1 && styles.changeRowBorder]}
+                  >
+                    <Text style={styles.changeWindow}>{window.label}</Text>
+                    <Text style={[styles.changeValue, { color: change == null ? Colors.textTertiary : color }]}>
+                      {change == null ? '--' : `${change > 0 ? '+' : ''}${change} pts`}
+                    </Text>
+                    <View style={styles.changeTagWrap}>
+                      <Ionicons name={iconName} size={14} color={color} />
+                      <Text style={[styles.changeTag, { color }]}>{tag}</Text>
+                    </View>
+                  </View>
+                );
+              })}
+            </Card>
           </>
         )}
 
@@ -459,6 +618,35 @@ export default function ProgressScreen() {
           </>
         )}
 
+        {/* Gut Health Index — Cal AI's "Your BMI" analog. Summarises best streak
+            + avg gut score into a single banded index card. */}
+        {(bestStreak > 0 || currentScore != null) && (
+          <>
+            <Text style={styles.sectionTitle}>Gut Health Index</Text>
+            <Card style={styles.indexCard}>
+              <View style={styles.indexHeader}>
+                <Text style={styles.indexValue}>{currentScore != null ? currentScore : '--'}</Text>
+                <View style={styles.indexTag}>
+                  <Text style={styles.indexTagText}>
+                    {currentScore == null ? 'No data' : currentScore >= 70 ? 'Thriving' : currentScore >= 40 ? 'Building' : 'Needs care'}
+                  </Text>
+                </View>
+              </View>
+              <View style={styles.indexBands}>
+                <View style={[styles.indexBand, { backgroundColor: Colors.severity[4] }]} />
+                <View style={[styles.indexBand, { backgroundColor: Colors.accent }]} />
+                <View style={[styles.indexBand, { backgroundColor: Colors.secondary }]} />
+              </View>
+              <View style={styles.indexLegendRow}>
+                <Text style={styles.indexLegend}>Needs care{'\n'}0-39</Text>
+                <Text style={styles.indexLegend}>Building{'\n'}40-69</Text>
+                <Text style={styles.indexLegend}>Thriving{'\n'}70-100</Text>
+              </View>
+              <Text style={styles.indexMeta}>Best streak: {bestStreak} days</Text>
+            </Card>
+          </>
+        )}
+
         {checkInCount === 0 && foodCount === 0 && topSymptoms.length === 0 && (
           <EmptyState
             icon="leaf-outline"
@@ -534,31 +722,80 @@ const styles = StyleSheet.create({
     color: Colors.primary,
   },
 
-  // Period Selector
-  periodContainer: {
+  // Cal AI header stat cards
+  headerStatsRow: {
     flexDirection: 'row',
-    backgroundColor: Colors.surfaceSecondary,
-    borderRadius: BorderRadius.full,
-    padding: 4,
-    marginBottom: Spacing.lg,
+    gap: Spacing.sm,
+    marginBottom: Spacing.md,
   },
-  periodBtn: {
+  headerStatCard: {
     flex: 1,
-    paddingVertical: Spacing.sm + 2,
-    borderRadius: BorderRadius.full,
+  },
+
+  // Cal AI "Current Weight" status card
+  statusCard: {
+    marginBottom: Spacing.lg,
+    gap: Spacing.sm,
+  },
+  statusTopRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
   },
-  periodSelected: {
-    backgroundColor: Colors.primary,
-    ...Shadows.sm,
-  },
-  periodText: {
-    fontFamily: FontFamily.sansSemiBold,
+  statusLabel: {
+    fontFamily: FontFamily.sansMedium,
     fontSize: FontSize.sm,
+    color: Colors.textSecondary,
+  },
+  statusPill: {
+    backgroundColor: Colors.primary + '22',
+    borderRadius: BorderRadius.full,
+    paddingHorizontal: Spacing.sm + 2,
+    paddingVertical: 4,
+  },
+  statusPillText: {
+    fontFamily: FontFamily.sansSemiBold,
+    fontSize: FontSize.xs,
+    color: Colors.secondary,
+  },
+  statusValue: {
+    fontFamily: FontFamily.displaySemiBold,
+    fontSize: FontSize.hero,
+    color: Colors.text,
+  },
+  statusUnit: {
+    fontFamily: FontFamily.sansMedium,
+    fontSize: FontSize.md,
     color: Colors.textTertiary,
   },
-  periodTextSelected: {
-    color: Colors.textInverse,
+  statusBarTrack: {
+    height: 8,
+    borderRadius: BorderRadius.full,
+    backgroundColor: Colors.ringTrack,
+    overflow: 'hidden',
+  },
+  statusBarFill: {
+    height: '100%',
+    borderRadius: BorderRadius.full,
+    backgroundColor: Colors.ringFill,
+  },
+  statusBottomRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  statusMeta: {
+    fontFamily: FontFamily.sansRegular,
+    fontSize: FontSize.xs,
+    color: Colors.textTertiary,
+  },
+  statusMetaStrong: {
+    fontFamily: FontFamily.sansSemiBold,
+    color: Colors.text,
+  },
+
+  // Time-range toggle
+  toggle: {
+    marginBottom: Spacing.lg,
   },
 
   // Stats
@@ -584,6 +821,44 @@ const styles = StyleSheet.create({
     color: Colors.text,
     marginBottom: Spacing.sm,
     marginTop: Spacing.xs,
+  },
+
+  // Changes table card (Cal AI "Weight Changes")
+  changesCard: {
+    marginBottom: Spacing.lg,
+    paddingVertical: Spacing.xs,
+  },
+  changeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: Spacing.sm + 2,
+  },
+  changeRowBorder: {
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.divider,
+  },
+  changeWindow: {
+    flex: 1,
+    fontFamily: FontFamily.sansMedium,
+    fontSize: FontSize.sm,
+    color: Colors.textSecondary,
+  },
+  changeValue: {
+    flex: 1,
+    fontFamily: FontFamily.sansSemiBold,
+    fontSize: FontSize.md,
+    textAlign: 'left',
+  },
+  changeTagWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    minWidth: 96,
+    justifyContent: 'flex-end',
+  },
+  changeTag: {
+    fontFamily: FontFamily.sansMedium,
+    fontSize: FontSize.xs,
   },
 
   // Charts
@@ -663,6 +938,59 @@ const styles = StyleSheet.create({
     fontFamily: FontFamily.sansMedium,
     fontSize: FontSize.xs,
     color: Colors.secondary,
+  },
+
+  // Gut Health Index (Cal AI "Your BMI")
+  indexCard: {
+    marginBottom: Spacing.lg,
+    gap: Spacing.sm,
+  },
+  indexHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.md,
+  },
+  indexValue: {
+    fontFamily: FontFamily.displaySemiBold,
+    fontSize: FontSize.hero,
+    color: Colors.text,
+  },
+  indexTag: {
+    backgroundColor: Colors.secondary + '22',
+    borderRadius: BorderRadius.full,
+    paddingHorizontal: Spacing.sm + 2,
+    paddingVertical: 4,
+  },
+  indexTagText: {
+    fontFamily: FontFamily.sansSemiBold,
+    fontSize: FontSize.xs,
+    color: Colors.secondary,
+  },
+  indexBands: {
+    flexDirection: 'row',
+    gap: 4,
+    marginTop: Spacing.xs,
+  },
+  indexBand: {
+    flex: 1,
+    height: 8,
+    borderRadius: BorderRadius.full,
+  },
+  indexLegendRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  indexLegend: {
+    fontFamily: FontFamily.sansRegular,
+    fontSize: 10,
+    color: Colors.textTertiary,
+    flex: 1,
+  },
+  indexMeta: {
+    fontFamily: FontFamily.sansMedium,
+    fontSize: FontSize.xs,
+    color: Colors.textSecondary,
+    marginTop: Spacing.xs,
   },
 
   // Empty / Insufficient

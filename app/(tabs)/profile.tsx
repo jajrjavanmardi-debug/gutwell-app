@@ -8,7 +8,6 @@ import {
   Alert,
   Linking,
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
@@ -16,8 +15,6 @@ import * as Haptics from 'expo-haptics';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
 import { exportUserData } from '../../lib/export';
-import { Card } from '../../components/ui/Card';
-import { Button } from '../../components/ui/Button';
 import { Toast } from '../../components/ui/Toast';
 import {
   Colors,
@@ -31,6 +28,7 @@ import { GutLevelBadge } from '../../components/GutLevelBadge';
 import { LoadingSkeleton } from '../../components/ui/LoadingSkeleton';
 import { calculatePoints } from '../../lib/levels';
 import { getStreakSnapshot } from '../../lib/streaks';
+import { isPremium, isMonetizationEnabled } from '../../lib/subscription';
 
 const AVATAR_COLORS = ['#1B4332', '#2D6A4F', '#40916C', '#52B788', '#74C69D'];
 
@@ -45,6 +43,7 @@ export default function ProfileScreen() {
   const [totalPoints, setTotalPoints] = useState(0);
   const [loadingStats, setLoadingStats] = useState(true);
   const [accountStats, setAccountStats] = useState({ checkIns: 0, meals: 0, symptoms: 0 });
+  const [premium, setPremium] = useState(false);
 
   // Compute initials from displayName
   const initials = (profile?.display_name || 'GU')
@@ -59,6 +58,20 @@ export default function ProfileScreen() {
   useEffect(() => {
     if (!user) return;
     loadStats();
+  }, [user]);
+
+  useEffect(() => {
+    let active = true;
+    isPremium()
+      .then((p) => {
+        if (active) setPremium(p);
+      })
+      .catch(() => {
+        /* treat as non-premium */
+      });
+    return () => {
+      active = false;
+    };
   }, [user]);
 
   const loadStats = async () => {
@@ -135,214 +148,228 @@ export default function ProfileScreen() {
     }
   };
 
-  const badges = [
-    {
-      id: 'first_checkin',
-      icon: 'body',
-      label: 'First Step',
-      desc: 'Completed first check-in',
-      unlocked: accountStats.checkIns >= 1,
-    },
-    {
-      id: 'week_streak',
-      icon: 'flame',
-      label: '7-Day Streak',
-      desc: '7 consecutive days logged',
-      unlocked: (profile?.total_points ?? 0) >= 50,
-    },
-    {
-      id: 'meals_10',
-      icon: 'restaurant',
-      label: 'Mindful Eater',
-      desc: 'Logged 10 meals',
-      unlocked: accountStats.meals >= 10,
-    },
-    {
-      id: 'points_100',
-      icon: 'trophy',
-      label: 'Gut Champion',
-      desc: 'Reached 100 points',
-      unlocked: (profile?.total_points ?? 0) >= 100,
-    },
-  ];
+  const handleSupport = () =>
+    Linking.openURL('mailto:support@theparallellab.com?subject=GutWell%20Support');
+
+  const handleDisclaimer = () =>
+    Alert.alert(
+      'Health Disclaimer',
+      'GutWell is a wellness tracking tool and is not intended to diagnose, treat, cure, or prevent any disease. Always consult your healthcare provider for medical advice.',
+      [{ text: 'OK' }],
+    );
+
+  const planLabel = premium ? 'Premium' : 'Free plan';
 
   return (
     <SafeAreaView style={styles.outerContainer} edges={['top']}>
-      {/* ── Fixed gradient header (does not scroll) ── */}
-      <LinearGradient colors={['#0B2618', '#1B4332']} style={styles.gradientHeader}>
-        {/* Avatar */}
-        <View style={[styles.avatar, { backgroundColor: avatarColor }]}>
-          <Text style={styles.avatarInitials}>{initials}</Text>
-        </View>
-
-        {/* Display name */}
-        <Text style={styles.headerName}>{profile?.display_name || 'User'}</Text>
-
-        {/* Gut concern pill */}
-        {profile?.gut_concern ? (
-          <View style={styles.gutPill}>
-            <Text style={styles.gutPillText}>{profile.gut_concern}</Text>
-          </View>
-        ) : null}
-
-        {/* Level badge (compact) */}
-        {loadingStats ? (
-          <View style={{ marginTop: 12 }}>
-            <LoadingSkeleton width={80} height={20} borderRadius={10} />
-          </View>
-        ) : (
-          <View style={{ marginTop: 12 }}>
-            <GutLevelBadge totalPoints={totalPoints} compact />
-          </View>
-        )}
-      </LinearGradient>
-
-      {/* ── Scrollable content ── */}
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {/* Stats cards — float over gradient with negative margin */}
+        {/* ── Title ── */}
+        <Text style={styles.title}>Profile</Text>
+
+        {/* ── Account header card ── */}
+        <TouchableOpacity
+          style={styles.headerCard}
+          activeOpacity={0.7}
+          onPress={() => {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            router.push('/edit-profile');
+          }}
+          accessibilityRole="button"
+          accessibilityLabel="Edit profile"
+        >
+          <View style={[styles.headerAvatar, { backgroundColor: avatarColor }]}>
+            <Text style={styles.headerAvatarText}>{initials}</Text>
+          </View>
+          <View style={styles.headerInfo}>
+            <View style={styles.planRow}>
+              <Ionicons
+                name={premium ? 'star' : 'leaf'}
+                size={12}
+                color={Colors.accent}
+              />
+              <Text style={styles.planLabel}>{planLabel}</Text>
+            </View>
+            <Text style={styles.headerName} numberOfLines={1}>
+              {profile?.display_name || 'Set your name'}
+            </Text>
+            <Text style={styles.headerHint}>Tap to edit profile</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={18} color={Colors.textTertiary} />
+        </TouchableOpacity>
+
+        {/* ── Gut Level (points / level) ── */}
+        <View style={styles.levelCard}>
+          {loadingStats ? (
+            <LoadingSkeleton width={80} height={20} borderRadius={10} />
+          ) : (
+            <GutLevelBadge totalPoints={totalPoints} />
+          )}
+        </View>
+
+        {/* ── Stats row ── */}
         <View style={styles.statsRow}>
           <StatCard value={accountStats.checkIns} label="Check-ins" />
           <StatCard value={accountStats.meals} label="Meals" />
           <StatCard value={accountStats.symptoms} label="Symptoms" />
         </View>
 
-        {/* Gut Level (full badge) */}
-        <Card style={styles.levelCard} variant="elevated">
-          {loadingStats ? (
-            <LoadingSkeleton width={80} height={20} borderRadius={10} />
-          ) : (
-            <GutLevelBadge totalPoints={totalPoints} />
-          )}
-        </Card>
-
-        {/* Achievements */}
-        <View style={styles.section}>
-          <Text style={styles.sectionHeader}>ACHIEVEMENTS</Text>
-          <View style={styles.badgesRow}>
-            {badges.map((b) => (
-              <View
-                key={b.id}
-                style={[styles.badgeCard, !b.unlocked && styles.badgeCardLocked]}
-              >
-                <View
-                  style={[
-                    styles.badgeIcon,
-                    { backgroundColor: b.unlocked ? Colors.primary + '15' : Colors.surfaceSecondary },
-                  ]}
-                >
-                  <Ionicons
-                    name={b.icon as keyof typeof Ionicons.glyphMap}
-                    size={22}
-                    color={b.unlocked ? Colors.primary : Colors.textTertiary}
-                  />
-                </View>
-                <Text style={[styles.badgeLabel, !b.unlocked && styles.badgeLabelLocked]}>
-                  {b.label}
-                </Text>
-                <Text style={styles.badgeDesc} numberOfLines={2}>
-                  {b.unlocked ? b.desc : '🔒 Locked'}
-                </Text>
-              </View>
-            ))}
-          </View>
-        </View>
-
-        {/* Settings */}
-        <Text style={styles.sectionTitle}>Settings</Text>
+        {/* ── Account section ── */}
+        <Text style={styles.sectionTitle}>Account</Text>
         <View style={styles.listCard}>
           <ListRow
             icon="person-outline"
-            label="Edit Profile"
+            label="Personal Details"
             onPress={() => router.push('/edit-profile')}
           />
-          <View style={styles.listDivider} />
+          <Divider />
+          <ListRow
+            icon="options-outline"
+            label="Preferences"
+            onPress={() => router.push('/settings')}
+          />
+          <Divider />
+          <ListRow
+            icon="lock-closed-outline"
+            label="Change Password"
+            onPress={() => router.push('/change-password')}
+            isLast
+          />
+        </View>
+
+        {/* ── Goals & Tracking section ── */}
+        <Text style={styles.sectionTitle}>Goals & Tracking</Text>
+        <View style={styles.listCard}>
+          <ListRow
+            icon="trending-up-outline"
+            label="Progress & Insights"
+            onPress={() => router.push('/progress')}
+          />
+          <Divider />
+          <ListRow
+            icon="restaurant-outline"
+            label="Food History"
+            onPress={() => router.push('/food-history')}
+          />
+          <Divider />
           <ListRow
             icon="notifications-outline"
             label="Reminders"
             onPress={() => router.push('/reminders')}
+            isLast={!(isMonetizationEnabled() && !premium)}
           />
-          <View style={styles.listDivider} />
+          {isMonetizationEnabled() && !premium ? (
+            <>
+              <Divider />
+              <ListRow
+                icon="star-outline"
+                label="Upgrade to Premium"
+                onPress={() => router.push('/paywall')}
+                isLast
+              />
+            </>
+          ) : null}
+        </View>
+
+        {/* ── Widgets preview (static, presentational) ── */}
+        <Text style={styles.sectionTitle}>Widgets</Text>
+        <View style={styles.widgetCard}>
+          <View style={styles.widgetPreview}>
+            <Text style={styles.widgetValue}>{accountStats.checkIns}</Text>
+            <Text style={styles.widgetCaption}>check-ins</Text>
+          </View>
+          <View style={[styles.widgetPreview, styles.widgetPreviewAlt]}>
+            <Ionicons name="leaf" size={26} color={Colors.secondary} />
+            <Text style={styles.widgetCaption}>Gutwell</Text>
+          </View>
+          <View style={styles.widgetHintWrap}>
+            <Text style={styles.widgetHint}>
+              Add a Gutwell widget from your Home Screen to glance at your daily progress.
+            </Text>
+          </View>
+        </View>
+
+        {/* ── Support & Legal section ── */}
+        <Text style={styles.sectionTitle}>Support & Legal</Text>
+        <View style={styles.listCard}>
           <ListRow
-            icon="settings-outline"
-            label="Settings"
-            onPress={() => router.push('/settings')}
+            icon="mail-outline"
+            label="Support Email"
+            onPress={handleSupport}
           />
-          <View style={styles.listDivider} />
+          <Divider />
           <ListRow
             icon="download-outline"
             label="Export Data"
             onPress={handleExport}
           />
-          <View style={styles.listDivider} />
-          <ListRow
-            icon="mail-outline"
-            label="Contact Support"
-            onPress={() => Linking.openURL('mailto:support@theparallellab.com?subject=GutWell%20Support')}
-            isLast
-          />
-        </View>
-
-        {/* About */}
-        <Text style={styles.sectionTitle}>About</Text>
-        <View style={styles.listCard}>
+          <Divider />
           <ListRow
             icon="shield-checkmark-outline"
             label="Privacy Policy"
             onPress={() => router.push('/privacy-policy')}
           />
-          <View style={styles.listDivider} />
+          <Divider />
           <ListRow
             icon="document-text-outline"
             label="Terms of Service"
             onPress={() => router.push('/terms-of-service')}
           />
-          <View style={styles.listDivider} />
+          <Divider />
           <ListRow
             icon="information-circle-outline"
             label="Health Disclaimer"
-            onPress={() =>
-              Alert.alert(
-                'Health Disclaimer',
-                'GutWell is a wellness tracking tool and is not intended to diagnose, treat, cure, or prevent any disease. Always consult your healthcare provider for medical advice.',
-                [{ text: 'OK' }],
-              )
-            }
+            onPress={handleDisclaimer}
+            isLast
           />
-          <View style={styles.listDivider} />
+        </View>
+
+        {/* ── Follow Us section ── */}
+        <Text style={styles.sectionTitle}>Follow Us</Text>
+        <View style={styles.listCard}>
           <ListRow
-            icon="code-slash-outline"
-            label="Version 1.0.0"
+            icon="logo-instagram"
+            label="Instagram"
+            onPress={() => Linking.openURL('https://instagram.com')}
+          />
+          <Divider />
+          <ListRow
+            icon="logo-tiktok"
+            label="TikTok"
+            onPress={() => Linking.openURL('https://tiktok.com')}
+          />
+          <Divider />
+          <ListRow
+            icon="logo-twitter"
+            label="X"
+            onPress={() => Linking.openURL('https://x.com')}
+            isLast
+          />
+        </View>
+
+        {/* ── Account Actions section ── */}
+        <Text style={styles.sectionTitle}>Account Actions</Text>
+        <View style={styles.listCard}>
+          <ListRow
+            icon="log-out-outline"
+            label="Logout"
+            onPress={handleSignOut}
+          />
+          <Divider />
+          <ListRow
+            icon="person-remove-outline"
+            label={deleting ? 'Deleting…' : 'Delete Account'}
+            onPress={deleting ? undefined : handleDeleteAccount}
+            destructive
             showArrow={false}
             isLast
           />
         </View>
 
-        {/* Account */}
-        <Text style={styles.sectionTitle}>Account</Text>
-        <View style={styles.accountActions}>
-          <Button
-            title="Sign Out"
-            onPress={handleSignOut}
-            variant="outline"
-            size="lg"
-            style={styles.signOutButton}
-          />
-          <TouchableOpacity
-            onPress={handleDeleteAccount}
-            style={styles.deleteButton}
-            disabled={deleting}
-            accessibilityRole="button"
-            accessibilityLabel="Delete account"
-          >
-            <Text style={styles.deleteButtonText}>
-              {deleting ? 'Deleting...' : 'Delete Account'}
-            </Text>
-          </TouchableOpacity>
-        </View>
+        <Text style={styles.versionText}>Version 1.0.0</Text>
 
         <View style={{ height: Spacing.xxl }} />
       </ScrollView>
@@ -368,6 +395,12 @@ function StatCard({ value, label }: { value: number; label: string }) {
   );
 }
 
+// ─── Divider ─────────────────────────────────────────────────────────────────
+
+function Divider() {
+  return <View style={styles.listDivider} />;
+}
+
 // ─── List Row ────────────────────────────────────────────────────────────────
 
 function ListRow({
@@ -376,24 +409,34 @@ function ListRow({
   onPress,
   showArrow = true,
   isLast = false,
+  destructive = false,
 }: {
   icon: keyof typeof Ionicons.glyphMap;
   label: string;
   onPress?: () => void;
   showArrow?: boolean;
   isLast?: boolean;
+  destructive?: boolean;
 }) {
+  const tint = destructive ? Colors.error : Colors.secondary;
   return (
     <TouchableOpacity
       style={[styles.listRow, isLast && styles.listRowLast]}
-      onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); onPress?.(); }}
+      onPress={() => {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        onPress?.();
+      }}
       activeOpacity={onPress ? 0.6 : 1}
       disabled={!onPress}
       accessibilityRole="button"
       accessibilityLabel={label}
     >
-      <Ionicons name={icon} size={20} color={Colors.secondary} style={styles.listRowIcon} />
-      <Text style={styles.listRowLabel}>{label}</Text>
+      <View style={[styles.listRowIconCircle, { backgroundColor: tint + '1A' }]}>
+        <Ionicons name={icon} size={18} color={tint} />
+      </View>
+      <Text style={[styles.listRowLabel, destructive && styles.listRowLabelDestructive]}>
+        {label}
+      </Text>
       {showArrow && (
         <Ionicons name="chevron-forward" size={16} color={Colors.textTertiary} />
       )}
@@ -409,49 +452,6 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.background,
   },
 
-  // ── Gradient header
-  gradientHeader: {
-    paddingHorizontal: 24,
-    paddingTop: 20,
-    paddingBottom: 20,
-    alignItems: 'center',
-  },
-  avatar: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 3,
-    borderColor: 'rgba(255,255,255,0.3)',
-  },
-  avatarInitials: {
-    fontFamily: FontFamily.displayBold,
-    fontSize: 28,
-    color: '#FFFFFF',
-  },
-  headerName: {
-    fontFamily: FontFamily.displayBold,
-    fontSize: 26,
-    color: '#FFFFFF',
-    marginTop: 12,
-  },
-  gutPill: {
-    marginTop: 8,
-    paddingHorizontal: 14,
-    paddingVertical: 4,
-    borderRadius: 20,
-    backgroundColor: 'rgba(82,183,136,0.2)',
-    borderWidth: 1,
-    borderColor: 'rgba(82,183,136,0.4)',
-  },
-  gutPillText: {
-    fontFamily: FontFamily.sansMedium,
-    fontSize: 12,
-    color: '#52B788',
-  },
-
-  // ── Scrollable area
   scrollView: {
     flex: 1,
   },
@@ -460,11 +460,83 @@ const styles = StyleSheet.create({
     paddingBottom: Spacing.xxl,
   },
 
-  // ── Stats cards row
+  // ── Title
+  title: {
+    fontFamily: FontFamily.displayBold,
+    fontSize: 32,
+    color: Colors.text,
+    marginTop: Spacing.md,
+    marginBottom: Spacing.lg,
+  },
+
+  // ── Account header card
+  headerCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.surface,
+    borderRadius: 16,
+    padding: Spacing.md,
+    marginBottom: Spacing.md,
+    ...Shadows.md,
+  },
+  headerAvatar: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  headerAvatarText: {
+    fontFamily: FontFamily.displayBold,
+    fontSize: 20,
+    color: '#FFFFFF',
+  },
+  headerInfo: {
+    flex: 1,
+    marginLeft: Spacing.md,
+  },
+  planRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginBottom: 2,
+  },
+  planLabel: {
+    fontFamily: FontFamily.sansSemiBold,
+    fontSize: 12,
+    color: Colors.accent,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  headerName: {
+    fontFamily: FontFamily.sansBold,
+    fontSize: 18,
+    color: Colors.text,
+  },
+  headerHint: {
+    fontFamily: FontFamily.sansRegular,
+    fontSize: 12,
+    color: Colors.textSecondary,
+    marginTop: 1,
+  },
+
+  // ── Level card
+  levelCard: {
+    alignItems: 'center',
+    backgroundColor: Colors.surface,
+    borderRadius: 16,
+    paddingVertical: Spacing.lg,
+    paddingHorizontal: Spacing.lg,
+    marginBottom: Spacing.md,
+    minHeight: 120,
+    justifyContent: 'center',
+    ...Shadows.sm,
+  },
+
+  // ── Stats row
   statsRow: {
     flexDirection: 'row',
     gap: 10,
-    marginTop: Spacing.md,
     marginBottom: Spacing.md,
   },
   statCard: {
@@ -473,12 +545,12 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     padding: 14,
     alignItems: 'center',
-    ...Shadows.md,
+    ...Shadows.sm,
   },
   statNumber: {
     fontFamily: FontFamily.sansBold,
     fontSize: 22,
-    color: Colors.primary,
+    color: Colors.secondary,
   },
   statLabel: {
     fontFamily: FontFamily.sansRegular,
@@ -489,72 +561,6 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
 
-  // ── Level card
-  levelCard: {
-    alignItems: 'center',
-    paddingVertical: Spacing.lg,
-    paddingHorizontal: Spacing.lg,
-    marginBottom: Spacing.lg,
-    minHeight: 120,
-    justifyContent: 'center',
-  },
-
-  // ── Achievements
-  section: {
-    marginBottom: Spacing.md,
-  },
-  sectionHeader: {
-    fontFamily: FontFamily.sansSemiBold,
-    fontSize: FontSize.md,
-    color: Colors.textSecondary,
-    textTransform: 'uppercase',
-    letterSpacing: 0.8,
-    marginBottom: Spacing.sm,
-    marginTop: Spacing.md,
-    paddingLeft: Spacing.xs,
-  },
-  badgesRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 10,
-  },
-  badgeCard: {
-    width: '48%',
-    backgroundColor: Colors.surface,
-    borderRadius: BorderRadius.lg,
-    padding: 14,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    alignItems: 'center',
-    gap: 6,
-  },
-  badgeCardLocked: {
-    opacity: 0.5,
-  },
-  badgeIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  badgeLabel: {
-    fontFamily: FontFamily.sansSemiBold,
-    fontSize: 13,
-    color: Colors.text,
-    textAlign: 'center',
-  },
-  badgeLabelLocked: {
-    color: Colors.textSecondary,
-  },
-  badgeDesc: {
-    fontFamily: FontFamily.sansRegular,
-    fontSize: 11,
-    color: Colors.textSecondary,
-    textAlign: 'center',
-    lineHeight: 15,
-  },
-
   // ── Section title
   sectionTitle: {
     fontFamily: FontFamily.sansSemiBold,
@@ -563,28 +569,32 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     letterSpacing: 0.8,
     marginBottom: Spacing.sm,
-    marginTop: Spacing.md,
+    marginTop: Spacing.lg,
     paddingLeft: Spacing.xs,
   },
 
-  // ── List card (settings rows)
+  // ── List card (grouped rows)
   listCard: {
     backgroundColor: Colors.surface,
     borderRadius: 16,
     overflow: 'hidden',
-    marginBottom: Spacing.sm,
     ...Shadows.sm,
   },
   listRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 16,
-    paddingHorizontal: 20,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
   },
   listRowLast: {
-    // No bottom border on last row
+    // no extra style; divider omitted on last row
   },
-  listRowIcon: {
+  listRowIconCircle: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    justifyContent: 'center',
+    alignItems: 'center',
     marginRight: 14,
   },
   listRowLabel: {
@@ -593,28 +603,66 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: Colors.text,
   },
+  listRowLabelDestructive: {
+    color: Colors.error,
+  },
   listDivider: {
     height: 1,
     backgroundColor: Colors.divider,
-    marginLeft: 54, // icon offset (20 padding + 20 icon + 14 gap)
-    marginRight: 20,
+    marginLeft: 64, // 16 padding + 34 icon + 14 gap
+    marginRight: 16,
   },
 
-  // ── Account actions
-  accountActions: {
+  // ── Widgets preview
+  widgetCard: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+    backgroundColor: Colors.surface,
+    borderRadius: 16,
+    padding: Spacing.md,
+    ...Shadows.sm,
+  },
+  widgetPreview: {
+    width: 96,
+    height: 96,
+    borderRadius: BorderRadius.lg,
+    backgroundColor: Colors.surfaceSecondary,
+    justifyContent: 'center',
     alignItems: 'center',
-    gap: Spacing.md,
-    marginTop: Spacing.sm,
+    gap: 2,
   },
-  signOutButton: {
-    width: '100%',
+  widgetPreviewAlt: {
+    backgroundColor: Colors.primary + '22',
   },
-  deleteButton: {
-    paddingVertical: Spacing.sm,
+  widgetValue: {
+    fontFamily: FontFamily.sansBold,
+    fontSize: 26,
+    color: Colors.secondary,
   },
-  deleteButtonText: {
-    fontFamily: FontFamily.sansMedium,
-    fontSize: FontSize.md,
-    color: Colors.error,
+  widgetCaption: {
+    fontFamily: FontFamily.sansRegular,
+    fontSize: 11,
+    color: Colors.textSecondary,
+  },
+  widgetHintWrap: {
+    flex: 1,
+    minWidth: 120,
+    justifyContent: 'center',
+  },
+  widgetHint: {
+    fontFamily: FontFamily.sansRegular,
+    fontSize: 12,
+    color: Colors.textSecondary,
+    lineHeight: 17,
+  },
+
+  // ── Version
+  versionText: {
+    fontFamily: FontFamily.sansRegular,
+    fontSize: 12,
+    color: Colors.textTertiary,
+    textAlign: 'center',
+    marginTop: Spacing.lg,
   },
 });

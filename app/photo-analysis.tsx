@@ -21,6 +21,7 @@ import {
 import * as Clipboard from 'expo-clipboard';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { ScanTutorial } from '../components/ScanTutorial';
 import { Toast } from '../components/ui/Toast';
 import { useAuth } from '../contexts/AuthContext';
 import { BorderRadius, Colors, FontFamily, FontSize, Shadows, Spacing } from '../constants/theme';
@@ -50,6 +51,8 @@ import {
 type AppLanguage = 'en' | 'de' | 'fa';
 type WizardStep = 1 | 2 | 3;
 const APP_LANGUAGE_STORAGE_KEY = 'gutwell_app_language';
+/** Shows the 4-slide scan tutorial only on the user's first visit to this screen. */
+const SCAN_TUTORIAL_SEEN_KEY = 'gutwell_scan_tutorial_seen';
 /** When set to `Germany`, skips GPS and fixes AI context to Nürtingen (dev/testing only). */
 const DEV_LOCATION_OVERRIDE = process.env.EXPO_PUBLIC_DEV_LOCATION_OVERRIDE?.trim() ?? '';
 /**
@@ -529,6 +532,11 @@ export default function PhotoAnalysisScreen() {
     };
   }, [user, profile?.gut_concern]);
   const [isLoggingMeal, setIsLoggingMeal] = useState(false);
+  /**
+   * Tutorial gating: `null` until we've read AsyncStorage so we never flash the
+   * tutorial for returning users. Skipped entirely when opening saved history.
+   */
+  const [showTutorial, setShowTutorial] = useState<boolean | null>(null);
   // UI chrome has EN/DE translations; Persian users get English chrome while
   // the AI analysis itself responds in Persian (server prompt handles fa).
   const t = copy[language === 'de' ? 'de' : 'en'];
@@ -676,6 +684,22 @@ export default function PhotoAnalysisScreen() {
         }
       })
       .catch(console.warn);
+  }, []);
+
+  useEffect(() => {
+    // Saved history opens straight to the result — never show the tutorial there.
+    if (params.historyId) {
+      setShowTutorial(false);
+      return;
+    }
+    AsyncStorage.getItem(SCAN_TUTORIAL_SEEN_KEY)
+      .then((seen) => setShowTutorial(seen !== 'yes'))
+      .catch(() => setShowTutorial(false));
+  }, [params.historyId]);
+
+  const handleTutorialDone = useCallback(() => {
+    setShowTutorial(false);
+    AsyncStorage.setItem(SCAN_TUTORIAL_SEEN_KEY, 'yes').catch(console.warn);
   }, []);
 
   useEffect(() => {
@@ -1171,6 +1195,30 @@ export default function PhotoAnalysisScreen() {
 
   const insets = useSafeAreaInsets();
 
+  if (showTutorial === null) {
+    return <View style={styles.container} />;
+  }
+
+  if (showTutorial) {
+    return (
+      <SafeAreaView style={styles.container} edges={['top']}>
+        <View style={styles.tutorialHeader}>
+          <Pressable
+            onPress={handleTutorialDone}
+            hitSlop={10}
+            style={styles.tutorialSkip}
+            accessibilityRole="button"
+            accessibilityLabel="Skip tutorial"
+          >
+            <Text style={styles.tutorialSkipText}>{t.back}</Text>
+            <Ionicons name="close" size={18} color="#FFFFFF" />
+          </Pressable>
+        </View>
+        <ScanTutorial onDone={handleTutorialDone} />
+      </SafeAreaView>
+    );
+  }
+
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.screenBody}>
@@ -1339,6 +1387,23 @@ export default function PhotoAnalysisScreen() {
           >
             {wizardStep === 1 ? (
               <>
+                <View style={styles.scanFrame}>
+                  <View style={[styles.scanCorner, styles.scanCornerTL]} />
+                  <View style={[styles.scanCorner, styles.scanCornerTR]} />
+                  <View style={[styles.scanCorner, styles.scanCornerBL]} />
+                  <View style={[styles.scanCorner, styles.scanCornerBR]} />
+                  {photoUri ? (
+                    <Image source={{ uri: photoUri }} style={styles.scanFramePreview} />
+                  ) : (
+                    <View style={styles.scanFramePlaceholder}>
+                      <Ionicons name="scan-outline" size={44} color={Colors.secondary} />
+                      <Text style={[styles.scanFrameHint, isRtlLanguage && styles.rtlText]}>
+                        {t.subtitle}
+                      </Text>
+                    </View>
+                  )}
+                </View>
+
                 <View style={styles.actionGrid}>
                   <Pressable
                     disabled={isAnalyzing}
@@ -1374,8 +1439,6 @@ export default function PhotoAnalysisScreen() {
                     <Text style={[styles.photoActionText, isRtlLanguage && styles.rtlText]}>{t.chooseGalleryText}</Text>
                   </Pressable>
                 </View>
-
-                {photoUri ? <Image source={{ uri: photoUri }} style={styles.previewImage} /> : null}
 
                 {photoUri && lastImageBase64 ? (
                   <Pressable
@@ -1455,10 +1518,18 @@ export default function PhotoAnalysisScreen() {
                 {analysis ? (
                   <>
                   <View style={styles.resultCard}>
+                    {photoUri ? (
+                      <Image source={{ uri: photoUri }} style={styles.resultHeroImage} />
+                    ) : null}
                     <View style={styles.resultHeader}>
                       <View style={styles.resultTitleRow}>
                         <Ionicons name="nutrition" size={20} color={Colors.secondary} />
-                        <Text style={[styles.resultTitle, isRtlLanguage && styles.rtlText]}>{t.resultTitle}</Text>
+                        <View style={styles.resultTitleTextBlock}>
+                          <Text style={[styles.resultMealName, isRtlLanguage && styles.rtlText]} numberOfLines={2}>
+                            {extractMealName(analysis)}
+                          </Text>
+                          <Text style={[styles.resultTitle, isRtlLanguage && styles.rtlText]}>{t.resultTitle}</Text>
+                        </View>
                       </View>
                     </View>
                     {shouldShowMealScoreBadge && mealImpactScore ? (
@@ -2001,10 +2072,100 @@ const styles = StyleSheet.create({
     fontSize: FontSize.sm,
     textAlign: 'center',
   },
-  previewImage: {
+  tutorialHeader: {
+    alignItems: 'flex-end',
+    paddingHorizontal: Spacing.lg,
+    paddingTop: Spacing.sm,
+  },
+  tutorialSkip: {
+    alignItems: 'center',
+    backgroundColor: '#101010',
+    borderColor: '#242424',
+    borderRadius: BorderRadius.full,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: 4,
+    minHeight: 36,
+    paddingHorizontal: Spacing.md,
+  },
+  tutorialSkipText: {
+    color: '#FFFFFF',
+    fontFamily: FontFamily.sansBold,
+    fontSize: FontSize.sm,
+  },
+  scanFrame: {
+    alignItems: 'center',
+    aspectRatio: 1,
+    backgroundColor: '#0A0A0A',
     borderRadius: BorderRadius.xl,
-    height: 180,
+    justifyContent: 'center',
+    overflow: 'hidden',
     width: '100%',
+  },
+  scanCorner: {
+    borderColor: Colors.secondary,
+    height: 40,
+    position: 'absolute',
+    width: 40,
+    zIndex: 2,
+  },
+  scanCornerTL: {
+    borderLeftWidth: 3,
+    borderTopLeftRadius: BorderRadius.md,
+    borderTopWidth: 3,
+    left: Spacing.md,
+    top: Spacing.md,
+  },
+  scanCornerTR: {
+    borderRightWidth: 3,
+    borderTopRightRadius: BorderRadius.md,
+    borderTopWidth: 3,
+    right: Spacing.md,
+    top: Spacing.md,
+  },
+  scanCornerBL: {
+    borderBottomLeftRadius: BorderRadius.md,
+    borderBottomWidth: 3,
+    borderLeftWidth: 3,
+    bottom: Spacing.md,
+    left: Spacing.md,
+  },
+  scanCornerBR: {
+    borderBottomRightRadius: BorderRadius.md,
+    borderBottomWidth: 3,
+    borderRightWidth: 3,
+    bottom: Spacing.md,
+    right: Spacing.md,
+  },
+  scanFramePreview: {
+    height: '100%',
+    width: '100%',
+  },
+  scanFramePlaceholder: {
+    alignItems: 'center',
+    gap: Spacing.md,
+    paddingHorizontal: Spacing.xl,
+  },
+  scanFrameHint: {
+    color: Colors.textSecondary,
+    fontFamily: FontFamily.sansMedium,
+    fontSize: FontSize.sm,
+    lineHeight: 20,
+    textAlign: 'center',
+  },
+  resultHeroImage: {
+    borderRadius: BorderRadius.lg,
+    height: 170,
+    marginBottom: Spacing.md,
+    width: '100%',
+  },
+  resultTitleTextBlock: {
+    flex: 1,
+  },
+  resultMealName: {
+    color: '#FFFFFF',
+    fontFamily: FontFamily.displaySemiBold,
+    fontSize: FontSize.xl,
   },
   resultCard: {
     backgroundColor: 'rgba(255,255,255,0.07)',
@@ -2035,9 +2196,10 @@ const styles = StyleSheet.create({
     width: 40,
   },
   resultTitle: {
-    color: '#FFFFFF',
-    fontFamily: FontFamily.displaySemiBold,
-    fontSize: FontSize.lg,
+    color: Colors.secondaryLight,
+    fontFamily: FontFamily.sansSemiBold,
+    fontSize: FontSize.sm,
+    marginTop: 2,
   },
   scoreBadge: {
     alignItems: 'center',

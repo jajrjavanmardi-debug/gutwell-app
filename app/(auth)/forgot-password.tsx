@@ -6,11 +6,13 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  TouchableOpacity,
 } from 'react-native';
 import { Link } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { StatusBar } from 'expo-status-bar';
 import { useAuth } from '../../contexts/AuthContext';
 import { Input } from '../../components/ui/Input';
 import { Button } from '../../components/ui/Button';
@@ -40,66 +42,66 @@ export default function ForgotPasswordScreen() {
 
   return (
     <View style={styles.container}>
-      {/* Dark gradient header */}
-      <LinearGradient
-        colors={['#0B1F14', '#1B4332']}
-        style={styles.header}
-      >
-        <SafeAreaView edges={['top']}>
-          <View style={styles.logoSection}>
-            <View style={styles.logoCircle}>
-              <Ionicons name="lock-closed" size={36} color="white" />
-            </View>
-            <Text style={styles.appName}>GutWell</Text>
-            <Text style={styles.tagline}>Reset Password</Text>
-          </View>
-        </SafeAreaView>
-      </LinearGradient>
+      <StatusBar style="light" />
+      <LinearGradient colors={['#0B1F14', '#1B4332']} style={StyleSheet.absoluteFill} />
 
-      {/* White form card — rises over gradient with rounded top corners */}
-      <KeyboardAvoidingView
-        style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      >
-        <ScrollView
-          style={styles.formCard}
-          contentContainerStyle={styles.formScroll}
-          keyboardShouldPersistTaps="handled"
-          showsVerticalScrollIndicator={false}
+      <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
+        <KeyboardAvoidingView
+          style={styles.flex}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         >
-          <View style={styles.formInner}>
-            <Text style={styles.formTitle}>Forgot your password?</Text>
-            <Text style={styles.subtitle}>
-              Enter your email and we&apos;ll send you a link to reset your password.
-            </Text>
+          <ScrollView
+            contentContainerStyle={styles.scroll}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+          >
+            <View style={styles.inner}>
+              {/* Brand mark */}
+              <View style={styles.iconCircle}>
+                <Ionicons name="lock-closed" size={30} color="#FFFFFF" />
+              </View>
 
-            {/* ── Form ── */}
-            <View style={styles.form}>
-              <Input
-                label="Email"
-                placeholder="you@example.com"
-                value={email}
-                onChangeText={setEmail}
-                keyboardType="email-address"
-                autoCapitalize="none"
-              />
+              {/* Title + subtitle */}
+              <Text style={styles.title}>Reset password</Text>
+              <Text style={styles.subtitle}>
+                Enter your email and we&apos;ll send you a link to set a new one.
+              </Text>
+
+              {/* ── Form ── */}
+              <View style={styles.form}>
+                <Input
+                  label="Email"
+                  placeholder="you@example.com"
+                  value={email}
+                  onChangeText={setEmail}
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                />
+              </View>
+
+              {/* Primary CTA */}
               <Button
                 title="Send Reset Link"
                 onPress={handleReset}
                 loading={loading}
                 size="lg"
+                shape="pill"
+                fullWidth
+                style={styles.cta}
               />
-            </View>
 
-            {/* ── Footer ── */}
-            <View style={styles.footer}>
-              <Link href="/(auth)/login" style={styles.backLink}>
-                Back to Sign In
-              </Link>
+              {/* Secondary link */}
+              <View style={styles.switchRow}>
+                <Link href="/(auth)/login" asChild>
+                  <TouchableOpacity activeOpacity={0.7}>
+                    <Text style={styles.switchLink}>Back to Sign In</Text>
+                  </TouchableOpacity>
+                </Link>
+              </View>
             </View>
-          </View>
-        </ScrollView>
-      </KeyboardAvoidingView>
+          </ScrollView>
+        </KeyboardAvoidingView>
+      </SafeAreaView>
 
       <Toast
         message={toast.message}
@@ -112,89 +114,64 @@ export default function ForgotPasswordScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: Colors.background,
-  },
-
-  // ── Gradient header ──
-  header: {
-    paddingBottom: 32,
-  },
-  logoSection: {
-    alignItems: 'center',
-    paddingHorizontal: Spacing.lg,
-    paddingTop: 20,
-    paddingBottom: 8,
-    gap: 8,
-  },
-  logoCircle: {
-    width: 68,
-    height: 68,
-    borderRadius: 34,
-    backgroundColor: 'rgba(255,255,255,0.12)',
+  container: { flex: 1 },
+  safe: { flex: 1 },
+  flex: { flex: 1 },
+  scroll: {
+    flexGrow: 1,
     justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 4,
+    paddingHorizontal: 24,
+    paddingVertical: Spacing.xl,
   },
-  appName: {
-    fontFamily: FontFamily.displayBold,
-    fontSize: 42,
-    color: 'white',
-  },
-  tagline: {
-    color: 'rgba(255,255,255,0.65)',
-    fontFamily: FontFamily.sansRegular,
-    fontSize: 14,
-    textAlign: 'center',
-  },
-
-  // ── White form card ──
-  formCard: {
-    backgroundColor: Colors.surface,
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
-    marginTop: -20,
-    flex: 1,
-  },
-  formScroll: {
-    padding: 28,
-    paddingTop: 24,
-    paddingBottom: 40,
-  },
-  formInner: {
+  inner: {
     width: '100%',
     maxWidth: 420,
     alignSelf: 'center',
+    alignItems: 'center',
   },
-  formTitle: {
+  iconCircle: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.15)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: Spacing.lg,
+  },
+  title: {
     fontFamily: FontFamily.displayBold,
-    fontSize: 28,
-    color: Colors.primary,
-    marginBottom: 8,
+    fontSize: 36,
+    color: '#FFFFFF',
+    textAlign: 'center',
+    letterSpacing: -0.5,
   },
   subtitle: {
     fontFamily: FontFamily.sansRegular,
     fontSize: FontSize.md,
-    color: Colors.textSecondary,
+    color: 'rgba(255,255,255,0.65)',
+    textAlign: 'center',
+    marginTop: Spacing.sm,
+    marginBottom: Spacing.xl,
     lineHeight: 22,
-    marginBottom: 20,
   },
-
-  // ── Form ──
   form: {
+    width: '100%',
     gap: Spacing.md,
   },
-
-  // ── Footer ──
-  footer: {
-    alignItems: 'center',
-    marginTop: Spacing.xl,
+  cta: {
+    marginTop: Spacing.lg,
   },
-  backLink: {
+  switchRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: Spacing.lg,
+  },
+  switchLink: {
     fontFamily: FontFamily.sansSemiBold,
     fontSize: FontSize.sm,
     color: Colors.secondary,
-    textAlign: 'center',
   },
 });

@@ -3,9 +3,7 @@ import {
   View,
   Text,
   StyleSheet,
-  TextInput,
   TouchableOpacity,
-  ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
@@ -14,12 +12,12 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useAuth } from '../contexts/AuthContext';
 import { Toast } from '../components/ui/Toast';
+import { Input } from '../components/ui/Input';
+import { Button } from '../components/ui/Button';
 import {
   Colors,
   Spacing,
   FontSize,
-  BorderRadius,
-  Shadows,
   FontFamily,
 } from '../constants/theme';
 
@@ -66,8 +64,13 @@ export default function ChangePasswordScreen() {
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
-          <Ionicons name="chevron-back" size={24} color={Colors.textInverse} />
+        <TouchableOpacity
+          style={styles.backButton}
+          onPress={() => router.back()}
+          accessibilityRole="button"
+          accessibilityLabel="Go back"
+        >
+          <Ionicons name="chevron-back" size={24} color={Colors.text} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Change Password</Text>
         <View style={styles.backButton} />
@@ -79,14 +82,13 @@ export default function ChangePasswordScreen() {
       >
         <View style={styles.content}>
           {/* New Password */}
-          <Text style={styles.label}>New Password</Text>
-          <View style={styles.inputRow}>
-            <TextInput
+          <View style={styles.field}>
+            <Input
+              label="New Password"
               style={styles.input}
               value={newPassword}
               onChangeText={setNewPassword}
               placeholder="Enter new password"
-              placeholderTextColor={Colors.textTertiary}
               secureTextEntry={!showNew}
               autoCapitalize="none"
               autoCorrect={false}
@@ -96,6 +98,8 @@ export default function ChangePasswordScreen() {
               style={styles.eyeButton}
               onPress={() => setShowNew(!showNew)}
               hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              accessibilityRole="button"
+              accessibilityLabel={showNew ? 'Hide new password' : 'Show new password'}
             >
               <Ionicons
                 name={showNew ? 'eye-off-outline' : 'eye-outline'}
@@ -106,14 +110,13 @@ export default function ChangePasswordScreen() {
           </View>
 
           {/* Confirm Password */}
-          <Text style={styles.label}>Confirm Password</Text>
-          <View style={styles.inputRow}>
-            <TextInput
+          <View style={styles.field}>
+            <Input
+              label="Confirm Password"
               style={styles.input}
               value={confirmPassword}
               onChangeText={setConfirmPassword}
               placeholder="Re-enter new password"
-              placeholderTextColor={Colors.textTertiary}
               secureTextEntry={!showConfirm}
               autoCapitalize="none"
               autoCorrect={false}
@@ -124,6 +127,8 @@ export default function ChangePasswordScreen() {
               style={styles.eyeButton}
               onPress={() => setShowConfirm(!showConfirm)}
               hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              accessibilityRole="button"
+              accessibilityLabel={showConfirm ? 'Hide confirm password' : 'Show confirm password'}
             >
               <Ionicons
                 name={showConfirm ? 'eye-off-outline' : 'eye-outline'}
@@ -136,18 +141,15 @@ export default function ChangePasswordScreen() {
           <Text style={styles.hint}>Password must be at least 6 characters.</Text>
 
           {/* Save Button */}
-          <TouchableOpacity
-            style={[styles.saveButton, saving && styles.saveButtonDisabled]}
+          <Button
+            title="Update Password"
             onPress={handleSave}
-            disabled={saving}
-            activeOpacity={0.7}
-          >
-            {saving ? (
-              <ActivityIndicator size="small" color={Colors.textInverse} />
-            ) : (
-              <Text style={styles.saveButtonText}>Update Password</Text>
-            )}
-          </TouchableOpacity>
+            loading={saving}
+            shape="pill"
+            fullWidth
+            size="lg"
+            style={styles.saveButton}
+          />
         </View>
       </KeyboardAvoidingView>
 
@@ -167,12 +169,13 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.background,
   },
   header: {
-    backgroundColor: Colors.primary,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.divider,
   },
   backButton: {
     width: 44,
@@ -181,44 +184,27 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   headerTitle: {
-    fontFamily: FontFamily.displayMedium,
-    fontSize: FontSize.xl,
-    color: Colors.textInverse,
+    fontFamily: FontFamily.sansSemiBold,
+    fontSize: FontSize.lg,
+    color: Colors.text,
   },
   content: {
     paddingHorizontal: Spacing.lg,
     paddingTop: Spacing.xl,
+    gap: Spacing.md,
   },
-  label: {
-    fontFamily: FontFamily.sansSemiBold,
-    fontSize: FontSize.xs,
-    color: Colors.textSecondary,
-    textTransform: 'uppercase',
-    letterSpacing: 0.8,
-    marginBottom: Spacing.sm,
-    paddingLeft: Spacing.xs,
-  },
-  inputRow: {
+  field: {
     position: 'relative',
-    marginBottom: Spacing.lg,
+    justifyContent: 'center',
   },
   input: {
-    backgroundColor: Colors.surface,
-    borderRadius: BorderRadius.lg,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.md,
     paddingRight: 48,
-    fontFamily: FontFamily.sansRegular,
-    fontSize: FontSize.md,
-    color: Colors.text,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    ...Shadows.sm,
   },
   eyeButton: {
     position: 'absolute',
     right: Spacing.md,
-    top: 0,
+    // align with the input's vertical centre, accounting for the label above it
+    top: 28,
     bottom: 0,
     justifyContent: 'center',
   },
@@ -226,23 +212,9 @@ const styles = StyleSheet.create({
     fontFamily: FontFamily.sansRegular,
     fontSize: FontSize.xs,
     color: Colors.textTertiary,
-    marginBottom: Spacing.lg,
-    paddingLeft: Spacing.xs,
+    marginLeft: Spacing.xs,
   },
   saveButton: {
-    backgroundColor: Colors.primary,
-    borderRadius: BorderRadius.lg,
-    paddingVertical: Spacing.md,
-    alignItems: 'center',
-    justifyContent: 'center',
-    minHeight: 52,
-  },
-  saveButtonDisabled: {
-    opacity: 0.6,
-  },
-  saveButtonText: {
-    fontFamily: FontFamily.sansBold,
-    fontSize: FontSize.md,
-    color: Colors.textInverse,
+    marginTop: Spacing.sm,
   },
 });

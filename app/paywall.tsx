@@ -212,13 +212,58 @@ export default function PaywallScreen() {
           contentContainerStyle={styles.scroll}
           showsVerticalScrollIndicator={false}
         >
-          {/* Hero */}
+          {/* Hero — Cal AI free-trial framing */}
           <View style={styles.hero}>
-            <View style={styles.heroIconWrap}>
-              <Ionicons name="leaf" size={52} color="#52B788" />
+            <Text style={styles.heroTitle}>
+              We want you to try{'\n'}
+              <Ionicons name="leaf" size={30} color="#52B788" /> GutWell for free
+            </Text>
+          </View>
+
+          {/* Device-mockup preview of the GutWell dashboard */}
+          <View style={styles.deviceFrame}>
+            <View style={styles.deviceNotch} />
+            <View style={styles.previewApp}>
+              <View style={styles.previewBrandRow}>
+                <Ionicons name="leaf" size={14} color="#1B4332" />
+                <Text style={styles.previewBrand}>GutWell</Text>
+              </View>
+
+              <View style={styles.previewScoreCard}>
+                <View>
+                  <Text style={styles.previewScoreValue}>82</Text>
+                  <Text style={styles.previewScoreLabel}>Gut Score today</Text>
+                </View>
+                <View style={styles.previewRing}>
+                  <Ionicons name="pulse-outline" size={20} color="#52B788" />
+                </View>
+              </View>
+
+              <View style={styles.previewStatsRow}>
+                {[
+                  { v: '6', l: 'Day streak' },
+                  { v: '3', l: 'Safe foods' },
+                  { v: '12', l: 'Check-ins' },
+                ].map((s) => (
+                  <View key={s.l} style={styles.previewStat}>
+                    <Text style={styles.previewStatValue}>{s.v}</Text>
+                    <Text style={styles.previewStatLabel}>{s.l}</Text>
+                  </View>
+                ))}
+              </View>
+
+              <Text style={styles.previewSectionLabel}>Recently logged</Text>
+              <View style={styles.previewMealRow}>
+                <Text style={styles.previewMealName}>Greek yogurt + berries</Text>
+                <Text style={styles.previewMealScore}>Gut 9/10</Text>
+              </View>
             </View>
-            <Text style={styles.heroTitle}>GutWell Premium</Text>
-            <Text style={styles.heroSubtitle}>Unlock your full gut health picture</Text>
+          </View>
+
+          {/* No Payment Due Now reassurance */}
+          <View style={styles.reassuranceRow}>
+            <Ionicons name="checkmark-circle" size={20} color="#52B788" />
+            <Text style={styles.reassuranceText}>No Payment Due Now</Text>
           </View>
 
           {/* Features List */}
@@ -344,32 +389,108 @@ const styles = StyleSheet.create({
   // Hero
   hero: {
     alignItems: 'center',
-    marginBottom: Spacing.xl,
-  },
-  heroIconWrap: {
-    width: 88,
-    height: 88,
-    borderRadius: 44,
-    backgroundColor: 'rgba(82,183,136,0.12)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: Spacing.md,
-    borderWidth: 1,
-    borderColor: 'rgba(82,183,136,0.25)',
+    marginBottom: Spacing.lg,
   },
   heroTitle: {
     fontFamily: FontFamily.displayBold,
-    fontSize: 36,
+    fontSize: 34,
     color: '#FFFFFF',
     textAlign: 'center',
     lineHeight: 44,
-    marginBottom: Spacing.sm,
   },
-  heroSubtitle: {
-    fontFamily: FontFamily.sansRegular,
+
+  // Device-mockup preview
+  deviceFrame: {
+    width: 240,
+    alignSelf: 'center',
+    backgroundColor: '#050A07',
+    borderRadius: 34,
+    borderWidth: 6,
+    borderColor: '#0B1F14',
+    padding: 8,
+    paddingTop: 16,
+    marginBottom: Spacing.lg,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.4,
+    shadowRadius: 16,
+    elevation: 10,
+  },
+  deviceNotch: {
+    position: 'absolute',
+    top: 8,
+    alignSelf: 'center',
+    width: 70,
+    height: 5,
+    borderRadius: 3,
+    backgroundColor: '#1B4332',
+  },
+  previewApp: {
+    backgroundColor: '#F4F6F4',
+    borderRadius: 22,
+    padding: Spacing.md,
+    gap: Spacing.sm,
+  },
+  previewBrandRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  previewBrand: { fontFamily: FontFamily.sansBold, fontSize: 13, color: '#1B4332' },
+  previewScoreCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: BorderRadius.md,
+    padding: Spacing.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  previewScoreValue: { fontFamily: FontFamily.displayBold, fontSize: 30, color: '#1B4332' },
+  previewScoreLabel: { fontFamily: FontFamily.sansRegular, fontSize: 9, color: '#6B7B70' },
+  previewRing: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    borderWidth: 3,
+    borderColor: '#D8F3DC',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  previewStatsRow: { flexDirection: 'row', gap: 6 },
+  previewStat: {
+    flex: 1,
+    backgroundColor: '#FFFFFF',
+    borderRadius: BorderRadius.sm,
+    paddingVertical: 8,
+    alignItems: 'center',
+  },
+  previewStatValue: { fontFamily: FontFamily.sansBold, fontSize: 14, color: '#1B4332' },
+  previewStatLabel: { fontFamily: FontFamily.sansRegular, fontSize: 8, color: '#6B7B70' },
+  previewSectionLabel: {
+    fontFamily: FontFamily.sansSemiBold,
+    fontSize: 10,
+    color: '#3D4D43',
+    marginTop: 2,
+  },
+  previewMealRow: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: BorderRadius.sm,
+    padding: 10,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  previewMealName: { fontFamily: FontFamily.sansMedium, fontSize: 10, color: '#1B2620' },
+  previewMealScore: { fontFamily: FontFamily.sansBold, fontSize: 10, color: '#2D6A4F' },
+
+  // Reassurance
+  reassuranceRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.sm,
+    marginBottom: Spacing.xl,
+  },
+  reassuranceText: {
+    fontFamily: FontFamily.sansSemiBold,
     fontSize: FontSize.md,
-    color: 'rgba(255,255,255,0.7)',
-    textAlign: 'center',
+    color: '#FFFFFF',
   },
 
   // Features
@@ -466,8 +587,8 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.md,
     shadowColor: '#52B788',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.35,
-    shadowRadius: 12,
+    shadowOpacity: 0.5,
+    shadowRadius: 16,
     elevation: 8,
   },
   ctaWrapperDisabled: {

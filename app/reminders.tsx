@@ -182,14 +182,18 @@ export default function RemindersScreen() {
           onPress={() => router.back()}
           style={styles.backBtn}
           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          accessibilityRole="button"
+          accessibilityLabel="Go back"
         >
-          <Ionicons name="arrow-back" size={22} color={Colors.text} />
+          <Ionicons name="chevron-back" size={24} color={Colors.text} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Reminders</Text>
         <TouchableOpacity
           onPress={() => setShowAdd(true)}
           style={styles.addBtn}
           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          accessibilityRole="button"
+          accessibilityLabel="Add reminder"
         >
           <Ionicons name="add" size={22} color={Colors.textInverse} />
         </TouchableOpacity>
@@ -442,16 +446,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: Spacing.lg,
+    paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.md,
     borderBottomWidth: 1,
     borderBottomColor: Colors.divider,
   },
   backBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: Colors.surfaceSecondary,
+    width: 44,
+    height: 44,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -507,10 +509,10 @@ const styles = StyleSheet.create({
     gap: Spacing.md,
   },
   reminderIconWrap: {
-    width: 44,
-    height: 44,
-    borderRadius: BorderRadius.md,
-    backgroundColor: Colors.primary + '12',
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: Colors.surfaceSecondary,
     justifyContent: 'center',
     alignItems: 'center',
   },
