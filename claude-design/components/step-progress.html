@@ -1,0 +1,60 @@
+<!-- @dsCard group="Components" -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Gutwell — Step Progress</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=EB+Garamond:wght@400;500;600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg:#000000; --surface:#0B0B0B; --border:#242424;
+    --text:#FFFFFF; --textSecondary:#A7A7A7;
+    --onbTrack:#0B2618; --onbFill:#52B788;
+    --sans:'Inter',-apple-system,system-ui,sans-serif; --serif:'EB Garamond',Georgia,serif;
+  }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { background:var(--bg); color:var(--text); font-family:var(--sans); padding:24px; -webkit-font-smoothing:antialiased; }
+  .pageTitle { font-family:var(--serif); font-weight:600; font-size:32px; margin-bottom:4px; }
+  .sub { color:var(--textSecondary); font-size:14px; margin-bottom:24px; }
+  h2 { font-size:12px; letter-spacing:1px; color:#777; margin:22px 0 10px; }
+  .barRow { display:flex; align-items:center; gap:14px; margin-bottom:8px; max-width:360px; }
+  .back {
+    width:44px; height:44px; flex:none; border-radius:999px; background:var(--surface);
+    border:1px solid var(--border); display:flex; align-items:center; justify-content:center;
+  }
+  .track { flex:1; height:4px; border-radius:999px; background:var(--onbTrack); overflow:hidden; }
+  .fill { height:100%; border-radius:999px; background:var(--onbFill); }
+</style>
+</head>
+<body>
+  <div class="pageTitle">Step Progress</div>
+  <div class="sub">Onboarding top bar · track #0B2618 · fill #52B788 · 4px</div>
+
+  <h2>Step 1 of 8 · with back button</h2>
+  <div class="barRow">
+    <div class="back">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+    </div>
+    <div class="track"><div class="fill" style="width:12%"></div></div>
+  </div>
+
+  <h2>Step 4 of 8</h2>
+  <div class="barRow">
+    <div class="back">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+    </div>
+    <div class="track"><div class="fill" style="width:50%"></div></div>
+  </div>
+
+  <h2>Step 8 of 8 · complete</h2>
+  <div class="barRow">
+    <div class="back">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+    </div>
+    <div class="track"><div class="fill" style="width:100%"></div></div>
+  </div>
+</body>
+</html>

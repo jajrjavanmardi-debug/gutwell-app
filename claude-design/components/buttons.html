@@ -1,0 +1,74 @@
+<!-- @dsCard group="Components" -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Gutwell — Buttons</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=EB+Garamond:wght@400;500;600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg:#000000; --surface:#0B0B0B; --surfaceSecondary:#111111; --border:#242424;
+    --text:#FFFFFF; --textSecondary:#A7A7A7; --textTertiary:#777777;
+    --primary:#1B4332; --primaryLight:#2D6A4F; --secondary:#52B788; --accent:#D4A373;
+    --sans:'Inter',-apple-system,system-ui,sans-serif; --serif:'EB Garamond',Georgia,serif;
+  }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { background:var(--bg); color:var(--text); font-family:var(--sans); padding:24px; -webkit-font-smoothing:antialiased; }
+  .pageTitle { font-family:var(--serif); font-weight:600; font-size:32px; margin-bottom:4px; }
+  .sub { color:var(--textSecondary); font-size:14px; margin-bottom:24px; }
+  h2 { font-size:13px; letter-spacing:1.2px; text-transform:uppercase; color:var(--textTertiary); margin:24px 0 14px; }
+  .stack { display:flex; flex-direction:column; gap:14px; max-width:340px; }
+  .row { display:flex; gap:12px; flex-wrap:wrap; align-items:center; }
+  .btn {
+    display:inline-flex; align-items:center; justify-content:center; gap:8px;
+    font-family:var(--sans); font-weight:600; font-size:16px; letter-spacing:0.3px;
+    padding:14px 24px; border-radius:999px; border:none; cursor:pointer; user-select:none;
+  }
+  .primary { background:var(--primary); color:#fff; box-shadow:0 2px 8px rgba(27,67,50,0.4); }
+  .secondary { background:var(--surfaceSecondary); color:var(--primaryLight); }
+  .outline { background:transparent; color:var(--primaryLight); border:1.5px solid var(--primary); }
+  .ghost { background:transparent; color:var(--primaryLight); }
+  .accent { background:var(--accent); color:#1a1208; }
+  .disabled { opacity:0.5; cursor:not-allowed; }
+  .full { width:100%; }
+  .lbl { font-size:11px; color:var(--textTertiary); margin-bottom:6px; }
+</style>
+</head>
+<body>
+  <div class="pageTitle">Buttons</div>
+  <div class="sub">Pill shape · Inter SemiBold · states for every variant</div>
+
+  <h2>Variants</h2>
+  <div class="row">
+    <button class="btn primary">Primary</button>
+    <button class="btn secondary">Secondary</button>
+    <button class="btn outline">Outline</button>
+    <button class="btn ghost">Ghost</button>
+    <button class="btn accent">Accent</button>
+  </div>
+
+  <h2>Disabled</h2>
+  <div class="row">
+    <button class="btn primary disabled">Primary</button>
+    <button class="btn outline disabled">Outline</button>
+    <button class="btn ghost disabled">Ghost</button>
+  </div>
+
+  <h2>With icon</h2>
+  <div class="row">
+    <button class="btn primary">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg>
+      Scan your meal
+    </button>
+  </div>
+
+  <h2>Full width (bottom CTA)</h2>
+  <div class="stack">
+    <button class="btn primary full">Continue</button>
+    <button class="btn primary full disabled">Continue</button>
+  </div>
+</body>
+</html>

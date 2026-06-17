@@ -1,0 +1,55 @@
+<!-- @dsCard group="Foundations" -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Gutwell — Spacing &amp; Radius</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=EB+Garamond:wght@400;500;600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg:#000000; --surface:#0B0B0B; --border:#242424;
+    --text:#FFFFFF; --textSecondary:#A7A7A7; --textTertiary:#777777;
+    --primary:#1B4332; --secondary:#52B788;
+    --sans:'Inter',-apple-system,system-ui,sans-serif; --serif:'EB Garamond',Georgia,serif;
+  }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { background:var(--bg); color:var(--text); font-family:var(--sans); padding:24px; -webkit-font-smoothing:antialiased; }
+  .pageTitle { font-family:var(--serif); font-weight:600; font-size:32px; margin-bottom:4px; }
+  .sub { color:var(--textSecondary); font-size:14px; margin-bottom:28px; }
+  h2 { font-size:13px; letter-spacing:1.2px; text-transform:uppercase; color:var(--textTertiary); margin:28px 0 16px; }
+  .spaceRow { display:flex; align-items:center; gap:16px; margin-bottom:14px; }
+  .spaceLabel { width:120px; font-size:13px; color:var(--textSecondary); }
+  .spaceLabel b { color:var(--text); font-family:'SFMono-Regular',ui-monospace,monospace; }
+  .bar { height:18px; background:var(--secondary); border-radius:4px; }
+  .radiusGrid { display:grid; grid-template-columns:repeat(auto-fill,minmax(120px,1fr)); gap:16px; }
+  .radiusCard { background:var(--surface); border:1px solid var(--border); padding:16px; border-radius:12px; text-align:center; }
+  .radiusBox { height:80px; background:var(--primary); border:2px solid var(--secondary); margin-bottom:12px; }
+  .radiusName { font-size:13px; font-weight:600; }
+  .radiusVal { font-size:12px; color:var(--textSecondary); font-family:'SFMono-Regular',ui-monospace,monospace; margin-top:2px; }
+</style>
+</head>
+<body>
+  <div class="pageTitle">Spacing &amp; Radius</div>
+  <div class="sub">4pt spacing base · border-radius scale</div>
+
+  <h2>Spacing</h2>
+  <div class="spaceRow"><div class="spaceLabel">xs · <b>4</b></div><div class="bar" style="width:4px"></div></div>
+  <div class="spaceRow"><div class="spaceLabel">sm · <b>8</b></div><div class="bar" style="width:8px"></div></div>
+  <div class="spaceRow"><div class="spaceLabel">md · <b>16</b></div><div class="bar" style="width:16px"></div></div>
+  <div class="spaceRow"><div class="spaceLabel">lg · <b>24</b></div><div class="bar" style="width:24px"></div></div>
+  <div class="spaceRow"><div class="spaceLabel">xl · <b>32</b></div><div class="bar" style="width:32px"></div></div>
+  <div class="spaceRow"><div class="spaceLabel">xxl · <b>48</b></div><div class="bar" style="width:48px"></div></div>
+
+  <h2>Border Radius</h2>
+  <div class="radiusGrid">
+    <div class="radiusCard"><div class="radiusBox" style="border-radius:8px"></div><div class="radiusName">sm</div><div class="radiusVal">8px</div></div>
+    <div class="radiusCard"><div class="radiusBox" style="border-radius:12px"></div><div class="radiusName">md</div><div class="radiusVal">12px</div></div>
+    <div class="radiusCard"><div class="radiusBox" style="border-radius:20px"></div><div class="radiusName">lg</div><div class="radiusVal">20px</div></div>
+    <div class="radiusCard"><div class="radiusBox" style="border-radius:24px"></div><div class="radiusName">xl</div><div class="radiusVal">24px</div></div>
+    <div class="radiusCard"><div class="radiusBox" style="border-radius:999px"></div><div class="radiusName">full</div><div class="radiusVal">999px</div></div>
+  </div>
+</body>
+</html>

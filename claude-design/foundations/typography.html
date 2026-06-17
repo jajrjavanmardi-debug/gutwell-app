@@ -1,0 +1,57 @@
+<!-- @dsCard group="Foundations" -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Gutwell — Typography</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=EB+Garamond:wght@400;500;600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg:#000000; --surface:#0B0B0B; --border:#242424;
+    --text:#FFFFFF; --textSecondary:#A7A7A7; --textTertiary:#777777;
+    --secondary:#52B788;
+    --sans:'Inter',-apple-system,system-ui,sans-serif; --serif:'EB Garamond',Georgia,serif;
+  }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { background:var(--bg); color:var(--text); font-family:var(--sans); padding:24px; -webkit-font-smoothing:antialiased; }
+  .pageTitle { font-family:var(--serif); font-weight:600; font-size:32px; margin-bottom:4px; }
+  .sub { color:var(--textSecondary); font-size:14px; margin-bottom:24px; }
+  .row { border-bottom:1px solid var(--border); padding:18px 0; }
+  .row:last-child { border-bottom:none; }
+  .tag { font-size:11px; letter-spacing:1px; text-transform:uppercase; color:var(--textTertiary); margin-bottom:8px; font-family:var(--sans); }
+  .tag b { color:var(--secondary); }
+  .h1 { font-family:var(--serif); font-weight:400; font-size:32px; line-height:40px; }
+  .h2 { font-family:var(--serif); font-weight:500; font-size:24px; line-height:32px; }
+  .h3 { font-family:var(--sans); font-weight:600; font-size:18px; line-height:24px; }
+  .body { font-family:var(--sans); font-weight:400; font-size:16px; line-height:24px; }
+  .bodySmall { font-family:var(--sans); font-weight:400; font-size:14px; line-height:20px; color:var(--textSecondary); }
+  .caption { font-family:var(--sans); font-weight:500; font-size:12px; line-height:16px; color:var(--textTertiary); }
+  .button { font-family:var(--sans); font-weight:700; font-size:14px; line-height:20px; letter-spacing:0.5px; text-transform:none; }
+  .families { display:flex; gap:14px; margin-bottom:24px; flex-wrap:wrap; }
+  .famCard { flex:1; min-width:150px; background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:16px; }
+  .famName { font-size:12px; color:var(--textTertiary); margin-bottom:6px; }
+  .famSerif { font-family:var(--serif); font-size:30px; font-weight:500; }
+  .famSans { font-family:var(--sans); font-size:30px; font-weight:600; }
+</style>
+</head>
+<body>
+  <div class="pageTitle">Typography</div>
+  <div class="sub">EB Garamond (display / headings) + Inter (UI / body)</div>
+
+  <div class="families">
+    <div class="famCard"><div class="famName">Display / Headings</div><div class="famSerif">EB Garamond</div><div class="bodySmall">Aa Bb Cc 0123</div></div>
+    <div class="famCard"><div class="famName">UI / Body</div><div class="famSans">Inter</div><div class="bodySmall">Aa Bb Cc 0123</div></div>
+  </div>
+
+  <div class="row"><div class="tag"><b>h1</b> · EB Garamond 32/40</div><div class="h1">Your gut, in balance</div></div>
+  <div class="row"><div class="tag"><b>h2</b> · EB Garamond 24/32</div><div class="h2">Today's Gut Score</div></div>
+  <div class="row"><div class="tag"><b>h3</b> · Inter SemiBold 18/24</div><div class="h3">Recently logged</div></div>
+  <div class="row"><div class="tag"><b>body</b> · Inter Regular 16/24</div><div class="body">Track meals, symptoms and mood to understand what your gut responds to over time.</div></div>
+  <div class="row"><div class="tag"><b>bodySmall</b> · Inter Regular 14/20</div><div class="bodySmall">Beginner questions, tips, and first wins for a healthier microbiome.</div></div>
+  <div class="row"><div class="tag"><b>caption</b> · Inter Medium 12/16</div><div class="caption">12.4k joined · 30d challenge</div></div>
+  <div class="row"><div class="tag"><b>button</b> · Inter Bold 14/20 · +0.5 tracking</div><div class="button">SCAN YOUR MEAL</div></div>
+</body>
+</html>

@@ -1,0 +1,80 @@
+<!-- @dsCard group="Foundations" -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Gutwell — Colors</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=EB+Garamond:wght@400;500;600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg:#000000; --surface:#0B0B0B; --surfaceSecondary:#111111; --border:#242424;
+    --text:#FFFFFF; --textSecondary:#A7A7A7; --textTertiary:#777777;
+    --primary:#1B4332; --primaryLight:#2D6A4F; --primaryDark:#0B2618;
+    --secondary:#52B788; --secondaryLight:#74C69D; --accent:#D4A373; --accentLight:#E6C9A8;
+    --ringTrack:#1A1A1A; --ringFill:#52B788; --segmentActive:#1B4332;
+    --error:#C1444B; --info:#5B9BD5;
+    --sans:'Inter',-apple-system,system-ui,sans-serif; --serif:'EB Garamond',Georgia,serif;
+  }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { background:var(--bg); color:var(--text); font-family:var(--sans); padding:24px; -webkit-font-smoothing:antialiased; }
+  h1 { font-family:var(--serif); font-weight:600; font-size:32px; line-height:40px; margin-bottom:4px; }
+  .sub { color:var(--textSecondary); font-size:14px; margin-bottom:28px; }
+  h2 { font-family:var(--sans); font-weight:600; font-size:13px; letter-spacing:1.2px; text-transform:uppercase; color:var(--textTertiary); margin:28px 0 14px; }
+  .grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:14px; }
+  .swatch { border:1px solid var(--border); border-radius:12px; overflow:hidden; background:var(--surface); }
+  .chip { height:88px; }
+  .meta { padding:10px 12px; }
+  .name { font-size:13px; font-weight:600; }
+  .hex { font-size:12px; color:var(--textSecondary); font-family:'SFMono-Regular',ui-monospace,monospace; margin-top:2px; }
+  .ring { display:inline-block; width:14px; height:14px; border-radius:50%; vertical-align:middle; margin-right:6px; }
+</style>
+</head>
+<body>
+  <h1>Color Palette</h1>
+  <div class="sub">Gutwell dark-green theme — source of truth: <code>constants/theme.ts</code></div>
+
+  <h2>Brand</h2>
+  <div class="grid">
+    <div class="swatch"><div class="chip" style="background:#1B4332"></div><div class="meta"><div class="name">primary</div><div class="hex">#1B4332</div></div></div>
+    <div class="swatch"><div class="chip" style="background:#2D6A4F"></div><div class="meta"><div class="name">primaryLight</div><div class="hex">#2D6A4F</div></div></div>
+    <div class="swatch"><div class="chip" style="background:#0B2618"></div><div class="meta"><div class="name">primaryDark</div><div class="hex">#0B2618</div></div></div>
+    <div class="swatch"><div class="chip" style="background:#52B788"></div><div class="meta"><div class="name">secondary</div><div class="hex">#52B788</div></div></div>
+    <div class="swatch"><div class="chip" style="background:#74C69D"></div><div class="meta"><div class="name">secondaryLight</div><div class="hex">#74C69D</div></div></div>
+    <div class="swatch"><div class="chip" style="background:#D4A373"></div><div class="meta"><div class="name">accent</div><div class="hex">#D4A373</div></div></div>
+    <div class="swatch"><div class="chip" style="background:#E6C9A8"></div><div class="meta"><div class="name">accentLight</div><div class="hex">#E6C9A8</div></div></div>
+  </div>
+
+  <h2>Backgrounds &amp; Surfaces</h2>
+  <div class="grid">
+    <div class="swatch"><div class="chip" style="background:#000000"></div><div class="meta"><div class="name">background</div><div class="hex">#000000</div></div></div>
+    <div class="swatch"><div class="chip" style="background:#0B0B0B"></div><div class="meta"><div class="name">surface</div><div class="hex">#0B0B0B</div></div></div>
+    <div class="swatch"><div class="chip" style="background:#111111"></div><div class="meta"><div class="name">surfaceSecondary</div><div class="hex">#111111</div></div></div>
+    <div class="swatch"><div class="chip" style="background:#242424"></div><div class="meta"><div class="name">border</div><div class="hex">#242424</div></div></div>
+  </div>
+
+  <h2>Text</h2>
+  <div class="grid">
+    <div class="swatch"><div class="chip" style="background:#FFFFFF"></div><div class="meta"><div class="name" style="color:#000;background:#fff;display:none"></div><div class="name">text</div><div class="hex">#FFFFFF</div></div></div>
+    <div class="swatch"><div class="chip" style="background:#A7A7A7"></div><div class="meta"><div class="name">textSecondary</div><div class="hex">#A7A7A7</div></div></div>
+    <div class="swatch"><div class="chip" style="background:#777777"></div><div class="meta"><div class="name">textTertiary</div><div class="hex">#777777</div></div></div>
+  </div>
+
+  <h2>Component Tokens</h2>
+  <div class="grid">
+    <div class="swatch"><div class="chip" style="background:#1A1A1A"></div><div class="meta"><div class="name">ringTrack</div><div class="hex">#1A1A1A</div></div></div>
+    <div class="swatch"><div class="chip" style="background:#52B788"></div><div class="meta"><div class="name">ringFill</div><div class="hex">#52B788</div></div></div>
+    <div class="swatch"><div class="chip" style="background:#1B4332"></div><div class="meta"><div class="name">segmentActive</div><div class="hex">#1B4332</div></div></div>
+  </div>
+
+  <h2>Functional</h2>
+  <div class="grid">
+    <div class="swatch"><div class="chip" style="background:#2D6A4F"></div><div class="meta"><div class="name">success</div><div class="hex">#2D6A4F</div></div></div>
+    <div class="swatch"><div class="chip" style="background:#D4A373"></div><div class="meta"><div class="name">warning</div><div class="hex">#D4A373</div></div></div>
+    <div class="swatch"><div class="chip" style="background:#C1444B"></div><div class="meta"><div class="name">error</div><div class="hex">#C1444B</div></div></div>
+    <div class="swatch"><div class="chip" style="background:#5B9BD5"></div><div class="meta"><div class="name">info</div><div class="hex">#5B9BD5</div></div></div>
+  </div>
+</body>
+</html>

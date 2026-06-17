@@ -1,0 +1,61 @@
+<!-- @dsCard group="Components" -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Gutwell — Day Selector</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=EB+Garamond:wght@400;500;600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg:#000000; --surfaceSecondary:#111111; --border:#242424;
+    --text:#FFFFFF; --textSecondary:#A7A7A7;
+    --secondary:#52B788;
+    --sans:'Inter',-apple-system,system-ui,sans-serif; --serif:'EB Garamond',Georgia,serif;
+  }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { background:var(--bg); color:var(--text); font-family:var(--sans); padding:24px; -webkit-font-smoothing:antialiased; }
+  .pageTitle { font-family:var(--serif); font-weight:600; font-size:32px; margin-bottom:4px; }
+  .sub { color:var(--textSecondary); font-size:14px; margin-bottom:24px; }
+  .row { display:flex; gap:8px; padding:8px 4px; }
+  .item { display:flex; flex-direction:column; align-items:center; gap:4px; min-width:42px; }
+  .weekday { font-family:var(--sans); font-weight:500; font-size:12px; color:var(--textSecondary); }
+  .circle {
+    width:38px; height:38px; border-radius:999px; display:flex; align-items:center; justify-content:center;
+    background:var(--surfaceSecondary);
+  }
+  .circle.sel { background:var(--secondary); }
+  .num { font-family:var(--sans); font-weight:600; font-size:16px; color:var(--text); }
+  .dot { width:4px; height:4px; border-radius:999px; background:transparent; }
+  .dot.today { background:var(--secondary); }
+  .dimmed { opacity:0.35; }
+</style>
+</head>
+<body>
+  <div class="pageTitle">Day Selector</div>
+  <div class="sub">7-day window ending today · selected day = #52B788 circle · today marked by dot</div>
+
+  <div class="row">
+    <div class="item"><div class="weekday">S</div><div class="circle"><span class="num">11</span></div><div class="dot"></div></div>
+    <div class="item"><div class="weekday">M</div><div class="circle"><span class="num">12</span></div><div class="dot"></div></div>
+    <div class="item"><div class="weekday">T</div><div class="circle"><span class="num">13</span></div><div class="dot"></div></div>
+    <div class="item"><div class="weekday">W</div><div class="circle"><span class="num">14</span></div><div class="dot"></div></div>
+    <div class="item"><div class="weekday">T</div><div class="circle"><span class="num">15</span></div><div class="dot"></div></div>
+    <div class="item"><div class="weekday">F</div><div class="circle sel"><span class="num">16</span></div><div class="dot"></div></div>
+    <div class="item"><div class="weekday">S</div><div class="circle"><span class="num">17</span></div><div class="dot today"></div></div>
+  </div>
+
+  <div class="sub" style="margin-top:28px">With a future day dimmed (disabled)</div>
+  <div class="row">
+    <div class="item"><div class="weekday">T</div><div class="circle"><span class="num">13</span></div><div class="dot"></div></div>
+    <div class="item"><div class="weekday">W</div><div class="circle"><span class="num">14</span></div><div class="dot"></div></div>
+    <div class="item"><div class="weekday">T</div><div class="circle"><span class="num">15</span></div><div class="dot"></div></div>
+    <div class="item"><div class="weekday">F</div><div class="circle sel"><span class="num">16</span></div><div class="dot"></div></div>
+    <div class="item"><div class="weekday">S</div><div class="circle"><span class="num">17</span></div><div class="dot today"></div></div>
+    <div class="item"><div class="weekday dimmed">S</div><div class="circle dimmed"><span class="num">18</span></div><div class="dot"></div></div>
+    <div class="item"><div class="weekday dimmed">M</div><div class="circle dimmed"><span class="num">19</span></div><div class="dot"></div></div>
+  </div>
+</body>
+</html>

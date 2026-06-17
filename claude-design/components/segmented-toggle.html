@@ -1,0 +1,61 @@
+<!-- @dsCard group="Components" -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Gutwell — Segmented Toggle</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=EB+Garamond:wght@400;500;600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg:#000000; --border:#242424;
+    --text:#FFFFFF; --textSecondary:#A7A7A7; --textTertiary:#777777;
+    --segmentTrack:#111111; --segmentActive:#1B4332;
+    --sans:'Inter',-apple-system,system-ui,sans-serif; --serif:'EB Garamond',Georgia,serif;
+  }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { background:var(--bg); color:var(--text); font-family:var(--sans); padding:24px; -webkit-font-smoothing:antialiased; }
+  .pageTitle { font-family:var(--serif); font-weight:600; font-size:32px; margin-bottom:4px; }
+  .sub { color:var(--textSecondary); font-size:14px; margin-bottom:24px; }
+  h2 { font-size:13px; letter-spacing:1.2px; text-transform:uppercase; color:#777; margin:24px 0 12px; }
+  .track {
+    display:flex; background:var(--segmentTrack); border-radius:999px; padding:4px; gap:0;
+    max-width:340px; margin-bottom:12px;
+  }
+  .segment {
+    flex:1; text-align:center; padding:8px 0; border-radius:999px;
+    font-family:var(--sans); font-weight:600; font-size:14px; letter-spacing:0.3px;
+    color:var(--textSecondary); cursor:pointer; user-select:none;
+  }
+  .segment.active { background:var(--segmentActive); color:var(--text); }
+</style>
+</head>
+<body>
+  <div class="pageTitle">Segmented Toggle</div>
+  <div class="sub">Track #111111 · active pill #1B4332 · full pill radius</div>
+
+  <h2>Time range</h2>
+  <div class="track">
+    <div class="segment active">90D</div>
+    <div class="segment">6M</div>
+    <div class="segment">1Y</div>
+    <div class="segment">ALL</div>
+  </div>
+
+  <h2>Active on a middle segment</h2>
+  <div class="track">
+    <div class="segment">90D</div>
+    <div class="segment active">6M</div>
+    <div class="segment">1Y</div>
+    <div class="segment">ALL</div>
+  </div>
+
+  <h2>Two-up</h2>
+  <div class="track" style="max-width:240px">
+    <div class="segment active">Meals</div>
+    <div class="segment">Symptoms</div>
+  </div>
+</body>
+</html>
