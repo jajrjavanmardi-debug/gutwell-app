@@ -1,0 +1,76 @@
+<!-- @dsCard group="Components" -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Gutwell — Progress Ring</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=EB+Garamond:wght@400;500;600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg:#000000; --surface:#0B0B0B; --border:#242424;
+    --text:#FFFFFF; --textSecondary:#A7A7A7; --textTertiary:#777777;
+    --ringTrack:#1A1A1A; --ringFill:#52B788; --secondary:#52B788;
+    --sans:'Inter',-apple-system,system-ui,sans-serif; --serif:'EB Garamond',Georgia,serif;
+  }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { background:var(--bg); color:var(--text); font-family:var(--sans); padding:24px; -webkit-font-smoothing:antialiased; }
+  .pageTitle { font-family:var(--serif); font-weight:600; font-size:32px; margin-bottom:4px; }
+  .sub { color:var(--textSecondary); font-size:14px; margin-bottom:28px; }
+  .ringWrap { position:relative; width:220px; height:220px; margin:0 auto 8px; }
+  .ringWrap svg { transform:rotate(-90deg); }
+  .center { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; }
+  .score { font-family:var(--serif); font-weight:600; font-size:64px; line-height:1; }
+  .scoreCaption { font-family:var(--sans); font-weight:500; font-size:14px; color:var(--textSecondary); margin-top:6px; letter-spacing:0.5px; }
+  .smallRow { display:flex; gap:28px; justify-content:center; margin-top:24px; }
+  .smallWrap { text-align:center; }
+  .smallWrap svg { transform:rotate(-90deg); }
+  .smallCap { font-size:12px; color:var(--textTertiary); margin-top:6px; }
+  .smallCenter { position:relative; width:90px; height:90px; display:inline-block; }
+  .smallCenter .v { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-family:var(--serif); font-weight:600; font-size:22px; }
+</style>
+</head>
+<body>
+  <div class="pageTitle">Gut Score Ring</div>
+  <div class="sub">SVG ring · track #1A1A1A · fill #52B788 · starts at 12 o'clock, rounded cap</div>
+
+  <div class="ringWrap">
+    <svg width="220" height="220" viewBox="0 0 220 220">
+      <circle cx="110" cy="110" r="101" stroke="var(--ringTrack)" stroke-width="18" fill="none"/>
+      <circle cx="110" cy="110" r="101" stroke="var(--ringFill)" stroke-width="18" fill="none"
+              stroke-linecap="round" stroke-dasharray="634.6" stroke-dashoffset="146.96"/>
+    </svg>
+    <div class="center">
+      <div class="score">78</div>
+      <div class="scoreCaption">Gut Score</div>
+    </div>
+  </div>
+
+  <div class="smallRow">
+    <div class="smallWrap">
+      <div class="smallCenter">
+        <svg width="90" height="90" viewBox="0 0 90 90">
+          <circle cx="45" cy="45" r="40" stroke="var(--ringTrack)" stroke-width="8" fill="none"/>
+          <circle cx="45" cy="45" r="40" stroke="var(--ringFill)" stroke-width="8" fill="none"
+                  stroke-linecap="round" stroke-dasharray="251.3" stroke-dashoffset="62.8"/>
+        </svg>
+        <div class="v">75%</div>
+      </div>
+      <div class="smallCap">Fiber goal</div>
+    </div>
+    <div class="smallWrap">
+      <div class="smallCenter">
+        <svg width="90" height="90" viewBox="0 0 90 90">
+          <circle cx="45" cy="45" r="40" stroke="var(--ringTrack)" stroke-width="8" fill="none"/>
+          <circle cx="45" cy="45" r="40" stroke="var(--ringFill)" stroke-width="8" fill="none"
+                  stroke-linecap="round" stroke-dasharray="251.3" stroke-dashoffset="100.5"/>
+        </svg>
+        <div class="v">60%</div>
+      </div>
+      <div class="smallCap">Hydration</div>
+    </div>
+  </div>
+</body>
+</html>

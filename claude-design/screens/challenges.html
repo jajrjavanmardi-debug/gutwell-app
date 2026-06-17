@@ -1,0 +1,106 @@
+<!-- @dsCard group="Screens" -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Gutwell — Challenges</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=EB+Garamond:wght@400;500;600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg:#000000; --surface:#0B0B0B; --surfaceSecondary:#111111; --border:#242424;
+    --text:#FFFFFF; --textSecondary:#A7A7A7; --textTertiary:#777777;
+    --primary:#1B4332; --secondary:#52B788; --secondaryLight:#74C69D; --accent:#D4A373;
+    --sans:'Inter',-apple-system,system-ui,sans-serif; --serif:'EB Garamond',Georgia,serif;
+  }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { background:#000; font-family:var(--sans); -webkit-font-smoothing:antialiased; padding:20px; display:flex; justify-content:center; }
+  .phone {
+    width:390px; max-width:100%; min-height:760px; background:var(--bg); color:var(--text);
+    border-radius:36px; border:1px solid var(--border); overflow:hidden; position:relative;
+    background:linear-gradient(180deg,#0a1812 0%,#000 26%);
+  }
+  .inner { padding:24px 18px 40px; }
+
+  .topbar { display:flex; align-items:center; justify-content:space-between; margin-bottom:8px; }
+  .h1 { font-family:var(--serif); font-weight:600; font-size:34px; }
+  .bell { width:44px; height:44px; border-radius:999px; background:var(--surface); border:1px solid var(--border); display:flex; align-items:center; justify-content:center; }
+
+  .h2 { font-family:var(--serif); font-weight:600; font-size:24px; margin:14px 0 16px; }
+
+  .card { display:flex; align-items:flex-start; gap:14px; background:var(--surface); border:1px solid var(--border); border-radius:20px; padding:16px; margin-bottom:12px; }
+  .iconBadge { width:52px; height:52px; flex:none; border-radius:999px; display:flex; align-items:center; justify-content:center; }
+  .cardBody { flex:1; min-width:0; }
+  .cardTitle { font-family:var(--sans); font-weight:700; font-size:16px; }
+  .meta { font-size:12px; color:var(--secondaryLight); font-weight:500; margin:3px 0 6px; }
+  .cardDesc { font-size:13px; color:var(--textSecondary); line-height:1.4; }
+  .joinBtn {
+    flex:none; align-self:center; display:inline-flex; align-items:center; gap:5px;
+    background:transparent; border:1.5px solid var(--primary); color:var(--secondaryLight);
+    border-radius:999px; padding:8px 14px; font-family:var(--sans); font-weight:700; font-size:13px;
+  }
+  .joinBtn.joined { background:var(--primary); border-color:var(--primary); color:#fff; }
+</style>
+</head>
+<body>
+  <div class="phone">
+    <div class="inner">
+      <div class="topbar">
+        <div class="h1">Challenges</div>
+        <div class="bell"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg></div>
+      </div>
+      <div class="h2">Discover</div>
+
+      <div class="card">
+        <div class="iconBadge" style="background:rgba(82,183,136,0.14)">
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#52B788" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10Z"/><path d="M2 21c0-3 1.85-5.36 5.08-6"/></svg>
+        </div>
+        <div class="cardBody">
+          <div class="cardTitle">30 Plants a Week</div>
+          <div class="meta">12.4k joined · 30d</div>
+          <div class="cardDesc">Eat 30 different plant foods this week to boost microbiome diversity.</div>
+        </div>
+        <button class="joinBtn">+ Join</button>
+      </div>
+
+      <div class="card">
+        <div class="iconBadge" style="background:rgba(116,198,157,0.14)">
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#74C69D" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"/></svg>
+        </div>
+        <div class="cardBody">
+          <div class="cardTitle">Hydration Streak</div>
+          <div class="meta">8.1k joined · 14d</div>
+          <div class="cardDesc">Hit your water goal every day to keep digestion moving smoothly.</div>
+        </div>
+        <button class="joinBtn joined">Joined</button>
+      </div>
+
+      <div class="card">
+        <div class="iconBadge" style="background:rgba(212,163,115,0.14)">
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#D4A373" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 2v6h6"/><path d="M21 12A9 9 0 1 1 6 5.3L3 8"/></svg>
+        </div>
+        <div class="cardBody">
+          <div class="cardTitle">No Added Sugar</div>
+          <div class="meta">5.6k joined · 21d</div>
+          <div class="cardDesc">Cut added sugars for three weeks and notice how your gut feels.</div>
+        </div>
+        <button class="joinBtn">+ Join</button>
+      </div>
+
+      <div class="card">
+        <div class="iconBadge" style="background:rgba(82,183,136,0.14)">
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#52B788" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 7h-9M14 17H5M17 17a3 3 0 1 0 0 0M7 7a3 3 0 1 0 0 0"/></svg>
+        </div>
+        <div class="cardBody">
+          <div class="cardTitle">Fermented Fridays</div>
+          <div class="meta">3.2k joined · 7d</div>
+          <div class="cardDesc">Add one fermented food each Friday — kimchi, kefir, kombucha or more.</div>
+        </div>
+        <button class="joinBtn">+ Join</button>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

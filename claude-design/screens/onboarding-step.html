@@ -1,0 +1,92 @@
+<!-- @dsCard group="Screens" -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Gutwell — Onboarding Step</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=EB+Garamond:wght@400;500;600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg:#000000; --surface:#0B0B0B; --border:#242424;
+    --text:#FFFFFF; --textSecondary:#A7A7A7;
+    --primary:#1B4332; --secondary:#52B788;
+    --optionBg:#143728; --optionBorder:#52B788;
+    --onbTrack:#0B2618; --onbFill:#52B788;
+    --sans:'Inter',-apple-system,system-ui,sans-serif; --serif:'EB Garamond',Georgia,serif;
+  }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { background:#000; font-family:var(--sans); -webkit-font-smoothing:antialiased; padding:20px; display:flex; justify-content:center; }
+  .phone {
+    width:390px; max-width:100%; min-height:760px; background:var(--bg); color:var(--text);
+    border-radius:36px; border:1px solid var(--border); overflow:hidden; position:relative;
+    background:linear-gradient(180deg,#0a1812 0%,#000 28%);
+    display:flex; flex-direction:column;
+  }
+  .inner { padding:24px 20px; flex:1; }
+
+  .topRow { display:flex; align-items:center; gap:14px; margin-bottom:36px; }
+  .back { width:44px; height:44px; flex:none; border-radius:999px; background:var(--surface); border:1px solid var(--border); display:flex; align-items:center; justify-content:center; }
+  .track { flex:1; height:4px; border-radius:999px; background:var(--onbTrack); overflow:hidden; }
+  .fill { height:100%; border-radius:999px; background:var(--onbFill); width:38%; }
+
+  .headline { font-family:var(--serif); font-weight:600; font-size:34px; line-height:1.1; margin-bottom:10px; }
+  .lead { font-family:var(--sans); font-size:16px; color:var(--textSecondary); line-height:1.5; margin-bottom:36px; }
+
+  .options { display:flex; flex-direction:column; gap:12px; }
+  .opt { display:flex; align-items:center; gap:16px; border-radius:20px; padding:16px; }
+  .opt.unsel { background:var(--surface); border:1px solid var(--border); }
+  .opt.sel { background:var(--optionBg); border:2px solid var(--optionBorder); padding:15px; }
+  .optIcon { width:42px; height:42px; border-radius:999px; display:flex; align-items:center; justify-content:center; background:rgba(82,183,136,0.12); }
+  .opt.unsel .optIcon { background:#111; }
+  .optLabel { font-family:var(--sans); font-weight:600; font-size:16px; flex:1; }
+  .optSub { font-size:13px; color:var(--textSecondary); margin-top:2px; }
+  .ind { width:24px; height:24px; border-radius:999px; border:2px solid var(--border); display:flex; align-items:center; justify-content:center; }
+  .ind.selB { border-color:var(--secondary); }
+  .dot { width:12px; height:12px; border-radius:999px; background:var(--secondary); }
+
+  .footer { padding:18px 20px 28px; }
+  .cta { width:100%; background:var(--primary); color:#fff; border:none; border-radius:999px; padding:18px; font-family:var(--sans); font-weight:700; font-size:16px; letter-spacing:0.3px; box-shadow:0 4px 14px rgba(27,67,50,0.5); }
+</style>
+</head>
+<body>
+  <div class="phone">
+    <div class="inner">
+      <div class="topRow">
+        <div class="back"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg></div>
+        <div class="track"><div class="fill"></div></div>
+      </div>
+
+      <div class="headline">How often do<br/>you feel bloated?</div>
+      <div class="lead">This helps us tailor your gut-health plan to your symptoms.</div>
+
+      <div class="options">
+        <div class="opt sel">
+          <div class="optIcon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#52B788" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></div>
+          <div><div class="optLabel">Most days</div><div class="optSub">After most meals</div></div>
+          <div style="flex:1"></div>
+          <div class="ind selB"><div class="dot"></div></div>
+        </div>
+        <div class="opt unsel">
+          <div class="optIcon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#A7A7A7" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h18M12 3v18"/></svg></div>
+          <div><div class="optLabel">A few times a week</div><div class="optSub">Now and then</div></div>
+          <div style="flex:1"></div>
+          <div class="ind"></div>
+        </div>
+        <div class="opt unsel">
+          <div class="optIcon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#A7A7A7" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 13l4 4L19 7"/></svg></div>
+          <div><div class="optLabel">Rarely</div><div class="optSub">Almost never</div></div>
+          <div style="flex:1"></div>
+          <div class="ind"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="footer">
+      <button class="cta">Continue</button>
+    </div>
+  </div>
+</body>
+</html>
