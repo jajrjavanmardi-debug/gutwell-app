@@ -64,9 +64,9 @@ const styles = StyleSheet.create({
     gap: Spacing.md,
   },
   containerUnselected: {
-    backgroundColor: Colors.surface,
+    backgroundColor: 'rgba(255,255,255,0.06)',
     borderWidth: 1,
-    borderColor: Colors.border,
+    borderColor: 'rgba(255,255,255,0.12)',
   },
   containerSelected: {
     backgroundColor: Colors.onboardingOptionBg,
@@ -81,7 +81,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   badgeUnselected: {
-    backgroundColor: Colors.surfaceSecondary,
+    backgroundColor: 'rgba(255,255,255,0.1)',
   },
   badgeSelected: {
     backgroundColor: Colors.primary,
@@ -109,7 +109,7 @@ const styles = StyleSheet.create({
     borderWidth: 2,
   },
   indicatorUnselected: {
-    borderColor: Colors.border,
+    borderColor: 'rgba(255,255,255,0.3)',
     backgroundColor: 'transparent',
   },
   indicatorSelected: {

@@ -72,9 +72,9 @@ const styles = StyleSheet.create({
     gap: Spacing.md,
   },
   containerUnselected: {
-    backgroundColor: Colors.surface,
+    backgroundColor: 'rgba(255,255,255,0.06)',
     borderWidth: 1,
-    borderColor: Colors.border,
+    borderColor: 'rgba(255,255,255,0.12)',
   },
   containerSelected: {
     backgroundColor: Colors.onboardingOptionBg,
@@ -113,7 +113,7 @@ const styles = StyleSheet.create({
     borderRadius: 6,
   },
   indicatorUnselected: {
-    borderColor: Colors.border,
+    borderColor: 'rgba(255,255,255,0.3)',
     backgroundColor: 'transparent',
   },
   indicatorSelected: {

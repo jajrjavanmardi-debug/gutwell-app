@@ -181,14 +181,14 @@ const styles = StyleSheet.create({
   tick: {
     width: 2,
     borderRadius: 1,
-    backgroundColor: Colors.border,
+    backgroundColor: 'rgba(255,255,255,0.25)',
   },
   tickMinor: {
     height: 24,
   },
   tickMajor: {
     height: 44,
-    backgroundColor: Colors.textTertiary,
+    backgroundColor: 'rgba(255,255,255,0.55)',
   },
   centerIndicator: {
     position: 'absolute',

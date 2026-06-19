@@ -461,7 +461,7 @@ export default function SettingsScreen() {
         showsVerticalScrollIndicator={false}
       >
         {/* PREFERENCES */}
-        <SectionHeader title="PREFERENCES" />
+        <SectionHeader title="Preferences" />
         <View style={styles.card}>
           <SettingsRow
             icon="leaf-outline"
@@ -473,7 +473,7 @@ export default function SettingsScreen() {
         </View>
 
         {/* NOTIFICATIONS */}
-        <SectionHeader title="NOTIFICATIONS" />
+        <SectionHeader title="Notifications" />
         <View style={styles.card}>
           <SettingsRow
             icon="alarm-outline"
@@ -520,7 +520,7 @@ export default function SettingsScreen() {
         </View>
 
         {/* DATA */}
-        <SectionHeader title="DATA" />
+        <SectionHeader title="Data" />
         <View style={styles.card}>
           {pendingSyncCount > 0 && (
             <>
@@ -552,7 +552,7 @@ export default function SettingsScreen() {
         </View>
 
         {/* ACCOUNT */}
-        <SectionHeader title="ACCOUNT" />
+        <SectionHeader title="Account" />
         <View style={styles.card}>
           <SettingsRow
             icon="lock-closed-outline"
@@ -564,7 +564,7 @@ export default function SettingsScreen() {
         </View>
 
         {/* ABOUT */}
-        <SectionHeader title="ABOUT" />
+        <SectionHeader title="About" />
         <View style={styles.card}>
           <SettingsRow
             icon="information-circle-outline"

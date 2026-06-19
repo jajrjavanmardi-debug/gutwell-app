@@ -138,6 +138,9 @@ export default function TabLayout() {
             borderTopWidth: 1,
             paddingTop: 8,
             paddingBottom: Platform.OS === 'ios' ? 0 : 8,
+            // Cluster the 4 tabs to the left, leaving room for the "+" FAB on the right (Cal AI layout).
+            paddingRight: 72,
+            paddingLeft: 4,
             height: Platform.OS === 'ios' ? 90 : 66,
             ...Shadows.sm,
           },
@@ -196,7 +199,7 @@ export default function TabLayout() {
         <Tabs.Screen name="food" options={{ href: null }} />
       </Tabs>
 
-      {/* Center floating "+" FAB (toggles to X while the menu is open). */}
+      {/* Right-anchored floating "+" FAB (Cal AI layout; toggles to X while the menu is open). */}
       <TouchableOpacity
         style={styles.fab}
         activeOpacity={0.85}
@@ -235,16 +238,14 @@ const styles = StyleSheet.create({
   },
   fab: {
     position: 'absolute',
-    alignSelf: 'center',
-    bottom: Platform.OS === 'ios' ? 34 : 22,
-    width: 58,
-    height: 58,
-    borderRadius: 29,
+    right: 16,
+    bottom: Platform.OS === 'ios' ? 30 : 14,
+    width: 54,
+    height: 54,
+    borderRadius: 27,
     backgroundColor: Colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 3,
-    borderColor: Colors.background,
     ...Shadows.md,
   },
 });

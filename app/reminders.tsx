@@ -11,11 +11,9 @@ import { Card } from '../components/ui/Card';
 import { Toast } from '../components/ui/Toast';
 import {
   scheduleDailyCheckInReminder,
-  cancelDailyCheckInReminder,
   requestPermissions,
   getPermissionStatus,
   isInQuietHours,
-  requestNotificationPermissions,
   syncReminders,
 } from '../lib/notifications';
 import { EmptyState } from '../components/ui/EmptyState';
