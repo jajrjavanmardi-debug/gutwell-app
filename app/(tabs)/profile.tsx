@@ -561,13 +561,12 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
 
-  // ── Section title
+  // ── Section title (Cal AI: Title Case, muted grey, no uppercase)
   sectionTitle: {
     fontFamily: FontFamily.sansSemiBold,
     fontSize: FontSize.md,
     color: Colors.textSecondary,
-    textTransform: 'uppercase',
-    letterSpacing: 0.8,
+    letterSpacing: 0.2,
     marginBottom: Spacing.sm,
     marginTop: Spacing.lg,
     paddingLeft: Spacing.xs,

@@ -151,6 +151,12 @@ const copy = {
     loginRequired: 'Please sign in to log meals.',
     pendingScore: 'Pending',
     photoMealDefault: 'Photo meal',
+    insightsHeading: 'Gut insights',
+    addMore: 'Add more',
+    fixResults: 'Fix Results',
+    done: 'Done',
+    chipGutImpact: 'Gut impact',
+    chipMealType: 'Meal',
     expoGoTextOnlyHint:
       'Expo Go (development): hold-to-talk voice is off. Describe your meal and how you feel below — analysis, Nürtingen-style prompts, and the 4-step flow still work.',
   },
@@ -241,6 +247,12 @@ const copy = {
     loginRequired: 'Bitte melde dich an, um Mahlzeiten zu speichern.',
     pendingScore: 'Ausstehend',
     photoMealDefault: 'Mahlzeit (Foto)',
+    insightsHeading: 'Darm-Hinweise',
+    addMore: 'Mehr hinzufügen',
+    fixResults: 'Korrigieren',
+    done: 'Fertig',
+    chipGutImpact: 'Darm-Wirkung',
+    chipMealType: 'Mahlzeit',
     expoGoTextOnlyHint:
       'Expo Go (Entwicklung): Halten-zum-Sprechen ist aus. Beschreib Mahlzeit und Befinden im Textfeld — Analyse, Nürtingen-Hinweise und der 4-Schritte-Ablauf bleiben aktiv.',
   },
@@ -1543,6 +1555,46 @@ export default function PhotoAnalysisScreen() {
                         <Text style={styles.scoreBadgeValue}>{mealImpactScore}</Text>
                       </View>
                     ) : null}
+
+                    {/* Cal AI info-chips row — adapted to gut-impact (NO numeric food score). */}
+                    <View style={[styles.chipsRow, isRtlLanguage && styles.rtlRow]}>
+                      <View style={styles.infoChip}>
+                        <Ionicons
+                          name={hasPainSymptom ? 'alert-circle' : 'leaf'}
+                          size={14}
+                          color={hasPainSymptom ? '#F59E0B' : Colors.secondary}
+                        />
+                        <Text style={styles.infoChipLabel}>{t.chipGutImpact}</Text>
+                        <Text style={styles.infoChipValue}>
+                          {hasPainSymptom ? t.instantReliefTitle : t.resultTitle}
+                        </Text>
+                      </View>
+                      <View style={styles.infoChip}>
+                        <Ionicons name="restaurant" size={14} color={Colors.secondaryLight} />
+                        <Text style={styles.infoChipLabel}>{t.chipMealType}</Text>
+                        <Text style={styles.infoChipValue} numberOfLines={1}>
+                          {extractMealName(analysis)}
+                        </Text>
+                      </View>
+                    </View>
+
+                    {/* Cal AI "Ingredients … + Add more" header — here: gut insights + add detail. */}
+                    <View style={[styles.insightsHeaderRow, isRtlLanguage && styles.rtlRow]}>
+                      <Text style={[styles.insightsHeading, isRtlLanguage && styles.rtlText]}>
+                        {t.insightsHeading}
+                      </Text>
+                      <Pressable
+                        onPress={() => setAccuracyAnswer('no')}
+                        hitSlop={8}
+                        accessibilityRole="button"
+                        accessibilityLabel={t.addMore}
+                        style={({ pressed }) => [styles.addMoreLink, pressed && styles.pressed]}
+                      >
+                        <Ionicons name="add" size={16} color={Colors.secondary} />
+                        <Text style={styles.addMoreLinkText}>{t.addMore}</Text>
+                      </Pressable>
+                    </View>
+
                     <Text style={[styles.resultText, isRtlLanguage && styles.rtlText]}>{sanitizeAnalysisForDisplay(analysis)}</Text>
                     {hasPainSymptom ? (
                       <View style={styles.instantReliefCard}>
@@ -1613,38 +1665,39 @@ export default function PhotoAnalysisScreen() {
                   </View>
 
                   <View style={styles.accuracySectionCard}>
-                    <Text style={[styles.wizardStep4Hint, isRtlLanguage && styles.rtlText]}>{t.wizardStep4Hint}</Text>
                     <Text style={[styles.accuracyQuestion, isRtlLanguage && styles.rtlText]}>{t.isThisAccurate}</Text>
-                    <View style={[styles.accuracyRow, isRtlLanguage && styles.rtlRow]}>
+
+                    {/* Cal AI bottom actions: Fix Results (outline) + Done (filled). */}
+                    <View style={[styles.fixResultsRow, isRtlLanguage && styles.rtlRow]}>
                       <Pressable
-                        onPress={() => setAccuracyAnswer('yes')}
+                        onPress={() => setAccuracyAnswer((prev) => (prev === 'no' ? null : 'no'))}
+                        accessibilityRole="button"
+                        accessibilityLabel={t.fixResults}
                         style={({ pressed }) => [
-                          styles.accuracyChip,
-                          accuracyAnswer === 'yes' && styles.accuracyChipSelectedYes,
+                          styles.fixResultsButton,
+                          accuracyAnswer === 'no' && styles.fixResultsButtonActive,
                           pressed && styles.pressed,
                         ]}
                       >
-                        <Text style={[
-                          styles.accuracyChipText,
-                          accuracyAnswer === 'yes' && styles.accuracyChipTextSelected,
-                        ]}>
-                          {t.yes}
-                        </Text>
+                        <Ionicons name="create-outline" size={18} color="#FFFFFF" />
+                        <Text style={styles.fixResultsButtonText}>{t.fixResults}</Text>
                       </Pressable>
                       <Pressable
-                        onPress={() => setAccuracyAnswer('no')}
+                        onPress={() => setAccuracyAnswer('yes')}
+                        accessibilityRole="button"
+                        accessibilityLabel={t.done}
                         style={({ pressed }) => [
-                          styles.accuracyChip,
-                          accuracyAnswer === 'no' && styles.accuracyChipSelectedNo,
+                          styles.doneButton,
+                          accuracyAnswer === 'yes' && styles.doneButtonActive,
                           pressed && styles.pressed,
                         ]}
                       >
-                        <Text style={[
-                          styles.accuracyChipText,
-                          accuracyAnswer === 'no' && styles.accuracyChipTextSelectedNo,
-                        ]}>
-                          {t.no}
-                        </Text>
+                        <Ionicons
+                          name={accuracyAnswer === 'yes' ? 'checkmark-circle' : 'checkmark'}
+                          size={18}
+                          color="#000000"
+                        />
+                        <Text style={styles.doneButtonText}>{t.done}</Text>
                       </Pressable>
                     </View>
 
@@ -2497,6 +2550,104 @@ const styles = StyleSheet.create({
     marginTop: Spacing.md,
     padding: Spacing.md,
   },
+  chipsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Spacing.sm,
+    marginTop: Spacing.sm,
+    marginBottom: Spacing.md,
+  },
+  infoChip: {
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    borderColor: 'rgba(255,255,255,0.12)',
+    borderRadius: BorderRadius.full,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: Spacing.xs,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+  },
+  infoChipLabel: {
+    color: '#9A9A9A',
+    fontFamily: FontFamily.sansMedium,
+    fontSize: FontSize.xs,
+  },
+  infoChipValue: {
+    color: '#FFFFFF',
+    flexShrink: 1,
+    fontFamily: FontFamily.sansSemiBold,
+    fontSize: FontSize.xs,
+    maxWidth: 140,
+  },
+  insightsHeaderRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: Spacing.sm,
+  },
+  insightsHeading: {
+    color: '#FFFFFF',
+    fontFamily: FontFamily.sansBold,
+    fontSize: FontSize.md,
+  },
+  addMoreLink: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 2,
+  },
+  addMoreLinkText: {
+    color: Colors.secondary,
+    fontFamily: FontFamily.sansSemiBold,
+    fontSize: FontSize.sm,
+  },
+  fixResultsRow: {
+    flexDirection: 'row',
+    gap: Spacing.sm,
+    marginTop: Spacing.xs,
+  },
+  fixResultsButton: {
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    borderColor: 'rgba(255,255,255,0.22)',
+    borderRadius: BorderRadius.full,
+    borderWidth: 1,
+    flex: 1,
+    flexDirection: 'row',
+    gap: Spacing.sm,
+    justifyContent: 'center',
+    minHeight: 50,
+    paddingHorizontal: Spacing.md,
+  },
+  fixResultsButtonActive: {
+    borderColor: '#F87171',
+    backgroundColor: 'rgba(248,113,113,0.12)',
+  },
+  fixResultsButtonText: {
+    color: '#FFFFFF',
+    fontFamily: FontFamily.sansBold,
+    fontSize: FontSize.sm,
+  },
+  doneButton: {
+    alignItems: 'center',
+    backgroundColor: Colors.secondary,
+    borderRadius: BorderRadius.full,
+    flex: 1,
+    flexDirection: 'row',
+    gap: Spacing.sm,
+    justifyContent: 'center',
+    minHeight: 50,
+    paddingHorizontal: Spacing.md,
+    ...Shadows.sm,
+  },
+  doneButtonActive: {
+    backgroundColor: Colors.secondaryLight,
+  },
+  doneButtonText: {
+    color: '#000000',
+    fontFamily: FontFamily.sansBold,
+    fontSize: FontSize.sm,
+  },
   wizardThumbnail: {
     alignSelf: 'center',
     borderRadius: BorderRadius.lg,
@@ -2601,51 +2752,11 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-start',
     marginTop: Spacing.md,
   },
-  wizardStep4Hint: {
-    color: '#888888',
-    fontFamily: FontFamily.sansMedium,
-    fontSize: FontSize.xs,
-    marginBottom: Spacing.xs,
-    marginTop: Spacing.lg,
-  },
   accuracyQuestion: {
     color: '#FFFFFF',
     fontFamily: FontFamily.sansSemiBold,
     fontSize: FontSize.sm,
     marginBottom: Spacing.sm,
-  },
-  accuracyRow: {
-    flexDirection: 'row',
-    gap: Spacing.sm,
-  },
-  accuracyChip: {
-    alignItems: 'center',
-    borderColor: 'rgba(255,255,255,0.2)',
-    borderRadius: BorderRadius.full,
-    borderWidth: 1,
-    flex: 1,
-    justifyContent: 'center',
-    minHeight: 44,
-    paddingHorizontal: Spacing.md,
-  },
-  accuracyChipSelectedYes: {
-    backgroundColor: 'rgba(45,206,137,0.2)',
-    borderColor: Colors.secondary,
-  },
-  accuracyChipSelectedNo: {
-    backgroundColor: 'rgba(248,113,113,0.12)',
-    borderColor: '#F87171',
-  },
-  accuracyChipText: {
-    color: '#D0D0D0',
-    fontFamily: FontFamily.sansSemiBold,
-    fontSize: FontSize.sm,
-  },
-  accuracyChipTextSelected: {
-    color: '#FFFFFF',
-  },
-  accuracyChipTextSelectedNo: {
-    color: '#FECACA',
   },
   correctionBox: {
     borderColor: 'rgba(255,255,255,0.12)',

@@ -12,7 +12,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Button } from './ui/Button';
-import { BorderRadius, Colors, FontFamily, FontSize, Shadows, Spacing } from '../constants/theme';
+import { BorderRadius, Colors, FontFamily, FontSize, Spacing } from '../constants/theme';
 
 type IoniconName = keyof typeof Ionicons.glyphMap;
 
@@ -112,9 +112,10 @@ export function ScanTutorial({ onDone }: { onDone: () => void }) {
       >
         {SLIDES.map((slide) => (
           <View key={slide.title} style={styles.slide}>
+            {/* Full-bleed hero block (Cal AI slides 02–05: image fills the top ~55%). */}
             <View style={styles.hero}>
               <View style={styles.heroIconWrap}>
-                <Ionicons name={slide.heroIcon} size={64} color={Colors.secondary} />
+                <Ionicons name={slide.heroIcon} size={72} color={Colors.secondary} />
               </View>
               <Text style={styles.heroCaption}>{slide.heroCaption}</Text>
             </View>
@@ -174,21 +175,17 @@ const styles = StyleSheet.create({
   slide: {
     width: SCREEN_WIDTH,
     flex: 1,
-    paddingHorizontal: Spacing.lg,
-    paddingTop: Spacing.lg,
   },
+  // Full-bleed hero panel filling the top ~55% (Cal AI: edge-to-edge photo / phone mockup).
   hero: {
     alignItems: 'center',
     backgroundColor: Colors.surfaceDark,
-    borderColor: 'rgba(82,183,136,0.25)',
-    borderRadius: BorderRadius.xl,
-    borderWidth: 1,
-    flex: 1,
+    borderBottomLeftRadius: BorderRadius.xl,
+    borderBottomRightRadius: BorderRadius.xl,
+    flex: 1.25,
     gap: Spacing.lg,
     justifyContent: 'center',
-    marginBottom: Spacing.xl,
-    padding: Spacing.xl,
-    ...Shadows.md,
+    paddingHorizontal: Spacing.xl,
   },
   heroIconWrap: {
     alignItems: 'center',
@@ -196,9 +193,9 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(82,183,136,0.4)',
     borderRadius: BorderRadius.full,
     borderWidth: 1,
-    height: 132,
+    height: 148,
     justifyContent: 'center',
-    width: 132,
+    width: 148,
   },
   heroCaption: {
     color: Colors.secondaryLight,
@@ -207,14 +204,16 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   copyBlock: {
+    flex: 1,
     gap: Spacing.lg,
-    paddingBottom: Spacing.lg,
+    paddingHorizontal: Spacing.lg,
+    paddingTop: Spacing.xl,
   },
   title: {
     color: Colors.text,
     fontFamily: FontFamily.displaySemiBold,
     fontSize: FontSize.xxl,
-    textAlign: 'center',
+    textAlign: 'left',
   },
   bulletList: {
     gap: Spacing.md,

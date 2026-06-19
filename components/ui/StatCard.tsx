@@ -36,6 +36,15 @@ export function StatCard({
 
   const content = (
     <>
+      {/* Cal AI: value + label at the TOP of the card */}
+      <Text style={styles.value} numberOfLines={1} adjustsFontSizeToFit>
+        {value}
+      </Text>
+      <Text style={styles.label} numberOfLines={2}>
+        {label}
+      </Text>
+
+      {/* Cal AI: small icon circle anchored at the BOTTOM-LEFT */}
       <View style={styles.badgeWrap}>
         {hasProgress && (
           <Svg
@@ -69,13 +78,6 @@ export function StatCard({
           {icon}
         </View>
       </View>
-
-      <Text style={styles.value} numberOfLines={1} adjustsFontSizeToFit>
-        {value}
-      </Text>
-      <Text style={styles.label} numberOfLines={2}>
-        {label}
-      </Text>
     </>
   );
 
@@ -107,6 +109,8 @@ const styles = StyleSheet.create({
     borderColor: Colors.border,
     padding: Spacing.md,
     gap: Spacing.sm,
+    // Cal AI: contents are left-aligned; icon sits at the bottom-left.
+    alignItems: 'flex-start',
   },
   pressed: {
     opacity: 0.85,
@@ -116,6 +120,8 @@ const styles = StyleSheet.create({
     height: ARC_DIAMETER,
     alignItems: 'center',
     justifyContent: 'center',
+    // Push the icon circle to the bottom-left, leaving space above for value/label.
+    marginTop: Spacing.sm,
   },
   badge: {
     width: BADGE_SIZE,

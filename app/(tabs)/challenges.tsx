@@ -225,6 +225,8 @@ function DiscoverCard({
   return (
     <TouchableOpacity activeOpacity={0.85} onPress={onOpen}>
       <Card variant="outlined" style={styles.card}>
+        {/* Cal AI group-card anatomy: circular avatar (left) · name +
+            member-count + short description (center) · Join button (right) */}
         <View style={styles.cardRow}>
           <View style={styles.iconBadge}>
             <Ionicons
@@ -234,7 +236,7 @@ function DiscoverCard({
             />
           </View>
           <View style={styles.cardBody}>
-            <Text style={styles.cardTitle} numberOfLines={1}>
+            <Text style={styles.cardTitle} numberOfLines={2}>
               {item.title}
             </Text>
             <Text style={styles.metaText}>
@@ -244,8 +246,6 @@ function DiscoverCard({
               {item.description}
             </Text>
           </View>
-        </View>
-        <View style={styles.joinRow}>
           <Button
             title={joining ? 'Joining…' : '+ Join'}
             variant="outline"
@@ -295,7 +295,7 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.md,
   },
   card: { marginBottom: Spacing.sm },
-  cardRow: { flexDirection: 'row', gap: Spacing.md },
+  cardRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md },
   iconBadge: {
     width: 48,
     height: 48,
@@ -304,7 +304,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  cardBody: { flex: 1, gap: Spacing.sm },
+  cardBody: { flex: 1, gap: 4 },
   cardTitle: {
     fontFamily: FontFamily.sansSemiBold,
     fontSize: FontSize.md,
@@ -322,8 +322,7 @@ const styles = StyleSheet.create({
     color: Colors.textTertiary,
     lineHeight: 20,
   },
-  joinRow: { marginTop: Spacing.md, alignItems: 'flex-end' },
-  joinBtn: {},
+  joinBtn: { alignSelf: 'center' },
   progressLabel: {
     fontFamily: FontFamily.sansMedium,
     fontSize: FontSize.xs,

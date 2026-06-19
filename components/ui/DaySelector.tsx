@@ -67,7 +67,13 @@ export function DaySelector({ selectedDate, onSelectDate, days = 7 }: DaySelecto
             accessibilityState={{ selected: isSelected, disabled: isFuture }}
             accessibilityLabel={d.toDateString()}
           >
-            <Text style={[styles.weekday, isFuture && styles.dimmed]}>
+            <Text
+              style={[
+                styles.weekday,
+                isSelected && styles.weekdaySelected,
+                isFuture && styles.dimmed,
+              ]}
+            >
               {WEEKDAY_LABELS[d.getDay()]}
             </Text>
             <View
@@ -106,26 +112,38 @@ const styles = StyleSheet.create({
   weekday: {
     fontFamily: FontFamily.sansMedium,
     fontSize: FontSize.xs,
-    color: Colors.textSecondary,
+    color: Colors.textTertiary,
   },
+  weekdaySelected: {
+    // Cal AI emphasizes the selected weekday label above the filled circle.
+    fontFamily: FontFamily.sansSemiBold,
+    color: Colors.text,
+  },
+  // Cal AI: unselected days are thin dashed-outline rings (no fill).
   circle: {
     width: CIRCLE_SIZE,
     height: CIRCLE_SIZE,
     borderRadius: BorderRadius.full,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: Colors.surfaceSecondary,
+    backgroundColor: 'transparent',
+    borderWidth: 1.5,
+    borderStyle: 'dashed',
+    borderColor: Colors.border,
   },
+  // Cal AI: selected day is a solid filled circle (Gutwell green).
   circleSelected: {
     backgroundColor: Colors.secondary,
+    borderStyle: 'solid',
+    borderColor: Colors.secondary,
   },
   dateNum: {
     fontFamily: FontFamily.sansSemiBold,
     fontSize: FontSize.md,
-    color: Colors.text,
+    color: Colors.textSecondary,
   },
   dateNumSelected: {
-    color: Colors.text,
+    color: Colors.surface,
   },
   dot: {
     width: 4,

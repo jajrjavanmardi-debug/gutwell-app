@@ -406,6 +406,13 @@ export default function HomeScreen() {
             />
           </View>
 
+          {/* Pagination dots beneath the stat cards (Cal AI horizontal pager) */}
+          <View style={styles.statDotsRow}>
+            <View style={[styles.statDot, styles.statDotActive]} />
+            <View style={styles.statDot} />
+            <View style={styles.statDot} />
+          </View>
+
           {/* AI Meal Scan — flagship action */}
           <TouchableOpacity
             onPress={() => router.push('/photo-analysis')}
@@ -660,11 +667,28 @@ const styles = StyleSheet.create({
   statsRow: {
     flexDirection: 'row',
     gap: Spacing.sm,
-    marginBottom: Spacing.lg,
+    marginBottom: Spacing.md,
   },
   statCard: {
     flex: 1,
+  },
+
+  // ── Stat-card pagination dots ────────────────────────
+  statDotsRow: {
+    flexDirection: 'row',
+    justifyContent: 'center',
     alignItems: 'center',
+    gap: 6,
+    marginBottom: Spacing.lg,
+  },
+  statDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: Colors.border,
+  },
+  statDotActive: {
+    backgroundColor: Colors.secondary,
   },
 
   // ── AI Meal Scan card ────────────────────────────────

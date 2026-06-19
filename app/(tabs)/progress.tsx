@@ -28,20 +28,22 @@ import { track, Events } from '../../lib/analytics';
 import { getStreakSnapshot } from '../../lib/streaks';
 import { calculatePoints, calculateLevel, getNextLevel, getLevelProgress } from '../../lib/levels';
 
-// Cal AI–style time ranges. Mapped to lookback windows in `loadData`.
-type Period = '7D' | '30D' | '90D' | 'ALL';
+// Cal AI–style time ranges (90D / 6M / 1Y / ALL). Mapped to lookback windows
+// in `loadData` — the data semantics are preserved, only the range labels
+// match Cal AI's progress screens.
+type Period = '90D' | '6M' | '1Y' | 'ALL';
 
 const PERIOD_OPTIONS: { label: string; value: Period }[] = [
-  { label: '7D', value: '7D' },
-  { label: '30D', value: '30D' },
   { label: '90D', value: '90D' },
+  { label: '6M', value: '6M' },
+  { label: '1Y', value: '1Y' },
   { label: 'ALL', value: 'ALL' },
 ];
 
 const PERIOD_DAYS: Record<Period, number> = {
-  '7D': 7,
-  '30D': 30,
   '90D': 90,
+  '6M': 180,
+  '1Y': 365,
   ALL: 3650,
 };
 
@@ -59,7 +61,7 @@ const CHANGE_WINDOWS: ChangeWindow[] = [
 
 export default function ProgressScreen() {
   const { user } = useAuth();
-  const [period, setPeriod] = useState<Period>('7D');
+  const [period, setPeriod] = useState<Period>('90D');
   const [checkInCount, setCheckInCount] = useState(0);
   const [avgStoolType, setAvgStoolType] = useState<number | null>(null);
   const [symptomCounts, setSymptomCounts] = useState<Record<string, number>>({});
@@ -282,17 +284,45 @@ export default function ProgressScreen() {
 
   // Cal AI "Weight Changes" analog: gut-score change over fixed day windows,
   // derived from the full score history (period-scoped via the toggle above).
+  const getWindowScores = (days: number | null): { score: number; date: string }[] => {
+    if (days == null) return allScores;
+    const windowStart = addDaysToLocalDateKey(getLocalDateKey(), -days);
+    return allScores.filter(s => s.date >= windowStart);
+  };
+
   const computeWindowChange = (days: number | null): number | null => {
     if (allScores.length < 2) return null;
-    // "All Time" (days == null): change from earliest to latest data point.
-    if (days == null) {
-      return allScores[allScores.length - 1].score - allScores[0].score;
-    }
-    const todayKey = getLocalDateKey();
-    const windowStart = addDaysToLocalDateKey(todayKey, -days);
-    const inWindow = allScores.filter(s => s.date >= windowStart);
+    const inWindow = getWindowScores(days);
     if (inWindow.length < 2) return null;
     return inWindow[inWindow.length - 1].score - inWindow[0].score;
+  };
+
+  // Tiny sparkline thumbnail for a Changes-table row — mirrors Cal AI's mini
+  // trend graphic beside each window. Normalises the window's scores to bar
+  // heights; renders nothing when there isn't enough data to draw a shape.
+  const renderSparkline = (days: number | null, color: string) => {
+    const pts = getWindowScores(days);
+    if (pts.length < 2) {
+      return <View style={styles.changeSpark} />;
+    }
+    const sampled = pts.length > 8 ? pts.filter((_, i) => i % Math.ceil(pts.length / 8) === 0) : pts;
+    const ys = sampled.map(p => p.score);
+    const min = Math.min(...ys);
+    const max = Math.max(...ys);
+    const range = max - min || 1;
+    return (
+      <View style={styles.changeSpark}>
+        {sampled.map((p, i) => (
+          <View
+            key={i}
+            style={[
+              styles.changeSparkBar,
+              { height: `${20 + ((p.score - min) / range) * 80}%`, backgroundColor: color },
+            ]}
+          />
+        ))}
+      </View>
+    );
   };
 
   return (
@@ -398,14 +428,6 @@ export default function ProgressScreen() {
           </View>
         </Card>
 
-        {/* Time-range toggle (Cal AI's 90D / 6M / 1Y / ALL) */}
-        <SegmentedToggle
-          options={PERIOD_OPTIONS}
-          value={period}
-          onChange={setPeriod}
-          style={styles.toggle}
-        />
-
         {/* Weekly Insights Card */}
         {weekInsights && (
           <TrendBox avgScore={weekInsights.avgScore ?? 0} bestDay={weekInsights.bestDay} trend={weekInsights.trend} />
@@ -432,25 +454,38 @@ export default function ProgressScreen() {
           <ScoreCard icon="restaurant" iconColor={Colors.secondary} value={foodCount} label="Meals" />
         </View>
 
-        {/* Gut Score Trend — Cal AI's main "Weight Progress" chart card */}
-        {gutScores.length >= 2 && (
-          <>
-            <ChartComponent title="Gut Score Trend">
-              <View style={styles.scoreTrendChart}>
-                {gutScores.map((point, i) => (
-                  <View key={i} style={styles.scoreTrendCol}>
-                    <View style={[styles.scoreTrendBar, {
-                      height: `${Math.max(point.y, 4)}%`,
-                      backgroundColor: getBarColor(point.y),
-                      borderRadius: 6,
-                    }]} />
-                    <Text style={styles.scoreTrendValue}>{point.y}</Text>
-                    <Text style={styles.scoreTrendLabel}>{point.label}</Text>
-                  </View>
-                ))}
-              </View>
-            </ChartComponent>
-          </>
+        {/* Gut Score Trend — Cal AI's main "Weight Progress" chart card, with
+            the time-range toggle (90D / 6M / 1Y / ALL) attached at the bottom
+            of the card exactly as Cal AI places it under Weight Progress. */}
+        {gutScores.length >= 2 ? (
+          <ChartComponent title="Gut Score Trend">
+            <View style={styles.scoreTrendChart}>
+              {gutScores.map((point, i) => (
+                <View key={i} style={styles.scoreTrendCol}>
+                  <View style={[styles.scoreTrendBar, {
+                    height: `${Math.max(point.y, 4)}%`,
+                    backgroundColor: getBarColor(point.y),
+                    borderRadius: 6,
+                  }]} />
+                  <Text style={styles.scoreTrendValue}>{point.y}</Text>
+                  <Text style={styles.scoreTrendLabel}>{point.label}</Text>
+                </View>
+              ))}
+            </View>
+            <SegmentedToggle
+              options={PERIOD_OPTIONS}
+              value={period}
+              onChange={setPeriod}
+              style={styles.chartToggle}
+            />
+          </ChartComponent>
+        ) : (
+          <SegmentedToggle
+            options={PERIOD_OPTIONS}
+            value={period}
+            onChange={setPeriod}
+            style={styles.toggle}
+          />
         )}
 
         {/* Cal AI "Weight Changes" analog: Gut Score change over day windows */}
@@ -471,6 +506,7 @@ export default function ProgressScreen() {
                     style={[styles.changeRow, idx < CHANGE_WINDOWS.length - 1 && styles.changeRowBorder]}
                   >
                     <Text style={styles.changeWindow}>{window.label}</Text>
+                    {renderSparkline(window.days, change == null ? Colors.textTertiary : color)}
                     <Text style={[styles.changeValue, { color: change == null ? Colors.textTertiary : color }]}>
                       {change == null ? '--' : `${change > 0 ? '+' : ''}${change} pts`}
                     </Text>
@@ -797,6 +833,10 @@ const styles = StyleSheet.create({
   toggle: {
     marginBottom: Spacing.lg,
   },
+  // Toggle attached to the bottom of the trend chart card (Cal AI placement)
+  chartToggle: {
+    marginTop: Spacing.md,
+  },
 
   // Stats
   statsRow: {
@@ -838,10 +878,26 @@ const styles = StyleSheet.create({
     borderBottomColor: Colors.divider,
   },
   changeWindow: {
-    flex: 1,
+    width: 56,
     fontFamily: FontFamily.sansMedium,
     fontSize: FontSize.sm,
     color: Colors.textSecondary,
+  },
+  // Mini sparkline thumbnail beside each change row (Cal AI mini-graphic)
+  changeSpark: {
+    width: 44,
+    height: 24,
+    marginRight: Spacing.md,
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    justifyContent: 'space-between',
+    gap: 1,
+  },
+  changeSparkBar: {
+    flex: 1,
+    minHeight: 2,
+    borderRadius: 1,
+    opacity: 0.85,
   },
   changeValue: {
     flex: 1,

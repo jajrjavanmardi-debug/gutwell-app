@@ -124,7 +124,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: 0,
     right: 0,
-    backgroundColor: Colors.pickerHighlight,
+    backgroundColor: 'rgba(255,255,255,0.1)',
     borderRadius: BorderRadius.lg,
   },
   row: {
@@ -139,7 +139,7 @@ const styles = StyleSheet.create({
     fontFamily: FontFamily.sansSemiBold,
   },
   labelUnselected: {
-    color: Colors.textTertiary,
+    color: 'rgba(255,255,255,0.35)',
     fontFamily: FontFamily.sansRegular,
   },
 });
