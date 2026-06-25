@@ -757,36 +757,40 @@ export default function PhotoAnalysisScreen() {
   }, [params.historyId]);
 
   const handleShareAnalysis = async () => {
-    if (!analysis) {
+    const textToShare = sanitizeAnalysisForDisplay(analysis).trim();
+    if (!textToShare) {
       setToast({ visible: true, message: t.nothingToShareMessage, type: 'info' });
       return;
     }
     try {
-      const summary = [
-        t.snapshotHeading,
-        sanitizeAnalysisForDisplay(analysis),
-      ].join('\n\n');
+      const summary = [t.snapshotHeading, textToShare].join('\n\n');
       const result = await Share.share({ title: t.shareTitle, message: summary });
       if (result.action === Share.dismissedAction) {
         setToast({ visible: true, message: t.shareErrorMessage, type: 'info' });
       }
     } catch (error) {
-      console.error('Photo analysis share failed:', error);
-      Alert.alert(t.shareErrorTitle, t.shareErrorMessage);
+      if (__DEV__) console.error('Photo analysis share failed:', error);
+      setToast({ visible: true, message: t.shareErrorMessage, type: 'info' });
     }
   };
 
   const handleCopyAnalysis = async () => {
-    if (!analysis) {
+    const textToShare = sanitizeAnalysisForDisplay(analysis).trim();
+    if (!textToShare) {
       setToast({ visible: true, message: t.nothingToShareMessage, type: 'info' });
       return;
     }
     try {
-      await Clipboard.setStringAsync(sanitizeAnalysisForDisplay(analysis));
-      setToast({ visible: true, message: t.copiedToast, type: 'success' });
+      await Clipboard.setStringAsync(textToShare);
+      const verified = await Clipboard.getStringAsync();
+      if (verified && verified.length > 0) {
+        setToast({ visible: true, message: t.copiedToast, type: 'success' });
+      } else {
+        setToast({ visible: true, message: t.shareErrorMessage, type: 'info' });
+      }
     } catch (error) {
-      console.error('Copy failed:', error);
-      Alert.alert(t.shareErrorTitle, t.shareErrorMessage);
+      if (__DEV__) console.error('Copy failed:', error);
+      setToast({ visible: true, message: t.shareErrorMessage, type: 'info' });
     }
   };
 
