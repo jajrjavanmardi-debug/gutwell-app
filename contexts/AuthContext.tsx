@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import type { Session, User } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
+import { router } from 'expo-router';
 import { resetAnalytics } from '../lib/analytics';
 
 type Profile = {
@@ -108,6 +109,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signOut = async () => {
     await supabase.auth.signOut();
     setProfile(null);
+    router.replace("/(auth)/login");
     // Unlink the analytics identity so the next account on this device
     // doesn't inherit this user's event stream.
     resetAnalytics();
