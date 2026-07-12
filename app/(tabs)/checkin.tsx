@@ -244,10 +244,24 @@ export default function CheckinScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
+      {/* Header — pushed view, needs a back affordance */}
+      <View style={styles.navHeader}>
+        <TouchableOpacity
+          style={styles.backBtn}
+          onPress={() => router.back()}
+          activeOpacity={0.7}
+          accessibilityRole="button"
+          accessibilityLabel="Go back"
+        >
+          <Ionicons name="chevron-back" size={22} color={Colors.text} />
+        </TouchableOpacity>
+        <Text style={styles.navTitle}>Check-in</Text>
+        <View style={styles.backBtn} />
+      </View>
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
         <Animated.View style={{ opacity: sectionFade }}>
-        {/* Header */}
+        {/* Heading */}
         <Text style={styles.title}>Daily Check-in</Text>
         <Text style={styles.subtitle}>How is your gut feeling today?</Text>
 
@@ -340,6 +354,8 @@ export default function CheckinScreen() {
           onPress={handleSave}
           loading={loading}
           size="lg"
+          shape="pill"
+          fullWidth
           style={styles.saveButton}
         />
         </Animated.View>
@@ -385,7 +401,31 @@ const styles = StyleSheet.create({
     paddingBottom: Spacing.xxl + Spacing.xl,
   },
 
-  // Header
+  // Nav header (back chevron + centered title)
+  navHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.sm,
+  },
+  backBtn: {
+    width: 42,
+    height: 42,
+    borderRadius: BorderRadius.full,
+    backgroundColor: Colors.surface,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  navTitle: {
+    fontFamily: FontFamily.sansSemiBold,
+    fontSize: FontSize.lg,
+    color: Colors.text,
+  },
+
+  // Heading
   title: {
     fontFamily: FontFamily.displayMedium,
     fontSize: FontSize.hero,
@@ -406,6 +446,8 @@ const styles = StyleSheet.create({
     borderRadius: BorderRadius.lg,
     padding: Spacing.md,
     marginBottom: Spacing.lg,
+    borderWidth: 1,
+    borderColor: Colors.border,
     ...Shadows.sm,
   },
   progressTrack: {
@@ -471,9 +513,11 @@ const styles = StyleSheet.create({
   // Symptom Cards
   symptomCard: {
     backgroundColor: Colors.surface,
-    borderRadius: BorderRadius.md,
+    borderRadius: BorderRadius.lg,
     padding: Spacing.md,
     marginBottom: Spacing.sm,
+    borderWidth: 1,
+    borderColor: Colors.border,
     ...Shadows.sm,
   },
   symptomHeader: {

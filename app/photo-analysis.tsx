@@ -21,6 +21,7 @@ import {
 import * as Clipboard from 'expo-clipboard';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { ScanTutorial } from '../components/ScanTutorial';
 import { Toast } from '../components/ui/Toast';
 import { useAuth } from '../contexts/AuthContext';
 import { BorderRadius, Colors, FontFamily, FontSize, Shadows, Spacing } from '../constants/theme';
@@ -50,6 +51,8 @@ import {
 type AppLanguage = 'en' | 'de';
 type WizardStep = 1 | 2 | 3;
 const APP_LANGUAGE_STORAGE_KEY = 'gutwell_app_language';
+/** Shows the 4-slide scan tutorial only on the user's first visit to this screen. */
+const SCAN_TUTORIAL_SEEN_KEY = 'gutwell_scan_tutorial_seen';
 /** When set to `Germany`, skips GPS and fixes AI context to Nürtingen (dev/testing only). */
 const DEV_LOCATION_OVERRIDE = process.env.EXPO_PUBLIC_DEV_LOCATION_OVERRIDE?.trim() ?? '';
 /**
@@ -148,6 +151,12 @@ const copy = {
     loginRequired: 'Please sign in to log meals.',
     pendingScore: 'Pending',
     photoMealDefault: 'Photo meal',
+    insightsHeading: 'Gut insights',
+    addMore: 'Add more',
+    fixResults: 'Fix Results',
+    done: 'Done',
+    chipGutImpact: 'Gut impact',
+    chipMealType: 'Meal',
     expoGoTextOnlyHint:
       'Expo Go (development): hold-to-talk voice is off. Describe your meal and how you feel below — analysis, Nürtingen-style prompts, and the 4-step flow still work.',
   },
@@ -238,6 +247,12 @@ const copy = {
     loginRequired: 'Bitte melde dich an, um Mahlzeiten zu speichern.',
     pendingScore: 'Ausstehend',
     photoMealDefault: 'Mahlzeit (Foto)',
+    insightsHeading: 'Darm-Hinweise',
+    addMore: 'Mehr hinzufügen',
+    fixResults: 'Korrigieren',
+    done: 'Fertig',
+    chipGutImpact: 'Darm-Wirkung',
+    chipMealType: 'Mahlzeit',
     expoGoTextOnlyHint:
       'Expo Go (Entwicklung): Halten-zum-Sprechen ist aus. Beschreib Mahlzeit und Befinden im Textfeld — Analyse, Nürtingen-Hinweise und der 4-Schritte-Ablauf bleiben aktiv.',
   },
@@ -526,7 +541,13 @@ export default function PhotoAnalysisScreen() {
     };
   }, [user, profile?.gut_concern]);
   const [isLoggingMeal, setIsLoggingMeal] = useState(false);
-  // UI chrome and AI analysis are English + German only.
+  /**
+   * Tutorial gating: `null` until we've read AsyncStorage so we never flash the
+   * tutorial for returning users. Skipped entirely when opening saved history.
+   */
+  const [showTutorial, setShowTutorial] = useState<boolean | null>(null);
+  // UI chrome has EN/DE translations; Persian users get English chrome while
+  // the AI analysis itself responds in Persian (server prompt handles fa).
   const t = copy[language === 'de' ? 'de' : 'en'];
   /** Dev client / standalone only — Expo Go has no custom native STT modules. */
   const voiceNativeEnabled = canUseNativeSpeechToText();
@@ -677,6 +698,22 @@ export default function PhotoAnalysisScreen() {
   }, []);
 
   useEffect(() => {
+    // Saved history opens straight to the result — never show the tutorial there.
+    if (params.historyId) {
+      setShowTutorial(false);
+      return;
+    }
+    AsyncStorage.getItem(SCAN_TUTORIAL_SEEN_KEY)
+      .then((seen) => setShowTutorial(seen !== 'yes'))
+      .catch(() => setShowTutorial(false));
+  }, [params.historyId]);
+
+  const handleTutorialDone = useCallback(() => {
+    setShowTutorial(false);
+    AsyncStorage.setItem(SCAN_TUTORIAL_SEEN_KEY, 'yes').catch(console.warn);
+  }, []);
+
+  useEffect(() => {
     Promise.all([getRecentSupplements(12), getTriggerMemories()])
       .then(([supplements, triggers]) => {
         setTodaysSupplements(supplements);
@@ -719,36 +756,40 @@ export default function PhotoAnalysisScreen() {
   }, [params.historyId]);
 
   const handleShareAnalysis = async () => {
-    if (!analysis) {
+    const textToShare = sanitizeAnalysisForDisplay(analysis).trim();
+    if (!textToShare) {
       setToast({ visible: true, message: t.nothingToShareMessage, type: 'info' });
       return;
     }
     try {
-      const summary = [
-        t.snapshotHeading,
-        sanitizeAnalysisForDisplay(analysis),
-      ].join('\n\n');
+      const summary = [t.snapshotHeading, textToShare].join('\n\n');
       const result = await Share.share({ title: t.shareTitle, message: summary });
       if (result.action === Share.dismissedAction) {
         setToast({ visible: true, message: t.shareErrorMessage, type: 'info' });
       }
     } catch (error) {
-      console.error('Photo analysis share failed:', error);
-      Alert.alert(t.shareErrorTitle, t.shareErrorMessage);
+      if (__DEV__) console.error('Photo analysis share failed:', error);
+      setToast({ visible: true, message: t.shareErrorMessage, type: 'info' });
     }
   };
 
   const handleCopyAnalysis = async () => {
-    if (!analysis) {
+    const textToShare = sanitizeAnalysisForDisplay(analysis).trim();
+    if (!textToShare) {
       setToast({ visible: true, message: t.nothingToShareMessage, type: 'info' });
       return;
     }
     try {
-      await Clipboard.setStringAsync(sanitizeAnalysisForDisplay(analysis));
-      setToast({ visible: true, message: t.copiedToast, type: 'success' });
+      await Clipboard.setStringAsync(textToShare);
+      const verified = await Clipboard.getStringAsync();
+      if (verified && verified.length > 0) {
+        setToast({ visible: true, message: t.copiedToast, type: 'success' });
+      } else {
+        setToast({ visible: true, message: t.shareErrorMessage, type: 'info' });
+      }
     } catch (error) {
-      console.error('Copy failed:', error);
-      Alert.alert(t.shareErrorTitle, t.shareErrorMessage);
+      if (__DEV__) console.error('Copy failed:', error);
+      setToast({ visible: true, message: t.shareErrorMessage, type: 'info' });
     }
   };
 
@@ -1169,6 +1210,30 @@ export default function PhotoAnalysisScreen() {
 
   const insets = useSafeAreaInsets();
 
+  if (showTutorial === null) {
+    return <View style={styles.container} />;
+  }
+
+  if (showTutorial) {
+    return (
+      <SafeAreaView style={styles.container} edges={['top']}>
+        <View style={styles.tutorialHeader}>
+          <Pressable
+            onPress={handleTutorialDone}
+            hitSlop={10}
+            style={styles.tutorialSkip}
+            accessibilityRole="button"
+            accessibilityLabel="Skip tutorial"
+          >
+            <Text style={styles.tutorialSkipText}>{t.back}</Text>
+            <Ionicons name="close" size={18} color="#FFFFFF" />
+          </Pressable>
+        </View>
+        <ScanTutorial onDone={handleTutorialDone} />
+      </SafeAreaView>
+    );
+  }
+
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.screenBody}>
@@ -1180,7 +1245,6 @@ export default function PhotoAnalysisScreen() {
           <View style={styles.headerTextBlock}>
             <Text style={[styles.title, isRtlLanguage && styles.rtlText]}>{t.title}</Text>
             <Text style={[styles.subtitle, isRtlLanguage && styles.rtlText]}>{wizardSubtitle}</Text>
-            <Text style={{ fontSize: 9, color: '#666', textAlign: 'center', marginTop: 2 }}>9f793c5 · FA+sanitize</Text>
           </View>
           <Pressable
             onPress={() => router.push('/food-history')}
@@ -1337,6 +1401,23 @@ export default function PhotoAnalysisScreen() {
           >
             {wizardStep === 1 ? (
               <>
+                <View style={styles.scanFrame}>
+                  <View style={[styles.scanCorner, styles.scanCornerTL]} />
+                  <View style={[styles.scanCorner, styles.scanCornerTR]} />
+                  <View style={[styles.scanCorner, styles.scanCornerBL]} />
+                  <View style={[styles.scanCorner, styles.scanCornerBR]} />
+                  {photoUri ? (
+                    <Image source={{ uri: photoUri }} style={styles.scanFramePreview} />
+                  ) : (
+                    <View style={styles.scanFramePlaceholder}>
+                      <Ionicons name="scan-outline" size={44} color={Colors.secondary} />
+                      <Text style={[styles.scanFrameHint, isRtlLanguage && styles.rtlText]}>
+                        {t.subtitle}
+                      </Text>
+                    </View>
+                  )}
+                </View>
+
                 <View style={styles.actionGrid}>
                   <Pressable
                     disabled={isAnalyzing}
@@ -1372,8 +1453,6 @@ export default function PhotoAnalysisScreen() {
                     <Text style={[styles.photoActionText, isRtlLanguage && styles.rtlText]}>{t.chooseGalleryText}</Text>
                   </Pressable>
                 </View>
-
-                {photoUri ? <Image source={{ uri: photoUri }} style={styles.previewImage} /> : null}
 
                 {photoUri && lastImageBase64 ? (
                   <Pressable
@@ -1453,10 +1532,18 @@ export default function PhotoAnalysisScreen() {
                 {analysis ? (
                   <>
                   <View style={styles.resultCard}>
+                    {photoUri ? (
+                      <Image source={{ uri: photoUri }} style={styles.resultHeroImage} />
+                    ) : null}
                     <View style={styles.resultHeader}>
                       <View style={styles.resultTitleRow}>
                         <Ionicons name="nutrition" size={20} color={Colors.secondary} />
-                        <Text style={[styles.resultTitle, isRtlLanguage && styles.rtlText]}>{t.resultTitle}</Text>
+                        <View style={styles.resultTitleTextBlock}>
+                          <Text style={[styles.resultMealName, isRtlLanguage && styles.rtlText]} numberOfLines={2}>
+                            {extractMealName(analysis)}
+                          </Text>
+                          <Text style={[styles.resultTitle, isRtlLanguage && styles.rtlText]}>{t.resultTitle}</Text>
+                        </View>
                       </View>
                     </View>
                     {shouldShowMealScoreBadge && mealImpactScore ? (
@@ -1470,6 +1557,46 @@ export default function PhotoAnalysisScreen() {
                         <Text style={styles.scoreBadgeValue}>{mealImpactScore}</Text>
                       </View>
                     ) : null}
+
+                    {/* Cal AI info-chips row — adapted to gut-impact (NO numeric food score). */}
+                    <View style={[styles.chipsRow, isRtlLanguage && styles.rtlRow]}>
+                      <View style={styles.infoChip}>
+                        <Ionicons
+                          name={hasPainSymptom ? 'alert-circle' : 'leaf'}
+                          size={14}
+                          color={hasPainSymptom ? '#F59E0B' : Colors.secondary}
+                        />
+                        <Text style={styles.infoChipLabel}>{t.chipGutImpact}</Text>
+                        <Text style={styles.infoChipValue}>
+                          {hasPainSymptom ? t.instantReliefTitle : t.resultTitle}
+                        </Text>
+                      </View>
+                      <View style={styles.infoChip}>
+                        <Ionicons name="restaurant" size={14} color={Colors.secondaryLight} />
+                        <Text style={styles.infoChipLabel}>{t.chipMealType}</Text>
+                        <Text style={styles.infoChipValue} numberOfLines={1}>
+                          {extractMealName(analysis)}
+                        </Text>
+                      </View>
+                    </View>
+
+                    {/* Cal AI "Ingredients … + Add more" header — here: gut insights + add detail. */}
+                    <View style={[styles.insightsHeaderRow, isRtlLanguage && styles.rtlRow]}>
+                      <Text style={[styles.insightsHeading, isRtlLanguage && styles.rtlText]}>
+                        {t.insightsHeading}
+                      </Text>
+                      <Pressable
+                        onPress={() => setAccuracyAnswer('no')}
+                        hitSlop={8}
+                        accessibilityRole="button"
+                        accessibilityLabel={t.addMore}
+                        style={({ pressed }) => [styles.addMoreLink, pressed && styles.pressed]}
+                      >
+                        <Ionicons name="add" size={16} color={Colors.secondary} />
+                        <Text style={styles.addMoreLinkText}>{t.addMore}</Text>
+                      </Pressable>
+                    </View>
+
                     <Text style={[styles.resultText, isRtlLanguage && styles.rtlText]}>{sanitizeAnalysisForDisplay(analysis)}</Text>
                     {hasPainSymptom ? (
                       <View style={styles.instantReliefCard}>
@@ -1540,38 +1667,39 @@ export default function PhotoAnalysisScreen() {
                   </View>
 
                   <View style={styles.accuracySectionCard}>
-                    <Text style={[styles.wizardStep4Hint, isRtlLanguage && styles.rtlText]}>{t.wizardStep4Hint}</Text>
                     <Text style={[styles.accuracyQuestion, isRtlLanguage && styles.rtlText]}>{t.isThisAccurate}</Text>
-                    <View style={[styles.accuracyRow, isRtlLanguage && styles.rtlRow]}>
+
+                    {/* Cal AI bottom actions: Fix Results (outline) + Done (filled). */}
+                    <View style={[styles.fixResultsRow, isRtlLanguage && styles.rtlRow]}>
                       <Pressable
-                        onPress={() => setAccuracyAnswer('yes')}
+                        onPress={() => setAccuracyAnswer((prev) => (prev === 'no' ? null : 'no'))}
+                        accessibilityRole="button"
+                        accessibilityLabel={t.fixResults}
                         style={({ pressed }) => [
-                          styles.accuracyChip,
-                          accuracyAnswer === 'yes' && styles.accuracyChipSelectedYes,
+                          styles.fixResultsButton,
+                          accuracyAnswer === 'no' && styles.fixResultsButtonActive,
                           pressed && styles.pressed,
                         ]}
                       >
-                        <Text style={[
-                          styles.accuracyChipText,
-                          accuracyAnswer === 'yes' && styles.accuracyChipTextSelected,
-                        ]}>
-                          {t.yes}
-                        </Text>
+                        <Ionicons name="create-outline" size={18} color="#FFFFFF" />
+                        <Text style={styles.fixResultsButtonText}>{t.fixResults}</Text>
                       </Pressable>
                       <Pressable
-                        onPress={() => setAccuracyAnswer('no')}
+                        onPress={() => setAccuracyAnswer('yes')}
+                        accessibilityRole="button"
+                        accessibilityLabel={t.done}
                         style={({ pressed }) => [
-                          styles.accuracyChip,
-                          accuracyAnswer === 'no' && styles.accuracyChipSelectedNo,
+                          styles.doneButton,
+                          accuracyAnswer === 'yes' && styles.doneButtonActive,
                           pressed && styles.pressed,
                         ]}
                       >
-                        <Text style={[
-                          styles.accuracyChipText,
-                          accuracyAnswer === 'no' && styles.accuracyChipTextSelectedNo,
-                        ]}>
-                          {t.no}
-                        </Text>
+                        <Ionicons
+                          name={accuracyAnswer === 'yes' ? 'checkmark-circle' : 'checkmark'}
+                          size={18}
+                          color="#000000"
+                        />
+                        <Text style={styles.doneButtonText}>{t.done}</Text>
                       </Pressable>
                     </View>
 
@@ -1999,10 +2127,100 @@ const styles = StyleSheet.create({
     fontSize: FontSize.sm,
     textAlign: 'center',
   },
-  previewImage: {
+  tutorialHeader: {
+    alignItems: 'flex-end',
+    paddingHorizontal: Spacing.lg,
+    paddingTop: Spacing.sm,
+  },
+  tutorialSkip: {
+    alignItems: 'center',
+    backgroundColor: '#101010',
+    borderColor: '#242424',
+    borderRadius: BorderRadius.full,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: 4,
+    minHeight: 36,
+    paddingHorizontal: Spacing.md,
+  },
+  tutorialSkipText: {
+    color: '#FFFFFF',
+    fontFamily: FontFamily.sansBold,
+    fontSize: FontSize.sm,
+  },
+  scanFrame: {
+    alignItems: 'center',
+    aspectRatio: 1,
+    backgroundColor: '#0A0A0A',
     borderRadius: BorderRadius.xl,
-    height: 180,
+    justifyContent: 'center',
+    overflow: 'hidden',
     width: '100%',
+  },
+  scanCorner: {
+    borderColor: Colors.secondary,
+    height: 40,
+    position: 'absolute',
+    width: 40,
+    zIndex: 2,
+  },
+  scanCornerTL: {
+    borderLeftWidth: 3,
+    borderTopLeftRadius: BorderRadius.md,
+    borderTopWidth: 3,
+    left: Spacing.md,
+    top: Spacing.md,
+  },
+  scanCornerTR: {
+    borderRightWidth: 3,
+    borderTopRightRadius: BorderRadius.md,
+    borderTopWidth: 3,
+    right: Spacing.md,
+    top: Spacing.md,
+  },
+  scanCornerBL: {
+    borderBottomLeftRadius: BorderRadius.md,
+    borderBottomWidth: 3,
+    borderLeftWidth: 3,
+    bottom: Spacing.md,
+    left: Spacing.md,
+  },
+  scanCornerBR: {
+    borderBottomRightRadius: BorderRadius.md,
+    borderBottomWidth: 3,
+    borderRightWidth: 3,
+    bottom: Spacing.md,
+    right: Spacing.md,
+  },
+  scanFramePreview: {
+    height: '100%',
+    width: '100%',
+  },
+  scanFramePlaceholder: {
+    alignItems: 'center',
+    gap: Spacing.md,
+    paddingHorizontal: Spacing.xl,
+  },
+  scanFrameHint: {
+    color: Colors.textSecondary,
+    fontFamily: FontFamily.sansMedium,
+    fontSize: FontSize.sm,
+    lineHeight: 20,
+    textAlign: 'center',
+  },
+  resultHeroImage: {
+    borderRadius: BorderRadius.lg,
+    height: 170,
+    marginBottom: Spacing.md,
+    width: '100%',
+  },
+  resultTitleTextBlock: {
+    flex: 1,
+  },
+  resultMealName: {
+    color: '#FFFFFF',
+    fontFamily: FontFamily.displaySemiBold,
+    fontSize: FontSize.xl,
   },
   resultCard: {
     backgroundColor: 'rgba(255,255,255,0.07)',
@@ -2033,9 +2251,10 @@ const styles = StyleSheet.create({
     width: 40,
   },
   resultTitle: {
-    color: '#FFFFFF',
-    fontFamily: FontFamily.displaySemiBold,
-    fontSize: FontSize.lg,
+    color: Colors.secondaryLight,
+    fontFamily: FontFamily.sansSemiBold,
+    fontSize: FontSize.sm,
+    marginTop: 2,
   },
   scoreBadge: {
     alignItems: 'center',
@@ -2333,6 +2552,104 @@ const styles = StyleSheet.create({
     marginTop: Spacing.md,
     padding: Spacing.md,
   },
+  chipsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Spacing.sm,
+    marginTop: Spacing.sm,
+    marginBottom: Spacing.md,
+  },
+  infoChip: {
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    borderColor: 'rgba(255,255,255,0.12)',
+    borderRadius: BorderRadius.full,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: Spacing.xs,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+  },
+  infoChipLabel: {
+    color: '#9A9A9A',
+    fontFamily: FontFamily.sansMedium,
+    fontSize: FontSize.xs,
+  },
+  infoChipValue: {
+    color: '#FFFFFF',
+    flexShrink: 1,
+    fontFamily: FontFamily.sansSemiBold,
+    fontSize: FontSize.xs,
+    maxWidth: 140,
+  },
+  insightsHeaderRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: Spacing.sm,
+  },
+  insightsHeading: {
+    color: '#FFFFFF',
+    fontFamily: FontFamily.sansBold,
+    fontSize: FontSize.md,
+  },
+  addMoreLink: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 2,
+  },
+  addMoreLinkText: {
+    color: Colors.secondary,
+    fontFamily: FontFamily.sansSemiBold,
+    fontSize: FontSize.sm,
+  },
+  fixResultsRow: {
+    flexDirection: 'row',
+    gap: Spacing.sm,
+    marginTop: Spacing.xs,
+  },
+  fixResultsButton: {
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    borderColor: 'rgba(255,255,255,0.22)',
+    borderRadius: BorderRadius.full,
+    borderWidth: 1,
+    flex: 1,
+    flexDirection: 'row',
+    gap: Spacing.sm,
+    justifyContent: 'center',
+    minHeight: 50,
+    paddingHorizontal: Spacing.md,
+  },
+  fixResultsButtonActive: {
+    borderColor: '#F87171',
+    backgroundColor: 'rgba(248,113,113,0.12)',
+  },
+  fixResultsButtonText: {
+    color: '#FFFFFF',
+    fontFamily: FontFamily.sansBold,
+    fontSize: FontSize.sm,
+  },
+  doneButton: {
+    alignItems: 'center',
+    backgroundColor: Colors.secondary,
+    borderRadius: BorderRadius.full,
+    flex: 1,
+    flexDirection: 'row',
+    gap: Spacing.sm,
+    justifyContent: 'center',
+    minHeight: 50,
+    paddingHorizontal: Spacing.md,
+    ...Shadows.sm,
+  },
+  doneButtonActive: {
+    backgroundColor: Colors.secondaryLight,
+  },
+  doneButtonText: {
+    color: '#000000',
+    fontFamily: FontFamily.sansBold,
+    fontSize: FontSize.sm,
+  },
   wizardThumbnail: {
     alignSelf: 'center',
     borderRadius: BorderRadius.lg,
@@ -2437,51 +2754,11 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-start',
     marginTop: Spacing.md,
   },
-  wizardStep4Hint: {
-    color: '#888888',
-    fontFamily: FontFamily.sansMedium,
-    fontSize: FontSize.xs,
-    marginBottom: Spacing.xs,
-    marginTop: Spacing.lg,
-  },
   accuracyQuestion: {
     color: '#FFFFFF',
     fontFamily: FontFamily.sansSemiBold,
     fontSize: FontSize.sm,
     marginBottom: Spacing.sm,
-  },
-  accuracyRow: {
-    flexDirection: 'row',
-    gap: Spacing.sm,
-  },
-  accuracyChip: {
-    alignItems: 'center',
-    borderColor: 'rgba(255,255,255,0.2)',
-    borderRadius: BorderRadius.full,
-    borderWidth: 1,
-    flex: 1,
-    justifyContent: 'center',
-    minHeight: 44,
-    paddingHorizontal: Spacing.md,
-  },
-  accuracyChipSelectedYes: {
-    backgroundColor: 'rgba(45,206,137,0.2)',
-    borderColor: Colors.secondary,
-  },
-  accuracyChipSelectedNo: {
-    backgroundColor: 'rgba(248,113,113,0.12)',
-    borderColor: '#F87171',
-  },
-  accuracyChipText: {
-    color: '#D0D0D0',
-    fontFamily: FontFamily.sansSemiBold,
-    fontSize: FontSize.sm,
-  },
-  accuracyChipTextSelected: {
-    color: '#FFFFFF',
-  },
-  accuracyChipTextSelectedNo: {
-    color: '#FECACA',
   },
   correctionBox: {
     borderColor: 'rgba(255,255,255,0.12)',

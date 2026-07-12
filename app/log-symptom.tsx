@@ -125,19 +125,25 @@ export default function LogSymptomScreen() {
       <View style={styles.header}>
         <TouchableOpacity
           onPress={() => router.back()}
-          style={styles.closeBtn}
+          style={styles.backBtn}
+          activeOpacity={0.7}
+          accessibilityRole="button"
+          accessibilityLabel="Go back"
           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
         >
-          <Ionicons name="close" size={24} color={Colors.text} />
+          <Ionicons name="chevron-back" size={22} color={Colors.text} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Log Symptom</Text>
-        <View style={styles.headerSpacer} />
+        <Text style={styles.headerTitle}>Symptom</Text>
+        <View style={styles.backBtn} />
       </View>
 
       <ScrollView
         contentContainerStyle={styles.scroll}
         showsVerticalScrollIndicator={false}
       >
+        {/* Heading */}
+        <Text style={styles.heading}>Log a symptom</Text>
+
         {/* Section: Symptom Type */}
         <Text style={styles.sectionLabel}>What are you experiencing?</Text>
         <View style={styles.grid}>
@@ -255,6 +261,8 @@ export default function LogSymptomScreen() {
           onPress={handleSave}
           loading={loading}
           size="lg"
+          shape="pill"
+          fullWidth
           style={styles.saveBtn}
         />
       </ScrollView>
@@ -279,15 +287,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.divider,
+    paddingVertical: Spacing.sm,
   },
-  closeBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: Colors.surfaceSecondary,
+  backBtn: {
+    width: 42,
+    height: 42,
+    borderRadius: BorderRadius.full,
+    backgroundColor: Colors.surface,
+    borderWidth: 1,
+    borderColor: Colors.border,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -296,12 +304,15 @@ const styles = StyleSheet.create({
     fontSize: FontSize.lg,
     color: Colors.text,
   },
-  headerSpacer: {
-    width: 36,
-  },
   scroll: {
     padding: Spacing.lg,
     paddingBottom: Spacing.xxl + 40,
+  },
+  heading: {
+    fontFamily: FontFamily.displayMedium,
+    fontSize: FontSize.hero,
+    color: Colors.text,
+    marginBottom: Spacing.md,
   },
   sectionLabel: {
     fontFamily: FontFamily.sansSemiBold,
@@ -325,7 +336,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: Spacing.sm,
     backgroundColor: Colors.surface,
-    borderRadius: BorderRadius.md,
+    borderRadius: BorderRadius.lg,
     paddingVertical: Spacing.md,
     paddingHorizontal: Spacing.md,
     borderWidth: 1.5,

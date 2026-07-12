@@ -18,6 +18,10 @@ type Props = {
   onPress: () => void;
   variant?: ButtonVariant;
   size?: ButtonSize;
+  /** Stretch to fill the parent's width (Cal AI bottom-pinned CTA). */
+  fullWidth?: boolean;
+  /** 'pill' = fully rounded (Cal AI primary CTA); 'rounded' = default 12px radius. */
+  shape?: 'rounded' | 'pill';
   disabled?: boolean;
   loading?: boolean;
   icon?: React.ReactNode;
@@ -30,6 +34,8 @@ export function Button({
   onPress,
   variant = 'primary',
   size = 'md',
+  fullWidth = false,
+  shape = 'rounded',
   disabled = false,
   loading = false,
   icon,
@@ -58,6 +64,8 @@ export function Button({
     styles.base,
     styles[`size_${size}`],
     styles[`variant_${variant}`],
+    shape === 'pill' && styles.pill,
+    fullWidth && styles.fullWidth,
     (disabled || loading) && styles.disabled,
     style!,
   ].filter(Boolean) as ViewStyle[];
@@ -104,6 +112,8 @@ const styles = StyleSheet.create({
     borderRadius: BorderRadius.md,
     gap: Spacing.sm,
   },
+  pill: { borderRadius: BorderRadius.full },
+  fullWidth: { alignSelf: 'stretch', width: '100%' },
   // Sizes
   size_sm: { paddingVertical: 10, paddingHorizontal: Spacing.md },
   size_md: { paddingVertical: 14, paddingHorizontal: Spacing.lg },

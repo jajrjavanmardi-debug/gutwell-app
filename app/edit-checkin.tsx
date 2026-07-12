@@ -204,13 +204,23 @@ export default function EditCheckinScreen() {
     <SafeAreaView style={styles.container} edges={['top']}>
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Edit Check-in</Text>
-        <TouchableOpacity style={styles.closeBtn} onPress={() => router.back()} activeOpacity={0.7}>
-          <Ionicons name="close" size={22} color={Colors.text} />
+        <TouchableOpacity
+          style={styles.backBtn}
+          onPress={() => router.back()}
+          activeOpacity={0.7}
+          accessibilityRole="button"
+          accessibilityLabel="Go back"
+        >
+          <Ionicons name="chevron-back" size={22} color={Colors.text} />
         </TouchableOpacity>
+        <Text style={styles.headerTitle}>Check-in</Text>
+        <View style={styles.backBtn} />
       </View>
 
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+        {/* Heading */}
+        <Text style={styles.heading}>Edit check-in</Text>
+
         {/* Bristol Stool Chart */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Stool Type</Text>
@@ -333,6 +343,8 @@ export default function EditCheckinScreen() {
           onPress={handleSave}
           loading={saving}
           size="lg"
+          shape="pill"
+          fullWidth
           style={styles.saveButton}
         />
 
@@ -379,25 +391,22 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
+    justifyContent: 'space-between',
     paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.divider,
-    position: 'relative',
+    paddingVertical: Spacing.sm,
   },
   headerTitle: {
-    fontFamily: FontFamily.displayMedium,
-    fontSize: FontSize.xl,
+    fontFamily: FontFamily.sansSemiBold,
+    fontSize: FontSize.lg,
     color: Colors.text,
   },
-  closeBtn: {
-    position: 'absolute',
-    right: Spacing.lg,
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: Colors.surfaceSecondary,
+  backBtn: {
+    width: 42,
+    height: 42,
+    borderRadius: BorderRadius.full,
+    backgroundColor: Colors.surface,
+    borderWidth: 1,
+    borderColor: Colors.border,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -405,6 +414,12 @@ const styles = StyleSheet.create({
   scroll: {
     padding: Spacing.lg,
     paddingBottom: Spacing.xxl + Spacing.xl,
+  },
+  heading: {
+    fontFamily: FontFamily.displayMedium,
+    fontSize: FontSize.hero,
+    color: Colors.text,
+    marginBottom: Spacing.lg,
   },
 
   // Section
@@ -482,9 +497,11 @@ const styles = StyleSheet.create({
   // Symptom Cards
   symptomCard: {
     backgroundColor: Colors.surface,
-    borderRadius: BorderRadius.md,
+    borderRadius: BorderRadius.lg,
     padding: Spacing.md,
     marginBottom: Spacing.sm,
+    borderWidth: 1,
+    borderColor: Colors.border,
     ...Shadows.sm,
   },
   symptomHeader: {
@@ -549,7 +566,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: Spacing.sm,
     backgroundColor: Colors.error + '10',
-    borderRadius: BorderRadius.lg,
+    borderRadius: BorderRadius.full,
     paddingVertical: Spacing.md,
     borderWidth: 1,
     borderColor: Colors.error + '30',

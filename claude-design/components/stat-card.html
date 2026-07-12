@@ -1,0 +1,85 @@
+<!-- @dsCard group="Components" -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Gutwell — Stat Card</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=EB+Garamond:wght@400;500;600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg:#000000; --surface:#0B0B0B; --surfaceSecondary:#111111; --border:#242424;
+    --text:#FFFFFF; --textSecondary:#A7A7A7;
+    --ringTrack:#1A1A1A; --secondary:#52B788; --secondaryLight:#74C69D; --accent:#D4A373;
+    --sans:'Inter',-apple-system,system-ui,sans-serif; --serif:'EB Garamond',Georgia,serif;
+  }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { background:var(--bg); color:var(--text); font-family:var(--sans); padding:24px; -webkit-font-smoothing:antialiased; }
+  .pageTitle { font-family:var(--serif); font-weight:600; font-size:32px; margin-bottom:4px; }
+  .sub { color:var(--textSecondary); font-size:14px; margin-bottom:24px; }
+  .grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:14px; max-width:500px; }
+  .card { background:var(--surface); border:1px solid var(--border); border-radius:20px; padding:16px; display:flex; flex-direction:column; gap:8px; }
+  .badgeWrap { position:relative; width:56px; height:56px; display:flex; align-items:center; justify-content:center; }
+  .badgeWrap svg.arc { position:absolute; inset:0; transform:rotate(-90deg); }
+  .badge { width:44px; height:44px; border-radius:999px; display:flex; align-items:center; justify-content:center; }
+  .value { font-family:var(--serif); font-weight:600; font-size:28px; }
+  .label { font-family:var(--sans); font-weight:500; font-size:14px; color:var(--textSecondary); }
+</style>
+</head>
+<body>
+  <div class="pageTitle">Stat Card</div>
+  <div class="sub">Gut-factor cards · icon circle (accent +22 tint) · serif value · progress arc</div>
+
+  <div class="grid">
+    <!-- Fiber -->
+    <div class="card">
+      <div class="badgeWrap">
+        <svg class="arc" width="56" height="56" viewBox="0 0 56 56">
+          <circle cx="28" cy="28" r="25.5" stroke="var(--ringTrack)" stroke-width="3" fill="none"/>
+          <circle cx="28" cy="28" r="25.5" stroke="var(--secondary)" stroke-width="3" fill="none"
+                  stroke-linecap="round" stroke-dasharray="160.2" stroke-dashoffset="40"/>
+        </svg>
+        <div class="badge" style="background:rgba(82,183,136,0.13)">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--secondary)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10Z"/><path d="M2 21c0-3 1.85-5.36 5.08-6"/></svg>
+        </div>
+      </div>
+      <div class="value">28g</div>
+      <div class="label">Fiber today</div>
+    </div>
+
+    <!-- Hydration -->
+    <div class="card">
+      <div class="badgeWrap">
+        <svg class="arc" width="56" height="56" viewBox="0 0 56 56">
+          <circle cx="28" cy="28" r="25.5" stroke="var(--ringTrack)" stroke-width="3" fill="none"/>
+          <circle cx="28" cy="28" r="25.5" stroke="var(--secondaryLight)" stroke-width="3" fill="none"
+                  stroke-linecap="round" stroke-dasharray="160.2" stroke-dashoffset="64"/>
+        </svg>
+        <div class="badge" style="background:rgba(116,198,157,0.13)">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--secondaryLight)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"/></svg>
+        </div>
+      </div>
+      <div class="value">1.4L</div>
+      <div class="label">Hydration</div>
+    </div>
+
+    <!-- Diversity -->
+    <div class="card">
+      <div class="badgeWrap">
+        <svg class="arc" width="56" height="56" viewBox="0 0 56 56">
+          <circle cx="28" cy="28" r="25.5" stroke="var(--ringTrack)" stroke-width="3" fill="none"/>
+          <circle cx="28" cy="28" r="25.5" stroke="var(--accent)" stroke-width="3" fill="none"
+                  stroke-linecap="round" stroke-dasharray="160.2" stroke-dashoffset="100"/>
+        </svg>
+        <div class="badge" style="background:rgba(212,163,115,0.13)">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><circle cx="5" cy="6" r="2"/><circle cx="19" cy="6" r="2"/><circle cx="6" cy="18" r="2"/><circle cx="18" cy="18" r="2"/></svg>
+        </div>
+      </div>
+      <div class="value">12</div>
+      <div class="label">Plant diversity</div>
+    </div>
+  </div>
+</body>
+</html>

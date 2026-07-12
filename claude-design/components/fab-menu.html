@@ -1,0 +1,99 @@
+<!-- @dsCard group="Components" -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Gutwell — FAB Action Menu</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=EB+Garamond:wght@400;500;600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg:#000000; --surface:#0B0B0B; --border:#242424;
+    --text:#FFFFFF; --textSecondary:#A7A7A7;
+    --primary:#1B4332; --secondary:#52B788; --accent:#D4A373;
+    --fabTile:#0B0B0B; --scrim:rgba(0,0,0,0.6);
+    --sans:'Inter',-apple-system,system-ui,sans-serif; --serif:'EB Garamond',Georgia,serif;
+  }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { background:var(--bg); color:var(--text); font-family:var(--sans); padding:24px; -webkit-font-smoothing:antialiased; }
+  .pageTitle { font-family:var(--serif); font-weight:600; font-size:32px; margin-bottom:4px; }
+  .sub { color:var(--textSecondary); font-size:14px; margin-bottom:20px; }
+
+  .phone {
+    position:relative; width:330px; height:560px; margin:0 auto;
+    border-radius:36px; overflow:hidden; border:1px solid var(--border);
+    background:linear-gradient(180deg,#0d1f17,#000 55%);
+  }
+  .scrim { position:absolute; inset:0; background:var(--scrim); backdrop-filter:blur(6px); }
+  .grid {
+    position:absolute; left:16px; right:16px; bottom:96px;
+    display:grid; grid-template-columns:1fr 1fr; gap:16px;
+  }
+  .tile {
+    background:var(--fabTile); border:1px solid var(--border); border-radius:20px;
+    aspect-ratio:1.15; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px;
+  }
+  .tileIcon { width:46px; height:46px; border-radius:999px; display:flex; align-items:center; justify-content:center; }
+  .tileLabel { font-family:var(--sans); font-weight:500; font-size:14px; color:var(--text); }
+
+  .tabbar {
+    position:absolute; left:0; right:0; bottom:0; height:78px;
+    background:rgba(11,11,11,0.85); border-top:1px solid var(--border);
+    display:flex; align-items:center; justify-content:space-around; padding:0 50px 14px;
+  }
+  .tab { font-size:11px; color:var(--textSecondary); display:flex; flex-direction:column; align-items:center; gap:4px; }
+  .fab {
+    position:absolute; right:18px; bottom:24px; width:56px; height:56px; border-radius:999px;
+    background:var(--secondary); display:flex; align-items:center; justify-content:center;
+    box-shadow:0 6px 18px rgba(82,183,136,0.4);
+  }
+</style>
+</head>
+<body>
+  <div class="pageTitle">FAB Action Menu</div>
+  <div class="sub">"+" overlay · frosted scrim · 2×2 tiles (#0B0B0B) above the tab bar</div>
+
+  <div class="phone">
+    <div class="scrim"></div>
+    <div class="grid">
+      <div class="tile">
+        <div class="tileIcon" style="background:rgba(82,183,136,0.15)">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#52B788" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg>
+        </div>
+        <div class="tileLabel">Scan meal</div>
+      </div>
+      <div class="tile">
+        <div class="tileIcon" style="background:rgba(212,163,115,0.15)">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#D4A373" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M3 12h18M3 18h12"/></svg>
+        </div>
+        <div class="tileLabel">Log symptom</div>
+      </div>
+      <div class="tile">
+        <div class="tileIcon" style="background:rgba(116,198,157,0.15)">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#74C69D" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"/></svg>
+        </div>
+        <div class="tileLabel">Add water</div>
+      </div>
+      <div class="tile">
+        <div class="tileIcon" style="background:rgba(82,183,136,0.15)">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#52B788" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8 14s1.5 2 4 2 4-2 4-2M9 9h.01M15 9h.01"/></svg>
+        </div>
+        <div class="tileLabel">Log mood</div>
+      </div>
+    </div>
+
+    <div class="tabbar">
+      <div class="tab">Home</div>
+      <div class="tab">Progress</div>
+      <div class="tab" style="width:40px"></div>
+      <div class="tab">Insights</div>
+      <div class="tab">Profile</div>
+    </div>
+    <div class="fab">
+      <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#0B2618" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" style="transform:rotate(45deg)"><path d="M12 5v14M5 12h14"/></svg>
+    </div>
+  </div>
+</body>
+</html>

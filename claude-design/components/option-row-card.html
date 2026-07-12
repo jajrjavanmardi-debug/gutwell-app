@@ -1,0 +1,104 @@
+<!-- @dsCard group="Components" -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Gutwell — Option Row &amp; Card</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=EB+Garamond:wght@400;500;600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg:#000000; --surface:#0B0B0B; --surfaceSecondary:#111111; --border:#242424;
+    --text:#FFFFFF; --textSecondary:#A7A7A7;
+    --primary:#1B4332; --secondary:#52B788;
+    --optionBg:#143728; --optionBorder:#52B788;
+    --sans:'Inter',-apple-system,system-ui,sans-serif; --serif:'EB Garamond',Georgia,serif;
+  }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { background:var(--bg); color:var(--text); font-family:var(--sans); padding:24px; -webkit-font-smoothing:antialiased; }
+  .pageTitle { font-family:var(--serif); font-weight:600; font-size:32px; margin-bottom:4px; }
+  .sub { color:var(--textSecondary); font-size:14px; margin-bottom:24px; }
+  h2 { font-size:13px; letter-spacing:1.2px; text-transform:uppercase; color:#777; margin:24px 0 14px; }
+  .stack { display:flex; flex-direction:column; gap:12px; max-width:360px; }
+
+  .optionRow { display:flex; align-items:center; gap:16px; border-radius:20px; padding:14px 16px; }
+  .optionRow.unsel { background:var(--surface); border:1px solid var(--border); }
+  .optionRow.sel { background:var(--optionBg); border:2px solid var(--optionBorder); padding:13px 15px; }
+  .icon { display:flex; align-items:center; justify-content:center; }
+  .textWrap { flex:1; }
+  .label { font-family:var(--sans); font-weight:600; font-size:16px; }
+  .desc { font-family:var(--sans); font-weight:400; font-size:14px; color:var(--textSecondary); margin-top:2px; }
+
+  .ind { width:24px; height:24px; display:flex; align-items:center; justify-content:center; border:2px solid var(--border); }
+  .ind.circle { border-radius:999px; }
+  .ind.square { border-radius:6px; }
+  .ind.selBorder { border-color:var(--secondary); }
+  .dot.circle { width:12px; height:12px; border-radius:999px; background:var(--secondary); }
+  .dot.square { width:12px; height:12px; border-radius:3px; background:var(--secondary); }
+
+  /* OptionCard */
+  .optionCard { display:flex; align-items:center; gap:16px; border-radius:20px; padding:16px; }
+  .optionCard.unsel { background:var(--surface); border:1px solid var(--border); }
+  .optionCard.sel { background:var(--optionBg); border:2px solid var(--optionBorder); padding:15px; }
+  .badge { width:48px; height:48px; border-radius:999px; display:flex; align-items:center; justify-content:center; }
+  .badge.unsel { background:var(--surfaceSecondary); }
+  .badge.sel { background:var(--primary); }
+  .title { font-family:var(--sans); font-weight:700; font-size:16px; }
+  .subtitle { font-family:var(--sans); font-weight:400; font-size:14px; color:var(--textSecondary); margin-top:2px; }
+</style>
+</head>
+<body>
+  <div class="pageTitle">Option Row &amp; Card</div>
+  <div class="sub">Selected fill #143728 + 2px #52B788 border · radio (circle) or checkbox (square)</div>
+
+  <h2>OptionRow — radio</h2>
+  <div class="stack">
+    <div class="optionRow sel">
+      <div class="icon">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#52B788" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="6" r="4"/><path d="M10 10v6M5 19l5-5 5 5"/></svg>
+      </div>
+      <div class="textWrap"><div class="label">Male</div></div>
+      <div class="ind circle selBorder"><div class="dot circle"></div></div>
+    </div>
+    <div class="optionRow unsel">
+      <div class="icon">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#A7A7A7" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M12 12v8M9 18h6"/></svg>
+      </div>
+      <div class="textWrap"><div class="label">Female</div></div>
+      <div class="ind circle"></div>
+    </div>
+  </div>
+
+  <h2>OptionRow — checkbox + description</h2>
+  <div class="stack">
+    <div class="optionRow sel">
+      <div class="textWrap"><div class="label">Bloating</div><div class="desc">Felt after most meals</div></div>
+      <div class="ind square selBorder"><div class="dot square"></div></div>
+    </div>
+    <div class="optionRow unsel">
+      <div class="textWrap"><div class="label">Cramps</div><div class="desc">Occasional discomfort</div></div>
+      <div class="ind square"></div>
+    </div>
+  </div>
+
+  <h2>OptionCard — icon badge</h2>
+  <div class="stack">
+    <div class="optionCard sel">
+      <div class="badge sel">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10Z"/><path d="M2 21c0-3 1.85-5.36 5.08-6"/></svg>
+      </div>
+      <div class="textWrap"><div class="title">Plant-based</div><div class="subtitle">Mostly vegetables, legumes &amp; grains</div></div>
+      <div class="ind circle selBorder"><div class="dot circle"></div></div>
+    </div>
+    <div class="optionCard unsel">
+      <div class="badge unsel">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#A7A7A7" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2Z"/><path d="M8 12h8M12 8v8"/></svg>
+      </div>
+      <div class="textWrap"><div class="title">Omnivore</div><div class="subtitle">A balanced mix of everything</div></div>
+      <div class="ind circle"></div>
+    </div>
+  </div>
+</body>
+</html>

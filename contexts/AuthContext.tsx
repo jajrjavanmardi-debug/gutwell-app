@@ -109,7 +109,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await supabase.auth.signOut();
     setProfile(null);
     // Unlink the analytics identity so the next account on this device
-    // doesn't inherit this user's event stream.
+    // does not inherit this user's event stream.
     resetAnalytics();
   };
 
