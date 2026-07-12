@@ -31,6 +31,7 @@ function keepRecentItems(items: PhotoAnalysisHistoryItem[]): PhotoAnalysisHistor
 export function extractMealImpactScore(aiText: string): string | null {
   // EN/DE outputs use ASCII digits; the "📊 SCORE" section states the score as "X/10".
   const scoreMatch = aiText.match(/(?:meal impact score|impact score|score)[^\d]{0,24}(\d{1,2})\s*(?:\/|out of)\s*10/i)
+    ?? aiText.match(/SCORE[:\s]{0,4}(\d{1,2})\s*(?:\/|out of)\s*10/i)
     ?? aiText.match(/(\d{1,2})\s*(?:\/|out of)\s*10/i);
 
   if (!scoreMatch) return null;
