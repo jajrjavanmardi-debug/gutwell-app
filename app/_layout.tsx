@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Platform } from 'react-native';
-import { router, Stack } from 'expo-router';
+import { router, Stack, useSegments } from 'expo-router';
 import * as Notifications from 'expo-notifications';
 import { StatusBar } from 'expo-status-bar';
 import { AuthProvider, useAuth } from '../contexts/AuthContext';
@@ -39,7 +39,7 @@ SplashScreen.preventAutoHideAsync().catch(() => {
 });
 
 function RootLayoutNav() {
-  const { session, profile } = useAuth();
+  const { session, loading } = useAuth();
   const [showDisclaimer, setShowDisclaimer] = useState(false);
 
   // Show the health disclaimer as soon as an account exists (i.e. before any
@@ -51,6 +51,16 @@ function RootLayoutNav() {
       });
     }
   }, [session?.user?.id]);
+
+  // Redirect unauthenticated users to login — fires once when session/loading changes.
+  const segments = useSegments();
+  useEffect(() => {
+    if (loading) return;
+    const inAuthGroup = segments[0] === '(auth)';
+    if (!session && !inAuthGroup) {
+      router.replace('/(auth)/login');
+    }
+  }, [session, loading, segments]);
 
   // Identify user for analytics when authenticated
   useEffect(() => {
