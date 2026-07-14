@@ -73,6 +73,48 @@ export function extractMealName(aiText: string): string {
   return rawMealName.slice(0, 80) || 'Meal photo';
 }
 
+/**
+ * Extracts a short meal title (max 40 chars) from the MEAL section for use as a headline.
+ * Strips common preamble phrases like "You had", "You ate", "This looks like".
+ * Falls back to "Meal analysis" for non-food responses or when extraction fails.
+ */
+export function extractMealTitle(aiText: string): string {
+  const fullName = extractMealName(aiText);
+  if (!fullName || fullName === 'Meal photo') return 'Meal analysis';
+  if (/^i cannot identify/i.test(fullName)) return 'Meal analysis';
+  // Strip common preamble phrases
+  const stripped = fullName
+    .replace(/^(you had|you ate|you enjoyed|this (looks like( a meal of)?|is|appears to be)|i can('t| not) identify[^.]*\.)/i, '')
+    .replace(/^(you had|you ate|you enjoyed|this looks like( a meal of)?|this is|this appears to be)\s*/i, '')
+    .trim();
+  const result = stripped || fullName;
+  // Trim at word boundary around 40 chars
+  if (result.length <= 40) return result;
+  const cut = result.slice(0, 40);
+  const lastSpace = cut.lastIndexOf(' ');
+  return lastSpace > 20 ? cut.slice(0, lastSpace) : cut;
+}
+
+/**
+ * Extracts a short one-line reason from the SCORE section (the sentence explaining the score).
+ * Returns empty string when SCORE section is missing or reason cannot be extracted.
+ */
+export function extractScoreReason(aiText: string): string {
+  // Find the SCORE section and extract the explanatory sentence
+    const scoreSection = aiText.match(/SCORE[^\n]*\n([^\n]{10,200})/i);
+  if (!scoreSection) return '';
+  let reason = scoreSection[1].trim();
+  // Remove the X/10 if it appears at the start of the reason line
+  reason = reason.replace(/^\d{1,2}\/10[^a-zA-Z]*/i, '').trim();
+  // Remove leading emoji or symbols
+  reason = reason.replace(/^[^\w\u00C0-\u017E\u0600-\u06FF]+/, '').trim();
+  if (reason.length < 5) return '';
+  // Trim to first sentence or 80 chars
+  const firstSentence = reason.match(/^[^.!?]+[.!?]/);
+  const candidate = firstSentence ? firstSentence[0] : reason.slice(0, 80);
+  return candidate.trim();
+}
+
 export async function getPhotoAnalysisHistory(): Promise<PhotoAnalysisHistoryItem[]> {
   const raw = await AsyncStorage.getItem(PHOTO_ANALYSIS_HISTORY_KEY);
   if (!raw) return [];

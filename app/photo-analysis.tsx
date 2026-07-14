@@ -35,6 +35,8 @@ import { canUseNativeSpeechToText } from '../lib/runtime-environment';
 import { analyzeMealPhoto, reviseMealAnalysis } from '../lib/RecommendationEngine';
 import {
   extractMealName,
+  extractMealTitle,
+  extractScoreReason,
   extractMealImpactScore,
   getPhotoAnalysisHistory,
   savePhotoAnalysisHistoryItem,
@@ -1542,8 +1544,8 @@ export default function PhotoAnalysisScreen() {
                       <View style={styles.resultTitleRow}>
                         <Ionicons name="nutrition" size={20} color={Colors.secondary} />
                         <View style={styles.resultTitleTextBlock}>
-                          <Text style={[styles.resultMealName, isRtlLanguage && styles.rtlText]} numberOfLines={2}>
-                            {extractMealName(analysis)}
+                          <Text style={[styles.resultMealName, isRtlLanguage && styles.rtlText]} numberOfLines={1}>
+                            {extractMealTitle(analysis)}
                           </Text>
                           <Text style={[styles.resultTitle, isRtlLanguage && styles.rtlText]}>{t.resultTitle}</Text>
                         </View>
@@ -1556,8 +1558,10 @@ export default function PhotoAnalysisScreen() {
                         isRtlLanguage && styles.rtlRow,
                       ]}>
                         <Ionicons name="speedometer" size={18} color={Colors.textInverse} />
-                        <Text style={styles.scoreBadgeLabel}>{t.scoreLabel}</Text>
                         <Text style={styles.scoreBadgeValue}>{mealImpactScore}</Text>
+                        {extractScoreReason(analysis) ? (
+                          <Text style={styles.scoreBadgeLabel} numberOfLines={1}>{extractScoreReason(analysis)}</Text>
+                        ) : null}
                       </View>
                     ) : null}
 
