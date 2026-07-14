@@ -218,7 +218,7 @@ function buildMealTextPrompt(body: MealTextBody): string {
   const locationContext = body.locationContext;
 
   const languageLabel = LANGUAGE_LABEL[preferredLanguage];
-  const conditionSummary = conditions.length > 0 ? conditions.join(", ") : "not provided";
+  const conditionSummary = conditions.length > 0 ? conditions.join(", ") : "no known conditions";
   const symptomSummary = symptoms.length > 0 ? symptoms.join(", ") : "not provided";
   const userEnteredSymptomSummary =
     userEnteredSymptoms.length > 0 ? userEnteredSymptoms.join(", ") : "none";
@@ -261,7 +261,9 @@ function buildMealTextPrompt(body: MealTextBody): string {
     "Analysis rules:",
     "- Weigh what you see in the photo against the conditions, all current symptoms, and the gut score. User-entered symptoms take priority over default profile symptoms.",
     "- Consider supplements taken in the last 12 hours when relevant (e.g. a digestive enzyme or probiotic), but do not overpromise symptom relief.",
-    "- For IBS, bloating, or stomach pain, flag likely gas-forming or high-FODMAP foods; do not suggest brown rice, barley, or high-fiber whole grains — prefer white rice, boiled potatoes, zucchini, carrots, peppermint tea, ginger tea, or low-FODMAP soup.",
+    conditionSummary !== "no known conditions"
+      ? "- If IBS, bloating, or stomach pain is listed in the known conditions above, flag likely gas-forming or high-FODMAP foods; do not suggest brown rice, barley, or high-fiber whole grains — prefer white rice, boiled potatoes, zucchini, carrots, peppermint tea, ginger tea, or low-FODMAP soup."
+      : "- Give food-specific advice based only on what is visible in the photo. Do not assume gut conditions, sensitivities, or dietary restrictions that are not listed. If the user mentions pain or bloating in their notes, address it directly.",
     "- If a pain symptom is present, the NEXT STEP should lead with a gentle Plan B (peppermint or ginger tea, hydration, rest, warm compress) and add: seek medical care promptly for severe, worsening, or unusual pain.",
     "- Do not claim a food will treat, cure, prevent, or reliably stop symptoms. Use cautious comfort language; never promise or quantify outcomes (no percentages or timeframes).",
     "- Non-food guard (HIGHEST PRIORITY): Before producing any sections, decide if the image clearly shows a meal, dish, drink, or recognisable food item. If the image shows a plant in nature, a landscape, a person, an animal, packaging without visible food, a blurry or unidentifiable object, or anything that is clearly not food, you MUST NOT produce the 5-section output. Instead respond with exactly two plain sentences in the preferred response language: (1) state that you cannot identify a meal or food in the image, (2) ask the user to upload a clearer photo of their meal or to describe it in the text field below.",
