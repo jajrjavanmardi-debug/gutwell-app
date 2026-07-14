@@ -1,4 +1,4 @@
-import { extractMealImpactScore, extractMealName } from '../photo-analysis-history';
+import { extractMealImpactScore, extractMealName, extractMealTitle, extractScoreReason } from '../photo-analysis-history';
 
 // Sample of the NEW meal_revise emoji format produced by the analyze-food edge
 // function (5 sections, emoji labels, score stated as X/10).
@@ -79,5 +79,47 @@ describe('extractMealName (R2)', () => {
 
   it('falls back to a default when nothing matches', () => {
     expect(extractMealName('')).toBe('Meal photo');
+  });
+});
+
+describe('extractMealTitle', () => {
+  it('strips "You had" preamble', () => {
+    expect(extractMealTitle('You had fried fish with a dip and a Coca-Cola.')).toBe('fried fish with a dip and a Coca-Cola.');
+  });
+
+  it('strips "This looks like a meal of" preamble', () => {
+    expect(extractMealTitle('This looks like a meal of grilled chicken and rice.')).toBe('grilled chicken and rice.');
+  });
+
+  it('returns short title unchanged when already short', () => {
+    expect(extractMealTitle('Grilled fish and salad')).toBe('Grilled fish and salad');
+  });
+
+  it('truncates at word boundary when over 40 chars', () => {
+    const result = extractMealTitle('A very long meal description that exceeds forty characters easily');
+    expect(result.length).toBeLessThanOrEqual(40);
+  });
+
+  it('returns "Meal analysis" for non-food response', () => {
+    expect(extractMealTitle('I cannot identify a meal or food in this image.')).toBe('Meal analysis');
+  });
+
+  it('returns "Meal analysis" for empty string', () => {
+    expect(extractMealTitle('')).toBe('Meal analysis');
+  });
+});
+
+describe('extractScoreReason', () => {
+  it('extracts reason from SCORE section', () => {
+    const text = '🍽️ MEAL\nFried fish\n📊 SCORE\nThis meal gets a 4/10 for gut impact.\n⚠️ POSSIBLE SENSITIVITY';
+    expect(extractScoreReason(text)).toBe('This meal gets a 4/10 for gut impact.');
+  });
+
+  it('returns empty string when no SCORE section', () => {
+    expect(extractScoreReason('No score here')).toBe('');
+  });
+
+  it('returns empty string for non-food response', () => {
+    expect(extractScoreReason('I cannot identify a meal or food in this image.')).toBe('');
   });
 });
