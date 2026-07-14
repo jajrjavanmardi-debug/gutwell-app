@@ -185,9 +185,9 @@ function fiveSectionStructure(opts: { mealLine: string; disclaimer: string; apol
     "⚠️ POSSIBLE SENSITIVITY",
     "Name the likely comfort issue in plain language. If uncertain, say so clearly.",
     "✅ BETTER OPTION",
-    "Suggest one gentler alternative or one small adjustment that fits the meal.",
+    "Suggest one gentler alternative that is specific to this exact meal. Choose the most relevant improvement: a cooking method change (e.g. grill instead of fry), an ingredient swap (e.g. sparkling water instead of soda), a portion adjustment, or a complementary food. Do not default to zucchini, carrots, peppermint, or ginger unless they are genuinely the best fit for this specific meal and user context.",
     "➡️ NEXT STEP",
-    "Give exactly one practical next step the person can do today.",
+    "Give exactly one practical next step specific to this meal and context. Vary it: for a fried or heavy meal suggest a smaller portion next time or a short walk after eating; for a sugary drink suggest swapping to water or an unsweetened alternative; for a large meal suggest eating more slowly or pausing before seconds; for a dairy concern suggest a smaller portion or a lactose-free alternative; for a generally healthy meal suggest a positive reinforcement habit. Reserve peppermint or ginger tea only when the user has explicitly mentioned stomach pain, nausea, gas, or bloating in their profile conditions or in their notes for this meal.",
     `End with this exact safety footer: ${opts.disclaimer}`,
   ];
 }
