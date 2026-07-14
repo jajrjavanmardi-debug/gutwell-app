@@ -405,7 +405,10 @@ function sanitizeAnalysisForDisplay(text: string): string {
     .replace(/(?<![\w])_([^_\n]+?)_(?![\w])/g, '$1')
     // 8. Remove leading bullets: * item, - item, • item
     .replace(/^\s*[*\-\u2022]\s+/gm, '')
-    // 9. Collapse 3+ blank lines to 2
+    // 9. Remove EN/DE medical disclaimer appended by the model (shown separately in the UI grey card)
+    .replace(/Important note:\s*This analysis is for informational purposes only[^\n]*/gi, '')
+    .replace(/Wichtiger Hinweis:\s*Diese Analyse dient nur der Information[^\n]*/gi, '')
+    // 10. Collapse 3+ blank lines to 2
     .replace(/\n{3,}/g, '\n\n')
     .trim();
   return cleaned;
