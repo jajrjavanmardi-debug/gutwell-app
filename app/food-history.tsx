@@ -14,6 +14,19 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { BorderRadius, Colors, FontFamily, FontSize, Spacing } from '../constants/theme';
 import { getPhotoAnalysisHistory, type PhotoAnalysisHistoryItem } from '../lib/photo-analysis-history';
 
+function ImageWithFallback({ uri, style }: { uri: string; style: object }) {
+  const [failed, setFailed] = useState(false);
+  const hasUri = Boolean(uri);
+  if (!hasUri || failed) {
+    return (
+      <View style={[style as any, { backgroundColor: "#1A2420", alignItems: "center", justifyContent: "center" }]}>
+        <Ionicons name="image-outline" size={28} color="#3D5A4C" />
+      </View>
+    );
+  }
+  return <Image source={{ uri }} style={style as any} onError={() => setFailed(true)} />;
+}
+
 export default function FoodHistoryScreen() {
   const [history, setHistory] = useState<PhotoAnalysisHistoryItem[]>([]);
 
@@ -52,7 +65,7 @@ export default function FoodHistoryScreen() {
               })}
               style={({ pressed }) => [styles.card, pressed && styles.pressed]}
             >
-              <Image source={{ uri: item.imageUri }} style={styles.image} />
+              <ImageWithFallback uri={item.imageUri} style={styles.image} />
               <View style={styles.cardCopy}>
                 <Text style={styles.date}>{new Date(item.createdAt).toLocaleDateString()}</Text>
                 <Text numberOfLines={1} style={styles.mealName}>{item.mealName}</Text>
@@ -68,7 +81,7 @@ export default function FoodHistoryScreen() {
           <View style={styles.emptyCard}>
             <Ionicons name="images-outline" size={28} color={Colors.secondary} />
             <Text style={styles.emptyTitle}>No meal scans yet</Text>
-            <Text style={styles.emptyText}>Your saved photo analyses will appear here after the first scan.</Text>
+            <Text style={styles.emptyText}>Completed analyses are saved automatically and kept locally for 14 days. Your next scan will appear here.</Text>
           </View>
         )}
       </ScrollView>
