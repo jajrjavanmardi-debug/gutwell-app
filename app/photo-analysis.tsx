@@ -569,7 +569,7 @@ export default function PhotoAnalysisScreen() {
   const hasPainSymptom = currentSymptoms.some((symptom) =>
     hasPainText(symptom)
   );
-  const shouldShowMealScoreBadge = false; // Product rule: NutriFlow does not rate food
+  const shouldShowMealScoreBadge = true; // SCORE badge re-enabled for GutWell meal impact scoring
   const mealImpactScore = extractMealImpactScore(analysis);
   const wizardSubtitle =
     wizardStep === 1 ? t.wizardStep1Subtitle : wizardStep === 2 ? t.wizardStep2Subtitle : t.wizardStep3Subtitle;
