@@ -1256,9 +1256,11 @@ export default function PhotoAnalysisScreen() {
             hitSlop={10}
             style={styles.historyButton}
             accessibilityRole="button"
-            accessibilityLabel="View past meal scans"
+            accessibilityLabel="View meal scan history"
+            accessibilityHint="Opens a list of your saved photo analyses"
           >
-            <Ionicons name="time-outline" size={22} color="#FFFFFF" />
+            <Ionicons name="time-outline" size={18} color="#FFFFFF" />
+            <Text style={styles.historyButtonLabel}>History</Text>
           </Pressable>
         </View>
 
@@ -1863,6 +1865,13 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontFamily: FontFamily.sansBold,
     fontSize: FontSize.sm,
+  },
+  historyButtonLabel: {
+    color: "#FFFFFF",
+    fontSize: 11,
+    fontFamily: "Inter_500Medium",
+    marginTop: 2,
+    textAlign: "center",
   },
   historyButton: {
     alignItems: 'center',
