@@ -159,6 +159,27 @@ const copy = {
     done: 'Done',
     chipGutImpact: 'Gut impact',
     chipMealType: 'Meal',
+    contextSectionLabel: 'Personalize this analysis',
+    currentStateLabel: 'How do you feel right now?',
+    afterActivityLabel: 'What do you plan to do after eating?',
+    stateOptions: {
+      fine: 'Feeling fine',
+      bloating: 'Bloating',
+      pain: 'Stomach pain',
+      lowEnergy: 'Low energy',
+      nausea: 'Nausea',
+      reflux: 'Reflux',
+    },
+    activityOptions: {
+      rest: 'Rest',
+      work: 'Work or study',
+      driving: 'Driving',
+      walking: 'Walking',
+      exercise: 'Exercise',
+      competition: 'Competition',
+      sleep: 'Sleep',
+      social: 'Social event',
+    },
     expoGoTextOnlyHint:
       'Expo Go (development): hold-to-talk voice is off. Describe your meal and how you feel below — analysis, Nürtingen-style prompts, and the 4-step flow still work.',
   },
@@ -255,6 +276,27 @@ const copy = {
     done: 'Fertig',
     chipGutImpact: 'Darm-Wirkung',
     chipMealType: 'Mahlzeit',
+    contextSectionLabel: 'Analyse personalisieren',
+    currentStateLabel: 'Wie fühlst du dich gerade?',
+    afterActivityLabel: 'Was planst du nach dem Essen?',
+    stateOptions: {
+      fine: 'Fühle mich gut',
+      bloating: 'Blähungen',
+      pain: 'Magenschmerzen',
+      lowEnergy: 'Wenig Energie',
+      nausea: 'Übelkeit',
+      reflux: 'Sodbrennen',
+    },
+    activityOptions: {
+      rest: 'Ausruhen',
+      work: 'Arbeit oder Lernen',
+      driving: 'Autofahren',
+      walking: 'Spaziergang',
+      exercise: 'Sport',
+      competition: 'Wettkampf',
+      sleep: 'Schlafen',
+      social: 'Soziales Event',
+    },
     expoGoTextOnlyHint:
       'Expo Go (Entwicklung): Halten-zum-Sprechen ist aus. Beschreib Mahlzeit und Befinden im Textfeld — Analyse, Nürtingen-Hinweise und der 4-Schritte-Ablauf bleiben aktiv.',
   },
@@ -462,6 +504,9 @@ export default function PhotoAnalysisScreen() {
   const [accuracyAnswer, setAccuracyAnswer] = useState<'yes' | 'no' | null>(null);
   const [correctionDraft, setCorrectionDraft] = useState('');
   const [mealDescription, setMealDescription] = useState('');
+  const [currentStateContext, setCurrentStateContext] = useState<string | null>(null);
+  const [afterMealActivity, setAfterMealActivity] = useState<string | null>(null);
+  const [contextExpanded, setContextExpanded] = useState(false);
   /** Corrections the user submitted this session (typed or sent after voice); fed to revise prompts as prior context. */
   const [userFeedback, setUserFeedback] = useState<string[]>([]);
   const [todaysSupplements, setTodaysSupplements] = useState<SupplementHistoryItem[]>([]);
@@ -1185,6 +1230,9 @@ export default function PhotoAnalysisScreen() {
     setAnalysis('');
     setPlanBMessage('');
     setMealDescription('');
+    setCurrentStateContext(null);
+    setAfterMealActivity(null);
+    setContextExpanded(false);
     setUserFeedback([]);
     setWizardStep(1);
     setAccuracyAnswer(null);
@@ -1354,6 +1402,58 @@ export default function PhotoAnalysisScreen() {
                   isRtlLanguage && styles.rtlText,
                 ]}
               />
+
+              {/* Optional Meal Context chips */}
+              <Pressable
+                onPress={() => setContextExpanded(prev => !prev)}
+                style={styles.contextToggle}
+                accessibilityRole="button"
+                accessibilityLabel={t.contextSectionLabel}
+              >
+                <Ionicons name={contextExpanded ? 'chevron-up' : 'chevron-down'} size={14} color={Colors.textSecondary} />
+                <Text style={styles.contextToggleLabel}>{t.contextSectionLabel}</Text>
+              </Pressable>
+
+              {contextExpanded ? (
+                <View style={styles.contextPanel}>
+                  <Text style={styles.contextGroupLabel}>{t.currentStateLabel}</Text>
+                  <View style={styles.contextChipsRow}>
+                    {(Object.entries(t.stateOptions) as [string, string][]).map(([key, label]) => (
+                      <Pressable
+                        key={key}
+                        onPress={() => setCurrentStateContext(currentStateContext === key ? null : key)}
+                        style={[styles.contextChip, currentStateContext === key && styles.contextChipSelected]}
+                        accessibilityRole="button"
+                        accessibilityLabel={label}
+                        accessibilityState={{ selected: currentStateContext === key }}
+                        hitSlop={4}
+                      >
+                        <Text style={[styles.contextChipText, currentStateContext === key && styles.contextChipTextSelected]}>
+                          {label}
+                        </Text>
+                      </Pressable>
+                    ))}
+                  </View>
+                  <Text style={[styles.contextGroupLabel, { marginTop: 12 }]}>{t.afterActivityLabel}</Text>
+                  <View style={styles.contextChipsRow}>
+                    {(Object.entries(t.activityOptions) as [string, string][]).map(([key, label]) => (
+                      <Pressable
+                        key={key}
+                        onPress={() => setAfterMealActivity(afterMealActivity === key ? null : key)}
+                        style={[styles.contextChip, afterMealActivity === key && styles.contextChipSelected]}
+                        accessibilityRole="button"
+                        accessibilityLabel={label}
+                        accessibilityState={{ selected: afterMealActivity === key }}
+                        hitSlop={4}
+                      >
+                        <Text style={[styles.contextChipText, afterMealActivity === key && styles.contextChipTextSelected]}>
+                          {label}
+                        </Text>
+                      </Pressable>
+                    ))}
+                  </View>
+                </View>
+              ) : null}
 
               <Pressable
                 onPress={handleGenerateAnalysis}
@@ -2555,6 +2655,53 @@ const styles = StyleSheet.create({
   },
   sendButtonDisabled: {
     opacity: 0.4,
+  },
+  contextToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: 10,
+    marginTop: 4,
+  },
+  contextToggleLabel: {
+    color: Colors.textSecondary,
+    fontSize: 13,
+    fontFamily: 'Inter_500Medium',
+  },
+  contextPanel: {
+    marginBottom: 12,
+  },
+  contextGroupLabel: {
+    color: Colors.textSecondary,
+    fontSize: 12,
+    fontFamily: 'Inter_500Medium',
+    marginBottom: 8,
+  },
+  contextChipsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  contextChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    backgroundColor: Colors.surface,
+  },
+  contextChipSelected: {
+    borderColor: Colors.secondary,
+    backgroundColor: Colors.secondary + '22',
+  },
+  contextChipText: {
+    color: Colors.textSecondary,
+    fontSize: 13,
+    fontFamily: 'Inter_400Regular',
+  },
+  contextChipTextSelected: {
+    color: Colors.secondary,
+    fontFamily: 'Inter_500Medium',
   },
   wizardStep2Content: {
     paddingBottom: Spacing.xl * 2,
