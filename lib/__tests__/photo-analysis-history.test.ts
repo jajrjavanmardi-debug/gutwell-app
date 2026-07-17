@@ -84,11 +84,11 @@ describe('extractMealName (R2)', () => {
 
 describe('extractMealTitle', () => {
   it('strips "You had" preamble', () => {
-    expect(extractMealTitle('You had fried fish with a dip and a Coca-Cola.')).toBe('fried fish with a dip and a Coca-Cola.');
+    expect(extractMealTitle('You had fried fish with a dip and a Coca-Cola.')).toBe('Fried fish with a dip and a Coca-Cola');
   });
 
   it('strips "This looks like a meal of" preamble', () => {
-    expect(extractMealTitle('This looks like a meal of grilled chicken and rice.')).toBe('grilled chicken and rice.');
+    expect(extractMealTitle('This looks like a meal of grilled chicken and rice.')).toBe('Grilled chicken and rice');
   });
 
   it('returns short title unchanged when already short', () => {
