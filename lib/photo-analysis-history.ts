@@ -82,15 +82,18 @@ export function extractMealTitle(aiText: string): string {
   const fullName = extractMealName(aiText);
   if (!fullName || fullName === 'Meal photo') return 'Meal analysis';
   if (/^i cannot identify/i.test(fullName)) return 'Meal analysis';
-  // Strip common preamble phrases
-  const stripped = fullName
-    .replace(/^(you had|you ate|you enjoyed|this (looks like( a meal of)?|is|appears to be)|i can('t| not) identify[^.]*\.)/i, '')
-    .replace(/^(you had|you ate|you enjoyed|this looks like( a meal of)?|this is|this appears to be)\s*/i, '')
+  // Strip sentence-style preamble phrases
+  let stripped = fullName
+    .replace(/^(it looks like you enjoyed|you had|you ate|you enjoyed|this looks like a meal of|this looks like|this is|this appears to be|looks like a (meal of|lovely )?)/i, '')
     .trim();
+  // Remove trailing period
+  stripped = stripped.replace(/\.$/, '').trim();
   const result = stripped || fullName;
+  // Capitalize first letter
+  const titled = result.charAt(0).toUpperCase() + result.slice(1);
   // Trim at word boundary around 40 chars
-  if (result.length <= 40) return result;
-  const cut = result.slice(0, 40);
+  if (titled.length <= 40) return titled;
+  const cut = titled.slice(0, 40);
   const lastSpace = cut.lastIndexOf(' ');
   return lastSpace > 20 ? cut.slice(0, lastSpace) : cut;
 }

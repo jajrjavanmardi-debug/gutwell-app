@@ -118,7 +118,7 @@ const copy = {
     planBTitle: 'Plan B',
     planBText: "I'm sorry this suggestion bothered you. I marked it as a trigger and your safer Plan B is: pause this food for now, sip ginger or peppermint tea, hydrate, and choose a very simple meal like rice, banana, or soup until your gut settles.",
     instantReliefTitle: 'Gentle comfort ideas',
-    instantReliefText: 'Some people find warm peppermint or ginger tea, a warm compress, slow breathing, water, and rest comforting. Consider pausing the suspected trigger food for now. If pain is severe, worsening, or unusual, seek medical care promptly.',
+    instantReliefText: 'Try a warm compress on your stomach, slow deep breathing, sips of plain water, and rest. Consider pausing the suspected trigger food for now. If pain is severe, worsening, persistent, or unusual, seek medical care promptly.',
     painApology: "I'm sorry this food may have bothered your body. Let's switch to a safer Plan B first.",
     medicalDisclaimer:
       'Important note: This analysis is for informational purposes only and does not replace a medical diagnosis. Seek medical care if you notice severe symptoms.',
@@ -235,7 +235,7 @@ const copy = {
     planBTitle: 'Plan B',
     planBText: 'Es tut mir leid, dass diese Empfehlung dir nicht gutgetan hat. Ich habe sie als Trigger gespeichert. Sicherer Plan B: pausiere dieses Lebensmittel, trinke Ingwer- oder Pfefferminztee, bleib hydriert und iss vorerst etwas Einfaches wie Reis, Banane oder Suppe.',
     instantReliefTitle: 'Sanfte Wohlfühl-Tipps',
-    instantReliefText: 'Viele empfinden warmen Pfefferminz- oder Ingwertee, eine warme Kompresse, ruhiges Atmen, Wasser und etwas Ruhe als angenehm. Pausiere das vermutete Trigger-Lebensmittel vorerst. Bei starken, zunehmenden oder ungewöhnlichen Schmerzen bitte umgehend medizinische Hilfe holen.',
+    instantReliefText: 'Eine warme Kompresse auf dem Bauch, ruhiges tiefes Atmen, schluckweise Wasser trinken und etwas Ausruhen können helfen. Pausiere das vermutete Trigger-Lebensmittel vorerst. Bei starken, zunehmenden, anhaltenden oder ungewöhnlichen Schmerzen bitte umgehend medizinische Hilfe holen.',
     painApology: 'Es tut mir leid, dass dieses Essen deinem Körper nicht gutgetan haben könnte. Lass uns zuerst zu einem sichereren Plan B wechseln.',
     medicalDisclaimer:
       'Wichtiger Hinweis: Diese Analyse dient nur der Information und ersetzt keine ärztliche Diagnose. Suchen Sie bei schweren Symptomen einen Arzt auf.',
