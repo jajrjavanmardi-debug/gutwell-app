@@ -1252,6 +1252,23 @@ export default function PhotoAnalysisScreen() {
     setCorrectionDraft('');
   };
 
+  const handleBack = () => {
+    if (params.historyId && wizardStep === 3) {
+      // Opened from history — return to history list
+      router.back();
+    } else if (wizardStep === 3) {
+      // Step 3 → Step 2, preserve all state
+      setWizardStep(2);
+      setAccuracyAnswer(null);
+    } else if (wizardStep === 2) {
+      // Step 2 → Step 1, preserve image
+      setWizardStep(1);
+    } else {
+      // Step 1 → exit modal
+      router.back();
+    }
+  };
+
   const handleApplyCorrection = async () => {
     const trimmed = correctionDraft.trim();
     if (!trimmed) {
@@ -1291,7 +1308,7 @@ export default function PhotoAnalysisScreen() {
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.screenBody}>
         <View style={styles.header}>
-          <Pressable onPress={() => router.back()} hitSlop={10} style={styles.backButton}>
+          <Pressable onPress={handleBack} hitSlop={10} style={styles.backButton}>
             <Ionicons name="chevron-back" size={20} color="#FFFFFF" />
             <Text style={styles.backButtonText}>{t.back}</Text>
           </Pressable>
