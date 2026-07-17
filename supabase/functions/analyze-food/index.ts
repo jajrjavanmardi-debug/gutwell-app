@@ -204,6 +204,7 @@ type MealTextBody = {
   locationContext?: string;
   retailLocationHint?: string;
   userFeelingsNarrative?: string;
+  mealContext?: { currentState?: string; afterMealActivity?: string };
 };
 
 function buildMealTextPrompt(body: MealTextBody): string {
@@ -215,6 +216,15 @@ function buildMealTextPrompt(body: MealTextBody): string {
   const supplementsTakenToday = asStringArray(body.supplementsTakenToday);
   const retailHint = (body.retailLocationHint ?? "").trim();
   const narrative = (body.userFeelingsNarrative ?? "").trim();
+  const mealCtx = body.mealContext ?? {};
+  const currentState = (mealCtx.currentState ?? "").trim();
+  const afterActivity = (mealCtx.afterMealActivity ?? "").trim();
+  const mealContextLines: string[] = [];
+  if (currentState) mealContextLines.push(`User's current state: ${currentState.replace(/_/g, ' ')}.`);
+  if (afterActivity) mealContextLines.push(`Activity after eating: ${afterActivity.replace(/_/g, ' ')}.`);
+  const mealContextBlock = mealContextLines.length > 0
+    ? "Meal context (user-selected, use when present):\n" + mealContextLines.join("\n")
+    : "";
   const locationContext = body.locationContext;
 
   const languageLabel = LANGUAGE_LABEL[preferredLanguage];
@@ -236,6 +246,7 @@ function buildMealTextPrompt(body: MealTextBody): string {
       .join(" | ") || "not available";
 
   const profileHead = [
+    ...(mealContextBlock ? [mealContextBlock] : []),
     `Current gut score: ${gutScoreSummary}.`,
     `Known gut conditions: ${conditionSummary}.`,
     `User-entered symptoms from the UI: ${userEnteredSymptomSummary}.`,
@@ -269,6 +280,9 @@ function buildMealTextPrompt(body: MealTextBody): string {
     "- Non-food guard (HIGHEST PRIORITY): Before producing any sections, decide if the image clearly shows a meal, dish, drink, or recognisable food item. If the image shows a plant in nature, a landscape, a person, an animal, packaging without visible food, a blurry or unidentifiable object, or anything that is clearly not food, you MUST NOT produce the 5-section output. Instead respond with exactly two plain sentences in the preferred response language: (1) state that you cannot identify a meal or food in the image, (2) ask the user to upload a clearer photo of their meal or to describe it in the text field below.",
     "- When the photo shows food but is unclear or ambiguous, say briefly what extra detail would help instead of guessing.",
     "",
+    ...(mealContextBlock ? [
+      "Activity and context guidance: When meal context is provided, at least one section (preferably BETTER OPTION or NEXT STEP) must explicitly connect advice to it. Use careful wording: 'may feel more comfortable', 'could be a better fit', 'may feel lighter'. Never guarantee outcomes. Driving: consider portion and heaviness for comfort without safety claims. Exercise/competition: consider digestion time and heaviness. Sleep: consider portion, reflux, and timing. Work/study: consider heaviness and portion for focus comfort. Social event: flexible, non-judgmental advice. Bloating: consider carbonation, fat, portion, eating speed. Stomach pain: cautious comfort guidance. Low energy: focus on balance, avoid heavy meals. Nausea: smaller gentler choices. Reflux: consider portion size, fried foods, acidity, timing.",
+    ] : []),
     ...FIVE_SECTION_FORMAT_RULES,
     "",
     ...fiveSectionStructure({ mealLine, disclaimer }),

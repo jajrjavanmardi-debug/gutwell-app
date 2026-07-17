@@ -52,6 +52,10 @@ export type MealPhotoAnalysisContext = {
   retailLocationHint?: string;
   /** Verbatim user text (feelings / what they ate) submitted with the photo before analysis */
   userFeelingsNarrative?: string;
+  mealContext?: {
+    currentState?: string;
+    afterMealActivity?: string;
+  };
 };
 
 export type MealCorrectionContext = {
@@ -220,6 +224,7 @@ export async function analyzeMealPhoto(
       locationContext: analysisContext.locationContext,
       retailLocationHint: analysisContext.retailLocationHint ?? '',
       userFeelingsNarrative: analysisContext.userFeelingsNarrative ?? '',
+      mealContext: analysisContext.mealContext,
     },
     'Could not analyze the meal photo. Please try again.',
   );
