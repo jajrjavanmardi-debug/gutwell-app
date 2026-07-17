@@ -917,6 +917,10 @@ export default function PhotoAnalysisScreen() {
         userFeelingsNarrative: gutProfileContext.dietType
           ? `(My diet is ${gutProfileContext.dietType}.) ${feelingsNarrative}`
           : feelingsNarrative,
+        mealContext: (currentStateContext || afterMealActivity) ? {
+          currentState: currentStateContext ?? undefined,
+          afterMealActivity: afterMealActivity ?? undefined,
+        } : undefined,
       });
       setAnalysis(rawResult);
       track(Events.FOOD_SCANNED);
