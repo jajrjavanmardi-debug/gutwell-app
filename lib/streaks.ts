@@ -95,7 +95,7 @@ async function upsertStreakRow(userId: string, snapshot: StreakSnapshot): Promis
     {
       user_id: userId,
       current_streak: snapshot.currentStreak,
-      best_streak: snapshot.bestStreak,
+      longest_streak: snapshot.bestStreak,
       last_check_in_date: snapshot.lastCheckInDate,
       updated_at: new Date().toISOString(),
     },
@@ -126,7 +126,7 @@ async function upsertStreakRow(userId: string, snapshot: StreakSnapshot): Promis
 export async function getStreakSnapshot(userId: string): Promise<StreakSnapshot> {
   const { data: cacheRow, error: cacheError } = await supabase
     .from('streaks')
-    .select('current_streak, best_streak, last_check_in_date')
+    .select('current_streak, longest_streak, last_check_in_date')
     .eq('user_id', userId)
     .maybeSingle();
 
@@ -136,7 +136,7 @@ export async function getStreakSnapshot(userId: string): Promise<StreakSnapshot>
 
   const recomputed = await getFallbackFromCheckIns(userId);
 
-  const cachedBest = !cacheError && cacheRow ? cacheRow.best_streak ?? 0 : 0;
+  const cachedBest = !cacheError && cacheRow ? cacheRow.longest_streak ?? 0 : 0;
   const reconciled: StreakSnapshot = {
     currentStreak: recomputed.currentStreak,
     bestStreak: Math.max(recomputed.bestStreak, cachedBest),
@@ -144,12 +144,12 @@ export async function getStreakSnapshot(userId: string): Promise<StreakSnapshot>
   };
 
   // Self-heal the cache when it disagrees with the authoritative recompute
-  // (e.g. it went stale across a missed day, or best_streak grew).
+  // (e.g. it went stale across a missed day, or longest_streak grew).
   const cacheIsStale =
     cacheError ||
     !cacheRow ||
     (cacheRow.current_streak ?? 0) !== reconciled.currentStreak ||
-    (cacheRow.best_streak ?? 0) !== reconciled.bestStreak ||
+    (cacheRow.longest_streak ?? 0) !== reconciled.bestStreak ||
     (cacheRow.last_check_in_date ?? null) !== reconciled.lastCheckInDate;
   if (cacheIsStale) {
     await upsertStreakRow(userId, reconciled).catch((error) =>
