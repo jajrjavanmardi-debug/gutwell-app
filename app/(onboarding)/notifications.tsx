@@ -29,6 +29,8 @@ export default function NotificationsScreen() {
   const celebrationFade = useRef(new Animated.Value(0)).current;
   const celebrationScale = useRef(new Animated.Value(0.8)).current;
   const buttonAnim = useRef(new Animated.Value(0)).current;
+  // Synchronous lock — prevents concurrent calls even before React re-renders.
+  const inFlightRef = useRef(false);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -44,10 +46,10 @@ export default function NotificationsScreen() {
 
   // Shared internal completion logic — does NOT manage loading state.
   // Callers (handleEnableReminder, handleNotNow) own loading state.
+  // Throws if user.id is unavailable so callers can release the lock cleanly.
   const finishOnboarding = async () => {
     if (!user?.id) {
-      router.replace('/(auth)/signup');
-      return;
+      throw new Error('No authenticated user');
     }
     await completeOnboardingProfile(user.id);
     await refreshProfile().catch(() => {});
@@ -61,12 +63,12 @@ export default function NotificationsScreen() {
   };
 
   const handleEnableReminder = async () => {
-    if (loading) return;
+    // Synchronous ref check prevents concurrent calls even before React re-renders.
+    if (inFlightRef.current) return;
+    inFlightRef.current = true;
     setLoading(true);
     setError(null);
     try {
-      // setLoading(true) is called BEFORE requestPermissions() so concurrent
-      // taps are blocked for the full duration of the permission request.
       const granted = await requestPermissions();
       if (granted) {
         // P0: schedule only the daily check-in reminder.
@@ -80,26 +82,30 @@ export default function NotificationsScreen() {
     }
     try {
       await finishOnboarding();
-      // loading stays true — celebration overlay takes over, then navigates.
+      // Lock stays active through celebration and navigation.
     } catch (error) {
       console.warn('[notifications] onboarding completion failed:', error);
       Sentry.captureException(error, { tags: { context: 'onboarding_complete' } });
       setError('Could not save your profile. Please try again.');
+      inFlightRef.current = false;
       setLoading(false);
     }
   };
 
   const handleNotNow = async () => {
-    if (loading) return;
+    // Same synchronous ref — tapping the other button cannot race this one.
+    if (inFlightRef.current) return;
+    inFlightRef.current = true;
     setLoading(true);
     setError(null);
     try {
       await finishOnboarding();
-      // loading stays true — celebration overlay takes over, then navigates.
+      // Lock stays active through celebration and navigation.
     } catch (error) {
       console.warn('[notifications] onboarding completion failed:', error);
       Sentry.captureException(error, { tags: { context: 'onboarding_complete' } });
       setError('Could not save your profile. Please try again.');
+      inFlightRef.current = false;
       setLoading(false);
     }
   };

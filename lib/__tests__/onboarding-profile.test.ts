@@ -235,55 +235,99 @@ describe('completeOnboardingProfile retry safety', () => {
 });
 
 // ---------------------------------------------------------------------------
-// Concurrency / loading guard test
+// Concurrency / ref lock tests
 // ---------------------------------------------------------------------------
 
-describe('loading guard — prevents concurrent completion calls', () => {
-  it('loading becomes true before requestPermissions resolves', async () => {
-    // Simulate the handleEnableReminder loading guard pattern:
-    // loading must be set to true synchronously before any await,
-    // so a second tap while the first is in-flight is blocked.
-    let loadingDuringPermission = false;
-    let loading = false;
+describe('inFlightRef lock — prevents concurrent completion calls', () => {
+  it('ref is set synchronously before first await so second tap is blocked', async () => {
+    // Simulate the inFlightRef pattern used in handleEnableReminder/handleNotNow.
+    // React state is async — the ref is the synchronous lock.
+    const inFlightRef = { current: false };
+    let refValueDuringPermission = true; // will be set inside fake permission call
 
     const fakeRequestPermissions = async () => {
-      // By the time this resolves, loading must already be true.
-      loadingDuringPermission = loading;
+      // Capture ref value while the first async operation is in progress.
+      refValueDuringPermission = inFlightRef.current;
       return true;
     };
 
-    // Simulate handleEnableReminder
     const handleEnableReminder = async () => {
-      if (loading) return;
-      loading = true;          // ← must happen before first await
+      if (inFlightRef.current) return;
+      inFlightRef.current = true; // ← synchronous, before any await
       await fakeRequestPermissions();
+      inFlightRef.current = false;
     };
 
-    // First tap
     const first = handleEnableReminder();
-    // Second tap immediately — loading is already true so it returns early
-    const second = handleEnableReminder();
+    const second = handleEnableReminder(); // fires before first await resolves
 
     await Promise.all([first, second]);
 
-    expect(loadingDuringPermission).toBe(true);
+    // Ref was already true when fakeRequestPermissions ran
+    expect(refValueDuringPermission).toBe(true);
   });
 
-  it('second rapid tap is ignored while first is in flight', async () => {
+  it('second and third rapid taps on any button are ignored while first is in flight', async () => {
+    const inFlightRef = { current: false };
     let callCount = 0;
-    let loading = false;
 
-    const handleEnableReminder = async () => {
-      if (loading) return;
-      loading = true;
+    const makeHandler = () => async () => {
+      if (inFlightRef.current) return;
+      inFlightRef.current = true;
       callCount++;
-      // Simulate async permission request
       await new Promise((r) => setTimeout(r, 10));
-      loading = false;
+      inFlightRef.current = false;
     };
 
-    await Promise.all([handleEnableReminder(), handleEnableReminder(), handleEnableReminder()]);
+    const handleEnable = makeHandler();
+    const handleNotNow = makeHandler();
+
+    // Rapid taps on both buttons simultaneously
+    await Promise.all([
+      handleEnable(),
+      handleNotNow(),   // different button, same ref
+      handleEnable(),
+    ]);
 
     expect(callCount).toBe(1);
+  });
+
+  it('lock is released after failure so retry is possible', async () => {
+    const inFlightRef = { current: false };
+    let callCount = 0;
+
+    const handleNotNow = async () => {
+      if (inFlightRef.current) return;
+      inFlightRef.current = true;
+      callCount++;
+      try {
+        throw new Error('simulated failure');
+      } catch {
+        inFlightRef.current = false; // ← released on failure
+      }
+    };
+
+    await handleNotNow(); // first call — fails, releases lock
+    await handleNotNow(); // retry — should succeed (lock was released)
+
+    expect(callCount).toBe(2);
+  });
+
+  it('lock remains active during success so celebration cannot be interrupted', async () => {
+    const inFlightRef = { current: false };
+    let completionCallCount = 0;
+
+    const handleEnable = async () => {
+      if (inFlightRef.current) return;
+      inFlightRef.current = true;
+      completionCallCount++;
+      // Do NOT release lock on success (simulates lock staying active during nav)
+    };
+
+    await handleEnable();
+    await handleEnable(); // second tap — still blocked
+
+    expect(completionCallCount).toBe(1);
+    expect(inFlightRef.current).toBe(true);
   });
 });
