@@ -14,19 +14,17 @@ import { track, Events } from '../../lib/analytics';
 import {
   requestPermissions,
   scheduleDailyCheckInReminder,
-  scheduleWeeklyDigestNotification,
 } from '../../lib/notifications';
 
 const BENEFITS = [
-  { icon: 'time-outline' as const, text: 'Daily check-in reminder at your chosen time' },
-  { icon: 'flame-outline' as const, text: 'Streak alerts so you never lose progress' },
-  { icon: 'trending-up-outline' as const, text: 'Weekly digest delivered every Sunday' },
+  { icon: 'time-outline' as const, text: 'One gentle daily reminder — nothing else.' },
 ];
 
 export default function NotificationsScreen() {
   const { user, refreshProfile } = useAuth();
   const [showCelebration, setShowCelebration] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
 
   const celebrationFade = useRef(new Animated.Value(0)).current;
   const celebrationScale = useRef(new Animated.Value(0.8)).current;
@@ -45,6 +43,9 @@ export default function NotificationsScreen() {
   }, [buttonAnim]);
 
   const completeOnboarding = async () => {
+    if (loading) return;
+    setLoading(true);
+    setError(null);
     if (!user?.id) {
       router.replace('/(auth)/signup');
       return;
@@ -64,23 +65,24 @@ export default function NotificationsScreen() {
       Sentry.captureException(error, { tags: { context: 'onboarding_complete' } });
       // Remain on screen — preserve AsyncStorage — allow retry.
       setError('Could not save your profile. Please try again.');
+      setLoading(false);
     }
   };
 
   const requestPermission = async () => {
-    // Actually ask the OS for notification permission, then set up the default
-    // reminders this screen promises (daily check-in + Sunday digest). We proceed
-    // to completeOnboarding regardless of the outcome so a denial never traps the
-    // user, and everything is crash-safe (the lib no-ops in Expo Go / on web).
+    if (loading) return;
     try {
       const granted = await requestPermissions();
       if (granted) {
+        // P0: schedule only the daily check-in reminder.
+        // Weekly digest and other notification categories are available
+        // via Settings-based opt-in after onboarding.
         await scheduleDailyCheckInReminder(20, 0); // 8:00 PM daily check-in
-        await scheduleWeeklyDigestNotification(9, 0); // Sunday 9:00 AM digest
       }
     } catch (err) {
       console.warn('[onboarding] enabling notifications failed', err);
     }
+    // completeOnboarding handles its own loading state from here.
     await completeOnboarding();
   };
 
@@ -103,7 +105,7 @@ export default function NotificationsScreen() {
 
           {/* Subtitle */}
           <Text style={styles.subtitle}>
-            A daily reminder helps you build the habit that makes GutWell work. You can change this anytime in Settings.
+            Would a gentle daily reminder help you keep the pattern going? You can change this anytime in Settings.
           </Text>
 
           {/* Benefit rows */}
@@ -142,16 +144,17 @@ export default function NotificationsScreen() {
           ]}
         >
           <TouchableOpacity
-            style={styles.allowButton}
+            style={[styles.allowButton, loading && { opacity: 0.5 }]}
             onPress={requestPermission}
+            disabled={loading}
             accessibilityRole="button"
-            accessibilityLabel="Enable notifications"
+            accessibilityLabel="Set a daily reminder"
             activeOpacity={0.88}
           >
-            <Text style={styles.allowButtonText}>Enable daily reminder</Text>
+            <Text style={styles.allowButtonText}>Set a daily reminder</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity onPress={completeOnboarding} accessibilityRole="button" accessibilityLabel="Not now" activeOpacity={0.7}>
+          <TouchableOpacity onPress={completeOnboarding} disabled={loading} accessibilityRole="button" accessibilityLabel="Not now" activeOpacity={0.7} style={loading ? { opacity: 0.4 } : undefined}>
             <Text style={styles.skipText}>Not now</Text>
           </TouchableOpacity>
         </Animated.View>
