@@ -42,36 +42,31 @@ export default function NotificationsScreen() {
     return () => clearTimeout(timer);
   }, [buttonAnim]);
 
-  const completeOnboarding = async () => {
-    if (loading) return;
-    setLoading(true);
-    setError(null);
+  // Shared internal completion logic — does NOT manage loading state.
+  // Callers (handleEnableReminder, handleNotNow) own loading state.
+  const finishOnboarding = async () => {
     if (!user?.id) {
       router.replace('/(auth)/signup');
       return;
     }
-    try {
-      await completeOnboardingProfile(user.id);
-      await refreshProfile().catch(() => {});
-      track(Events.ONBOARDING_COMPLETED);
-      setShowCelebration(true);
-      Animated.parallel([
-        Animated.spring(celebrationScale, { toValue: 1, friction: 6, tension: 40, useNativeDriver: true }),
-        Animated.timing(celebrationFade, { toValue: 1, duration: 400, useNativeDriver: true }),
-      ]).start();
-      setTimeout(() => router.replace('/(tabs)'), 1800);
-    } catch (error) {
-      console.warn('[notifications] onboarding completion failed:', error);
-      Sentry.captureException(error, { tags: { context: 'onboarding_complete' } });
-      // Remain on screen — preserve AsyncStorage — allow retry.
-      setError('Could not save your profile. Please try again.');
-      setLoading(false);
-    }
+    await completeOnboardingProfile(user.id);
+    await refreshProfile().catch(() => {});
+    track(Events.ONBOARDING_COMPLETED);
+    setShowCelebration(true);
+    Animated.parallel([
+      Animated.spring(celebrationScale, { toValue: 1, friction: 6, tension: 40, useNativeDriver: true }),
+      Animated.timing(celebrationFade, { toValue: 1, duration: 400, useNativeDriver: true }),
+    ]).start();
+    setTimeout(() => router.replace('/(tabs)'), 1800);
   };
 
-  const requestPermission = async () => {
+  const handleEnableReminder = async () => {
     if (loading) return;
+    setLoading(true);
+    setError(null);
     try {
+      // setLoading(true) is called BEFORE requestPermissions() so concurrent
+      // taps are blocked for the full duration of the permission request.
       const granted = await requestPermissions();
       if (granted) {
         // P0: schedule only the daily check-in reminder.
@@ -80,10 +75,33 @@ export default function NotificationsScreen() {
         await scheduleDailyCheckInReminder(20, 0); // 8:00 PM daily check-in
       }
     } catch (err) {
-      console.warn('[onboarding] enabling notifications failed', err);
+      console.warn('[onboarding] notification permission failed', err);
+      // Non-fatal: proceed to complete onboarding even if scheduling failed.
     }
-    // completeOnboarding handles its own loading state from here.
-    await completeOnboarding();
+    try {
+      await finishOnboarding();
+      // loading stays true — celebration overlay takes over, then navigates.
+    } catch (error) {
+      console.warn('[notifications] onboarding completion failed:', error);
+      Sentry.captureException(error, { tags: { context: 'onboarding_complete' } });
+      setError('Could not save your profile. Please try again.');
+      setLoading(false);
+    }
+  };
+
+  const handleNotNow = async () => {
+    if (loading) return;
+    setLoading(true);
+    setError(null);
+    try {
+      await finishOnboarding();
+      // loading stays true — celebration overlay takes over, then navigates.
+    } catch (error) {
+      console.warn('[notifications] onboarding completion failed:', error);
+      Sentry.captureException(error, { tags: { context: 'onboarding_complete' } });
+      setError('Could not save your profile. Please try again.');
+      setLoading(false);
+    }
   };
 
   return (
@@ -145,7 +163,7 @@ export default function NotificationsScreen() {
         >
           <TouchableOpacity
             style={[styles.allowButton, loading && { opacity: 0.5 }]}
-            onPress={requestPermission}
+            onPress={handleEnableReminder}
             disabled={loading}
             accessibilityRole="button"
             accessibilityLabel="Set a daily reminder"
@@ -154,7 +172,7 @@ export default function NotificationsScreen() {
             <Text style={styles.allowButtonText}>Set a daily reminder</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity onPress={completeOnboarding} disabled={loading} accessibilityRole="button" accessibilityLabel="Not now" activeOpacity={0.7} style={loading ? { opacity: 0.4 } : undefined}>
+          <TouchableOpacity onPress={handleNotNow} disabled={loading} accessibilityRole="button" accessibilityLabel="Not now" activeOpacity={0.7} style={loading ? { opacity: 0.4 } : undefined}>
             <Text style={styles.skipText}>Not now</Text>
           </TouchableOpacity>
         </Animated.View>

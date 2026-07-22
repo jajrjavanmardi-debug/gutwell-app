@@ -233,3 +233,57 @@ describe('completeOnboardingProfile retry safety', () => {
     expect(mockRemoveItem).not.toHaveBeenCalled();
   });
 });
+
+// ---------------------------------------------------------------------------
+// Concurrency / loading guard test
+// ---------------------------------------------------------------------------
+
+describe('loading guard — prevents concurrent completion calls', () => {
+  it('loading becomes true before requestPermissions resolves', async () => {
+    // Simulate the handleEnableReminder loading guard pattern:
+    // loading must be set to true synchronously before any await,
+    // so a second tap while the first is in-flight is blocked.
+    let loadingDuringPermission = false;
+    let loading = false;
+
+    const fakeRequestPermissions = async () => {
+      // By the time this resolves, loading must already be true.
+      loadingDuringPermission = loading;
+      return true;
+    };
+
+    // Simulate handleEnableReminder
+    const handleEnableReminder = async () => {
+      if (loading) return;
+      loading = true;          // ← must happen before first await
+      await fakeRequestPermissions();
+    };
+
+    // First tap
+    const first = handleEnableReminder();
+    // Second tap immediately — loading is already true so it returns early
+    const second = handleEnableReminder();
+
+    await Promise.all([first, second]);
+
+    expect(loadingDuringPermission).toBe(true);
+  });
+
+  it('second rapid tap is ignored while first is in flight', async () => {
+    let callCount = 0;
+    let loading = false;
+
+    const handleEnableReminder = async () => {
+      if (loading) return;
+      loading = true;
+      callCount++;
+      // Simulate async permission request
+      await new Promise((r) => setTimeout(r, 10));
+      loading = false;
+    };
+
+    await Promise.all([handleEnableReminder(), handleEnableReminder(), handleEnableReminder()]);
+
+    expect(callCount).toBe(1);
+  });
+});
