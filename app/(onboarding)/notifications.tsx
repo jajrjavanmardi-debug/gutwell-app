@@ -5,9 +5,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
 import { router } from 'expo-router';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Sentry from '@sentry/react-native';
-import { supabase } from '../../lib/supabase';
+import { completeOnboardingProfile } from '../../lib/onboarding-profile';
 import { useAuth } from '../../contexts/AuthContext';
 import { FontFamily } from '../../constants/theme';
 import StarFieldBackground from '../../components/StarFieldBackground';
@@ -15,22 +14,23 @@ import { track, Events } from '../../lib/analytics';
 import {
   requestPermissions,
   scheduleDailyCheckInReminder,
-  scheduleWeeklyDigestNotification,
 } from '../../lib/notifications';
 
 const BENEFITS = [
-  { icon: 'time-outline' as const, text: 'Daily check-in reminder at your chosen time' },
-  { icon: 'flame-outline' as const, text: 'Streak alerts so you never lose progress' },
-  { icon: 'trending-up-outline' as const, text: 'Weekly digest delivered every Sunday' },
+  { icon: 'time-outline' as const, text: 'One gentle daily reminder — nothing else.' },
 ];
 
 export default function NotificationsScreen() {
   const { user, refreshProfile } = useAuth();
   const [showCelebration, setShowCelebration] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
 
   const celebrationFade = useRef(new Animated.Value(0)).current;
   const celebrationScale = useRef(new Animated.Value(0.8)).current;
   const buttonAnim = useRef(new Animated.Value(0)).current;
+  // Synchronous lock — prevents concurrent calls even before React re-renders.
+  const inFlightRef = useRef(false);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -44,66 +44,70 @@ export default function NotificationsScreen() {
     return () => clearTimeout(timer);
   }, [buttonAnim]);
 
-  const completeOnboarding = async () => {
-    if (!user) {
-      // Shouldn't happen in the normal flow (results routes through signup),
-      // but never strand the user on a button that does nothing.
-      router.replace('/(auth)/signup');
-      return;
+  // Shared internal completion logic — does NOT manage loading state.
+  // Callers (handleEnableReminder, handleNotNow) own loading state.
+  // Throws if user.id is unavailable so callers can release the lock cleanly.
+  const finishOnboarding = async () => {
+    if (!user?.id) {
+      throw new Error('No authenticated user');
     }
-    try {
-      const [rawName, rawAnswers] = await Promise.all([
-        AsyncStorage.getItem('onboarding_name'),
-        AsyncStorage.getItem('onboarding_answers'),
-      ]);
-
-      const name = rawName ?? '';
-      const answers: Record<string, string> = rawAnswers ? JSON.parse(rawAnswers) : {};
-
-      await supabase
-        .from('profiles')
-        .update({
-          onboarding_completed: true,
-          display_name: name || undefined,
-          gut_concern: answers.meal_feeling ?? null,
-          symptom_frequency: answers.bloating_frequency ?? null,
-          goal: answers.goal ?? null,
-        })
-        .eq('id', user.id);
-
-      await refreshProfile();
-      // Event only — no personal names in analytics.
-      track(Events.ONBOARDING_COMPLETED);
-
-      // Show celebration moment before navigating
-      setShowCelebration(true);
-      Animated.parallel([
-        Animated.spring(celebrationScale, { toValue: 1, friction: 6, tension: 40, useNativeDriver: true }),
-        Animated.timing(celebrationFade, { toValue: 1, duration: 400, useNativeDriver: true }),
-      ]).start();
-      setTimeout(() => router.replace('/(tabs)'), 1800);
-    } catch (error) {
-      console.warn('Onboarding profile save failed:', error);
-      Sentry.captureException(error, { tags: { context: 'onboarding_complete' } });
-      router.replace('/(tabs)');
-    }
+    await completeOnboardingProfile(user.id);
+    await refreshProfile().catch(() => {});
+    track(Events.ONBOARDING_COMPLETED);
+    setShowCelebration(true);
+    Animated.parallel([
+      Animated.spring(celebrationScale, { toValue: 1, friction: 6, tension: 40, useNativeDriver: true }),
+      Animated.timing(celebrationFade, { toValue: 1, duration: 400, useNativeDriver: true }),
+    ]).start();
+    setTimeout(() => router.replace('/(tabs)'), 1800);
   };
 
-  const requestPermission = async () => {
-    // Actually ask the OS for notification permission, then set up the default
-    // reminders this screen promises (daily check-in + Sunday digest). We proceed
-    // to completeOnboarding regardless of the outcome so a denial never traps the
-    // user, and everything is crash-safe (the lib no-ops in Expo Go / on web).
+  const handleEnableReminder = async () => {
+    // Synchronous ref check prevents concurrent calls even before React re-renders.
+    if (inFlightRef.current) return;
+    inFlightRef.current = true;
+    setLoading(true);
+    setError(null);
     try {
       const granted = await requestPermissions();
       if (granted) {
+        // P0: schedule only the daily check-in reminder.
+        // Weekly digest and other notification categories are available
+        // via Settings-based opt-in after onboarding.
         await scheduleDailyCheckInReminder(20, 0); // 8:00 PM daily check-in
-        await scheduleWeeklyDigestNotification(9, 0); // Sunday 9:00 AM digest
       }
     } catch (err) {
-      console.warn('[onboarding] enabling notifications failed', err);
+      console.warn('[onboarding] notification permission failed', err);
+      // Non-fatal: proceed to complete onboarding even if scheduling failed.
     }
-    await completeOnboarding();
+    try {
+      await finishOnboarding();
+      // Lock stays active through celebration and navigation.
+    } catch (error) {
+      console.warn('[notifications] onboarding completion failed:', error);
+      Sentry.captureException(error, { tags: { context: 'onboarding_complete' } });
+      setError('Could not save your profile. Please try again.');
+      inFlightRef.current = false;
+      setLoading(false);
+    }
+  };
+
+  const handleNotNow = async () => {
+    // Same synchronous ref — tapping the other button cannot race this one.
+    if (inFlightRef.current) return;
+    inFlightRef.current = true;
+    setLoading(true);
+    setError(null);
+    try {
+      await finishOnboarding();
+      // Lock stays active through celebration and navigation.
+    } catch (error) {
+      console.warn('[notifications] onboarding completion failed:', error);
+      Sentry.captureException(error, { tags: { context: 'onboarding_complete' } });
+      setError('Could not save your profile. Please try again.');
+      inFlightRef.current = false;
+      setLoading(false);
+    }
   };
 
   return (
@@ -121,11 +125,11 @@ export default function NotificationsScreen() {
           </View>
 
           {/* Title */}
-          <Text style={styles.title}>{"Never miss your\ngut check-in"}</Text>
+          <Text style={styles.title}>{"Your first check-in is saved."}</Text>
 
           {/* Subtitle */}
           <Text style={styles.subtitle}>
-            Daily reminders keep your streak alive and your data accurate — 60 seconds a day, every day.
+            Would a gentle daily reminder help you keep the pattern going? You can change this anytime in Settings.
           </Text>
 
           {/* Benefit rows */}
@@ -142,6 +146,11 @@ export default function NotificationsScreen() {
         </View>
 
         {/* Animated bottom buttons */}
+        {error ? (
+          <View style={styles.errorCard}>
+            <Text style={styles.errorText}>{error}</Text>
+          </View>
+        ) : null}
         <Animated.View
           style={[
             styles.bottomSection,
@@ -159,17 +168,18 @@ export default function NotificationsScreen() {
           ]}
         >
           <TouchableOpacity
-            style={styles.allowButton}
-            onPress={requestPermission}
+            style={[styles.allowButton, loading && { opacity: 0.5 }]}
+            onPress={handleEnableReminder}
+            disabled={loading}
             accessibilityRole="button"
-            accessibilityLabel="Enable notifications"
+            accessibilityLabel="Set a daily reminder"
             activeOpacity={0.88}
           >
-            <Text style={styles.allowButtonText}>Enable Notifications</Text>
+            <Text style={styles.allowButtonText}>Set a daily reminder</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity onPress={completeOnboarding} accessibilityRole="button" accessibilityLabel="Skip notifications for now" activeOpacity={0.7}>
-            <Text style={styles.skipText}>Skip for now</Text>
+          <TouchableOpacity onPress={handleNotNow} disabled={loading} accessibilityRole="button" accessibilityLabel="Not now" activeOpacity={0.7} style={loading ? { opacity: 0.4 } : undefined}>
+            <Text style={styles.skipText}>Not now</Text>
           </TouchableOpacity>
         </Animated.View>
       </SafeAreaView>
@@ -310,6 +320,22 @@ const styles = StyleSheet.create({
     fontSize: 32,
     color: '#FFFFFF',
     marginBottom: 8,
+  },
+  errorCard: {
+    marginHorizontal: 24,
+    marginBottom: 8,
+    backgroundColor: 'rgba(239,68,68,0.12)',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(239,68,68,0.3)',
+    padding: 12,
+  },
+  errorText: {
+    fontFamily: FontFamily.sansRegular,
+    fontSize: 14,
+    color: '#FCA5A5',
+    textAlign: 'center',
+    lineHeight: 20,
   },
   celebrationSubtitle: {
     fontFamily: FontFamily.sansRegular,

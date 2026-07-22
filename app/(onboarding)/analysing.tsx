@@ -7,10 +7,10 @@ import { FontFamily } from '../../constants/theme';
 import StarFieldBackground from '../../components/StarFieldBackground';
 
 const ANALYSIS_STEPS = [
-  'Reviewing your gut profile...',
-  'Identifying your symptom patterns...',
-  'Mapping your food-energy connections...',
-  'Building your personalised plan...',
+  'Reviewing your answers...',
+  'Identifying your symptoms and context...',
+  'Building your Gut Profile...',
+  'Almost ready...',
 ];
 
 export default function AnalysingScreen() {
