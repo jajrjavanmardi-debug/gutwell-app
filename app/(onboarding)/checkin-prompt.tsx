@@ -22,6 +22,7 @@ const PENDING_FLAG = 'onboarding_checkin_pending';
 export default function CheckinPromptScreen() {
   const { user, refreshProfile } = useAuth();
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const handleStartCheckin = async () => {
     // Set the flag so checkin.tsx knows to route to notifications on completion.
@@ -32,17 +33,20 @@ export default function CheckinPromptScreen() {
   const handleSkip = async () => {
     if (!user?.id || loading) return;
     setLoading(true);
+    setError(null);
     try {
       // Clear any stale pending flag before completing onboarding.
       await AsyncStorage.removeItem(PENDING_FLAG);
       await completeOnboardingProfile(user.id);
       await refreshProfile().catch(() => {});
+      // Navigate only on confirmed success.
+      router.replace('/(tabs)');
     } catch (err) {
       console.warn('[checkin-prompt] skip completion failed:', err);
-    } finally {
+      // Remain on screen — preserve AsyncStorage — allow retry.
+      setError('Could not save your profile. Please try again.');
       setLoading(false);
     }
-    router.replace('/(tabs)');
   };
 
   return (
@@ -64,7 +68,12 @@ export default function CheckinPromptScreen() {
           </Text>
         </View>
 
-        <View style={styles.bottom}>
+        {error ? (
+        <View style={styles.errorCard}>
+          <Text style={styles.errorText}>{error}</Text>
+        </View>
+      ) : null}
+      <View style={styles.bottom}>
           <TouchableOpacity
             style={styles.primaryBtn}
             onPress={handleStartCheckin}
@@ -148,6 +157,22 @@ const styles = StyleSheet.create({
     fontSize: 17,
     color: '#0B1F14',
     letterSpacing: -0.3,
+  },
+  errorCard: {
+    marginHorizontal: 24,
+    marginBottom: 12,
+    backgroundColor: 'rgba(239,68,68,0.12)',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(239,68,68,0.3)',
+    padding: 12,
+  },
+  errorText: {
+    fontFamily: FontFamily.sansRegular,
+    fontSize: 14,
+    color: '#FCA5A5',
+    textAlign: 'center',
+    lineHeight: 20,
   },
   skipText: {
     fontFamily: FontFamily.sansRegular,

@@ -26,6 +26,7 @@ const BENEFITS = [
 export default function NotificationsScreen() {
   const { user, refreshProfile } = useAuth();
   const [showCelebration, setShowCelebration] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const celebrationFade = useRef(new Animated.Value(0)).current;
   const celebrationScale = useRef(new Animated.Value(0.8)).current;
@@ -61,7 +62,8 @@ export default function NotificationsScreen() {
     } catch (error) {
       console.warn('[notifications] onboarding completion failed:', error);
       Sentry.captureException(error, { tags: { context: 'onboarding_complete' } });
-      router.replace('/(tabs)');
+      // Remain on screen — preserve AsyncStorage — allow retry.
+      setError('Could not save your profile. Please try again.');
     }
   };
 
@@ -118,6 +120,11 @@ export default function NotificationsScreen() {
         </View>
 
         {/* Animated bottom buttons */}
+        {error ? (
+          <View style={styles.errorCard}>
+            <Text style={styles.errorText}>{error}</Text>
+          </View>
+        ) : null}
         <Animated.View
           style={[
             styles.bottomSection,
@@ -286,6 +293,22 @@ const styles = StyleSheet.create({
     fontSize: 32,
     color: '#FFFFFF',
     marginBottom: 8,
+  },
+  errorCard: {
+    marginHorizontal: 24,
+    marginBottom: 8,
+    backgroundColor: 'rgba(239,68,68,0.12)',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(239,68,68,0.3)',
+    padding: 12,
+  },
+  errorText: {
+    fontFamily: FontFamily.sansRegular,
+    fontSize: 14,
+    color: '#FCA5A5',
+    textAlign: 'center',
+    lineHeight: 20,
   },
   celebrationSubtitle: {
     fontFamily: FontFamily.sansRegular,
