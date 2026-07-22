@@ -5,9 +5,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
 import { router } from 'expo-router';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Sentry from '@sentry/react-native';
-import { supabase } from '../../lib/supabase';
+import { completeOnboardingProfile } from '../../lib/onboarding-profile';
 import { useAuth } from '../../contexts/AuthContext';
 import { FontFamily } from '../../constants/theme';
 import StarFieldBackground from '../../components/StarFieldBackground';
@@ -45,37 +44,14 @@ export default function NotificationsScreen() {
   }, [buttonAnim]);
 
   const completeOnboarding = async () => {
-    if (!user) {
-      // Shouldn't happen in the normal flow (results routes through signup),
-      // but never strand the user on a button that does nothing.
+    if (!user?.id) {
       router.replace('/(auth)/signup');
       return;
     }
     try {
-      const [rawName, rawAnswers] = await Promise.all([
-        AsyncStorage.getItem('onboarding_name'),
-        AsyncStorage.getItem('onboarding_answers'),
-      ]);
-
-      const name = rawName ?? '';
-      const answers: Record<string, string> = rawAnswers ? JSON.parse(rawAnswers) : {};
-
-      await supabase
-        .from('profiles')
-        .update({
-          onboarding_completed: true,
-          display_name: name || undefined,
-          gut_concern: answers.meal_feeling ?? null,
-          symptom_frequency: answers.bloating_frequency ?? null,
-          goal: answers.goal ?? null,
-        })
-        .eq('id', user.id);
-
-      await refreshProfile();
-      // Event only — no personal names in analytics.
+      await completeOnboardingProfile(user.id);
+      await refreshProfile().catch(() => {});
       track(Events.ONBOARDING_COMPLETED);
-
-      // Show celebration moment before navigating
       setShowCelebration(true);
       Animated.parallel([
         Animated.spring(celebrationScale, { toValue: 1, friction: 6, tension: 40, useNativeDriver: true }),
@@ -83,7 +59,7 @@ export default function NotificationsScreen() {
       ]).start();
       setTimeout(() => router.replace('/(tabs)'), 1800);
     } catch (error) {
-      console.warn('Onboarding profile save failed:', error);
+      console.warn('[notifications] onboarding completion failed:', error);
       Sentry.captureException(error, { tags: { context: 'onboarding_complete' } });
       router.replace('/(tabs)');
     }
@@ -121,11 +97,11 @@ export default function NotificationsScreen() {
           </View>
 
           {/* Title */}
-          <Text style={styles.title}>{"Never miss your\ngut check-in"}</Text>
+          <Text style={styles.title}>{"Your first check-in is saved."}</Text>
 
           {/* Subtitle */}
           <Text style={styles.subtitle}>
-            Daily reminders keep your streak alive and your data accurate — 60 seconds a day, every day.
+            A daily reminder helps you build the habit that makes GutWell work. You can change this anytime in Settings.
           </Text>
 
           {/* Benefit rows */}
@@ -165,11 +141,11 @@ export default function NotificationsScreen() {
             accessibilityLabel="Enable notifications"
             activeOpacity={0.88}
           >
-            <Text style={styles.allowButtonText}>Enable Notifications</Text>
+            <Text style={styles.allowButtonText}>Enable daily reminder</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity onPress={completeOnboarding} accessibilityRole="button" accessibilityLabel="Skip notifications for now" activeOpacity={0.7}>
-            <Text style={styles.skipText}>Skip for now</Text>
+          <TouchableOpacity onPress={completeOnboarding} accessibilityRole="button" accessibilityLabel="Not now" activeOpacity={0.7}>
+            <Text style={styles.skipText}>Not now</Text>
           </TouchableOpacity>
         </Animated.View>
       </SafeAreaView>
