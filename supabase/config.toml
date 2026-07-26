@@ -40,3 +40,6 @@ enable_confirmations = false
 enabled = true
 policy = "oneshot"
 inspector_port = 8083
+
+[functions.waitlist-signup]
+verify_jwt = false
