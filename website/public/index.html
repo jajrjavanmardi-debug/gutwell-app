@@ -182,6 +182,25 @@ footer{position:relative;z-index:1;border-top:1px solid var(--card-border);paddi
 .footer-links a:hover{color:#fff}
 .footer-legal{font-size:13px;color:var(--text-tertiary)}
 
+/* ── Differentiator sections ── */
+.diff-section{position:relative;z-index:1}
+.diff-block{display:grid;grid-template-columns:1fr 1fr;gap:64px;align-items:center;max-width:960px;margin:0 auto}
+@media(max-width:768px){.diff-block{grid-template-columns:1fr;gap:40px}}
+.diff-block.reverse{direction:rtl}
+.diff-block.reverse > *{direction:ltr}
+.diff-visual{background:var(--card-bg);border:1px solid var(--card-border);border-radius:var(--radius-lg);padding:32px;display:flex;flex-direction:column;gap:16px}
+.diff-visual-label{font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--green-300)}
+.diff-chat-bubble{background:rgba(82,183,136,0.1);border:1px solid rgba(82,183,136,0.2);border-radius:12px 12px 12px 4px;padding:14px 18px;font-size:14px;color:rgba(255,255,255,0.85);line-height:1.6;max-width:90%}
+.diff-chat-bubble.user{background:rgba(255,255,255,0.07);border-color:rgba(255,255,255,0.1);border-radius:12px 12px 4px 12px;align-self:flex-end;text-align:right}
+.diff-chat-bubble.ai{align-self:flex-start}
+.diff-context-chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:4px}
+.diff-chip{padding:8px 14px;border-radius:var(--radius-full);border:1px solid rgba(82,183,136,0.3);background:rgba(82,183,136,0.08);font-size:13px;color:var(--green-300);font-weight:500}
+.diff-chip.active{background:rgba(82,183,136,0.2);border-color:var(--green-400);color:#fff}
+.diff-copy-label{font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--green-300);margin-bottom:16px}
+.diff-headline{font-family:'EB Garamond',serif;font-size:clamp(28px,4vw,40px);font-weight:700;line-height:1.2;color:#fff;margin-bottom:16px}
+.diff-body{font-size:16px;color:var(--text-secondary);line-height:1.75;margin-bottom:12px}
+.diff-note{font-size:13px;color:var(--text-tertiary);line-height:1.6}
+
 /* ── Utility ── */
 .text-center{text-align:center}
 .green{color:var(--green-300)}
@@ -316,6 +335,73 @@ footer{position:relative;z-index:1;border-top:1px solid var(--card-border);paddi
     </p>
     <div class="fade-in" style="margin-top:32px;padding:20px 28px;background:rgba(82,183,136,0.06);border:1px solid rgba(82,183,136,0.15);border-radius:16px;max-width:560px;margin-left:auto;margin-right:auto;text-align:center">
       <p style="font-size:15px;color:rgba(255,255,255,0.75);line-height:1.6;">"Every insight in GutWell comes from your own logged data — not population averages, not assumptions. GutWell has no advertising model and never sells your data."</p>
+    </div>
+  </div>
+</section>
+
+<!-- Differentiator 1: Talk to your data -->
+<section class="diff-section">
+  <div class="container">
+    <div class="diff-block">
+      <div class="fade-in">
+        <p class="diff-copy-label">Your data, your questions</p>
+        <h2 class="diff-headline">Challenge the analysis.<br>Ask your own questions.</h2>
+        <p class="diff-body">
+          GutWell gives you an analysis — but you are not required to accept it. If the AI misidentified your meal, got the context wrong, or gave advice that doesn't feel right, you can push back directly.
+        </p>
+        <p class="diff-body">
+          Correct the meal. Add what you actually ate. Ask what a different choice might have looked like. GutWell revises its guidance based on what you tell it — not the other way around.
+        </p>
+        <p class="diff-note">
+          You are talking to your own health data. GutWell is the interface — not the authority.
+        </p>
+      </div>
+      <div class="diff-visual fade-in" aria-hidden="true">
+        <p class="diff-visual-label">Example conversation</p>
+        <div class="diff-chat-bubble ai">This looks like fried fish with a creamy dip — 5/10 for gut comfort today.</div>
+        <div class="diff-chat-bubble user">That was grilled, not fried. And I had it with yogurt, not dip.</div>
+        <div class="diff-chat-bubble ai">Thanks for the correction. Grilled fish with yogurt is lighter — I'd revise that to 7/10. The yogurt is worth watching if you're sensitive to dairy.</div>
+        <div class="diff-chat-bubble user">What if I had skipped the yogurt entirely?</div>
+        <div class="diff-chat-bubble ai">Without the dairy, this would be a straightforward high-protein meal — likely 8/10 for your gut today.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Differentiator 2: Context-aware guidance -->
+<section class="diff-section">
+  <div class="container">
+    <div class="diff-block reverse">
+      <div class="fade-in">
+        <p class="diff-copy-label">Guidance for real life</p>
+        <h2 class="diff-headline">GutWell adapts to what you're doing next.</h2>
+        <p class="diff-body">
+          Most nutrition apps give the same advice regardless of your situation. GutWell considers your real-life context — not just what's on your plate.
+        </p>
+        <p class="diff-body">
+          Heading to a job interview? Driving for two hours? Going to sleep soon? About to exercise? The guidance you receive adapts to your situation, using careful language that reflects possibility rather than certainty.
+        </p>
+        <p class="diff-note">
+          GutWell does not make guarantees. It offers practical, situation-aware suggestions — the kind a knowledgeable friend might offer, not a clinical prescription.
+        </p>
+      </div>
+      <div class="diff-visual fade-in" aria-hidden="true">
+        <p class="diff-visual-label">What are you doing after eating?</p>
+        <div class="diff-context-chips">
+          <span class="diff-chip active">💼 Work or study</span>
+          <span class="diff-chip">🚗 Driving</span>
+          <span class="diff-chip">✈️ Travelling</span>
+          <span class="diff-chip active">🏃 Exercise</span>
+          <span class="diff-chip">🌙 Sleep</span>
+          <span class="diff-chip">🎉 Social event</span>
+          <span class="diff-chip">😓 High-stress day</span>
+          <span class="diff-chip">💤 Rest</span>
+        </div>
+        <div style="margin-top:20px;padding-top:20px;border-top:1px solid var(--card-border)">
+          <p style="font-size:12px;color:var(--text-tertiary);margin-bottom:10px">NEXT STEP · Exercise selected</p>
+          <p style="font-size:14px;color:rgba(255,255,255,0.8);line-height:1.6">"Since you're planning to exercise, a smaller portion of this meal may feel more comfortable. Heavy fats can slow digestion — a lighter option now could work better before activity."</p>
+        </div>
+      </div>
     </div>
   </div>
 </section>
