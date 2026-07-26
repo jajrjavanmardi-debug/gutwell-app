@@ -1,0 +1,601 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GutWell — Your Personal Gut Health Coach</title>
+<meta name="description" content="GutWell helps you track daily gut symptoms, review personal patterns over time, and make more confident food choices. Coming soon to iOS.">
+<meta name="theme-color" content="#0B1F14">
+<link rel="icon" type="image/png" href="favicon.png">
+<link rel="apple-touch-icon" href="icon.png">
+<meta property="og:title" content="GutWell — Your Personal Gut Health Coach">
+<meta property="og:description" content="Track daily gut symptoms, review personal patterns, and make more confident food choices.">
+<meta property="og:image" content="icon.png">
+<meta property="og:type" content="website">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=EB+Garamond:wght@400;500;600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+/* ── Reset ── */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{font-family:'Inter',system-ui,sans-serif;background:#0B1F14;color:#fff;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+img{max-width:100%;display:block}
+a{color:inherit;text-decoration:none}
+button{cursor:pointer;border:none;font-family:inherit}
+
+/* ── Reduced motion ── */
+@media(prefers-reduced-motion:reduce){
+  *{animation-duration:0.01ms!important;transition-duration:0.01ms!important}
+  html{scroll-behavior:auto}
+}
+
+/* ── Tokens ── */
+:root{
+  --green-900:#0B1F14;
+  --green-800:#0B2618;
+  --green-700:#1B4332;
+  --green-600:#2D6A4F;
+  --green-400:#52B788;
+  --green-300:#74C69D;
+  --accent:#D4A373;
+  --text:#fff;
+  --text-secondary:rgba(255,255,255,0.65);
+  --text-tertiary:rgba(255,255,255,0.4);
+  --card-bg:rgba(255,255,255,0.05);
+  --card-border:rgba(255,255,255,0.09);
+  --radius-sm:8px;
+  --radius-md:16px;
+  --radius-lg:24px;
+  --radius-full:999px;
+}
+
+/* ── Layout ── */
+.container{max-width:1100px;margin:0 auto;padding:0 24px}
+section{padding:96px 0}
+@media(max-width:768px){section{padding:64px 0}}
+
+/* ── Stars background ── */
+.stars{position:fixed;inset:0;pointer-events:none;z-index:0;overflow:hidden}
+.star{position:absolute;width:2px;height:2px;border-radius:50%;background:rgba(255,255,255,0.4);animation:twinkle var(--d,4s) ease-in-out infinite var(--delay,0s)}
+@keyframes twinkle{0%,100%{opacity:.2}50%{opacity:.8}}
+
+/* ── Gradient layers ── */
+.grad-top{position:fixed;inset:0;background:linear-gradient(160deg,#0B1F14 0%,#1B4332 50%,#0B2618 100%);z-index:-1}
+
+/* ── Fade-in on scroll ── */
+.fade-in{opacity:0;transform:translateY(20px);transition:opacity .6s ease,transform .6s ease}
+.fade-in.visible{opacity:1;transform:none}
+
+/* ── Nav ── */
+nav{position:sticky;top:0;z-index:100;background:rgba(11,31,20,0.85);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border-bottom:1px solid var(--card-border)}
+.nav-inner{display:flex;align-items:center;justify-content:space-between;height:64px}
+.nav-logo{display:flex;align-items:center;gap:10px}
+.nav-logo img{width:32px;height:32px;border-radius:8px}
+.nav-logo-text{font-family:'EB Garamond',serif;font-size:22px;font-weight:600;color:#fff}
+.nav-cta{background:#fff;color:#0B1F14;font-weight:700;font-size:14px;padding:10px 20px;border-radius:var(--radius-full);transition:opacity .2s}
+.nav-cta:hover{opacity:.88}
+
+/* ── Hero ── */
+.hero{position:relative;padding:120px 0 96px;text-align:center;z-index:1}
+.hero-eyebrow{font-size:13px;font-weight:600;letter-spacing:1.5px;text-transform:uppercase;color:var(--green-300);margin-bottom:20px}
+.hero-headline{font-family:'EB Garamond',serif;font-size:clamp(44px,7vw,80px);font-weight:700;line-height:1.1;color:#fff;margin-bottom:24px;max-width:800px;margin-left:auto;margin-right:auto}
+.hero-headline span{color:var(--green-300)}
+.hero-sub{font-size:clamp(16px,2vw,19px);color:var(--text-secondary);line-height:1.7;max-width:560px;margin:0 auto 40px}
+.hero-actions{display:flex;flex-direction:column;align-items:center;gap:12px}
+.btn-primary{display:inline-block;background:#fff;color:#0B1F14;font-weight:700;font-size:17px;padding:16px 36px;border-radius:var(--radius-full);transition:opacity .2s,transform .15s}
+.btn-primary:hover{opacity:.9;transform:translateY(-1px)}
+.hero-trust{font-size:13px;color:var(--text-tertiary)}
+.hero-icon-wrap{margin:64px auto 0;width:120px;height:120px;border-radius:28px;overflow:hidden;box-shadow:0 24px 60px rgba(0,0,0,0.4),0 0 0 1px rgba(82,183,136,0.2)}
+.hero-icon-wrap img{width:100%;height:100%}
+
+/* ── Problem ── */
+.problem{z-index:1;position:relative}
+.section-label{font-size:12px;font-weight:600;letter-spacing:2px;text-transform:uppercase;color:var(--green-300);margin-bottom:16px}
+.section-headline{font-family:'EB Garamond',serif;font-size:clamp(32px,4vw,48px);font-weight:700;line-height:1.2;color:#fff;margin-bottom:16px}
+.section-sub{font-size:16px;color:var(--text-secondary);line-height:1.7;max-width:560px}
+.pain-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:20px;margin-top:48px}
+.pain-card{background:var(--card-bg);border:1px solid var(--card-border);border-radius:var(--radius-lg);padding:28px}
+.pain-icon{font-size:28px;margin-bottom:16px}
+.pain-title{font-weight:700;font-size:16px;color:#fff;margin-bottom:8px}
+.pain-body{font-size:15px;color:var(--text-secondary);line-height:1.6}
+
+/* ── How it works ── */
+.how{position:relative;z-index:1}
+.steps{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:32px;margin-top:56px}
+.step{position:relative;padding:32px;background:var(--card-bg);border:1px solid var(--card-border);border-radius:var(--radius-lg)}
+.step-number{font-family:'EB Garamond',serif;font-size:64px;font-weight:700;color:rgba(82,183,136,0.15);line-height:1;margin-bottom:16px}
+.step-title{font-weight:700;font-size:18px;color:#fff;margin-bottom:10px}
+.step-body{font-size:15px;color:var(--text-secondary);line-height:1.6}
+.step-connector{display:none}
+@media(min-width:900px){
+  .steps{grid-template-columns:1fr 1fr 1fr}
+}
+
+/* ── Features ── */
+.features{position:relative;z-index:1}
+.feature-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:20px;margin-top:56px}
+.feature-card{background:var(--card-bg);border:1px solid var(--card-border);border-radius:var(--radius-lg);padding:28px;transition:border-color .2s}
+.feature-card:hover{border-color:rgba(82,183,136,0.3)}
+.feature-icon-ring{width:48px;height:48px;border-radius:50%;background:rgba(82,183,136,0.12);border:1px solid rgba(82,183,136,0.25);display:flex;align-items:center;justify-content:center;margin-bottom:20px;font-size:22px}
+.feature-title{font-weight:700;font-size:17px;color:#fff;margin-bottom:10px}
+.feature-body{font-size:14px;color:var(--text-secondary);line-height:1.65}
+.disclaimer-note{margin-top:32px;font-size:13px;color:var(--text-tertiary);text-align:center;max-width:600px;margin-left:auto;margin-right:auto;line-height:1.6}
+
+/* ── Screenshots ── */
+.screenshots{position:relative;z-index:1}
+.screen-grid{display:flex;gap:20px;justify-content:center;flex-wrap:wrap;margin-top:56px}
+.screen-frame{width:200px;border-radius:24px;background:rgba(255,255,255,0.04);border:1px solid var(--card-border);overflow:hidden;flex-shrink:0}
+.screen-placeholder{height:360px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:20px;text-align:center}
+.screen-placeholder-icon{font-size:32px;opacity:.4}
+.screen-placeholder-label{font-size:12px;font-weight:600;color:var(--text-tertiary);letter-spacing:.5px}
+.screen-caption{text-align:center;margin-top:32px;font-size:14px;color:var(--text-tertiary)}
+.demo-img{width:100%;height:200px;object-fit:cover;border-radius:12px;opacity:.7}
+.demo-section{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:32px;max-width:480px;margin-left:auto;margin-right:auto}
+
+/* ── Waitlist ── */
+.waitlist{position:relative;z-index:1}
+.waitlist-box{background:linear-gradient(135deg,rgba(27,67,50,0.6),rgba(45,106,79,0.3));border:1px solid rgba(82,183,136,0.2);border-radius:var(--radius-lg);padding:64px 48px;text-align:center;max-width:640px;margin:0 auto}
+@media(max-width:600px){.waitlist-box{padding:40px 24px}}
+.waitlist-headline{font-family:'EB Garamond',serif;font-size:clamp(28px,4vw,40px);font-weight:700;color:#fff;margin-bottom:16px}
+.waitlist-sub{font-size:16px;color:var(--text-secondary);line-height:1.7;margin-bottom:32px}
+.form-row{display:flex;gap:10px;max-width:440px;margin:0 auto}
+.form-row input{flex:1;height:52px;padding:0 18px;border-radius:var(--radius-full);background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);color:#fff;font-size:15px;font-family:'Inter',sans-serif;outline:none;transition:border-color .2s}
+.form-row input::placeholder{color:rgba(255,255,255,0.35)}
+.form-row input:focus{border-color:var(--green-400)}
+.form-submit{height:52px;padding:0 24px;border-radius:var(--radius-full);background:#fff;color:#0B1F14;font-weight:700;font-size:15px;white-space:nowrap;transition:opacity .2s,transform .15s}
+.form-submit:hover{opacity:.9;transform:translateY(-1px)}
+.form-submit:disabled{opacity:.5;cursor:not-allowed;transform:none}
+@media(max-width:480px){.form-row{flex-direction:column}.form-submit{width:100%;height:52px}}
+.form-consent{font-size:12px;color:var(--text-tertiary);margin-top:16px;line-height:1.6}
+.form-consent a{color:var(--green-300);text-decoration:underline}
+.form-message{margin-top:16px;font-size:14px;font-weight:600;min-height:20px}
+.form-message.success{color:var(--green-300)}
+.form-message.error{color:#FCA5A5}
+.waitlist-trust{font-size:13px;color:var(--text-tertiary);margin-top:20px}
+
+/* ── FAQ ── */
+.faq{position:relative;z-index:1}
+.faq-list{max-width:700px;margin:56px auto 0;display:flex;flex-direction:column;gap:12px}
+.faq-item{background:var(--card-bg);border:1px solid var(--card-border);border-radius:var(--radius-md);overflow:hidden}
+.faq-question{width:100%;text-align:left;padding:20px 24px;font-weight:600;font-size:16px;color:#fff;background:none;display:flex;justify-content:space-between;align-items:center;gap:16px;transition:background .2s}
+.faq-question:hover{background:rgba(255,255,255,0.03)}
+.faq-question[aria-expanded="true"]{color:var(--green-300)}
+.faq-chevron{flex-shrink:0;transition:transform .25s;font-style:normal}
+.faq-question[aria-expanded="true"] .faq-chevron{transform:rotate(180deg)}
+.faq-answer{max-height:0;overflow:hidden;transition:max-height .3s ease,padding .3s}
+.faq-answer.open{max-height:300px}
+.faq-answer-inner{padding:0 24px 20px;font-size:15px;color:var(--text-secondary);line-height:1.7}
+
+/* ── Footer ── */
+footer{position:relative;z-index:1;border-top:1px solid var(--card-border);padding:48px 0}
+.footer-inner{display:flex;flex-direction:column;align-items:center;gap:24px;text-align:center}
+.footer-logo{display:flex;align-items:center;gap:10px}
+.footer-logo img{width:28px;height:28px;border-radius:6px}
+.footer-logo-text{font-family:'EB Garamond',serif;font-size:18px;font-weight:600}
+.footer-links{display:flex;gap:24px;flex-wrap:wrap;justify-content:center}
+.footer-links a{font-size:14px;color:var(--text-secondary);transition:color .2s}
+.footer-links a:hover{color:#fff}
+.footer-legal{font-size:13px;color:var(--text-tertiary)}
+
+/* ── Utility ── */
+.text-center{text-align:center}
+.green{color:var(--green-300)}
+</style>
+</head>
+<body>
+
+<!-- Star field -->
+<div class="stars" id="stars" aria-hidden="true"></div>
+<div class="grad-top" aria-hidden="true"></div>
+
+<!-- Nav -->
+<nav>
+  <div class="container nav-inner">
+    <a class="nav-logo" href="#">
+      <img src="icon.png" alt="GutWell app icon">
+      <span class="nav-logo-text">GutWell</span>
+    </a>
+    <a class="nav-cta" href="#waitlist">Join the waitlist</a>
+  </div>
+</nav>
+
+<!-- Hero -->
+<section class="hero">
+  <div class="container">
+    <p class="hero-eyebrow fade-in">Your personal gut health coach</p>
+    <h1 class="hero-headline fade-in">
+      Start understanding<br>
+      <span>what your gut</span><br>
+      is telling you.
+    </h1>
+    <p class="hero-sub fade-in">
+      GutWell helps you track daily symptoms, reflect on your habits,
+      and build a clearer picture of your gut health — one check-in at a time.
+    </p>
+    <div class="hero-actions fade-in">
+      <a class="btn-primary" href="#waitlist" id="hero-cta" data-state="waitlist">
+        Join the waitlist
+      </a>
+      <p class="hero-trust">Coming soon to iOS &nbsp;·&nbsp; Free to join</p>
+    </div>
+    <div class="hero-icon-wrap fade-in">
+      <img src="icon.png" alt="GutWell app icon" width="120" height="120">
+    </div>
+  </div>
+</section>
+
+<!-- Problem -->
+<section class="problem">
+  <div class="container">
+    <p class="section-label fade-in">The problem</p>
+    <h2 class="section-headline fade-in">
+      Gut health is personal.<br>Generic advice rarely helps.
+    </h2>
+    <p class="section-sub fade-in">
+      Most people dealing with digestive discomfort already know something is off.
+      What they lack is a clear picture of their own patterns.
+    </p>
+    <div class="pain-grid">
+      <div class="pain-card fade-in">
+        <div class="pain-icon">🫧</div>
+        <p class="pain-title">You notice symptoms — but not the cause</p>
+        <p class="pain-body">Bloating, discomfort, energy crashes after meals. It's hard to know whether it's the food, the timing, the stress, or something else entirely.</p>
+      </div>
+      <div class="pain-card fade-in">
+        <div class="pain-icon">📋</div>
+        <p class="pain-title">Tracking feels like a chore</p>
+        <p class="pain-body">Notebooks and spreadsheets don't connect the dots. Most apps only count calories — they don't consider how you felt, what you did, or what happened next.</p>
+      </div>
+      <div class="pain-card fade-in">
+        <div class="pain-icon">🔍</div>
+        <p class="pain-title">You want your own answers</p>
+        <p class="pain-body">Not averages, not generic elimination diets. You want to understand what seems to work for your body specifically — and be able to review it over time.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- How it works -->
+<section class="how">
+  <div class="container text-center">
+    <p class="section-label fade-in">How GutWell works</p>
+    <h2 class="section-headline fade-in" style="margin:0 auto 16px">Three simple habits.<br>One growing picture.</h2>
+    <p class="section-sub fade-in" style="margin:0 auto">The more consistently you log, the more useful your history becomes.</p>
+    <div class="steps">
+      <div class="step fade-in">
+        <div class="step-number">01</div>
+        <h3 class="step-title">Check in daily — takes 60 seconds</h3>
+        <p class="step-body">Log how you feel each day: stool type, bloating, pain, energy level, and mood. GutWell asks the right questions and remembers everything so you don't have to.</p>
+      </div>
+      <div class="step fade-in">
+        <div class="step-number">02</div>
+        <h3 class="step-title">Scan your meals (optional)</h3>
+        <p class="step-body">Photograph what you eat and describe your situation. GutWell notes what you ate, how you felt at the time, and what you were planning to do next.</p>
+      </div>
+      <div class="step fade-in">
+        <div class="step-number">03</div>
+        <h3 class="step-title">Review your patterns over time</h3>
+        <p class="step-body">Your Gut Score updates daily based on your check-ins. Over time, your history gives you something to reflect on — and brings your personal patterns into view.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Features -->
+<section class="features">
+  <div class="container">
+    <p class="section-label fade-in text-center">What GutWell includes</p>
+    <h2 class="section-headline fade-in text-center" style="margin:0 auto 16px">Built around your daily life,<br>not a generic gut.</h2>
+    <div class="feature-grid">
+      <div class="feature-card fade-in">
+        <div class="feature-icon-ring">📊</div>
+        <h3 class="feature-title">Your Gut Score</h3>
+        <p class="feature-body">A daily summary number calculated from your real check-in data — stool type, symptoms, energy, and mood. It's a reflection tool, not a medical measurement. It becomes more useful as you log consistently.</p>
+      </div>
+      <div class="feature-card fade-in">
+        <div class="feature-icon-ring">📷</div>
+        <h3 class="feature-title">Meal Photo Analysis</h3>
+        <p class="feature-body">Scan a meal and add brief context — how you feel and what you're doing next. GutWell considers the whole picture, not just the food, and gives you a practical, non-judgmental perspective.</p>
+      </div>
+      <div class="feature-card fade-in">
+        <div class="feature-icon-ring">📈</div>
+        <h3 class="feature-title">Personal Pattern Review</h3>
+        <p class="feature-body">After consistent check-ins, your history starts to reveal possible patterns — foods that appear alongside better or worse days. GutWell surfaces these for you to review and reflect on.</p>
+      </div>
+      <div class="feature-card fade-in">
+        <div class="feature-icon-ring">🎯</div>
+        <h3 class="feature-title">Contextual Guidance</h3>
+        <p class="feature-body">Meal suggestions consider your gut profile, current symptoms, and what you're doing after eating — whether that's working, exercising, driving, or resting. Practical guidance for real life.</p>
+      </div>
+    </div>
+    <p class="disclaimer-note fade-in">
+      GutWell is a personal tracking and awareness tool. It does not provide medical diagnosis, treatment, or advice, and does not replace professional healthcare.
+    </p>
+  </div>
+</section>
+
+<!-- Screenshots / Demo imagery -->
+<section class="screenshots">
+  <div class="container text-center">
+    <p class="section-label fade-in">The app</p>
+    <h2 class="section-headline fade-in" style="margin:0 auto 16px">Designed for daily use.</h2>
+    <p class="section-sub fade-in" style="margin:0 auto">Clean, calm, and focused on what matters — your gut health over time.</p>
+
+    <div class="screen-grid">
+      <div class="screen-frame fade-in">
+        <div class="screen-placeholder">
+          <div class="screen-placeholder-icon">🏠</div>
+          <p class="screen-placeholder-label">Home · Gut Score</p>
+        </div>
+      </div>
+      <div class="screen-frame fade-in">
+        <div class="screen-placeholder">
+          <div class="screen-placeholder-icon">✅</div>
+          <p class="screen-placeholder-label">Daily Check-in</p>
+        </div>
+      </div>
+      <div class="screen-frame fade-in">
+        <div class="screen-placeholder">
+          <div class="screen-placeholder-icon">📷</div>
+          <p class="screen-placeholder-label">Meal Analysis</p>
+        </div>
+      </div>
+      <div class="screen-frame fade-in">
+        <div class="screen-placeholder">
+          <div class="screen-placeholder-icon">📈</div>
+          <p class="screen-placeholder-label">Progress & Patterns</p>
+        </div>
+      </div>
+    </div>
+    <p class="screen-caption fade-in">Screenshots coming soon · Real app · iOS</p>
+
+    <!-- Demo food images from repo -->
+    <div class="demo-section fade-in">
+      <img src="assets/demo/lentil-soup.png" alt="Example meal: lentil soup" class="demo-img" onerror="this.style.display='none'">
+      <img src="assets/demo/salmon-rice-bowl.png" alt="Example meal: salmon rice bowl" class="demo-img" onerror="this.style.display='none'">
+    </div>
+  </div>
+</section>
+
+<!-- Waitlist -->
+<section class="waitlist" id="waitlist">
+  <div class="container">
+    <div class="waitlist-box fade-in">
+      <h2 class="waitlist-headline">Be the first to know<br>when GutWell launches.</h2>
+      <p class="waitlist-sub">
+        Join the waitlist and get a single notification when GutWell is available on the App Store.
+      </p>
+      <form id="waitlist-form" novalidate>
+        <div class="form-row">
+          <input
+            type="email"
+            id="email-input"
+            name="email"
+            placeholder="your@email.com"
+            autocomplete="email"
+            required
+            aria-label="Email address"
+          >
+          <button type="submit" class="form-submit" id="form-btn">Get notified</button>
+        </div>
+        <p class="form-consent">
+          By submitting, you agree to our
+          <a href="https://jajrjavanmardi-debug.github.io/gutwell-app/legal/privacy.html" target="_blank" rel="noopener">Privacy Policy</a>.
+          Your email is used only to notify you at launch. We do not share or sell it.
+        </p>
+        <p class="form-message" id="form-message" role="status" aria-live="polite"></p>
+      </form>
+      <p class="waitlist-trust">No spam. One email at launch. Unsubscribe anytime.</p>
+    </div>
+  </div>
+</section>
+
+<!-- FAQ -->
+<section class="faq">
+  <div class="container text-center">
+    <p class="section-label fade-in">Questions</p>
+    <h2 class="section-headline fade-in" style="margin:0 auto">Frequently asked</h2>
+    <div class="faq-list" role="list">
+
+      <div class="faq-item fade-in" role="listitem">
+        <button class="faq-question" aria-expanded="false" aria-controls="faq-1">
+          Is GutWell free?
+          <i class="faq-chevron" aria-hidden="true">▾</i>
+        </button>
+        <div class="faq-answer" id="faq-1" role="region">
+          <div class="faq-answer-inner">
+            GutWell will launch with a free tier. An optional premium plan will be available for users who want access to additional features. Full details will be shared at launch.
+          </div>
+        </div>
+      </div>
+
+      <div class="faq-item fade-in" role="listitem">
+        <button class="faq-question" aria-expanded="false" aria-controls="faq-2">
+          What devices does GutWell support?
+          <i class="faq-chevron" aria-hidden="true">▾</i>
+        </button>
+        <div class="faq-answer" id="faq-2" role="region">
+          <div class="faq-answer-inner">
+            GutWell is currently in development for iOS. Android support is on the roadmap for a future release.
+          </div>
+        </div>
+      </div>
+
+      <div class="faq-item fade-in" role="listitem">
+        <button class="faq-question" aria-expanded="false" aria-controls="faq-3">
+          Does GutWell replace my doctor or dietitian?
+          <i class="faq-chevron" aria-hidden="true">▾</i>
+        </button>
+        <div class="faq-answer" id="faq-3" role="region">
+          <div class="faq-answer-inner">
+            No. GutWell is a personal tracking and reflection tool — not a medical device, diagnostic tool, or clinical service. It does not diagnose, treat, or replace professional medical care. Always consult a qualified healthcare provider for any medical decisions.
+          </div>
+        </div>
+      </div>
+
+      <div class="faq-item fade-in" role="listitem">
+        <button class="faq-question" aria-expanded="false" aria-controls="faq-4">
+          How does the Gut Score work?
+          <i class="faq-chevron" aria-hidden="true">▾</i>
+        </button>
+        <div class="faq-answer" id="faq-4" role="region">
+          <div class="faq-answer-inner">
+            Your Gut Score is a daily summary calculated from your check-in data — including stool type, symptom levels, energy, and mood. It is designed as a personal reflection tool to help you notice changes in how you feel over time. It is not a clinical measurement and does not reflect any medical assessment.
+          </div>
+        </div>
+      </div>
+
+      <div class="faq-item fade-in" role="listitem">
+        <button class="faq-question" aria-expanded="false" aria-controls="faq-5">
+          Is my data private?
+          <i class="faq-chevron" aria-hidden="true">▾</i>
+        </button>
+        <div class="faq-answer" id="faq-5" role="region">
+          <div class="faq-answer-inner">
+            Yes. Your health data is stored securely and is never sold or shared with third parties. Waitlist email addresses are stored solely to notify you at launch and for no other purpose. Read our full
+            <a href="https://jajrjavanmardi-debug.github.io/gutwell-app/legal/privacy.html" target="_blank" rel="noopener" style="color:var(--green-300);text-decoration:underline">Privacy Policy</a>
+            for details.
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- Footer -->
+<footer>
+  <div class="container footer-inner">
+    <div class="footer-logo">
+      <img src="icon.png" alt="GutWell" width="28" height="28">
+      <span class="footer-logo-text">GutWell</span>
+    </div>
+    <div class="footer-links">
+      <a href="https://jajrjavanmardi-debug.github.io/gutwell-app/legal/privacy.html" target="_blank" rel="noopener">Privacy Policy</a>
+      <a href="https://jajrjavanmardi-debug.github.io/gutwell-app/legal/terms.html" target="_blank" rel="noopener">Terms of Service</a>
+      <a href="#waitlist">Join waitlist</a>
+    </div>
+    <p class="footer-legal">© 2026 GutWell. Coming soon to iOS.</p>
+  </div>
+</footer>
+
+<script>
+// ── Star field ──────────────────────────────────────────────────────────────
+(function(){
+  var prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if(prefersReduced) return;
+  var container = document.getElementById('stars');
+  if(!container) return;
+  var count = 80;
+  var frag = document.createDocumentFragment();
+  for(var i=0;i<count;i++){
+    var s = document.createElement('div');
+    s.className = 'star';
+    s.style.cssText = [
+      'left:' + Math.random()*100 + '%',
+      'top:' + Math.random()*100 + '%',
+      '--d:' + (3+Math.random()*5).toFixed(1) + 's',
+      '--delay:-' + (Math.random()*8).toFixed(1) + 's',
+      'opacity:' + (0.1+Math.random()*0.5)
+    ].join(';');
+    frag.appendChild(s);
+  }
+  container.appendChild(frag);
+})();
+
+// ── Scroll fade-in ──────────────────────────────────────────────────────────
+(function(){
+  var prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var els = document.querySelectorAll('.fade-in');
+  if(prefersReduced){
+    els.forEach(function(el){ el.classList.add('visible'); });
+    return;
+  }
+  var io = new IntersectionObserver(function(entries){
+    entries.forEach(function(e){
+      if(e.isIntersecting){ e.target.classList.add('visible'); io.unobserve(e.target); }
+    });
+  },{threshold:0.12});
+  els.forEach(function(el){ io.observe(el); });
+})();
+
+// ── FAQ accordion ───────────────────────────────────────────────────────────
+document.querySelectorAll('.faq-question').forEach(function(btn){
+  btn.addEventListener('click', function(){
+    var expanded = btn.getAttribute('aria-expanded') === 'true';
+    // Close all
+    document.querySelectorAll('.faq-question').forEach(function(b){
+      b.setAttribute('aria-expanded','false');
+    });
+    document.querySelectorAll('.faq-answer').forEach(function(a){
+      a.classList.remove('open');
+    });
+    if(!expanded){
+      btn.setAttribute('aria-expanded','true');
+      var answerId = btn.getAttribute('aria-controls');
+      var answer = document.getElementById(answerId);
+      if(answer) answer.classList.add('open');
+    }
+  });
+});
+
+// ── Waitlist form ───────────────────────────────────────────────────────────
+// Replace GUTWELL_WAITLIST_ENDPOINT with your Supabase Edge Function URL
+var ENDPOINT = 'https://peipdakrqtgabnvpazrc.supabase.co/functions/v1/waitlist-signup';
+
+document.getElementById('waitlist-form').addEventListener('submit', async function(e){
+  e.preventDefault();
+  var emailInput = document.getElementById('email-input');
+  var btn = document.getElementById('form-btn');
+  var msg = document.getElementById('form-message');
+  var email = emailInput.value.trim();
+
+  // Basic client-side validation
+  if(!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){
+    msg.textContent = 'Please enter a valid email address.';
+    msg.className = 'form-message error';
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = 'Saving...';
+  msg.textContent = '';
+  msg.className = 'form-message';
+
+  try{
+    var res = await fetch(ENDPOINT, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: email })
+    });
+    var data = await res.json().catch(function(){ return {}; });
+
+    if(res.ok){
+      msg.textContent = "You're on the list. We'll notify you at launch.";
+      msg.className = 'form-message success';
+      emailInput.value = '';
+      btn.textContent = 'Done ✓';
+    } else if(res.status === 409){
+      msg.textContent = 'This email is already on the waitlist.';
+      msg.className = 'form-message error';
+      btn.disabled = false;
+      btn.textContent = 'Get notified';
+    } else if(res.status === 429){
+      msg.textContent = 'Too many requests. Please try again in a moment.';
+      msg.className = 'form-message error';
+      btn.disabled = false;
+      btn.textContent = 'Get notified';
+    } else {
+      throw new Error(data.error || 'Submission failed');
+    }
+  } catch(err){
+    msg.textContent = 'Something went wrong. Please try again.';
+    msg.className = 'form-message error';
+    btn.disabled = false;
+    btn.textContent = 'Get notified';
+  }
+});
+</script>
+</body>
+</html>
