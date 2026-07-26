@@ -29,7 +29,7 @@ const SECTIONS: SectionData[] = [
   },
   {
     title: '5. Limitation of Liability',
-    body: 'To the maximum extent permitted by law, Parallel Labs Pte. Ltd. shall not be liable for any indirect, incidental, special, consequential, or punitive damages, including but not limited to loss of data, health outcomes, or any reliance on information provided by the app. GutWell is provided "as is" without warranties of any kind.',
+    body: 'To the maximum extent permitted by law, GutWell shall not be liable for any indirect, incidental, special, consequential, or punitive damages, including but not limited to loss of data, health outcomes, or any reliance on information provided by the app. GutWell is provided "as is" without warranties of any kind.',
   },
   {
     title: '6. User Content',
@@ -104,11 +104,11 @@ export default function TermsOfServiceScreen() {
         {/* Company Footer */}
         <View style={styles.companyFooter}>
           <Text style={styles.companyText}>
-            Parallel Labs Pte. Ltd.{'\n'}
+            GutWell{'\n'}
             Singapore
           </Text>
           <Text style={styles.contactText}>
-            support@theparallellab.com
+            support@gutwell.app
           </Text>
         </View>
       </ScrollView>

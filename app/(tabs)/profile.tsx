@@ -149,7 +149,7 @@ export default function ProfileScreen() {
   };
 
   const handleSupport = () =>
-    Linking.openURL('mailto:support@theparallellab.com?subject=GutWell%20Support');
+    Linking.openURL('mailto:support@gutwell.app?subject=GutWell%20Support');
 
   const handleDisclaimer = () =>
     Alert.alert(
