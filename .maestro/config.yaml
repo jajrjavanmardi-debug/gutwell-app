@@ -1,0 +1,9 @@
+# Maestro project config for GutWell iOS E2E.
+# Run: maestro test .maestro   (requires the app built & installed on a booted
+# iOS Simulator via `npx expo run:ios`).
+appId: com.parallellabs.gutwell
+---
+# Exclude the gated full flow from `maestro test .maestro` runs so the default
+# suite stays offline & deterministic. Run the full flow explicitly by path.
+flows:
+  - smoke-launch.yaml
