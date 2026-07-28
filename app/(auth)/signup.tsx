@@ -57,7 +57,7 @@ export default function SignupScreen() {
       setToast({ visible: true, message: 'Welcome to GutWell!', type: 'success' });
       // Auto-confirm is on, so a session exists now — finish onboarding
       // (notification opt-in + profile save) before entering the app.
-      setTimeout(() => router.replace('/(onboarding)/notifications'), 600);
+      setTimeout(() => router.replace('/(onboarding)/checkin-prompt'), 600);
     }
   };
 

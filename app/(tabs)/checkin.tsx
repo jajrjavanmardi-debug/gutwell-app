@@ -374,7 +374,22 @@ export default function CheckinScreen() {
         streak={currentStreak}
         onDone={() => {
           setShowSuccess(false);
-          router.replace('/(tabs)');
+          // Check if this is the first onboarding check-in.
+          // If so, route to the notification prompt; otherwise go to tabs.
+          AsyncStorage.getItem('onboarding_checkin_pending')
+            .then((pending) => {
+              if (pending === 'true') {
+                return AsyncStorage.removeItem('onboarding_checkin_pending').then(() => {
+                  router.replace('/(onboarding)/notifications');
+                });
+              } else {
+                router.replace('/(tabs)');
+              }
+            })
+            .catch(() => {
+              // On any error fall back to normal tab navigation.
+              router.replace('/(tabs)');
+            });
         }}
       />
       <StreakPopup

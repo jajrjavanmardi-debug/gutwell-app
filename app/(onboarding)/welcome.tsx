@@ -20,11 +20,10 @@ import { track, Events } from '../../lib/analytics';
 const { width } = Dimensions.get('window');
 
 const TAGLINES = [
-  'Understand your gut.',
-  'Find your triggers.',
-  'Reduce symptoms.',
-  'Track what matters.',
-  'Feel your best.',
+  'Understand what works for your gut.',
+  'Feel more confident around food.',
+  'Get guidance that fits your day.',
+  'Learn from every meal and check-in.',
 ];
 
 const TAGLINE_DISPLAY_MS = 2200;
@@ -105,7 +104,7 @@ export default function WelcomeScreen() {
           accessibilityLabel="Build my gut plan"
           activeOpacity={0.88}
         >
-          <Text style={styles.primaryButtonText}>Build My Gut Plan</Text>
+          <Text style={styles.primaryButtonText}>Build my Gut Profile</Text>
         </TouchableOpacity>
 
         <View style={styles.signInRow}>
