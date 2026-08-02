@@ -14,6 +14,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { useAuth } from '../../contexts/AuthContext';
+import { useTranslation } from '../../lib/i18n';
 import { Input } from '../../components/ui/Input';
 import { Button } from '../../components/ui/Button';
 import { Toast } from '../../components/ui/Toast';
@@ -22,6 +23,7 @@ import { track, Events } from '../../lib/analytics';
 
 export default function SignupScreen() {
   const { signUp } = useAuth();
+  const t = useTranslation();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -32,19 +34,19 @@ export default function SignupScreen() {
 
   const handleSignup = async () => {
     if (!name || !email || !password) {
-      setToast({ visible: true, message: 'Please fill in all fields', type: 'error' });
+      setToast({ visible: true, message: t.signup.fillAllFields, type: 'error' });
       return;
     }
     if (password !== confirmPassword) {
-      setToast({ visible: true, message: 'Passwords do not match', type: 'error' });
+      setToast({ visible: true, message: t.signup.passwordMismatch, type: 'error' });
       return;
     }
     if (password.length < 6) {
-      setToast({ visible: true, message: 'Password must be at least 6 characters', type: 'error' });
+      setToast({ visible: true, message: t.signup.passwordTooShort, type: 'error' });
       return;
     }
     if (!termsAccepted) {
-      setToast({ visible: true, message: 'Please accept the Terms of Service', type: 'error' });
+      setToast({ visible: true, message: t.signup.acceptTerms, type: 'error' });
       return;
     }
     setLoading(true);
@@ -54,7 +56,7 @@ export default function SignupScreen() {
       setToast({ visible: true, message: error.message, type: 'error' });
     } else {
       track(Events.SIGNUP_COMPLETED);
-      setToast({ visible: true, message: 'Welcome to GutWell!', type: 'success' });
+      setToast({ visible: true, message: t.signup.welcomeToast, type: 'success' });
       // Auto-confirm is on, so a session exists now — finish onboarding
       // (notification opt-in + profile save) before entering the app.
       setTimeout(() => router.replace('/(onboarding)/notifications'), 600);
@@ -83,8 +85,8 @@ export default function SignupScreen() {
               </View>
 
               {/* Title + subtitle */}
-              <Text style={styles.title}>Create your account</Text>
-              <Text style={styles.subtitle}>Start tracking your gut health in minutes.</Text>
+              <Text style={styles.title}>{t.signup.title}</Text>
+              <Text style={styles.subtitle}>{t.signup.subtitle}</Text>
 
               {/* ── Form ── */}
               <View style={styles.form}>
@@ -161,10 +163,10 @@ export default function SignupScreen() {
 
               {/* Secondary link */}
               <View style={styles.switchRow}>
-                <Text style={styles.switchText}>Already have an account? </Text>
+                <Text style={styles.switchText}>{t.signup.haveAccount} </Text>
                 <Link href="/(auth)/login" asChild>
                   <TouchableOpacity activeOpacity={0.7}>
-                    <Text style={styles.switchLink}>Sign In</Text>
+                    <Text style={styles.switchLink}>{t.common.signIn}</Text>
                   </TouchableOpacity>
                 </Link>
               </View>

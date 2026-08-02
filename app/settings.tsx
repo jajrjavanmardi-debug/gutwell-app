@@ -27,6 +27,7 @@ import {
 import { flush, getPendingCount } from '../lib/offline-queue';
 import * as StoreReview from 'expo-store-review';
 import { track, Events } from '../lib/analytics';
+import { useTranslation } from '../lib/i18n';
 import { loadLanguage, saveLanguage, LANGUAGE_LABELS, type AppLanguage } from '../lib/language';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -185,6 +186,7 @@ function TimePickerModal({
   onSelect: (hour: number, minute: number) => void;
   onClose: () => void;
 }) {
+  const t = useTranslation();
   const [localHour, setLocalHour] = useState(hour);
   const [localMinute, setLocalMinute] = useState(minute);
   const [localPeriod, setLocalPeriod] = useState<'AM' | 'PM'>(hour < 12 ? 'AM' : 'PM');
@@ -207,11 +209,11 @@ function TimePickerModal({
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <TouchableOpacity style={styles.modalBackdrop} activeOpacity={1} onPress={onClose}>
         <View style={styles.modalSheet}>
-          <Text style={styles.modalTitle}>Set Reminder Time</Text>
+          <Text style={styles.modalTitle}>{t.settings.setReminderTime}</Text>
           <View style={styles.timePicker}>
             {/* Hour */}
             <View style={styles.timeColumn}>
-              <Text style={styles.timeColumnLabel}>Hour</Text>
+              <Text style={styles.timeColumnLabel}>{t.settings.hour}</Text>
               <ScrollView style={styles.timeScroll} showsVerticalScrollIndicator={false}>
                 {HOUR_OPTIONS.map((h) => (
                   <TouchableOpacity
@@ -245,7 +247,7 @@ function TimePickerModal({
             </View>
             {/* AM/PM */}
             <View style={styles.timeColumn}>
-              <Text style={styles.timeColumnLabel}>Period</Text>
+              <Text style={styles.timeColumnLabel}>{t.settings.period}</Text>
               {(['AM', 'PM'] as const).map((p) => (
                 <TouchableOpacity
                   key={p}
@@ -260,7 +262,7 @@ function TimePickerModal({
             </View>
           </View>
           <TouchableOpacity style={styles.timeConfirmBtn} onPress={handleDone} accessibilityRole="button" accessibilityLabel="Confirm reminder time">
-            <Text style={styles.timeConfirmText}>Confirm</Text>
+            <Text style={styles.timeConfirmText}>{t.common.confirm}</Text>
           </TouchableOpacity>
         </View>
       </TouchableOpacity>
@@ -272,6 +274,7 @@ function TimePickerModal({
 
 export default function SettingsScreen() {
   const { user } = useAuth();
+  const t = useTranslation();
   const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
   const [dietModalVisible, setDietModalVisible] = useState(false);
   const [timeModalVisible, setTimeModalVisible] = useState(false);
@@ -316,7 +319,7 @@ export default function SettingsScreen() {
           : `${synced} uploaded, ${remaining} still waiting — check your connection and try again.`,
       );
     } catch {
-      Alert.alert('Sync failed', 'Check your connection and try again.');
+      Alert.alert(t.settings.syncFailed, t.settings.syncError);
     }
   }, []);
 
@@ -355,7 +358,7 @@ export default function SettingsScreen() {
     if (Platform.OS === 'ios') {
       ActionSheetIOS.showActionSheetWithOptions(
         {
-          options: [...DIET_OPTIONS, 'Cancel'],
+          options: [...DIET_OPTIONS, t.common.cancel],
           cancelButtonIndex: DIET_OPTIONS.length,
           title: 'Diet Type',
         },
@@ -405,7 +408,7 @@ export default function SettingsScreen() {
       });
       track(Events.DATA_EXPORTED);
     } catch {
-      Alert.alert('Export Failed', 'Could not export your data. Please try again.');
+      Alert.alert(t.settings.exportFailed, t.settings.exportError);
     }
   };
 
@@ -417,7 +420,7 @@ export default function SettingsScreen() {
       [
         { text: 'Cancel', style: 'cancel' },
         {
-          text: 'Clear Everything',
+          text: t.settings.clearConfirm,
           style: 'destructive',
           onPress: async () => {
             if (!user) return;
@@ -437,7 +440,7 @@ export default function SettingsScreen() {
                 'Some records could not be deleted. Please check your connection and try again.',
               );
             } else {
-              Alert.alert('Done', 'All your data has been cleared.');
+              Alert.alert(t.settings.clearDone, t.settings.clearSuccess);
             }
           },
         },
@@ -464,7 +467,7 @@ export default function SettingsScreen() {
         <TouchableOpacity style={styles.backButton} onPress={() => router.back()} accessibilityRole="button" accessibilityLabel="Go back">
           <Ionicons name="chevron-back" size={24} color={Colors.text} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Settings</Text>
+        <Text style={styles.headerTitle}>{t.settings.title}</Text>
         <View style={styles.backButton} />
       </View>
 
@@ -473,7 +476,7 @@ export default function SettingsScreen() {
         showsVerticalScrollIndicator={false}
       >
         {/* PREFERENCES */}
-        <SectionHeader title="Preferences" />
+        <SectionHeader title={t.settings.sectionPreferences} />
         <View style={styles.card}>
           <SettingsRow
             icon="leaf-outline"
@@ -485,7 +488,7 @@ export default function SettingsScreen() {
         </View>
 
         {/* NOTIFICATIONS */}
-        <SectionHeader title="Notifications" />
+        <SectionHeader title={t.settings.sectionNotifications} />
         <View style={styles.card}>
           <SettingsRow
             icon="alarm-outline"
@@ -532,7 +535,7 @@ export default function SettingsScreen() {
         </View>
 
         {/* DATA */}
-        <SectionHeader title="Data" />
+        <SectionHeader title={t.settings.sectionData} />
         <View style={styles.card}>
           {pendingSyncCount > 0 && (
             <>
@@ -548,7 +551,7 @@ export default function SettingsScreen() {
           )}
           <SettingsRow
             icon="download-outline"
-            label="Export My Data"
+            label={t.settings.exportMyData}
             subtitle="Download all your records as JSON"
             onPress={handleExportData}
             isFirst={pendingSyncCount === 0}
@@ -564,7 +567,7 @@ export default function SettingsScreen() {
         </View>
 
         {/* LANGUAGE */}
-        <SectionHeader title="Language" />
+        <SectionHeader title={t.settings.sectionLanguage} />
         <View style={styles.card}>
           {(['en', 'de', 'fa'] as AppLanguage[]).map((lang, idx, arr) => (
             <React.Fragment key={lang}>
@@ -589,7 +592,7 @@ export default function SettingsScreen() {
         </Text>
 
         {/* ACCOUNT */}
-        <SectionHeader title="Account" />
+        <SectionHeader title={t.settings.sectionAccount} />
         <View style={styles.card}>
           <SettingsRow
             icon="lock-closed-outline"
@@ -601,7 +604,7 @@ export default function SettingsScreen() {
         </View>
 
         {/* ABOUT */}
-        <SectionHeader title="About" />
+        <SectionHeader title={t.settings.sectionAbout} />
         <View style={styles.card}>
           <SettingsRow
             icon="information-circle-outline"
@@ -630,7 +633,7 @@ export default function SettingsScreen() {
       {/* Android modals */}
       <PickerModal
         visible={dietModalVisible}
-        title="Diet Type"
+        title={t.settings.dietType}
         options={DIET_OPTIONS}
         selected={settings.dietType}
         onSelect={(v) => save({ dietType: v })}

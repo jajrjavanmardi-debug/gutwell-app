@@ -13,6 +13,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { useAuth } from '../../contexts/AuthContext';
+import { useTranslation } from '../../lib/i18n';
 import { supabase } from '../../lib/supabase';
 import { exportUserData } from '../../lib/export';
 import { Toast } from '../../components/ui/Toast';
@@ -33,6 +34,7 @@ import { isPremium, isMonetizationEnabled } from '../../lib/subscription';
 const AVATAR_COLORS = ['#1B4332', '#2D6A4F', '#40916C', '#52B788', '#74C69D'];
 
 export default function ProfileScreen() {
+  const t = useTranslation();
   const { user, profile, signOut } = useAuth();
   const [toast, setToast] = useState({
     visible: false,
@@ -103,20 +105,20 @@ export default function ProfileScreen() {
   };
 
   const handleSignOut = () => {
-    Alert.alert('Sign Out', 'Are you sure you want to sign out?', [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Sign Out', style: 'destructive', onPress: signOut },
+    Alert.alert(t.profile.signOutTitle, t.profile.signOutMessage, [
+      { text: t.common.cancel, style: 'cancel' },
+      { text: t.profile.signOutConfirm, style: 'destructive', onPress: signOut },
     ]);
   };
 
   const handleDeleteAccount = () => {
     Alert.alert(
-      'Delete Account',
-      'This will permanently delete your account and all your data. This cannot be undone.',
+      t.profile.deleteTitle,
+      t.profile.deleteMessage,
       [
         { text: 'Cancel', style: 'cancel' },
         {
-          text: 'Delete Forever',
+          text: t.profile.deleteConfirm,
           style: 'destructive',
           onPress: async () => {
             setDeleting(true);
@@ -125,7 +127,7 @@ export default function ProfileScreen() {
             if (error) {
               setToast({
                 visible: true,
-                message: 'Failed to delete account. Please try again.',
+                message: t.profile.deleteFailed,
                 type: 'error',
               });
             } else {
@@ -142,9 +144,9 @@ export default function ProfileScreen() {
     try {
       await exportUserData(user.id);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      setToast({ visible: true, message: 'Data exported successfully', type: 'info' });
+      setToast({ visible: true, message: t.profile.dataExported, type: 'info' });
     } catch {
-      setToast({ visible: true, message: 'Failed to export data', type: 'error' });
+      setToast({ visible: true, message: t.profile.exportFailed, type: 'error' });
     }
   };
 
@@ -168,7 +170,7 @@ export default function ProfileScreen() {
         showsVerticalScrollIndicator={false}
       >
         {/* ── Title ── */}
-        <Text style={styles.title}>Profile</Text>
+        <Text style={styles.title}>{t.profile.title}</Text>
 
         {/* ── Account header card ── */}
         <TouchableOpacity
@@ -196,7 +198,7 @@ export default function ProfileScreen() {
             <Text style={styles.headerName} numberOfLines={1}>
               {profile?.display_name || 'Set your name'}
             </Text>
-            <Text style={styles.headerHint}>Tap to edit profile</Text>
+            <Text style={styles.headerHint}>{t.profile.tapToEdit}</Text>
           </View>
           <Ionicons name="chevron-forward" size={18} color={Colors.textTertiary} />
         </TouchableOpacity>
@@ -218,7 +220,7 @@ export default function ProfileScreen() {
         </View>
 
         {/* ── Account section ── */}
-        <Text style={styles.sectionTitle}>Account</Text>
+        <Text style={styles.sectionTitle}>{t.profile.sectionAccount}</Text>
         <View style={styles.listCard}>
           <ListRow
             icon="person-outline"
@@ -241,7 +243,7 @@ export default function ProfileScreen() {
         </View>
 
         {/* ── Goals & Tracking section ── */}
-        <Text style={styles.sectionTitle}>Goals & Tracking</Text>
+        <Text style={styles.sectionTitle}>{t.profile.sectionGoals}</Text>
         <View style={styles.listCard}>
           <ListRow
             icon="trending-up-outline"
@@ -275,11 +277,11 @@ export default function ProfileScreen() {
         </View>
 
         {/* ── Widgets preview (static, presentational) ── */}
-        <Text style={styles.sectionTitle}>Widgets</Text>
+        <Text style={styles.sectionTitle}>{t.profile.sectionWidgets}</Text>
         <View style={styles.widgetCard}>
           <View style={styles.widgetPreview}>
             <Text style={styles.widgetValue}>{accountStats.checkIns}</Text>
-            <Text style={styles.widgetCaption}>check-ins</Text>
+            <Text style={styles.widgetCaption}>{t.profile.checkIns}</Text>
           </View>
           <View style={[styles.widgetPreview, styles.widgetPreviewAlt]}>
             <Ionicons name="leaf" size={26} color={Colors.secondary} />
@@ -293,7 +295,7 @@ export default function ProfileScreen() {
         </View>
 
         {/* ── Support & Legal section ── */}
-        <Text style={styles.sectionTitle}>Support & Legal</Text>
+        <Text style={styles.sectionTitle}>{t.profile.sectionSupport}</Text>
         <View style={styles.listCard}>
           <ListRow
             icon="mail-outline"
@@ -328,7 +330,7 @@ export default function ProfileScreen() {
         </View>
 
         {/* ── Follow Us section ── */}
-        <Text style={styles.sectionTitle}>Follow Us</Text>
+        <Text style={styles.sectionTitle}>{t.profile.followUs}</Text>
         <View style={styles.listCard}>
           <ListRow
             icon="logo-instagram"
@@ -351,7 +353,7 @@ export default function ProfileScreen() {
         </View>
 
         {/* ── Account Actions section ── */}
-        <Text style={styles.sectionTitle}>Account Actions</Text>
+        <Text style={styles.sectionTitle}>{t.profile.sectionAccountActions}</Text>
         <View style={styles.listCard}>
           <ListRow
             icon="log-out-outline"
@@ -361,7 +363,7 @@ export default function ProfileScreen() {
           <Divider />
           <ListRow
             icon="person-remove-outline"
-            label={deleting ? 'Deleting…' : 'Delete Account'}
+            label={deleting ? t.profile.deletingLabel : t.profile.deleteAccount}
             onPress={deleting ? undefined : handleDeleteAccount}
             destructive
             showArrow={false}

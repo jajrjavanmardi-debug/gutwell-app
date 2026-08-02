@@ -15,14 +15,9 @@ import { useAuth } from '../../contexts/AuthContext';
 import { FontFamily } from '../../constants/theme';
 import StarFieldBackground from '../../components/StarFieldBackground';
 import { track, Events } from '../../lib/analytics';
+import { useTranslation } from '../../lib/i18n';
 
-const TAGLINES = [
-  'Understand your gut.',
-  'Find your triggers.',
-  'Reduce symptoms.',
-  'Track what matters.',
-  'Feel your best.',
-];
+// Taglines now come from i18n t.welcome.taglines
 
 const TAGLINE_DISPLAY_MS = 2200;
 const TAGLINE_FADE_MS = 150;
@@ -33,6 +28,7 @@ export default function WelcomeScreen() {
   // no active session (app/index.tsx guarantees this), so we never redirect
   // away from here — the user must explicitly choose Create Account or Sign In.
   useAuth();
+  const t = useTranslation();
 
   const [taglineIndex, setTaglineIndex] = useState(0);
   const taglineOpacity = useRef(new Animated.Value(1)).current;
@@ -45,7 +41,7 @@ export default function WelcomeScreen() {
         duration: TAGLINE_FADE_MS,
         useNativeDriver: true,
       }).start(() => {
-        setTaglineIndex((prev) => (prev + 1) % TAGLINES.length);
+        setTaglineIndex((prev) => (prev + 1) % (t.welcome.taglines.length || 5));
         Animated.timing(taglineOpacity, {
           toValue: 1,
           duration: TAGLINE_FADE_MS,
@@ -86,15 +82,15 @@ export default function WelcomeScreen() {
         </View>
 
         {/* App name */}
-        <Text style={styles.appName}>GutWell AI</Text>
+        <Text style={styles.appName}>{t.welcome.appName}</Text>
 
         {/* Headline — shown only to new / signed-out users */}
-        <Text style={styles.headline}>Welcome to GutWell AI</Text>
+        <Text style={styles.headline}>{t.welcome.headline}</Text>
 
         {/* Animated tagline */}
         <View style={styles.taglineContainer}>
           <Animated.Text style={[styles.tagline, { opacity: taglineOpacity }]}>
-            {TAGLINES[taglineIndex]}
+            {t.welcome.taglines[taglineIndex] ?? ''}
           </Animated.Text>
         </View>
       </View>
@@ -110,7 +106,7 @@ export default function WelcomeScreen() {
             accessibilityLabel="Create a new GutWell AI account"
             activeOpacity={0.88}
           >
-            <Text style={styles.primaryButtonText}>Create Account</Text>
+            <Text style={styles.primaryButtonText}>{t.welcome.createAccount}</Text>
           </TouchableOpacity>
 
           {/* Secondary: Sign In — visually distinct, not hidden */}
@@ -121,11 +117,11 @@ export default function WelcomeScreen() {
             accessibilityLabel="Sign in to existing account"
             activeOpacity={0.8}
           >
-            <Text style={styles.secondaryButtonText}>Sign In</Text>
+            <Text style={styles.secondaryButtonText}>{t.welcome.signIn}</Text>
           </TouchableOpacity>
 
           <Text style={styles.legalNote}>
-            By continuing you agree to our Terms of Service and Privacy Policy.
+            {t.welcome.legalNote}
           </Text>
         </View>
       </SafeAreaView>

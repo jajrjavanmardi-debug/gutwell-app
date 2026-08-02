@@ -10,49 +10,33 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
+import { useTranslation } from '../../lib/i18n';
 import { Ionicons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
 import { FontFamily } from '../../constants/theme';
 import StarFieldBackground from '../../components/StarFieldBackground';
 
+const SLIDE_ICONS = [
+  'analytics-outline',
+  'restaurant-outline',
+  'trending-up-outline',
+  'shield-checkmark-outline',
+] as const;
+
 const { width } = Dimensions.get('window');
 
-const SLIDES = [
-  {
-    icon: 'analytics-outline' as const,
-    title: 'Your Daily Gut Score',
-    description:
-      'Every check-in generates a personal gut score. Watch it climb as you learn what works for your body.',
-  },
-  {
-    icon: 'restaurant-outline' as const,
-    title: 'Connect Food & Symptoms',
-    description:
-      'Log meals and discover which foods trigger discomfort and which ones make you thrive — with real data.',
-  },
-  {
-    icon: 'trending-up-outline' as const,
-    title: 'Spot Patterns Instantly',
-    description:
-      'Our engine connects the dots between your food, mood, sleep, and symptoms so you never have to guess again.',
-  },
-  {
-    icon: 'shield-checkmark-outline' as const,
-    title: 'Your Privacy, Protected',
-    description:
-      'Your gut data is sensitive. It stays encrypted, on your terms. We never sell your health information.',
-  },
-];
+// SLIDES replaced by t.features.slides via i18n
 
 const FADE_OUT_MS = 150;
 const FADE_IN_MS = 250;
 
 export default function FeaturesScreen() {
+  const t = useTranslation();
   const [currentSlide, setCurrentSlide] = useState(0);
   const contentOpacity = useRef(new Animated.Value(1)).current;
-  const dotWidths = useRef(SLIDES.map((_, i) => new Animated.Value(i === 0 ? 24 : 8))).current;
+  const dotWidths = useRef(SLIDE_ICONS.map((_, i) => new Animated.Value(i === 0 ? 24 : 8))).current;
 
-  const isLast = currentSlide === SLIDES.length - 1;
+  const isLast = currentSlide === SLIDE_ICONS.length - 1;
 
   const advanceSlide = () => {
     if (isLast) {
@@ -69,7 +53,7 @@ export default function FeaturesScreen() {
       setCurrentSlide(next);
 
       // Animate dots
-      SLIDES.forEach((_, i) => {
+      SLIDE_ICONS.forEach((_, i) => {
         Animated.timing(dotWidths[i], {
           toValue: i === next ? 24 : 8,
           duration: 200,
@@ -85,7 +69,12 @@ export default function FeaturesScreen() {
     });
   };
 
-  const slide = SLIDES[currentSlide];
+  const slides = t.features.slides;
+  const slide = {
+    icon: SLIDE_ICONS[currentSlide],
+    title: slides[currentSlide]?.title ?? '',
+    description: slides[currentSlide]?.description ?? '',
+  };
 
   return (
     <View style={styles.container}>
@@ -116,7 +105,7 @@ export default function FeaturesScreen() {
       <View style={styles.bottomSection}>
         {/* Pagination dots */}
         <View style={styles.dotsRow}>
-          {SLIDES.map((_, i) => (
+          {SLIDE_ICONS.map((_, i) => (
             <Animated.View
               key={i}
               style={[

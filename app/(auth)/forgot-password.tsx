@@ -18,8 +18,10 @@ import { Input } from '../../components/ui/Input';
 import { Button } from '../../components/ui/Button';
 import { Toast } from '../../components/ui/Toast';
 import { Colors, Spacing, FontSize, FontFamily } from '../../constants/theme';
+import { useTranslation } from '../../lib/i18n';
 
 export default function ForgotPasswordScreen() {
+  const t = useTranslation();
   const { resetPassword } = useAuth();
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
@@ -94,7 +96,7 @@ export default function ForgotPasswordScreen() {
               <View style={styles.switchRow}>
                 <Link href="/(auth)/login" asChild>
                   <TouchableOpacity activeOpacity={0.7}>
-                    <Text style={styles.switchLink}>Back to Sign In</Text>
+                    <Text style={styles.switchLink}>{t.forgotPassword.backToSignIn}</Text>
                   </TouchableOpacity>
                 </Link>
               </View>

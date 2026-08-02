@@ -7,6 +7,7 @@ import { StatusBar } from 'expo-status-bar';
 import { router } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Sentry from '@sentry/react-native';
+import { useTranslation } from '../../lib/i18n';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import { FontFamily } from '../../constants/theme';
@@ -18,14 +19,11 @@ import {
   scheduleWeeklyDigestNotification,
 } from '../../lib/notifications';
 
-const BENEFITS = [
-  { icon: 'time-outline' as const, text: 'Daily check-in reminder at your chosen time' },
-  { icon: 'flame-outline' as const, text: 'Streak alerts so you never lose progress' },
-  { icon: 'trending-up-outline' as const, text: 'Weekly digest delivered every Sunday' },
-];
+// BENEFITS now from t.notifications via i18n
 
 export default function NotificationsScreen() {
   const { user, refreshProfile } = useAuth();
+  const t = useTranslation();
   const [showCelebration, setShowCelebration] = useState(false);
 
   const celebrationFade = useRef(new Animated.Value(0)).current;
@@ -121,16 +119,16 @@ export default function NotificationsScreen() {
           </View>
 
           {/* Title */}
-          <Text style={styles.title}>{"Never miss your\ngut check-in"}</Text>
+          <Text style={styles.title}>{t.notifications.title}</Text>
 
           {/* Subtitle */}
           <Text style={styles.subtitle}>
-            Daily reminders keep your streak alive and your data accurate — 60 seconds a day, every day.
+            {t.notifications.subtitle}
           </Text>
 
           {/* Benefit rows */}
           <View style={styles.benefitsContainer}>
-            {BENEFITS.map((benefit, i) => (
+            {[{ icon: 'time-outline' as const, text: t.notifications.benefitDaily }].map((benefit, i) => (
               <View key={i} style={styles.benefitRow}>
                 <View style={styles.benefitIconCircle}>
                   <Ionicons name={benefit.icon} size={16} color="#52B788" />
@@ -162,14 +160,14 @@ export default function NotificationsScreen() {
             style={styles.allowButton}
             onPress={requestPermission}
             accessibilityRole="button"
-            accessibilityLabel="Enable notifications"
+            accessibilityLabel={t.notifications.enableButton}
             activeOpacity={0.88}
           >
-            <Text style={styles.allowButtonText}>Enable Notifications</Text>
+            <Text style={styles.allowButtonText}>{t.notifications.enableButton}</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity onPress={completeOnboarding} accessibilityRole="button" accessibilityLabel="Skip notifications for now" activeOpacity={0.7}>
-            <Text style={styles.skipText}>Skip for now</Text>
+          <TouchableOpacity onPress={completeOnboarding} accessibilityRole="button" accessibilityLabel={t.notifications.skipButton} activeOpacity={0.7}>
+            <Text style={styles.skipText}>{t.notifications.skipButton}</Text>
           </TouchableOpacity>
         </Animated.View>
       </SafeAreaView>
@@ -186,7 +184,7 @@ export default function NotificationsScreen() {
             <View style={styles.celebrationIcon}>
               <Ionicons name="leaf" size={48} color="#52B788" />
             </View>
-            <Text style={styles.celebrationTitle}>You&apos;re all set!</Text>
+            <Text style={styles.celebrationTitle}>{t.notifications.allSet}</Text>
             <Text style={styles.celebrationSubtitle}>
               Your gut health journey starts now
             </Text>

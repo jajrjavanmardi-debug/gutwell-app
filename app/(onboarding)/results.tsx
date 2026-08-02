@@ -21,6 +21,7 @@ import StarFieldBackground from '../../components/StarFieldBackground';
 import { ProgressRing } from '../../components/ui/ProgressRing';
 import { useAuth } from '../../contexts/AuthContext';
 import { computePlan, type PlanFocusArea } from '../../lib/onboarding-config';
+import { useTranslation } from '../../lib/i18n';
 
 type Answers = Record<string, unknown>;
 
@@ -119,6 +120,7 @@ function EstimatedProgressChart({ width = 280, height = 120 }: { width?: number;
 
 export default function ResultsScreen() {
   const { session } = useAuth();
+  const t = useTranslation();
   const [answers, setAnswers] = useState<Answers | null>(null);
   const [ringProgress, setRingProgress] = useState(0);
 

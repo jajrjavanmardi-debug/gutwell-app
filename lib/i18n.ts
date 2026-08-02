@@ -353,6 +353,30 @@ const en = {
     long: 'GutWell AI is a personal tracking and awareness tool. It does not provide medical advice, diagnosis, or treatment, and does not replace professional healthcare. Always consult a qualified healthcare provider for medical concerns.',
     emergencyNote: 'In a medical emergency, contact emergency services immediately.',
   },
+
+  // ── Onboarding — Questions ────────────────────────────────────────────────
+  questions: {
+    continueButton: 'Continue',
+    skip: 'Skip',
+    skipStep: 'Skip this step',
+    accessGoBack: 'Go back',
+    accessContinue: 'Continue to next step',
+    accessSkip: 'Skip this step',
+    months: ['January', 'February', 'March', 'April', 'May', 'June',
+             'July', 'August', 'September', 'October', 'November', 'December'],
+    enterCode: 'Enter code',
+    referralPlaceholder: 'FRIEND123',
+    ctaGeneratePlan: 'Generate My Plan',
+  },
+
+  // ── Legal Screens — UI only (substantive content NOT localized) ──────────
+  legalScreens: {
+    privacyPolicyTitle: 'Privacy Policy',
+    termsOfServiceTitle: 'Terms of Service',
+    goBack: 'Go back',
+    accessGoBack: 'Go back to previous screen',
+    legalNote: 'GutWell AI is a wellness tool. It does not provide medical advice.',
+  },
 } as const;
 
 // ─── German ──────────────────────────────────────────────────────────────────
@@ -632,6 +656,27 @@ const de: Translations = {
     retryButton: 'Erneut versuchen',
     emptyTitle: 'Noch nichts hier',
     emptyMessage: 'Beginne mit dem Tracking, um deine Daten hier zu sehen.',
+  },
+
+  questions: {
+    continueButton: 'Weiter',
+    skip: 'Überspringen',
+    skipStep: 'Diesen Schritt überspringen',
+    accessGoBack: 'Zurück',
+    accessContinue: 'Weiter zum nächsten Schritt',
+    accessSkip: 'Diesen Schritt überspringen',
+    months: ['Januar', 'Februar', 'März', 'April', 'Mai', 'Juni',
+             'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'],
+    enterCode: 'Code eingeben',
+    referralPlaceholder: 'FREUND123',
+    ctaGeneratePlan: 'Meinen Plan erstellen',
+  },
+  legalScreens: {
+    privacyPolicyTitle: 'Datenschutzrichtlinie',
+    termsOfServiceTitle: 'Nutzungsbedingungen',
+    goBack: 'Zurück',
+    accessGoBack: 'Zurück zum vorherigen Bildschirm',
+    legalNote: 'GutWell AI ist ein Wellness-Tool. Es bietet keine medizinische Beratung.',
   },
   disclaimer: {
     short: 'GutWell AI ist ein Wellness-Tool. Es bietet keine medizinische Beratung.',
@@ -917,6 +962,27 @@ const fa: Translations = {
     retryButton: 'دوباره امتحان کنید',
     emptyTitle: 'هنوز چیزی اینجا نیست',
     emptyMessage: 'ردیابی را شروع کنید تا داده‌هایتان را اینجا ببینید.',
+  },
+
+  questions: {
+    continueButton: 'ادامه',
+    skip: 'رد کردن',
+    skipStep: 'رد کردن این مرحله',
+    accessGoBack: 'بازگشت',
+    accessContinue: 'ادامه به مرحله بعد',
+    accessSkip: 'رد کردن این مرحله',
+    months: ['ژانویه', 'فوریه', 'مارس', 'آوریل', 'مه', 'ژوئن',
+             'ژوئیه', 'اوت', 'سپتامبر', 'اکتبر', 'نوامبر', 'دسامبر'],
+    enterCode: 'کد را وارد کنید',
+    referralPlaceholder: 'FRIEND123',
+    ctaGeneratePlan: 'برنامه من را ایجاد کنید',
+  },
+  legalScreens: {
+    privacyPolicyTitle: 'سیاست حریم خصوصی',
+    termsOfServiceTitle: 'شرایط خدمات',
+    goBack: 'بازگشت',
+    accessGoBack: 'بازگشت به صفحه قبلی',
+    legalNote: 'GutWell AI یک ابزار سلامتی است. مشاوره پزشکی ارائه نمی‌دهد.',
   },
   disclaimer: {
     short: 'GutWell AI یک ابزار سلامتی است. مشاوره پزشکی ارائه نمی‌دهد.',

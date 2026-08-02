@@ -4,6 +4,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { FontFamily } from '../../constants/theme';
+import { useTranslation } from '../../lib/i18n';
 import StarFieldBackground from '../../components/StarFieldBackground';
 
 const ANALYSIS_STEPS = [
@@ -14,6 +15,7 @@ const ANALYSIS_STEPS = [
 ];
 
 export default function AnalysingScreen() {
+  const t = useTranslation();
   const progressAnim = useRef(new Animated.Value(0)).current;
   const contentFade = useRef(new Animated.Value(0)).current;
   const [stepIndex, setStepIndex] = useState(0);
@@ -105,7 +107,7 @@ export default function AnalysingScreen() {
         </Text>
 
         {/* Title */}
-        <Text style={styles.title}>Analysing your answers</Text>
+        <Text style={styles.title}>{t.analysing.title}</Text>
 
         {/* Progress bar */}
         <View style={styles.progressTrack}>
@@ -114,7 +116,7 @@ export default function AnalysingScreen() {
 
         {/* Step label */}
         <Animated.Text style={[styles.stepLabel, { opacity: stepFade }]}>
-          {ANALYSIS_STEPS[stepIndex]}
+          {t.analysing.steps[stepIndex] ?? ''}
         </Animated.Text>
       </Animated.View>
     </View>

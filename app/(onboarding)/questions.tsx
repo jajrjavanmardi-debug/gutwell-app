@@ -25,6 +25,7 @@ import { OptionRow } from '../../components/ui/OptionRow';
 import { OptionCard } from '../../components/ui/OptionCard';
 import { WheelPicker, type WheelPickerOption } from '../../components/ui/WheelPicker';
 import { RulerSlider } from '../../components/ui/RulerSlider';
+import { useTranslation } from '../../lib/i18n';
 import {
   ONBOARDING_STEPS,
   TOTAL_STEPS,
@@ -65,6 +66,7 @@ function canAdvance(step: OnboardingStep, value: AnswerValue | undefined): boole
 }
 
 export default function QuestionsScreen() {
+  const t = useTranslation();
   const [index, setIndex] = useState(0);
   const [answers, setAnswers] = useState<Answers>({});
   const contentOpacity = useRef(new Animated.Value(1)).current;
@@ -187,7 +189,7 @@ export default function QuestionsScreen() {
               style={styles.backButton}
               onPress={handleBack}
               accessibilityRole="button"
-              accessibilityLabel="Go back"
+              accessibilityLabel={t.questions.accessGoBack}
               activeOpacity={0.7}
             >
               <Ionicons name="chevron-back" size={24} color="#FFFFFF" />
@@ -216,17 +218,17 @@ export default function QuestionsScreen() {
             onPress={handleContinue}
             disabled={!advanceEnabled}
             accessibilityRole="button"
-            accessibilityLabel={ctaLabel(step)}
+            accessibilityLabel={ctaLabel(step, t.questions.continueButton)}
             activeOpacity={0.88}
           >
-            <Text style={styles.ctaText}>{ctaLabel(step)}</Text>
+            <Text style={styles.ctaText}>{ctaLabel(step, t.questions.continueButton)}</Text>
           </TouchableOpacity>
 
           {isSkippable(step) ? (
             <TouchableOpacity
               onPress={handleContinue}
               accessibilityRole="button"
-              accessibilityLabel="Skip this step"
+              accessibilityLabel={t.questions.accessSkip}
               activeOpacity={0.7}
             >
               <Text style={styles.skipText}>Skip</Text>
@@ -238,10 +240,9 @@ export default function QuestionsScreen() {
   );
 }
 
-function ctaLabel(step: OnboardingStep): string {
+function ctaLabel(step: OnboardingStep, continueLabel: string): string {
   if (step.type === 'info' && step.cta) return step.cta;
-  if (step.type === 'referral') return 'Continue';
-  return 'Continue';
+  return continueLabel;
 }
 
 function isSkippable(step: OnboardingStep): boolean {
