@@ -29,7 +29,7 @@ export default function ForgotPasswordScreen() {
 
   const handleReset = async () => {
     if (!email) {
-      setToast({ visible: true, message: 'Please enter your email', type: 'error' });
+      setToast({ visible: true, message: t.forgotPassword.fillEmail, type: 'error' });
       return;
     }
     setLoading(true);
@@ -38,7 +38,7 @@ export default function ForgotPasswordScreen() {
     if (error) {
       setToast({ visible: true, message: error.message, type: 'error' });
     } else {
-      setToast({ visible: true, message: 'Check your email for a reset link!', type: 'success' });
+      setToast({ visible: true, message: t.forgotPassword.successMessage, type: 'success' });
     }
   };
 
@@ -64,16 +64,16 @@ export default function ForgotPasswordScreen() {
               </View>
 
               {/* Title + subtitle */}
-              <Text style={styles.title}>Reset password</Text>
+              <Text style={styles.title}>{t.forgotPassword.title}</Text>
               <Text style={styles.subtitle}>
-                Enter your email and we&apos;ll send you a link to set a new one.
+                {t.forgotPassword.subtitle}
               </Text>
 
               {/* ── Form ── */}
               <View style={styles.form}>
                 <Input
-                  label="Email"
-                  placeholder="you@example.com"
+                  label={t.forgotPassword.emailLabel}
+                  placeholder={t.forgotPassword.emailPlaceholder}
                   value={email}
                   onChangeText={setEmail}
                   keyboardType="email-address"
@@ -83,7 +83,7 @@ export default function ForgotPasswordScreen() {
 
               {/* Primary CTA */}
               <Button
-                title="Send Reset Link"
+                title={t.forgotPassword.sendButton}
                 onPress={handleReset}
                 loading={loading}
                 size="lg"

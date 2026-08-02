@@ -27,6 +27,7 @@ import { addDaysToLocalDateKey, getLocalDateKey } from '../../lib/date';
 import { track, Events } from '../../lib/analytics';
 import { getStreakSnapshot } from '../../lib/streaks';
 import { calculatePoints, calculateLevel, getNextLevel, getLevelProgress } from '../../lib/levels';
+import { useTranslation } from '../../lib/i18n';
 
 // Cal AI–style time ranges (90D / 6M / 1Y / ALL). Mapped to lookback windows
 // in `loadData` — the data semantics are preserved, only the range labels
@@ -50,16 +51,19 @@ const PERIOD_DAYS: Record<Period, number> = {
 // Windows for the Cal AI "Changes" table. Fixed day-windows plus an "All Time"
 // entry computed over the full available score history.
 type ChangeWindow = { label: string; days: number | null };
-const CHANGE_WINDOWS: ChangeWindow[] = [
-  { label: '3 day', days: 3 },
-  { label: '7 day', days: 7 },
-  { label: '14 day', days: 14 },
-  { label: '30 day', days: 30 },
-  { label: '90 day', days: 90 },
-  { label: 'All Time', days: null },
-];
+// CHANGE_WINDOWS built inside ProgressScreen to access i18n
+const CHANGE_WINDOWS_DAYS: (number | null)[] = [3, 7, 14, 30, 90, null];
 
 export default function ProgressScreen() {
+  const t = useTranslation();
+  const CHANGE_WINDOWS: ChangeWindow[] = [
+    { label: '3 ' + t.progress.windowLabels['7'].replace('7', '3').replace('۷', '۳'), days: 3 },
+    { label: t.progress.windowLabels['7'], days: 7 },
+    { label: t.progress.windowLabels['14'], days: 14 },
+    { label: t.progress.windowLabels['30'], days: 30 },
+    { label: t.progress.windowLabels['90'], days: 90 },
+    { label: t.progress.allTime, days: null },
+  ];
   const { user } = useAuth();
   const [period, setPeriod] = useState<Period>('90D');
   const [checkInCount, setCheckInCount] = useState(0);
@@ -334,7 +338,7 @@ export default function ProgressScreen() {
       >
         {/* Header */}
         <View style={styles.headerRow}>
-          <Text style={styles.title}>Progress</Text>
+          <Text style={styles.title}>{t.progress.title}</Text>
           <View style={styles.headerActions}>
             <TouchableOpacity
               style={styles.iconButton}
@@ -344,7 +348,7 @@ export default function ProgressScreen() {
               }}
               activeOpacity={0.7}
               accessibilityRole="button"
-              accessibilityLabel="Share your progress"
+              accessibilityLabel={t.progress.accessShare}
             >
               <Ionicons name="share-outline" size={20} color={Colors.primary} />
             </TouchableOpacity>
@@ -353,10 +357,10 @@ export default function ProgressScreen() {
               onPress={() => router.push('/weekly-digest')}
               activeOpacity={0.7}
               accessibilityRole="button"
-              accessibilityLabel="Open weekly digest"
+              accessibilityLabel={t.progress.accessDigest}
             >
               <Ionicons name="document-text-outline" size={16} color={Colors.primary} />
-              <Text style={styles.digestButtonText}>Weekly Digest</Text>
+              <Text style={styles.digestButtonText}>{t.progress.weeklyDigest}</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -375,9 +379,9 @@ export default function ProgressScreen() {
         {!isLoading && checkInCount < 3 && (
           <EmptyState
             icon="leaf-outline"
-            title="Patterns take shape with data"
-            message="Keep checking in — trends and correlations appear after about 7 days of daily logging."
-            actionLabel="Log Today's Check-in"
+            title={t.progress.patternsTitle}
+            message={t.progress.patternsMessage}
+            actionLabel={t.progress.patternsAction}
             onAction={() => router.push('/(tabs)/checkin')}
           />
         )}
@@ -387,14 +391,14 @@ export default function ProgressScreen() {
           <StatCard
             icon={<Ionicons name="flame" size={22} color={Colors.accent} />}
             value={String(currentStreak)}
-            label="Day Streak"
+            label={t.progress.labelStreak}
             accentColor={Colors.accent}
             style={styles.headerStatCard}
           />
           <StatCard
             icon={<Ionicons name="ribbon" size={22} color={Colors.secondary} />}
             value={String(badgesEarned)}
-            label="Badges Earned"
+            label={t.progress.labelBadges}
             accentColor={Colors.secondary}
             progress={badgesEarned / 4}
             onPress={() => router.push('/(tabs)/profile')}
@@ -412,7 +416,7 @@ export default function ProgressScreen() {
               </View>
             ) : (
               <View style={styles.statusPill}>
-                <Text style={styles.statusPillText}>Max level</Text>
+                <Text style={styles.statusPillText}>{t.progress.maxLevel}</Text>
               </View>
             )}
           </View>
@@ -423,7 +427,7 @@ export default function ProgressScreen() {
           <View style={styles.statusBottomRow}>
             <Text style={styles.statusMeta}>Level: <Text style={styles.statusMetaStrong}>{level.name}</Text></Text>
             <Text style={styles.statusMeta}>
-              {nextLevel ? `${Math.round(levelProgress * 100)}% to next` : 'Top tier reached'}
+              {nextLevel ? `${Math.round(levelProgress * 100)}${t.progress.toNextLevel}` : 'Top tier reached'}
             </Text>
           </View>
         </Card>
@@ -449,16 +453,16 @@ export default function ProgressScreen() {
         <>
         {/* Stats Cards */}
         <View style={styles.statsRow}>
-          <ScoreCard icon="checkmark-circle" iconColor={Colors.primary} value={checkInCount} label="Check-ins" />
-          <ScoreCard icon="nutrition" iconColor={Colors.accent} value={avgStoolType ?? '--'} label="Avg Stool" />
-          <ScoreCard icon="restaurant" iconColor={Colors.secondary} value={foodCount} label="Meals" />
+          <ScoreCard icon="checkmark-circle" iconColor={Colors.primary} value={checkInCount} label={t.progress.labelCheckins} />
+          <ScoreCard icon="nutrition" iconColor={Colors.accent} value={avgStoolType ?? '--'} label={t.progress.labelAvgStool} />
+          <ScoreCard icon="restaurant" iconColor={Colors.secondary} value={foodCount} label={t.progress.labelMeals} />
         </View>
 
         {/* Gut Score Trend — Cal AI's main "Weight Progress" chart card, with
             the time-range toggle (90D / 6M / 1Y / ALL) attached at the bottom
             of the card exactly as Cal AI places it under Weight Progress. */}
         {gutScores.length >= 2 ? (
-          <ChartComponent title="Gut Score Trend">
+          <ChartComponent title={t.progress.gutScoreTrend}>
             <View style={styles.scoreTrendChart}>
               {gutScores.map((point, i) => (
                 <View key={i} style={styles.scoreTrendCol}>
@@ -533,7 +537,7 @@ export default function ProgressScreen() {
 
         {/* Mood Trends */}
         <>
-          <ChartComponent title="Mood Trends">
+          <ChartComponent title={t.progress.moodTrends}>
             {moodHistory.length === 0 ? (
               <View style={styles.moodEmpty}>
                 <Text style={styles.moodEmptyEmoji}>🙂</Text>
@@ -582,7 +586,7 @@ export default function ProgressScreen() {
         {/* Stool Type Trend */}
         {stoolHistory.length > 0 && (
           <>
-            <ChartComponent title="Stool Type Trend">
+            <ChartComponent title={t.progress.stoolTypeTrend}>
               <View style={styles.stoolChart}>
                 {stoolHistory.slice(-14).map((entry, i) => (
                   <View key={i} style={styles.stoolCol}>
@@ -596,7 +600,7 @@ export default function ProgressScreen() {
                 ))}
               </View>
               <View style={styles.chartLegend}>
-                <Text style={styles.legendText}>Ideal: Type 3-4</Text>
+                <Text style={styles.legendText}>{t.progress.idealStool}</Text>
               </View>
             </ChartComponent>
           </>
@@ -604,7 +608,7 @@ export default function ProgressScreen() {
 
         {/* Top Symptoms */}
         <History
-          title="Top Symptoms"
+          title={t.progress.topSymptoms}
           items={topSymptoms.map(([symptom, count]) => ({
             label: symptom.charAt(0).toUpperCase() + symptom.slice(1).replace('_', ' '),
             count,
@@ -626,13 +630,13 @@ export default function ProgressScreen() {
               <>
                 <TriggerFoodsBox triggerFoods={[topTrigger]} />
                 <RecommendationBox
-                  text="See all your trigger foods and safe foods with Premium"
+                  text={t.progress.premiumTriggerTeaser}
                   onPress={() => router.push({ pathname: '/paywall', params: { source: 'progress' } })}
                 />
               </>
             ) : (
               <RecommendationBox
-                text="Unlock food-symptom insights with Premium"
+                text={t.progress.premiumFoodInsights}
                 onPress={() => router.push({ pathname: '/paywall', params: { source: 'progress' } })}
               />
             );
@@ -664,7 +668,7 @@ export default function ProgressScreen() {
                 <Text style={styles.indexValue}>{currentScore != null ? currentScore : '--'}</Text>
                 <View style={styles.indexTag}>
                   <Text style={styles.indexTagText}>
-                    {currentScore == null ? 'No data' : currentScore >= 70 ? 'Thriving' : currentScore >= 40 ? 'Building' : 'Needs care'}
+                    {currentScore == null ? t.progress.noDataScore : currentScore >= 70 ? t.progress.statusThriving : currentScore >= 40 ? t.progress.statusBuilding : t.progress.statusNeedsCare}
                   </Text>
                 </View>
               </View>
@@ -686,8 +690,8 @@ export default function ProgressScreen() {
         {checkInCount === 0 && foodCount === 0 && topSymptoms.length === 0 && (
           <EmptyState
             icon="leaf-outline"
-            title="Nothing here yet"
-            message="Log daily for 2 weeks and patterns will emerge."
+            title={t.progress.noDataYet}
+            message={t.progress.noDataMessage}
           />
         )}
         </>

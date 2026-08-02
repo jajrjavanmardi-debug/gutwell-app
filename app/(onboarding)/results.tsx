@@ -49,29 +49,22 @@ function formatDate(d: Date): string {
  * A gut-health goal headline derived from the user's chosen goal.
  * Original copy (Cal AI's "Goal: lose 10.5kg by <date>" recast for the gut).
  */
-function goalHeadline(answers: Answers): string {
+function goalHeadline(answers: Answers, headlines: Record<string, string>): string {
   const goal = String(answers.goal ?? '');
-  const map: Record<string, string> = {
-    'Reduce bloating': 'calmer, flatter days',
-    'Improve regularity': 'a steady daily rhythm',
-    'Boost energy': 'steadier post-meal energy',
-    'Less discomfort': 'less cramping and discomfort',
-    'Identify triggers': 'your trigger foods pinned down',
-  };
-  return map[goal] ?? 'calmer digestion';
+  return headlines[goal] ?? headlines['default'] ?? 'calmer digestion';
 }
 
 /** Pretty-print an answer for the "Your info" recap; skips empty values. */
-function recapRows(answers: Answers): { icon: keyof typeof ROW_ICONS; label: string; value: string }[] {
+function recapRows(answers: Answers, recapLabels: { mainGoal: string; symptomDays: string; diet: string; target: string }): { icon: keyof typeof ROW_ICONS; label: string; value: string }[] {
   const rows: { icon: keyof typeof ROW_ICONS; label: string; value: string }[] = [];
   const push = (icon: keyof typeof ROW_ICONS, label: string, value: unknown) => {
     if (value === undefined || value === null || value === '') return;
     rows.push({ icon, label, value: String(value) });
   };
-  push('flag', 'Main goal', answers.goal);
-  push('pulse', 'Symptom days / week', answers.bloating_frequency);
-  push('restaurant', 'Diet', answers.diet);
-  push('navigate', 'Target', answers.target_state);
+  push('flag', recapLabels.mainGoal, answers.goal);
+  push('pulse', recapLabels.symptomDays, answers.bloating_frequency);
+  push('restaurant', recapLabels.diet, answers.diet);
+  push('navigate', recapLabels.target, answers.target_state);
   return rows;
 }
 
@@ -152,7 +145,8 @@ export default function ResultsScreen() {
   }
 
   const { targetScore, focusAreas } = computePlan(answers);
-  const rows = recapRows(answers);
+  const recapLabelKeys = { mainGoal: t.results.mainGoal, symptomDays: t.results.symptomDays, diet: t.results.diet, target: t.results.target };
+  const rows = recapRows(answers, recapLabelKeys);
   const goalDate = targetDate(answers);
   const goalDateLabel = formatDate(goalDate);
 
@@ -174,19 +168,19 @@ export default function ResultsScreen() {
               <Ionicons name="checkmark" size={22} color="#0B1F14" />
             </View>
 
-            <Text style={styles.heroEyebrow}>Your plan</Text>
+            <Text style={styles.heroEyebrow}>{t.results.yourPlan}</Text>
             <Text style={styles.heroTitle}>
-              {goalHeadline(answers)} by {goalDateLabel}
+              {goalHeadline(answers, t.results.goalHeadlines as unknown as Record<string, string>)} by {goalDateLabel}
             </Text>
 
             {/* Estimated progress mini-chart */}
             <View style={styles.card}>
-              <Text style={styles.cardTitle}>Estimated progress</Text>
+              <Text style={styles.cardTitle}>{t.results.estimatedProgress}</Text>
               <View style={styles.chartWrap}>
                 <EstimatedProgressChart width={CHART_WIDTH} height={120} />
               </View>
               <View style={styles.chartAxis}>
-                <Text style={styles.chartAxisLabel}>Now</Text>
+                <Text style={styles.chartAxisLabel}>{t.results.nowLabel}</Text>
                 <Text style={styles.chartAxisLabel}>{goalDateLabel}</Text>
               </View>
             </View>
@@ -195,15 +189,15 @@ export default function ResultsScreen() {
             <View style={styles.ringWrap}>
               <ProgressRing progress={ringProgress} size={200} strokeWidth={16}>
                 <Text style={styles.ringValue}>{targetScore}</Text>
-                <Text style={styles.ringLabel}>Target{'\n'}Gut Score</Text>
+                <Text style={styles.ringLabel}>{t.results.targetGutScore}{'\n'}Gut Score</Text>
               </ProgressRing>
             </View>
 
             {/* Your info recap */}
             {rows.length > 0 ? (
               <View style={styles.card}>
-                <Text style={styles.cardTitle}>Your info</Text>
-                <Text style={styles.cardSubtitle}>Based on your answers.</Text>
+                <Text style={styles.cardTitle}>{t.results.yourInfo}</Text>
+                <Text style={styles.cardSubtitle}>{t.results.basedOnAnswers}</Text>
                 {rows.map((row) => (
                   <View key={row.label} style={styles.recapRow}>
                     <Ionicons name={ROW_ICONS[row.icon]} size={18} color="#52B788" />
@@ -218,15 +212,22 @@ export default function ResultsScreen() {
 
             {/* How to reach your goals */}
             <View style={styles.card}>
-              <Text style={styles.cardTitle}>How to reach your goals</Text>
-              {focusAreas.map((area: PlanFocusArea) => (
-                <View key={area.title} style={styles.focusRow}>
-                  <View style={styles.focusIcon}>
-                    <Ionicons name={area.icon} size={18} color="#52B788" />
+              <Text style={styles.cardTitle}>{t.results.howToReach}</Text>
+              {focusAreas.map((area: PlanFocusArea) => {
+                const focusKey = area.title === 'Log meals to spot patterns' ? 'logMeals'
+                  : area.title === 'Track symptoms daily' ? 'trackSymptoms'
+                  : area.title === 'Run a guided trigger test' ? 'triggerTest'
+                  : area.title === 'Build a steady routine' ? 'steadyRoutine'
+                  : 'growScore';
+                return (
+                  <View key={area.title} style={styles.focusRow}>
+                    <View style={styles.focusIcon}>
+                      <Ionicons name={area.icon} size={18} color="#52B788" />
+                    </View>
+                    <Text style={styles.focusText}>{t.results.focusAreas[focusKey]}</Text>
                   </View>
-                  <Text style={styles.focusText}>{area.title}</Text>
-                </View>
-              ))}
+                );
+              })}
             </View>
 
             <View style={styles.bottomSpacer} />
@@ -242,10 +243,10 @@ export default function ResultsScreen() {
               router.push(session ? '/(onboarding)/notifications' : '/(auth)/signup')
             }
             accessibilityRole="button"
-            accessibilityLabel="Get started"
+            accessibilityLabel={t.results.accessGetStarted}
             activeOpacity={0.88}
           >
-            <Text style={styles.ctaText}>Let&apos;s Get Started</Text>
+            <Text style={styles.ctaText}>{t.results.getStarted}</Text>
           </TouchableOpacity>
         </View>
       </SafeAreaView>

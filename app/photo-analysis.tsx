@@ -45,6 +45,7 @@ import { getRecentSupplements, type SupplementHistoryItem } from '../lib/supplem
 import { supabase } from '../lib/supabase';
 import { track, Events } from '../lib/analytics';
 import { loadLanguage, saveLanguage, type AppLanguage as StoredAppLanguage } from '../lib/language';
+import { useTranslation } from '../lib/i18n';
 import {
   getTriggerMemories,
   recordTriggerFeedback,
@@ -66,359 +67,7 @@ const DEV_LOCATION_OVERRIDE = process.env.EXPO_PUBLIC_DEV_LOCATION_OVERRIDE?.tri
  */
 type GutProfileContext = { gutScore: number | null; conditions: string[]; dietType: string | null };
 
-const copy = {
-  en: {
-    back: 'Back',
-    title: 'Photo Analysis',
-    wizardStep1Subtitle: 'Step 1 of 3 — Capture',
-    wizardStep2Subtitle: 'Step 2 of 3 — Describe',
-    wizardStep3Subtitle: 'Step 3 of 3 — Analysis',
-    wizardStep4Hint: 'Final check',
-    wizardNext: 'Next',
-    changePhoto: 'Change photo',
-    step2Prompt: 'What is this food? How do you feel?',
-    generateAnalysis: 'Generate Analysis',
-    isThisAccurate: 'Is this accurate?',
-    yes: 'Yes',
-    no: 'No',
-    correctionPlaceholder: 'Tell us what to fix…',
-    applyCorrection: 'Apply correction',
-    recommendationUnchanged: 'Recommendation remains unchanged.',
-    subtitle: 'Four steps: capture a photo, describe with voice or text, review the analysis, then confirm accuracy.',
-    profileContextPrefix: 'Personalized for ',
-    profileContextEmpty: 'General gut guidance — complete check-ins to personalize',
-    profileContextScore: 'Gut Score',
-    findingLocation: 'Finding nearby food options...',
-    usingLocation: 'Using local context:',
-    locationOptIn: 'Tap to enable local food suggestions (uses your approximate location)',
-    takePhoto: 'Take a Photo',
-    takePhotoText: 'Opens your camera. When you have a clear shot, tap Next.',
-    chooseGallery: 'Choose from Gallery',
-    chooseGalleryText: 'Pick a meal photo, then tap Next.',
-    analyzing: 'Analyzing your photo and notes with your gut profile...',
-    analyzingBrand: 'GutWell',
-    resultTitle: 'Personalized gut guidance',
-    symptomsLabel: 'Symptoms & notes',
-    symptomsPlaceholder: 'Before taking a photo you can note symptoms; after capture, describe how you feel.',
-    howYouFeelLabel: 'What is it & how do you feel?',
-    howYouFeelPlaceholder: 'Example: This is lentil soup—I feel bloated and sluggish.',
-    photoCapturedPrompt: 'Photo captured! Speak or type how you feel.',
-    analyzeCombined: 'Analyze Meal',
-    feelingsRequiredTitle: 'Describe the meal first',
-    feelingsRequiredMessage: 'Speak or type how you feel (and what the food is if you want)—then tap Generate Analysis.',
-    share: 'Share Result',
-    scoreLabel: 'Meal Impact Score',
-    shareTitle: 'My GutWell meal analysis',
-    snapshotHeading: 'GutWell meal snapshot',
-    shareErrorTitle: 'Sharing unavailable',
-    shareErrorMessage: 'Unable to open sharing right now.',
-    copyResult: 'Copy Full Result',
-    copiedToast: 'Full analysis copied to clipboard.',
-    nothingToShareMessage: 'Generate an analysis first.',
-    disagree: "This didn't work for my body",
-    planBTitle: 'Plan B',
-    planBText: "I'm sorry this suggestion bothered you. I marked it as a trigger and your safer Plan B is: pause this food for now, sip ginger or peppermint tea, hydrate, and choose a very simple meal like rice, banana, or soup until your gut settles.",
-    instantReliefTitle: 'Gentle comfort ideas',
-    instantReliefText: 'Try a warm compress on your stomach, slow deep breathing, sips of plain water, and rest. Consider pausing the suspected trigger food for now. If pain is severe, worsening, persistent, or unusual, seek medical care promptly.',
-    painApology: "I'm sorry this food may have bothered your body. Let's switch to a safer Plan B first.",
-    medicalDisclaimer:
-      'Important note: This analysis is for informational purposes only and does not replace a medical diagnosis. Seek medical care if you notice severe symptoms.',
-    chatPlaceholder: 'Correct or add details...',
-    send: 'Send',
-    newScan: 'New Scan',
-    voiceUnavailableTitle: 'Voice unavailable',
-    voiceUnavailableMessage:
-      'Speech-to-text could not start. You can still type. If this persists, check microphone and speech recognition permissions for GutWell.',
-    microphoneDisabledToast:
-      'Microphone disabled. Please enable Microphone permissions in your Phone Settings (Settings > GutWell > Microphone).',
-    voiceInputA11yLabel: 'Voice input',
-    voiceInputA11yHint: 'Hold to record; release to finish.',
-    correcting: 'Updating with your correction...',
-    recording: 'Recording…',
-    photoAnalysisFailedTitle: 'Photo analysis failed',
-    photoAnalysisFailedTryAgain: 'Please try again.',
-    photoUnavailableTitle: 'Photo unavailable',
-    photoUnavailableMessage: 'Could not read the photo data. Please try again.',
-    cameraNeededTitle: 'Camera access needed',
-    cameraNeededMessage: 'Please allow camera access to take a meal photo.',
-    cameraUnavailableTitle: 'Camera Unavailable',
-    cameraUnavailableMessage: 'Camera is not available on this device. Please choose a photo from your gallery.',
-    libraryNeededTitle: 'Photo library access needed',
-    libraryNeededMessage: 'Please allow photo library access to choose a meal photo.',
-    correctionFailedTitle: 'Correction failed',
-    correctionFailedTryAgain: 'Please try again.',
-    logMeal: 'Log meal',
-    logMealSuccess: 'Meal logged!',
-    logMealFailed: 'Could not save meal',
-    logMealOffline: 'Saved offline — will sync when connected',
-    loginRequired: 'Please sign in to log meals.',
-    pendingScore: 'Pending',
-    photoMealDefault: 'Photo meal',
-    insightsHeading: 'Gut insights',
-    addMore: 'Add more',
-    fixResults: 'Fix Results',
-    done: 'Done',
-    chipGutImpact: 'Gut impact',
-    chipMealType: 'Meal',
-    contextSectionLabel: 'Personalize this analysis',
-    currentStateLabel: 'How do you feel right now?',
-    afterActivityLabel: 'What do you plan to do after eating?',
-    stateOptions: {
-      fine: 'Feeling fine',
-      bloating: 'Bloating',
-      pain: 'Stomach pain',
-      lowEnergy: 'Low energy',
-      nausea: 'Nausea',
-      reflux: 'Reflux',
-    },
-    activityOptions: {
-      rest: 'Rest',
-      work: 'Work or study',
-      driving: 'Driving',
-      walking: 'Walking',
-      exercise: 'Exercise',
-      competition: 'Competition',
-      sleep: 'Sleep',
-      social: 'Social event',
-    },
-    expoGoTextOnlyHint:
-      'Expo Go (development): hold-to-talk voice is off. Describe your meal and how you feel below — analysis, Nürtingen-style prompts, and the 4-step flow still work.',
-  },
-  de: {
-    back: 'Zurück',
-    title: 'Fotoanalyse',
-    wizardStep1Subtitle: 'Schritt 1 von 3 — Aufnahme',
-    wizardStep2Subtitle: 'Schritt 2 von 3 — Beschreiben',
-    wizardStep3Subtitle: 'Schritt 3 von 3 — Analyse',
-    wizardStep4Hint: 'Abschluss',
-    wizardNext: 'Weiter',
-    changePhoto: 'Foto ändern',
-    step2Prompt: 'Was ist das für Essen? Wie fühlst du dich?',
-    generateAnalysis: 'Analyse erstellen',
-    isThisAccurate: 'Stimmt das so?',
-    yes: 'Ja',
-    no: 'Nein',
-    correctionPlaceholder: 'Was sollen wir korrigieren?',
-    applyCorrection: 'Korrektur anwenden',
-    recommendationUnchanged: 'Die Empfehlung bleibt unverändert.',
-    subtitle: 'Vier Schritte: Foto, Beschreibung per Sprache oder Text, Analyse prüfen, Genauigkeit bestätigen.',
-    profileContextPrefix: 'Personalisiert für ',
-    profileContextEmpty: 'Allgemeine Darm-Hinweise — Check-ins vervollständigen das Profil',
-    profileContextScore: 'Darm-Score',
-    findingLocation: 'Suche nach lokalen Essensoptionen...',
-    usingLocation: 'Lokaler Kontext:',
-    locationOptIn: 'Tippe für lokale Lebensmittel-Vorschläge (nutzt deinen ungefähren Standort)',
-    takePhoto: 'Foto aufnehmen',
-    takePhotoText: 'Öffnet die Kamera. Wenn das Foto passt, tippe auf Weiter.',
-    chooseGallery: 'Aus Galerie wählen',
-    chooseGalleryText: 'Wähle ein Mahlzeitenfoto, dann tippe auf Weiter.',
-    analyzing: 'Foto und Notizen werden mit deinem Darmprofil ausgewertet...',
-    analyzingBrand: 'GutWell',
-    resultTitle: 'Personalisierte Darm-Empfehlung',
-    symptomsLabel: 'Symptome & Notizen',
-    symptomsPlaceholder: 'Vor dem Foto optional Symptome; nach der Aufnahme beschreibst du dein Befinden.',
-    howYouFeelLabel: 'Was ist es & wie fühlst du dich?',
-    howYouFeelPlaceholder: 'Zum Beispiel: Das ist Linsensuppe—Ich fühle mich aufgebläht.',
-    photoCapturedPrompt: 'Foto gespeichert! Sprich oder tippe, wie du dich fühlst.',
-    analyzeCombined: 'Mahlzeit analysieren',
-    feelingsRequiredTitle: 'Erst die Mahlzeit beschreiben',
-    feelingsRequiredMessage: 'Bitte per Sprache oder Text beschreiben, wie du dich fühlst (und optional das Essen)—danach „Analyse erstellen“.',
-    share: 'Ergebnis teilen',
-    scoreLabel: 'Mahlzeiten-Score',
-    shareTitle: 'Mein GutWell AI Mahlzeiten-Snapshot',
-    snapshotHeading: 'GutWell AI Mahlzeiten-Snapshot',
-    shareErrorTitle: 'Teilen nicht verfügbar',
-    shareErrorMessage: 'Teilen kann gerade nicht geöffnet werden.',
-    copyResult: 'Vollständiges Ergebnis kopieren',
-    copiedToast: 'Analyse in die Zwischenablage kopiert.',
-    nothingToShareMessage: 'Bitte erst eine Analyse erstellen.',
-    disagree: "Das hat meinem Körper nicht gutgetan",
-    planBTitle: 'Plan B',
-    planBText: 'Es tut mir leid, dass diese Empfehlung dir nicht gutgetan hat. Ich habe sie als Trigger gespeichert. Sicherer Plan B: pausiere dieses Lebensmittel, trinke Ingwer- oder Pfefferminztee, bleib hydriert und iss vorerst etwas Einfaches wie Reis, Banane oder Suppe.',
-    instantReliefTitle: 'Sanfte Wohlfühl-Tipps',
-    instantReliefText: 'Eine warme Kompresse auf dem Bauch, ruhiges tiefes Atmen, schluckweise Wasser trinken und etwas Ausruhen können helfen. Pausiere das vermutete Trigger-Lebensmittel vorerst. Bei starken, zunehmenden, anhaltenden oder ungewöhnlichen Schmerzen bitte umgehend medizinische Hilfe holen.',
-    painApology: 'Es tut mir leid, dass dieses Essen deinem Körper nicht gutgetan haben könnte. Lass uns zuerst zu einem sichereren Plan B wechseln.',
-    medicalDisclaimer:
-      'Wichtiger Hinweis: Diese Analyse dient nur der Information und ersetzt keine ärztliche Diagnose. Suchen Sie bei schweren Symptomen einen Arzt auf.',
-    chatPlaceholder: 'Korrigieren oder Details ergänzen...',
-    send: 'Senden',
-    newScan: 'Neuer Scan',
-    voiceUnavailableTitle: 'Sprache nicht verfügbar',
-    voiceUnavailableMessage:
-      'Spracherkennung konnte nicht gestartet werden. Du kannst tippen. Prüfe ggf. Mikrofon- und Spracherkennungs-Berechtigungen für GutWell.',
-    microphoneDisabledToast:
-      'Mikrofon deaktiviert. Bitte aktiviere die Mikrofon-Berechtigung in den Telefoneinstellungen (Einstellungen > GutWell > Mikrofon).',
-    voiceInputA11yLabel: 'Spracheingabe',
-    voiceInputA11yHint: 'Halten zum Aufnehmen; loslassen zum Beenden.',
-    correcting: 'Analyse wird mit deiner Korrektur aktualisiert...',
-    recording: 'Aufnahme…',
-    photoAnalysisFailedTitle: 'Fotoanalyse fehlgeschlagen',
-    photoAnalysisFailedTryAgain: 'Bitte versuche es erneut.',
-    photoUnavailableTitle: 'Foto nicht verfügbar',
-    photoUnavailableMessage: 'Die Fotodaten konnten nicht gelesen werden. Bitte erneut versuchen.',
-    cameraNeededTitle: 'Kamerazugriff nötig',
-    cameraNeededMessage: 'Bitte erlaube den Kamerazugriff, um ein Mahlzeitenfoto aufzunehmen.',
-    cameraUnavailableTitle: 'Kamera nicht verfügbar',
-    cameraUnavailableMessage: 'Die Kamera ist auf diesem Gerät nicht verfügbar. Bitte wählen Sie ein Foto aus Ihrer Galerie.',
-    libraryNeededTitle: 'Fotomediathek-Zugriff nötig',
-    libraryNeededMessage: 'Bitte erlaube den Zugriff auf die Fotomediathek, um ein Bild auszuwählen.',
-    correctionFailedTitle: 'Korrektur fehlgeschlagen',
-    correctionFailedTryAgain: 'Bitte versuche es erneut.',
-    logMeal: 'Mahlzeit speichern',
-    logMealSuccess: 'Mahlzeit gespeichert!',
-    logMealFailed: 'Mahlzeit konnte nicht gespeichert werden',
-    logMealOffline: 'Offline gespeichert — Synchronisation folgt bei Verbindung',
-    loginRequired: 'Bitte melde dich an, um Mahlzeiten zu speichern.',
-    pendingScore: 'Ausstehend',
-    photoMealDefault: 'Mahlzeit (Foto)',
-    insightsHeading: 'Darm-Hinweise',
-    addMore: 'Mehr hinzufügen',
-    fixResults: 'Korrigieren',
-    done: 'Fertig',
-    chipGutImpact: 'Darm-Wirkung',
-    chipMealType: 'Mahlzeit',
-    contextSectionLabel: 'Analyse personalisieren',
-    currentStateLabel: 'Wie fühlst du dich gerade?',
-    afterActivityLabel: 'Was planst du nach dem Essen?',
-    stateOptions: {
-      fine: 'Fühle mich gut',
-      bloating: 'Blähungen',
-      pain: 'Magenschmerzen',
-      lowEnergy: 'Wenig Energie',
-      nausea: 'Übelkeit',
-      reflux: 'Sodbrennen',
-    },
-    activityOptions: {
-      rest: 'Ausruhen',
-      work: 'Arbeit oder Lernen',
-      driving: 'Autofahren',
-      walking: 'Spaziergang',
-      exercise: 'Sport',
-      competition: 'Wettkampf',
-      sleep: 'Schlafen',
-      social: 'Soziales Event',
-    },
-    expoGoTextOnlyHint:
-      'Expo Go (Entwicklung): Halten-zum-Sprechen ist aus. Beschreib Mahlzeit und Befinden im Textfeld — Analyse, Nürtingen-Hinweise und der 4-Schritte-Ablauf bleiben aktiv.',
-  },
-  fa: {
-    back: 'بازگشت',
-    title: 'تحلیل عکس',
-    wizardStep1Subtitle: 'مرحله ۱ از ۳ — گرفتن عکس',
-    wizardStep2Subtitle: 'مرحله ۲ از ۳ — توضیح',
-    wizardStep3Subtitle: 'مرحله ۳ از ۳ — تحلیل',
-    wizardStep4Hint: 'بررسی نهایی',
-    wizardNext: 'بعدی',
-    changePhoto: 'تغییر عکس',
-    step2Prompt: 'این غذا چیست؟ حالت چطور است؟',
-    generateAnalysis: 'ایجاد تحلیل',
-    isThisAccurate: 'آیا این درست است؟',
-    yes: 'بله',
-    no: 'خیر',
-    correctionPlaceholder: 'چه چیزی را باید اصلاح کنیم؟',
-    applyCorrection: 'اعمال اصلاح',
-    recommendationUnchanged: 'توصیه تغییری نکرد.',
-    subtitle: 'چهار مرحله: عکس، توضیح با صدا یا متن، بررسی تحلیل، تأیید دقت.',
-    profileContextPrefix: 'شخصی‌سازی شده برای ',
-    profileContextEmpty: 'توصیه‌های عمومی روده — چک‌این‌ها پروفایل را کامل می‌کنند',
-    profileContextScore: 'امتیاز روده',
-    findingLocation: 'در حال یافتن گزینه‌های غذایی محلی...',
-    usingLocation: 'زمینه محلی:',
-    locationOptIn: 'برای پیشنهادات غذایی محلی بزنید (از موقعیت تقریبی استفاده می‌کند)',
-    takePhoto: 'گرفتن عکس',
-    takePhotoText: 'دوربین را باز می‌کند. وقتی عکس مناسب بود، بعدی را بزنید.',
-    chooseGallery: 'انتخاب از گالری',
-    chooseGalleryText: 'یک عکس غذا انتخاب کنید، سپس بعدی را بزنید.',
-    analyzing: 'عکس و یادداشت‌ها با پروفایل روده‌تان تحلیل می‌شوند...',
-    analyzingBrand: 'GutWell AI',
-    resultTitle: 'توصیه شخصی‌سازی‌شده روده',
-    symptomsLabel: 'علائم و یادداشت‌ها',
-    symptomsPlaceholder: 'قبل از عکس به‌صورت اختیاری علائم را بنویسید؛ بعد از عکس احساستان را توضیح دهید.',
-    howYouFeelLabel: 'این چیست و حالتان چطور است؟',
-    howYouFeelPlaceholder: 'مثلاً: این سوپ عدس است — احساس نفخ می‌کنم.',
-    photoCapturedPrompt: 'عکس ذخیره شد! صحبت کنید یا بنویسید که چه احساسی دارید.',
-    analyzeCombined: 'تحلیل وعده غذایی',
-    feelingsRequiredTitle: 'ابتدا وعده را توضیح دهید',
-    feelingsRequiredMessage: 'لطفاً با صدا یا متن توضیح دهید که چه احساسی دارید — سپس «ایجاد تحلیل» را بزنید.',
-    share: 'اشتراک‌گذاری نتیجه',
-    scoreLabel: 'امتیاز وعده',
-    shareTitle: 'تحلیل وعده غذایی GutWell AI من',
-    snapshotHeading: 'اسنپ‌شات وعده GutWell AI',
-    shareErrorTitle: 'اشتراک‌گذاری در دسترس نیست',
-    shareErrorMessage: 'در حال حاضر امکان اشتراک‌گذاری وجود ندارد.',
-    copyResult: 'کپی کردن نتیجه کامل',
-    copiedToast: 'تحلیل در کلیپ‌بورد کپی شد.',
-    nothingToShareMessage: 'لطفاً ابتدا یک تحلیل ایجاد کنید.',
-    disagree: 'این به بدنم خوب نبود',
-    planBTitle: 'پلن B',
-    planBText: 'متأسفم که این توصیه مناسب نبود. آن را به‌عنوان محرک ذخیره کردم. پلن B ایمن: این غذا را موقتاً کنار بگذارید، چای زنجبیل یا نعناع بنوشید، هیدراته بمانید و فعلاً چیز ساده‌ای مثل برنج، موز یا سوپ بخورید.',
-    instantReliefTitle: 'نکات آرامش‌بخش ملایم',
-    instantReliefText: 'کمپرس گرم روی شکم، تنفس عمیق آرام، نوشیدن آب به‌آهستگی و استراحت می‌توانند کمک کنند. غذای مشکوک را موقتاً کنار بگذارید. در صورت درد شدید، افزایش‌یابنده، مداوم یا غیرمعمول، فوراً به پزشک مراجعه کنید.',
-    painApology: 'متأسفم که این غذا ممکن است مناسب نبوده باشد. بیایید اول به پلن B امن‌تر برویم.',
-    medicalDisclaimer:
-      'نکته مهم: این تحلیل فقط جنبه اطلاعاتی دارد و جایگزین تشخیص پزشکی نمی‌شود. در صورت بروز علائم شدید، به پزشک مراجعه کنید.',
-    chatPlaceholder: 'اصلاح کنید یا جزئیات اضافه کنید...',
-    send: 'ارسال',
-    newScan: 'اسکن جدید',
-    voiceUnavailableTitle: 'صدا در دسترس نیست',
-    voiceUnavailableMessage:
-      'تشخیص گفتار شروع نشد. می‌توانید تایپ کنید. مجوز میکروفون و تشخیص گفتار را بررسی کنید.',
-    microphoneDisabledToast:
-      'میکروفون غیرفعال است. لطفاً مجوز میکروفون را در تنظیمات تلفن فعال کنید (تنظیمات > GutWell AI > میکروفون).',
-    voiceInputA11yLabel: 'ورودی صوتی',
-    voiceInputA11yHint: 'نگه‌دارید برای ضبط؛ رها کنید برای پایان.',
-    correcting: 'تحلیل با اصلاح شما به‌روز می‌شود...',
-    recording: 'در حال ضبط...',
-    photoAnalysisFailedTitle: 'تحلیل عکس ناموفق بود',
-    photoAnalysisFailedTryAgain: 'لطفاً دوباره امتحان کنید.',
-    photoUnavailableTitle: 'عکس در دسترس نیست',
-    photoUnavailableMessage: 'داده‌های عکس قابل خواندن نبودند. لطفاً دوباره امتحان کنید.',
-    cameraNeededTitle: 'دسترسی به دوربین لازم است',
-    cameraNeededMessage: 'لطفاً اجازه دسترسی به دوربین را برای عکس‌گیری از وعده بدهید.',
-    cameraUnavailableTitle: 'دوربین در دسترس نیست',
-    cameraUnavailableMessage: 'دوربین روی این دستگاه در دسترس نیست. لطفاً عکسی از گالری انتخاب کنید.',
-    libraryNeededTitle: 'دسترسی به کتابخانه عکس لازم است',
-    libraryNeededMessage: 'لطفاً اجازه دسترسی به کتابخانه عکس را برای انتخاب تصویر بدهید.',
-    correctionFailedTitle: 'اصلاح ناموفق بود',
-    correctionFailedTryAgain: 'لطفاً دوباره امتحان کنید.',
-    logMeal: 'ذخیره وعده',
-    logMealSuccess: 'وعده ذخیره شد!',
-    logMealFailed: 'ذخیره وعده ناموفق بود',
-    logMealOffline: 'آفلاین ذخیره شد — همگام‌سازی با اتصال انجام می‌شود',
-    loginRequired: 'لطفاً برای ذخیره وعده‌ها وارد شوید.',
-    pendingScore: 'در انتظار',
-    photoMealDefault: 'وعده (عکس)',
-    insightsHeading: 'بینش‌های روده',
-    addMore: 'افزودن بیشتر',
-    fixResults: 'اصلاح نتایج',
-    done: 'انجام شد',
-    chipGutImpact: 'تأثیر روده',
-    chipMealType: 'وعده',
-    contextSectionLabel: 'شخصی‌سازی این تحلیل',
-    currentStateLabel: 'الان چه احساسی دارید؟',
-    afterActivityLabel: 'بعد از غذا چه برنامه‌ای دارید؟',
-    stateOptions: {
-      fine: 'حالم خوب است',
-      bloating: 'نفخ',
-      pain: 'دل‌درد',
-      lowEnergy: 'انرژی کم',
-      nausea: 'حالت تهوع',
-      reflux: 'رفلاکس',
-    },
-    activityOptions: {
-      rest: 'استراحت',
-      work: 'کار یا مطالعه',
-      driving: 'رانندگی',
-      walking: 'پیاده‌روی',
-      exercise: 'ورزش',
-      competition: 'مسابقه',
-      sleep: 'خواب',
-      social: 'رویداد اجتماعی',
-    },
-    expoGoTextOnlyHint:
-      'Expo Go (توسعه): ضبط صوتی غیرفعال است. وعده و احساستان را در فیلد متن توضیح دهید — تحلیل و جریان ۴ مرحله‌ای همچنان فعال است.',
-  },
-} as const;
+// copy object removed — strings migrated to lib/i18n.ts photoAnalysis namespace
 
 type NativeLocationModule = {
   Accuracy: { Balanced: number };
@@ -606,6 +255,7 @@ function isDifferentFoodCorrection(correction: string): boolean {
 }
 
 export default function PhotoAnalysisScreen() {
+  const t = useTranslation();
   const params = useLocalSearchParams<{ historyId?: string }>();
   const [photoUri, setPhotoUri] = useState<string | null>(null);
   const [lastImageBase64, setLastImageBase64] = useState('');
@@ -722,7 +372,7 @@ export default function PhotoAnalysisScreen() {
   const [showTutorial, setShowTutorial] = useState<boolean | null>(null);
   // UI chrome has EN/DE translations; Persian users get English chrome while
   // the AI analysis itself responds in Persian (server prompt handles fa).
-  const t = copy[language === 'de' ? 'de' : language === 'fa' ? 'fa' : 'en'];
+  // Local copy object removed — using centralized i18n via t.photoAnalysis
   /** Dev client / standalone only — Expo Go has no custom native STT modules. */
   const voiceNativeEnabled = canUseNativeSpeechToText();
   // No RTL languages are supported (English + German only); kept for styling call sites.
@@ -741,7 +391,7 @@ export default function PhotoAnalysisScreen() {
   const shouldShowMealScoreBadge = true; // SCORE badge re-enabled for GutWell meal impact scoring
   const mealImpactScore = extractMealImpactScore(analysis);
   const wizardSubtitle =
-    wizardStep === 1 ? t.wizardStep1Subtitle : wizardStep === 2 ? t.wizardStep2Subtitle : t.wizardStep3Subtitle;
+    wizardStep === 1 ? t.photoAnalysis.wizardStep1Subtitle : wizardStep === 2 ? t.photoAnalysis.wizardStep2Subtitle : t.photoAnalysis.wizardStep3Subtitle;
   const canRecordFeelings = wizardStep === 2 && Boolean(photoUri && lastImageBase64);
 
   useEffect(() => {
@@ -932,48 +582,48 @@ export default function PhotoAnalysisScreen() {
   const handleShareAnalysis = async () => {
     const textToShare = sanitizeAnalysisForDisplay(analysis).trim();
     if (!textToShare) {
-      setToast({ visible: true, message: t.nothingToShareMessage, type: 'info' });
+      setToast({ visible: true, message: t.photoAnalysis.nothingToShareMessage, type: 'info' });
       return;
     }
     try {
-      const summary = [t.snapshotHeading, textToShare].join('\n\n');
-      const result = await Share.share({ title: t.shareTitle, message: summary });
+      const summary = [t.photoAnalysis.snapshotHeading, textToShare].join('\n\n');
+      const result = await Share.share({ title: t.photoAnalysis.shareTitle, message: summary });
       if (result.action === Share.dismissedAction) {
-        setToast({ visible: true, message: t.shareErrorMessage, type: 'info' });
+        setToast({ visible: true, message: t.photoAnalysis.shareErrorMessage, type: 'info' });
       }
     } catch (error) {
       if (__DEV__) console.error('Photo analysis share failed:', error);
-      setToast({ visible: true, message: t.shareErrorMessage, type: 'info' });
+      setToast({ visible: true, message: t.photoAnalysis.shareErrorMessage, type: 'info' });
     }
   };
 
   const handleCopyAnalysis = async () => {
     const textToShare = sanitizeAnalysisForDisplay(analysis).trim();
     if (!textToShare) {
-      setToast({ visible: true, message: t.nothingToShareMessage, type: 'info' });
+      setToast({ visible: true, message: t.photoAnalysis.nothingToShareMessage, type: 'info' });
       return;
     }
     try {
       await Clipboard.setStringAsync(textToShare);
       const verified = await Clipboard.getStringAsync();
       if (verified && verified.length > 0) {
-        setToast({ visible: true, message: t.copiedToast, type: 'success' });
+        setToast({ visible: true, message: t.photoAnalysis.copiedToast, type: 'success' });
       } else {
-        setToast({ visible: true, message: t.shareErrorMessage, type: 'info' });
+        setToast({ visible: true, message: t.photoAnalysis.shareErrorMessage, type: 'info' });
       }
     } catch (error) {
       if (__DEV__) console.error('Copy failed:', error);
-      setToast({ visible: true, message: t.shareErrorMessage, type: 'info' });
+      setToast({ visible: true, message: t.photoAnalysis.shareErrorMessage, type: 'info' });
     }
   };
 
   const handleLogPhotoAnalysis = async () => {
     if (!analysis || !user) {
-      setToast({ visible: true, message: t.loginRequired, type: 'error' });
+      setToast({ visible: true, message: t.photoAnalysis.loginRequired, type: 'error' });
       return;
     }
 
-    const mealName = extractMealName(analysis).trim().slice(0, 200) || t.photoMealDefault;
+    const mealName = extractMealName(analysis).trim().slice(0, 200) || t.photoAnalysis.photoMealDefault;
 
     const payload = {
       user_id: user.id,
@@ -996,21 +646,21 @@ export default function PhotoAnalysisScreen() {
         !error.code
       ) {
         await enqueue('food_logs', payload);
-        setToast({ visible: true, message: t.logMealOffline, type: 'info' });
+        setToast({ visible: true, message: t.photoAnalysis.logMealOffline, type: 'info' });
       } else {
-        setToast({ visible: true, message: t.logMealFailed, type: 'error' });
+        setToast({ visible: true, message: t.photoAnalysis.logMealFailed, type: 'error' });
       }
       return;
     }
 
-    setToast({ visible: true, message: t.logMealSuccess, type: 'success' });
+    setToast({ visible: true, message: t.photoAnalysis.logMealSuccess, type: 'success' });
   };
 
   const handleGenerateAnalysis = () => {
     if (!lastImageBase64.trim() || !photoUri) return;
     const narrative = mealDescription.trim();
     if (!narrative) {
-      Alert.alert(t.feelingsRequiredTitle, t.feelingsRequiredMessage);
+      Alert.alert(t.photoAnalysis.feelingsRequiredTitle, t.photoAnalysis.feelingsRequiredMessage);
       return;
     }
     void runPhotoAnalysis(lastImageBase64, photoUri, narrative);
@@ -1069,8 +719,8 @@ export default function PhotoAnalysisScreen() {
     } catch (error) {
       console.error('Meal photo analysis failed:', error);
       Alert.alert(
-        t.photoAnalysisFailedTitle,
-        error instanceof Error ? error.message : t.photoAnalysisFailedTryAgain,
+        t.photoAnalysis.photoAnalysisFailedTitle,
+        error instanceof Error ? error.message : t.photoAnalysis.photoAnalysisFailedTryAgain,
       );
     } finally {
       setIsAnalyzing(false);
@@ -1079,7 +729,7 @@ export default function PhotoAnalysisScreen() {
 
   const storeCapturedPhoto = (asset: ImagePicker.ImagePickerAsset) => {
     if (!asset.base64) {
-      Alert.alert(t.photoUnavailableTitle, t.photoUnavailableMessage);
+      Alert.alert(t.photoAnalysis.photoUnavailableTitle, t.photoAnalysis.photoUnavailableMessage);
       return;
     }
     // Listen-before-analyze: no Groq call here—only after Step 2 voice/text and Generate Analysis.
@@ -1099,7 +749,7 @@ export default function PhotoAnalysisScreen() {
 
     const permission = await ImagePicker.requestCameraPermissionsAsync();
     if (!permission.granted) {
-      Alert.alert(t.cameraNeededTitle, t.cameraNeededMessage);
+      Alert.alert(t.photoAnalysis.cameraNeededTitle, t.photoAnalysis.cameraNeededMessage);
       return;
     }
 
@@ -1115,9 +765,9 @@ export default function PhotoAnalysisScreen() {
     } catch (error) {
       const msg = error instanceof Error ? error.message.toLowerCase() : '';
       if (msg.includes('camera') || msg.includes('not available')) {
-        Alert.alert(t.cameraUnavailableTitle, t.cameraUnavailableMessage);
+        Alert.alert(t.photoAnalysis.cameraUnavailableTitle, t.photoAnalysis.cameraUnavailableMessage);
       } else {
-        Alert.alert(t.photoUnavailableTitle, t.photoAnalysisFailedTryAgain);
+        Alert.alert(t.photoAnalysis.photoUnavailableTitle, t.photoAnalysis.photoAnalysisFailedTryAgain);
       }
     }
   };
@@ -1127,7 +777,7 @@ export default function PhotoAnalysisScreen() {
 
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!permission.granted) {
-      Alert.alert(t.libraryNeededTitle, t.libraryNeededMessage);
+      Alert.alert(t.photoAnalysis.libraryNeededTitle, t.photoAnalysis.libraryNeededMessage);
       return;
     }
 
@@ -1169,7 +819,7 @@ export default function PhotoAnalysisScreen() {
       });
       const correctedAnalysis = ensurePainApology(
         revisedAnalysis,
-        t.painApology,
+        t.photoAnalysis.painApology,
         hasPainSymptom || hasPainText(correction)
       );
       setAnalysis(correctedAnalysis);
@@ -1191,8 +841,8 @@ export default function PhotoAnalysisScreen() {
     } catch (error) {
       console.error('Meal correction failed:', error);
       Alert.alert(
-        t.correctionFailedTitle,
-        error instanceof Error ? error.message : t.correctionFailedTryAgain,
+        t.photoAnalysis.correctionFailedTitle,
+        error instanceof Error ? error.message : t.photoAnalysis.correctionFailedTryAgain,
       );
     } finally {
       setIsCorrecting(false);
@@ -1233,9 +883,9 @@ export default function PhotoAnalysisScreen() {
       setIsListening(false);
       setVoiceTarget(null);
       if (parseRnVoiceError(err) === 'mic') {
-        setToast({ visible: true, message: t.microphoneDisabledToast, type: 'info' });
+        setToast({ visible: true, message: t.photoAnalysis.microphoneDisabledToast, type: 'info' });
       } else {
-        setToast({ visible: true, message: t.voiceUnavailableMessage, type: 'info' });
+        setToast({ visible: true, message: t.photoAnalysis.voiceUnavailableMessage, type: 'info' });
       }
     };
   };
@@ -1263,9 +913,9 @@ export default function PhotoAnalysisScreen() {
     };
 
     const micToast = () =>
-      setToast({ visible: true, message: t.microphoneDisabledToast, type: 'info' });
+      setToast({ visible: true, message: t.photoAnalysis.microphoneDisabledToast, type: 'info' });
     const voiceToast = () =>
-      setToast({ visible: true, message: t.voiceUnavailableMessage, type: 'info' });
+      setToast({ visible: true, message: t.photoAnalysis.voiceUnavailableMessage, type: 'info' });
 
     try {
       const Voice = await loadVoiceModule();
@@ -1400,7 +1050,7 @@ export default function PhotoAnalysisScreen() {
   const handleApplyCorrection = async () => {
     const trimmed = correctionDraft.trim();
     if (!trimmed) {
-      setToast({ visible: true, message: t.recommendationUnchanged, type: 'info' });
+      setToast({ visible: true, message: t.photoAnalysis.recommendationUnchanged, type: 'info' });
       return;
     }
     await submitChatCorrection(trimmed);
@@ -1421,9 +1071,9 @@ export default function PhotoAnalysisScreen() {
             hitSlop={10}
             style={styles.tutorialSkip}
             accessibilityRole="button"
-            accessibilityLabel="Skip tutorial"
+            accessibilityLabel={t.photoAnalysis.wizardStep4Hint}
           >
-            <Text style={styles.tutorialSkipText}>{t.back}</Text>
+            <Text style={styles.tutorialSkipText}>{t.photoAnalysis.back}</Text>
             <Ionicons name="close" size={18} color="#FFFFFF" />
           </Pressable>
         </View>
@@ -1438,10 +1088,10 @@ export default function PhotoAnalysisScreen() {
         <View style={styles.header}>
           <Pressable onPress={handleBack} hitSlop={10} style={styles.backButton}>
             <Ionicons name="chevron-back" size={20} color="#FFFFFF" />
-            <Text style={styles.backButtonText}>{t.back}</Text>
+            <Text style={styles.backButtonText}>{t.photoAnalysis.back}</Text>
           </Pressable>
           <View style={styles.headerTextBlock}>
-            <Text style={[styles.title, isRtlLanguage && styles.rtlText]}>{t.title}</Text>
+            <Text style={[styles.title, isRtlLanguage && styles.rtlText]}>{t.photoAnalysis.title}</Text>
             <Text style={[styles.subtitle, isRtlLanguage && styles.rtlText]}>{wizardSubtitle}</Text>
           </View>
           <Pressable
@@ -1449,11 +1099,11 @@ export default function PhotoAnalysisScreen() {
             hitSlop={10}
             style={styles.historyButton}
             accessibilityRole="button"
-            accessibilityLabel="View meal scan history"
+            accessibilityLabel={t.photoAnalysis.back}
             accessibilityHint="Opens a list of your saved photo analyses"
           >
             <Ionicons name="time-outline" size={18} color="#FFFFFF" />
-            <Text style={styles.historyButtonLabel}>History</Text>
+            <Text style={styles.historyButtonLabel}>{t.photoAnalysis.title}</Text>
           </Pressable>
         </View>
 
@@ -1473,12 +1123,12 @@ export default function PhotoAnalysisScreen() {
                 <Image source={{ uri: photoUri }} style={styles.wizardThumbnail} />
               ) : null}
 
-              <Text style={[styles.step2PromptText, isRtlLanguage && styles.rtlText]}>{t.step2Prompt}</Text>
+              <Text style={[styles.step2PromptText, isRtlLanguage && styles.rtlText]}>{t.photoAnalysis.step2Prompt}</Text>
 
               {!voiceNativeEnabled ? (
                 <View style={[styles.expoGoHintCard, isRtlLanguage && styles.rtlRow]}>
                   <Ionicons name="information-circle-outline" size={20} color={Colors.secondaryLight} />
-                  <Text style={[styles.expoGoHintText, isRtlLanguage && styles.rtlText]}>{t.expoGoTextOnlyHint}</Text>
+                  <Text style={[styles.expoGoHintText, isRtlLanguage && styles.rtlText]}>{t.photoAnalysis.expoGoTextOnlyHint}</Text>
                 </View>
               ) : null}
 
@@ -1491,8 +1141,8 @@ export default function PhotoAnalysisScreen() {
                           onPressIn={() => void beginVoiceHold('feelings')}
                           onPressOut={() => void finishVoiceHold()}
                           accessibilityRole="button"
-                          accessibilityLabel={t.voiceInputA11yLabel}
-                          accessibilityHint={t.voiceInputA11yHint}
+                          accessibilityLabel={t.photoAnalysis.voiceInputA11yLabel}
+                          accessibilityHint={t.photoAnalysis.voiceInputA11yHint}
                           accessibilityState={{ busy: true }}
                           style={({ pressed }) => [
                             styles.wizardMicLarge,
@@ -1511,8 +1161,8 @@ export default function PhotoAnalysisScreen() {
                         onPressIn={() => void beginVoiceHold('feelings')}
                         onPressOut={() => void finishVoiceHold()}
                         accessibilityRole="button"
-                        accessibilityLabel={t.voiceInputA11yLabel}
-                        accessibilityHint={t.voiceInputA11yHint}
+                        accessibilityLabel={t.photoAnalysis.voiceInputA11yLabel}
+                        accessibilityHint={t.photoAnalysis.voiceInputA11yHint}
                         accessibilityState={{ busy: false }}
                         style={({ pressed }) => [
                           styles.wizardMicLarge,
@@ -1528,7 +1178,7 @@ export default function PhotoAnalysisScreen() {
                   {canRecordFeelings && isListening && voiceTarget === 'feelings' ? (
                     <View style={[styles.recordingIndicatorInline, styles.wizardRecordingCenter, isRtlLanguage && styles.rtlRow]}>
                       <ActivityIndicator color="#EF4444" size="small" />
-                      <Text style={[styles.correctingText, isRtlLanguage && styles.rtlText]}>{t.recording}</Text>
+                      <Text style={[styles.correctingText, isRtlLanguage && styles.rtlText]}>{t.photoAnalysis.recording}</Text>
                     </View>
                   ) : null}
                 </>
@@ -1537,7 +1187,7 @@ export default function PhotoAnalysisScreen() {
               <TextInput
                 value={mealDescription}
                 onChangeText={setMealDescription}
-                placeholder={t.howYouFeelPlaceholder}
+                placeholder={t.photoAnalysis.howYouFeelPlaceholder}
                 placeholderTextColor={Colors.textTertiary}
                 multiline
                 textAlignVertical="top"
@@ -1553,17 +1203,17 @@ export default function PhotoAnalysisScreen() {
                 onPress={() => setContextExpanded(prev => !prev)}
                 style={styles.contextToggle}
                 accessibilityRole="button"
-                accessibilityLabel={t.contextSectionLabel}
+                accessibilityLabel={t.photoAnalysis.contextSectionLabel}
               >
                 <Ionicons name={contextExpanded ? 'chevron-up' : 'chevron-down'} size={14} color={Colors.textSecondary} />
-                <Text style={styles.contextToggleLabel}>{t.contextSectionLabel}</Text>
+                <Text style={styles.contextToggleLabel}>{t.photoAnalysis.contextSectionLabel}</Text>
               </Pressable>
 
               {contextExpanded ? (
                 <View style={styles.contextPanel}>
-                  <Text style={styles.contextGroupLabel}>{t.currentStateLabel}</Text>
+                  <Text style={styles.contextGroupLabel}>{t.photoAnalysis.currentStateLabel}</Text>
                   <View style={styles.contextChipsRow}>
-                    {(Object.entries(t.stateOptions) as [string, string][]).map(([key, label]) => (
+                    {(Object.entries(t.photoAnalysis.stateOptions) as [string, string][]).map(([key, label]) => (
                       <Pressable
                         key={key}
                         onPress={() => setCurrentStateContext(currentStateContext === key ? null : key)}
@@ -1579,9 +1229,9 @@ export default function PhotoAnalysisScreen() {
                       </Pressable>
                     ))}
                   </View>
-                  <Text style={[styles.contextGroupLabel, { marginTop: 12 }]}>{t.afterActivityLabel}</Text>
+                  <Text style={[styles.contextGroupLabel, { marginTop: 12 }]}>{t.photoAnalysis.afterActivityLabel}</Text>
                   <View style={styles.contextChipsRow}>
-                    {(Object.entries(t.activityOptions) as [string, string][]).map(([key, label]) => (
+                    {(Object.entries(t.photoAnalysis.activityOptions) as [string, string][]).map(([key, label]) => (
                       <Pressable
                         key={key}
                         onPress={() => setAfterMealActivity(afterMealActivity === key ? null : key)}
@@ -1604,7 +1254,7 @@ export default function PhotoAnalysisScreen() {
                 onPress={handleGenerateAnalysis}
                 disabled={!mealDescription.trim() || isAnalyzing || !lastImageBase64.trim()}
                 accessibilityRole="button"
-                accessibilityLabel={t.generateAnalysis}
+                accessibilityLabel={t.photoAnalysis.generateAnalysis}
                 accessibilityState={{
                   disabled: !mealDescription.trim() || isAnalyzing || !lastImageBase64.trim(),
                 }}
@@ -1620,18 +1270,18 @@ export default function PhotoAnalysisScreen() {
                 ]}
               >
                 <Ionicons name="sparkles" size={20} color="#000000" />
-                <Text style={styles.analyzeCombinedButtonText}>{t.generateAnalysis}</Text>
+                <Text style={styles.analyzeCombinedButtonText}>{t.photoAnalysis.generateAnalysis}</Text>
               </Pressable>
 
               <Pressable onPress={handleChangePhoto} style={({ pressed }) => [styles.changePhotoLink, pressed && styles.pressed]}>
-                <Text style={[styles.changePhotoLinkText, isRtlLanguage && styles.rtlText]}>{t.changePhoto}</Text>
+                <Text style={[styles.changePhotoLinkText, isRtlLanguage && styles.rtlText]}>{t.photoAnalysis.changePhoto}</Text>
               </Pressable>
 
               {isAnalyzing ? (
                 <View style={styles.scanNotice}>
                   <ActivityIndicator size="large" color={Colors.primary} />
-                  <Text style={[styles.scanNoticeBrand, isRtlLanguage && styles.rtlText]}>{t.analyzingBrand}</Text>
-                  <Text style={[styles.scanNoticeText, isRtlLanguage && styles.rtlText]}>{t.analyzing}</Text>
+                  <Text style={[styles.scanNoticeBrand, isRtlLanguage && styles.rtlText]}>{t.photoAnalysis.analyzingBrand}</Text>
+                  <Text style={[styles.scanNoticeText, isRtlLanguage && styles.rtlText]}>{t.photoAnalysis.analyzing}</Text>
                 </View>
               ) : null}
             </ScrollView>
@@ -1664,7 +1314,7 @@ export default function PhotoAnalysisScreen() {
                     <View style={styles.scanFramePlaceholder}>
                       <Ionicons name="scan-outline" size={44} color={Colors.secondary} />
                       <Text style={[styles.scanFrameHint, isRtlLanguage && styles.rtlText]}>
-                        {t.subtitle}
+                        {t.photoAnalysis.subtitle}
                       </Text>
                     </View>
                   )}
@@ -1684,8 +1334,8 @@ export default function PhotoAnalysisScreen() {
                     <View style={styles.photoActionIcon}>
                       <Ionicons name="camera" size={30} color={Colors.textInverse} />
                     </View>
-                    <Text style={[styles.photoActionTitle, isRtlLanguage && styles.rtlText]}>{t.takePhoto}</Text>
-                    <Text style={[styles.photoActionText, isRtlLanguage && styles.rtlText]}>{t.takePhotoText}</Text>
+                    <Text style={[styles.photoActionTitle, isRtlLanguage && styles.rtlText]}>{t.photoAnalysis.takePhoto}</Text>
+                    <Text style={[styles.photoActionText, isRtlLanguage && styles.rtlText]}>{t.photoAnalysis.takePhotoText}</Text>
                   </Pressable>
 
                   <Pressable
@@ -1701,8 +1351,8 @@ export default function PhotoAnalysisScreen() {
                     <View style={styles.photoActionIcon}>
                       <Ionicons name="images" size={30} color={Colors.textInverse} />
                     </View>
-                    <Text style={[styles.photoActionTitle, isRtlLanguage && styles.rtlText]}>{t.chooseGallery}</Text>
-                    <Text style={[styles.photoActionText, isRtlLanguage && styles.rtlText]}>{t.chooseGalleryText}</Text>
+                    <Text style={[styles.photoActionTitle, isRtlLanguage && styles.rtlText]}>{t.photoAnalysis.chooseGallery}</Text>
+                    <Text style={[styles.photoActionText, isRtlLanguage && styles.rtlText]}>{t.photoAnalysis.chooseGalleryText}</Text>
                   </Pressable>
                 </View>
 
@@ -1711,14 +1361,14 @@ export default function PhotoAnalysisScreen() {
                     onPress={() => setWizardStep(2)}
                     disabled={isAnalyzing}
                     accessibilityRole="button"
-                    accessibilityLabel={t.wizardNext}
+                    accessibilityLabel={t.photoAnalysis.wizardNext}
                     style={({ pressed }) => [
                       styles.wizardNextButton,
                       isAnalyzing && styles.wizardNextButtonDisabled,
                       pressed && !isAnalyzing && styles.pressed,
                     ]}
                   >
-                    <Text style={styles.wizardNextButtonText}>{t.wizardNext}</Text>
+                    <Text style={styles.wizardNextButtonText}>{t.photoAnalysis.wizardNext}</Text>
                     <Ionicons name="arrow-forward" size={22} color="#000000" />
                   </Pressable>
                 ) : null}
@@ -1741,14 +1391,14 @@ export default function PhotoAnalysisScreen() {
                     {(() => {
                       const parts: string[] = [];
                       if (gutProfileContext.gutScore != null) {
-                        parts.push(`${t.profileContextScore} ${gutProfileContext.gutScore}/10`);
+                        parts.push(`${t.photoAnalysis.profileContextScore} ${gutProfileContext.gutScore}/10`);
                       }
                       if (gutProfileContext.conditions.length > 0) {
                         parts.push(gutProfileContext.conditions.join(', '));
                       }
                       return parts.length > 0
-                        ? `${t.profileContextPrefix}${parts.join(' · ')}`
-                        : t.profileContextEmpty;
+                        ? `${t.photoAnalysis.profileContextPrefix}${parts.join(' · ')}`
+                        : t.photoAnalysis.profileContextEmpty;
                     })()}
                   </Text>
                 </View>
@@ -1764,19 +1414,19 @@ export default function PhotoAnalysisScreen() {
                   <Ionicons name="location-outline" size={17} color={Colors.primary} />
                   <Text style={[styles.locationText, isRtlLanguage && styles.rtlText]}>
                     {isLocationLoading
-                      ? t.findingLocation
+                      ? t.photoAnalysis.findingLocation
                       : locationContext
-                        ? `${t.usingLocation} ${locationContext}`
-                        : t.locationOptIn}
+                        ? `${t.photoAnalysis.usingLocation} ${locationContext}`
+                        : t.photoAnalysis.locationOptIn}
                   </Text>
                 </Pressable>
 
                 {(isAnalyzing || isCorrecting) && analysis ? (
                   <View style={styles.scanNotice}>
                     <ActivityIndicator size="large" color={Colors.primary} />
-                    <Text style={[styles.scanNoticeBrand, isRtlLanguage && styles.rtlText]}>{t.analyzingBrand}</Text>
+                    <Text style={[styles.scanNoticeBrand, isRtlLanguage && styles.rtlText]}>{t.photoAnalysis.analyzingBrand}</Text>
                     <Text style={[styles.scanNoticeText, isRtlLanguage && styles.rtlText]}>
-                      {isCorrecting ? t.correcting : t.analyzing}
+                      {isCorrecting ? t.photoAnalysis.correcting : t.photoAnalysis.analyzing}
                     </Text>
                   </View>
                 ) : null}
@@ -1794,7 +1444,7 @@ export default function PhotoAnalysisScreen() {
                           <Text style={[styles.resultMealName, isRtlLanguage && styles.rtlText]} numberOfLines={1}>
                             {extractMealTitle(analysis)}
                           </Text>
-                          <Text style={[styles.resultTitle, isRtlLanguage && styles.rtlText]}>{t.resultTitle}</Text>
+                          <Text style={[styles.resultTitle, isRtlLanguage && styles.rtlText]}>{t.photoAnalysis.resultTitle}</Text>
                         </View>
                       </View>
                     </View>
@@ -1820,14 +1470,14 @@ export default function PhotoAnalysisScreen() {
                           size={14}
                           color={hasPainSymptom ? '#F59E0B' : Colors.secondary}
                         />
-                        <Text style={styles.infoChipLabel}>{t.chipGutImpact}</Text>
+                        <Text style={styles.infoChipLabel}>{t.photoAnalysis.chipGutImpact}</Text>
                         <Text style={styles.infoChipValue}>
-                          {hasPainSymptom ? t.instantReliefTitle : t.resultTitle}
+                          {hasPainSymptom ? t.photoAnalysis.instantReliefTitle : t.photoAnalysis.resultTitle}
                         </Text>
                       </View>
                       <View style={styles.infoChip}>
                         <Ionicons name="restaurant" size={14} color={Colors.secondaryLight} />
-                        <Text style={styles.infoChipLabel}>{t.chipMealType}</Text>
+                        <Text style={styles.infoChipLabel}>{t.photoAnalysis.chipMealType}</Text>
                         <Text style={styles.infoChipValue} numberOfLines={1}>
                           {extractMealName(analysis)}
                         </Text>
@@ -1837,17 +1487,17 @@ export default function PhotoAnalysisScreen() {
                     {/* Cal AI "Ingredients … + Add more" header — here: gut insights + add detail. */}
                     <View style={[styles.insightsHeaderRow, isRtlLanguage && styles.rtlRow]}>
                       <Text style={[styles.insightsHeading, isRtlLanguage && styles.rtlText]}>
-                        {t.insightsHeading}
+                        {t.photoAnalysis.insightsHeading}
                       </Text>
                       <Pressable
                         onPress={() => setAccuracyAnswer('no')}
                         hitSlop={8}
                         accessibilityRole="button"
-                        accessibilityLabel={t.addMore}
+                        accessibilityLabel={t.photoAnalysis.addMore}
                         style={({ pressed }) => [styles.addMoreLink, pressed && styles.pressed]}
                       >
                         <Ionicons name="add" size={16} color={Colors.secondary} />
-                        <Text style={styles.addMoreLinkText}>{t.addMore}</Text>
+                        <Text style={styles.addMoreLinkText}>{t.photoAnalysis.addMore}</Text>
                       </Pressable>
                     </View>
 
@@ -1857,11 +1507,11 @@ export default function PhotoAnalysisScreen() {
                         <View style={[styles.instantReliefHeader, isRtlLanguage && styles.rtlRow]}>
                           <Ionicons name="medkit" size={18} color="#F59E0B" />
                           <Text style={[styles.instantReliefTitle, isRtlLanguage && styles.rtlText]}>
-                            {t.instantReliefTitle}
+                            {t.photoAnalysis.instantReliefTitle}
                           </Text>
                         </View>
                         <Text style={[styles.instantReliefText, isRtlLanguage && styles.rtlText]}>
-                          {t.instantReliefText}
+                          {t.photoAnalysis.instantReliefText}
                         </Text>
                       </View>
                     ) : null}
@@ -1869,14 +1519,14 @@ export default function PhotoAnalysisScreen() {
                       <View style={styles.planBCard}>
                         <View style={[styles.planBHeader, isRtlLanguage && styles.rtlRow]}>
                           <Ionicons name="shield-checkmark" size={18} color={Colors.secondary} />
-                          <Text style={[styles.planBTitle, isRtlLanguage && styles.rtlText]}>{t.planBTitle}</Text>
+                          <Text style={[styles.planBTitle, isRtlLanguage && styles.rtlText]}>{t.photoAnalysis.planBTitle}</Text>
                         </View>
                         <Text style={[styles.planBText, isRtlLanguage && styles.rtlText]}>{sanitizeAnalysisForDisplay(planBMessage)}</Text>
                       </View>
                     ) : null}
                     <View style={styles.medicalDisclaimerBox}>
                       <Text style={[styles.medicalDisclaimerText, isRtlLanguage && styles.rtlText]}>
-                        {t.medicalDisclaimer}
+                        {t.photoAnalysis.medicalDisclaimer}
                       </Text>
                     </View>
 
@@ -1895,7 +1545,7 @@ export default function PhotoAnalysisScreen() {
                         ) : (
                           <Ionicons name="restaurant-outline" size={18} color="#52B788" />
                         )}
-                        <Text style={styles.logMealButtonText}>{t.logMeal}</Text>
+                        <Text style={styles.logMealButtonText}>{t.photoAnalysis.logMeal}</Text>
                       </Pressable>
                       <Pressable
                         onPress={() => void handleShareAnalysis()}
@@ -1905,7 +1555,7 @@ export default function PhotoAnalysisScreen() {
                         ]}
                       >
                         <Ionicons name="share-outline" size={18} color="#000000" />
-                        <Text style={styles.shareButtonText}>{t.share}</Text>
+                        <Text style={styles.shareButtonText}>{t.photoAnalysis.share}</Text>
                       </Pressable>
                       <Pressable
                         onPress={() => void handleCopyAnalysis()}
@@ -1915,20 +1565,20 @@ export default function PhotoAnalysisScreen() {
                         ]}
                       >
                         <Ionicons name="copy-outline" size={18} color="#000000" />
-                        <Text style={styles.shareButtonText}>{t.copyResult}</Text>
+                        <Text style={styles.shareButtonText}>{t.photoAnalysis.copyResult}</Text>
                       </Pressable>
                     </View>
                   </View>
 
                   <View style={styles.accuracySectionCard}>
-                    <Text style={[styles.accuracyQuestion, isRtlLanguage && styles.rtlText]}>{t.isThisAccurate}</Text>
+                    <Text style={[styles.accuracyQuestion, isRtlLanguage && styles.rtlText]}>{t.photoAnalysis.isThisAccurate}</Text>
 
                     {/* Cal AI bottom actions: Fix Results (outline) + Done (filled). */}
                     <View style={[styles.fixResultsRow, isRtlLanguage && styles.rtlRow]}>
                       <Pressable
                         onPress={() => setAccuracyAnswer((prev) => (prev === 'no' ? null : 'no'))}
                         accessibilityRole="button"
-                        accessibilityLabel={t.fixResults}
+                        accessibilityLabel={t.photoAnalysis.fixResults}
                         style={({ pressed }) => [
                           styles.fixResultsButton,
                           accuracyAnswer === 'no' && styles.fixResultsButtonActive,
@@ -1936,12 +1586,12 @@ export default function PhotoAnalysisScreen() {
                         ]}
                       >
                         <Ionicons name="create-outline" size={18} color="#FFFFFF" />
-                        <Text style={styles.fixResultsButtonText}>{t.fixResults}</Text>
+                        <Text style={styles.fixResultsButtonText}>{t.photoAnalysis.fixResults}</Text>
                       </Pressable>
                       <Pressable
                         onPress={() => setAccuracyAnswer('yes')}
                         accessibilityRole="button"
-                        accessibilityLabel={t.done}
+                        accessibilityLabel={t.photoAnalysis.done}
                         style={({ pressed }) => [
                           styles.doneButton,
                           accuracyAnswer === 'yes' && styles.doneButtonActive,
@@ -1953,7 +1603,7 @@ export default function PhotoAnalysisScreen() {
                           size={18}
                           color="#000000"
                         />
-                        <Text style={styles.doneButtonText}>{t.done}</Text>
+                        <Text style={styles.doneButtonText}>{t.photoAnalysis.done}</Text>
                       </Pressable>
                     </View>
 
@@ -1963,7 +1613,7 @@ export default function PhotoAnalysisScreen() {
                           <TextInput
                             value={correctionDraft}
                             onChangeText={setCorrectionDraft}
-                            placeholder={t.correctionPlaceholder}
+                            placeholder={t.photoAnalysis.correctionPlaceholder}
                             placeholderTextColor={Colors.textTertiary}
                             multiline
                             textAlignVertical="top"
@@ -1980,8 +1630,8 @@ export default function PhotoAnalysisScreen() {
                                   onPressIn={() => void beginVoiceHold('correction')}
                                   onPressOut={() => void finishVoiceHold()}
                                   accessibilityRole="button"
-                                  accessibilityLabel={t.voiceInputA11yLabel}
-                                  accessibilityHint={t.voiceInputA11yHint}
+                                  accessibilityLabel={t.photoAnalysis.voiceInputA11yLabel}
+                                  accessibilityHint={t.photoAnalysis.voiceInputA11yHint}
                                   accessibilityState={{ busy: true }}
                                   disabled={isCorrecting}
                                   style={({ pressed }) => [
@@ -2000,8 +1650,8 @@ export default function PhotoAnalysisScreen() {
                                 onPressIn={() => void beginVoiceHold('correction')}
                                 onPressOut={() => void finishVoiceHold()}
                                 accessibilityRole="button"
-                                accessibilityLabel={t.voiceInputA11yLabel}
-                                accessibilityHint={t.voiceInputA11yHint}
+                                accessibilityLabel={t.photoAnalysis.voiceInputA11yLabel}
+                                accessibilityHint={t.photoAnalysis.voiceInputA11yHint}
                                 accessibilityState={{ busy: false }}
                                 disabled={isCorrecting}
                                 style={({ pressed }) => [styles.symptomsMicButton, pressed && styles.pressed]}
@@ -2014,7 +1664,7 @@ export default function PhotoAnalysisScreen() {
                         {voiceNativeEnabled && isListening && voiceTarget === 'correction' ? (
                           <View style={[styles.recordingIndicatorInline, isRtlLanguage && styles.rtlRow]}>
                             <ActivityIndicator color="#EF4444" size="small" />
-                            <Text style={[styles.correctingText, isRtlLanguage && styles.rtlText]}>{t.recording}</Text>
+                            <Text style={[styles.correctingText, isRtlLanguage && styles.rtlText]}>{t.photoAnalysis.recording}</Text>
                           </View>
                         ) : null}
                         <Pressable
@@ -2029,7 +1679,7 @@ export default function PhotoAnalysisScreen() {
                           {isCorrecting ? (
                             <ActivityIndicator color="#000000" size="small" />
                           ) : (
-                            <Text style={styles.applyCorrectionButtonText}>{t.applyCorrection}</Text>
+                            <Text style={styles.applyCorrectionButtonText}>{t.photoAnalysis.applyCorrection}</Text>
                           )}
                         </Pressable>
                       </View>
@@ -2041,7 +1691,7 @@ export default function PhotoAnalysisScreen() {
                 <View style={[styles.wizardFooterRow, { paddingBottom: Spacing.md + insets.bottom }]}>
                   <Pressable onPress={handleNewScan} style={({ pressed }) => [styles.newScanButton, pressed && styles.pressed]}>
                     <Ionicons name="scan" size={16} color={Colors.secondary} />
-                    <Text style={styles.newScanText}>{t.newScan}</Text>
+                    <Text style={styles.newScanText}>{t.photoAnalysis.newScan}</Text>
                   </Pressable>
                 </View>
               </>

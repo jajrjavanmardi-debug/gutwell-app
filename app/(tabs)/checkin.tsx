@@ -24,6 +24,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getStreakSnapshot, refreshStreakSnapshot } from '../../lib/streaks';
 import { cancelStreakAtRiskAlert } from '../../lib/notifications';
 import { getLocalDateKey } from '../../lib/date';
+import { useTranslation } from '../../lib/i18n';
 
 const STREAK_MILESTONES = [7, 14, 30, 100, 180, 366];
 
@@ -37,10 +38,11 @@ function ProgressDots({ stoolFilled, symptomsFilled, moodFilled }: {
   symptomsFilled: boolean;
   moodFilled: boolean;
 }) {
+  const t = useTranslation();
   const sections = [
-    { label: 'Stool', filled: stoolFilled },
-    { label: 'Symptoms', filled: symptomsFilled },
-    { label: 'Mood', filled: moodFilled },
+    { label: t.checkin.sectionStool, filled: stoolFilled },
+    { label: t.checkin.sectionSymptoms, filled: symptomsFilled },
+    { label: t.checkin.sectionMood, filled: moodFilled },
   ];
   const filledCount = sections.filter(s => s.filled).length;
 
@@ -72,6 +74,7 @@ function PillSlider({ value, onChange, labels }: {
   onChange: (v: number) => void;
   labels: string[];
 }) {
+  const t = useTranslation();
   return (
     <View style={styles.pillContainer}>
       <View style={styles.pillRow}>
@@ -91,7 +94,7 @@ function PillSlider({ value, onChange, labels }: {
               }}
               activeOpacity={0.7}
               accessibilityRole="button"
-              accessibilityLabel={`${labels[v - 1]}, level ${v} of 5`}
+              accessibilityLabel={`${t.checkin.stoolLabels[v - 1] ?? labels[v - 1]}, ${t.checkin.accessMoodLevel}`}
               accessibilityState={{ selected: isSelected }}
             >
               <Text style={[
@@ -112,6 +115,7 @@ function PillSlider({ value, onChange, labels }: {
 // ─── Main Screen ─────────────────────────────────────────────────────────────
 
 export default function CheckinScreen() {
+  const t = useTranslation();
   const { user } = useAuth();
   const [stoolType, setStoolType] = useState<number | null>(null);
   const [bloating, setBloating] = useState(1);
@@ -135,7 +139,7 @@ export default function CheckinScreen() {
 
   useEffect(() => {
     if (!user) {
-      setToast({ visible: true, message: 'Please log in to save your check-in', type: 'error' });
+      setToast({ visible: true, message: t.checkin.errorNotLoggedIn, type: 'error' });
       return;
     }
     getStreakSnapshot(user.id)
@@ -145,7 +149,7 @@ export default function CheckinScreen() {
 
   const handleSave = async () => {
     if (!stoolType) {
-      setToast({ visible: true, message: 'Please select a stool type', type: 'error' });
+      setToast({ visible: true, message: t.checkin.errorNoStool, type: 'error' });
       return;
     }
     if (!user) return;
@@ -172,7 +176,7 @@ export default function CheckinScreen() {
       // Network error — queue offline and let the user continue
       if (error.message?.includes('network') || error.message?.includes('Network') || error.code === 'PGRST301' || !error.code) {
         await enqueue('check_ins', payload, { operation: 'upsert', onConflict: 'user_id,entry_date' });
-        setToast({ visible: true, message: 'Saved offline — will sync when connected', type: 'info' });
+        setToast({ visible: true, message: t.checkin.savedOffline, type: 'info' });
         setShowSuccess(true);
         setStoolType(null);
         setBloating(1);
@@ -183,7 +187,7 @@ export default function CheckinScreen() {
         setNote('');
         return;
       }
-      setToast({ visible: true, message: 'Failed to save check-in', type: 'error' });
+      setToast({ visible: true, message: t.checkin.errorSaveFailed, type: 'error' });
     } else {
       const freshScore = await updateTodayScore(user.id).catch(() => null);
       setSavedScore(freshScore);
@@ -203,7 +207,7 @@ export default function CheckinScreen() {
       updateWidgetData({
         streak: newStreak,
         gutScore: freshScore ?? 0,
-        lastCheckIn: 'Today',
+        lastCheckIn: 'Today', // internal value, not displayed directly
       }).then(reloadWidget).catch(() => {});
 
       if (STREAK_MILESTONES.includes(newStreak)) {
@@ -231,7 +235,7 @@ export default function CheckinScreen() {
       }
 
       setShowSuccess(true);
-      setToast({ visible: true, message: 'Check-in saved!', type: 'success' });
+      setToast({ visible: true, message: t.checkin.successSaved, type: 'success' });
       setStoolType(null);
       setBloating(1);
       setPain(1);
@@ -251,7 +255,7 @@ export default function CheckinScreen() {
           onPress={() => router.back()}
           activeOpacity={0.7}
           accessibilityRole="button"
-          accessibilityLabel="Go back"
+          accessibilityLabel={t.checkin.accessGoBack}
         >
           <Ionicons name="chevron-back" size={22} color={Colors.text} />
         </TouchableOpacity>
@@ -274,8 +278,8 @@ export default function CheckinScreen() {
 
         {/* Bristol Stool Chart */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Stool Type</Text>
-          <Text style={styles.sectionHint}>Select the closest match</Text>
+          <Text style={styles.sectionTitle}>{t.checkin.stoolTypeTitle}</Text>
+          <Text style={styles.sectionHint}>{t.checkin.stoolSelectPrompt}</Text>
           <BristolStoolChart
             selected={stoolType}
             onSelect={(t) => {
@@ -287,7 +291,7 @@ export default function CheckinScreen() {
 
         {/* Symptoms */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Symptoms</Text>
+          <Text style={styles.sectionTitle}>{t.checkin.sectionSymptoms}</Text>
           <Text style={styles.sectionHint}>Rate each symptom on a 1-5 scale</Text>
 
           <View style={styles.symptomCard}>
@@ -317,7 +321,7 @@ export default function CheckinScreen() {
 
         {/* Mood */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Mood</Text>
+          <Text style={styles.sectionTitle}>{t.checkin.sectionMood}</Text>
           <Text style={styles.sectionHint}>How are you feeling emotionally?</Text>
           <MoodSelector value={mood} onChange={setMood} />
         </View>
@@ -335,10 +339,10 @@ export default function CheckinScreen() {
 
         {/* Notes */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Notes</Text>
+          <Text style={styles.sectionTitle}>{t.checkin.sectionNotes}</Text>
           <Text style={styles.sectionHint}>Anything else worth noting?</Text>
           <Input
-            placeholder="Food reactions, stress, sleep quality..."
+            placeholder={t.checkin.notesPlaceholder}
             value={note}
             onChangeText={setNote}
             multiline
@@ -350,7 +354,7 @@ export default function CheckinScreen() {
 
         {/* Save */}
         <Button
-          title="Save Check-in"
+          title={t.checkin.saveButton}
           onPress={handleSave}
           loading={loading}
           size="lg"

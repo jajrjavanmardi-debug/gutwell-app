@@ -18,6 +18,7 @@ import { ErrorState } from '../../components/ui/ErrorState';
 import { getStreakSnapshot } from '../../lib/streaks';
 import { computeCorrelations, type FoodCorrelation } from '../../lib/correlations';
 import { getLocalDateKey, addDaysToLocalDateKey } from '../../lib/date';
+import { useTranslation } from '../../lib/i18n';
 
 type RecentEntry = {
   id: string | number;
@@ -37,6 +38,7 @@ function scoreRingColor(score: number | null): string {
 }
 
 export default function HomeScreen() {
+  const t = useTranslation();
   const { user, profile } = useAuth();
   const [gutScore, setGutScore] = useState<number | null>(null);
   const [yesterdayScore, setYesterdayScore] = useState<number | null>(null);
@@ -222,12 +224,12 @@ export default function HomeScreen() {
       router.push({ pathname: '/edit-checkin', params: { id: String(entry.id) } });
     } else if (entry.type === 'food') {
       Alert.alert(
-        'Remove Food Log',
+        t.home.removeFood,
         `Delete "${entry.label}"?`,
         [
-          { text: 'Cancel', style: 'cancel' },
+          { text: t.home.cancel, style: 'cancel' },
           {
-            text: 'Delete',
+            text: t.home.delete,
             style: 'destructive',
             onPress: async () => {
               const { error } = await supabase.from('food_logs').delete().eq('id', entry.id);
@@ -238,12 +240,12 @@ export default function HomeScreen() {
       );
     } else if (entry.type === 'symptom') {
       Alert.alert(
-        'Remove Symptom Log',
+        t.home.removeSymptom,
         `Delete "${entry.label}"?`,
         [
-          { text: 'Cancel', style: 'cancel' },
+          { text: t.home.cancel, style: 'cancel' },
           {
-            text: 'Delete',
+            text: t.home.delete,
             style: 'destructive',
             onPress: async () => {
               const { error } = await supabase.from('symptoms').delete().eq('id', entry.id);
@@ -275,12 +277,12 @@ export default function HomeScreen() {
   const scoreColor = scoreRingColor(gutScore);
   const scoreCaption =
     gutScore === null
-      ? 'No check-in yet'
+      ? t.home.noCheckInYet
       : gutScore >= 70
-      ? 'Thriving gut'
+      ? t.home.thrivingGut
       : gutScore >= 40
-      ? 'Settling in'
-      : 'Needs care';
+      ? t.home.settlingIn
+      : t.home.needsCare;
   const trendDelta =
     gutScore !== null && yesterdayScore !== null ? gutScore - yesterdayScore : null;
 
@@ -296,7 +298,7 @@ export default function HomeScreen() {
         <View style={styles.headerRow}>
           <View style={styles.wordmark}>
             <Ionicons name="leaf" size={22} color={Colors.secondary} />
-            <Text style={styles.wordmarkText}>Gutwell</Text>
+            <Text style={styles.wordmarkText}>{t.home.appName}</Text>
           </View>
 
           <TouchableOpacity
@@ -304,7 +306,7 @@ export default function HomeScreen() {
             onPress={() => setStreakPopupVisible(true)}
             activeOpacity={0.75}
             accessibilityRole="button"
-            accessibilityLabel={streak > 0 ? `${streak} day streak, view details` : 'Start your streak'}
+            accessibilityLabel={streak > 0 ? `${streak} ${t.home.accessStreakActive}` : t.home.accessStreakStart}
           >
             <Ionicons
               name={streak > 0 ? 'flame' : 'flame-outline'}
@@ -347,7 +349,7 @@ export default function HomeScreen() {
           <View style={styles.heroCard}>
             <View style={styles.heroLeft}>
               <Text style={styles.heroValue}>{gutScore !== null ? gutScore : '--'}</Text>
-              <Text style={styles.heroLabel}>Gut score today</Text>
+              <Text style={styles.heroLabel}>{t.home.gutScoreToday}</Text>
               {trendDelta !== null && (
                 <View style={styles.trendRow}>
                   <Ionicons
@@ -380,7 +382,7 @@ export default function HomeScreen() {
             <StatCard
               icon={<Ionicons name="body" size={22} color={Colors.primaryLight} />}
               value={checkedInToday ? 'Done' : '—'}
-              label="Check-in"
+              label={t.home.labelCheckin}
               accentColor={Colors.primaryLight}
               progress={checkedInToday ? 1 : 0}
               onPress={() => router.push('/(tabs)/checkin')}
@@ -389,7 +391,7 @@ export default function HomeScreen() {
             <StatCard
               icon={<Ionicons name="restaurant" size={22} color={Colors.secondary} />}
               value={String(mealsLoggedToday)}
-              label="Meals logged"
+              label={t.home.labelMealsLogged}
               accentColor={Colors.secondary}
               progress={Math.min(mealsLoggedToday / 3, 1)}
               onPress={() => router.push('/(tabs)/food')}
@@ -398,7 +400,7 @@ export default function HomeScreen() {
             <StatCard
               icon={<Ionicons name="water" size={22} color={Colors.info} />}
               value={`${Math.round(completionRate * 100)}%`}
-              label="Week consistency"
+              label={t.home.labelWeekConsistency}
               accentColor={Colors.info}
               progress={completionRate}
               onPress={() => router.push('/(tabs)/progress')}
@@ -419,7 +421,7 @@ export default function HomeScreen() {
             style={styles.scanCardInner}
             activeOpacity={0.85}
             accessibilityRole="button"
-            accessibilityLabel="Scan a meal with AI"
+            accessibilityLabel={t.home.accessScanMeal}
           >
             <View style={styles.scanIconWrap}>
               <Ionicons name="camera" size={24} color={Colors.secondary} />
@@ -440,13 +442,13 @@ export default function HomeScreen() {
               onPress={() => router.push('/(tabs)/progress')}
               activeOpacity={0.8}
               accessibilityRole="button"
-              accessibilityLabel={`Your strongest trigger food is ${topTrigger.foodName}. View details`}
+              accessibilityLabel={`${topTrigger?.foodName ?? ''} — ${t.home.accessTriggerDetails}`}
             >
               <View style={styles.triggerIconWrap}>
                 <Ionicons name="warning-outline" size={18} color={Colors.warning} />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={styles.triggerLabel}>YOUR STRONGEST TRIGGER</Text>
+                <Text style={styles.triggerLabel}>{t.home.strongestTrigger}</Text>
                 <Text style={styles.triggerFood}>{topTrigger.foodName}</Text>
                 <Text style={styles.triggerDetail}>
                   {topTrigger.topSymptom
@@ -462,8 +464,8 @@ export default function HomeScreen() {
           <View style={styles.sectionRow}>
             <Text style={styles.sectionTitle}>Recently logged</Text>
             {recentEntries.length > 0 && (
-              <TouchableOpacity onPress={() => router.push('/(tabs)/progress')} accessibilityRole="button" accessibilityLabel="See all recent activity">
-                <Text style={styles.seeAllLink}>See all</Text>
+              <TouchableOpacity onPress={() => router.push('/(tabs)/progress')} accessibilityRole="button" accessibilityLabel={t.home.seeAll + " recent activity"}>
+                <Text style={styles.seeAllLink}>{t.home.seeAll}</Text>
               </TouchableOpacity>
             )}
           </View>
@@ -501,7 +503,7 @@ export default function HomeScreen() {
                 onPress={() => router.push('/(tabs)/checkin')}
                 activeOpacity={0.8}
                 accessibilityRole="button"
-                accessibilityLabel="Log your first entry of the day"
+                accessibilityLabel={t.home.accessLogFirst}
               >
                 <View style={styles.emptyMealThumb}>
                   <Ionicons name="leaf-outline" size={22} color={Colors.textTertiary} />

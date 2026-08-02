@@ -16,6 +16,7 @@ import { EmptyState } from '../../components/ui/EmptyState';
 import { ErrorState } from '../../components/ui/ErrorState';
 import { enqueue } from '../../lib/offline-queue';
 import { track, Events } from '../../lib/analytics';
+import { useTranslation } from '../../lib/i18n';
 
 function formatMealTime(iso: string): string {
   const date = new Date(iso);
@@ -29,11 +30,11 @@ function formatMealTime(iso: string): string {
   return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + ` ${time}`;
 }
 
-const MEAL_TYPES = [
-  { key: 'breakfast', label: 'Breakfast', icon: 'sunny' as const },
-  { key: 'lunch', label: 'Lunch', icon: 'partly-sunny' as const },
-  { key: 'dinner', label: 'Dinner', icon: 'moon' as const },
-  { key: 'snack', label: 'Snack', icon: 'cafe' as const },
+const MEAL_TYPE_KEYS = [
+  { key: 'Breakfast', icon: 'sunny' as const },
+  { key: 'Lunch', icon: 'partly-sunny' as const },
+  { key: 'Dinner', icon: 'moon' as const },
+  { key: 'Snack', icon: 'cafe' as const },
 ];
 
 type Favorite = {
@@ -49,6 +50,11 @@ function isSameLocalDay(iso: string, reference = new Date()): boolean {
 }
 
 export default function FoodScreen() {
+  const MEAL_TYPES = MEAL_TYPE_KEYS.map(m => ({
+    ...m,
+    label: t.food.mealTypes[m.key as keyof typeof t.food.mealTypes] ?? m.key,
+  }));
+  const t = useTranslation();
   const { user } = useAuth();
   const [mealType, setMealType] = useState('breakfast');
   const [mealName, setMealName] = useState('');
@@ -138,7 +144,7 @@ export default function FoodScreen() {
 
   const quickLogFavorite = async (fav: Favorite) => {
     if (!user) {
-      setToast({ visible: true, message: 'Please log in to continue', type: 'error' });
+      setToast({ visible: true, message: t.food.loginRequired, type: 'error' });
       return;
     }
     setLoading(true);
@@ -154,9 +160,9 @@ export default function FoodScreen() {
     if (error) {
       if (error.message?.includes('network') || error.message?.includes('Network') || error.code === 'PGRST301' || !error.code) {
         await enqueue('food_logs', payload);
-        setToast({ visible: true, message: 'Favorite saved offline — will sync when connected', type: 'info' });
+        setToast({ visible: true, message: t.food.favoriteSavedOffline, type: 'info' });
       } else {
-        setToast({ visible: true, message: 'Failed to log favorite', type: 'error' });
+        setToast({ visible: true, message: t.food.logFavoriteFailed, type: 'error' });
       }
     } else {
       setToast({ visible: true, message: `${fav.meal_name} logged!`, type: 'success' });
@@ -166,15 +172,15 @@ export default function FoodScreen() {
 
   const handleSave = async () => {
     if (!mealName.trim() && foods.length === 0) {
-      setToast({ visible: true, message: 'Please enter a meal name or add foods', type: 'error' }); return;
+      setToast({ visible: true, message: t.food.enterMealOrFood, type: 'error' }); return;
     }
     if (!user) {
-      setToast({ visible: true, message: 'Please log in to continue', type: 'error' });
+      setToast({ visible: true, message: t.food.loginRequired, type: 'error' });
       return;
     }
     const normalizedMealName = (mealName.trim() || foods.join(', ')).trim().slice(0, 200);
     if (!normalizedMealName) {
-      setToast({ visible: true, message: 'Meal name is required', type: 'error' });
+      setToast({ visible: true, message: t.food.mealNameRequired, type: 'error' });
       return;
     }
     const payload = {
@@ -198,18 +204,18 @@ export default function FoodScreen() {
       setLoading(false);
       if (existingRecentError.message?.includes('network') || existingRecentError.message?.includes('Network') || existingRecentError.code === 'PGRST301' || !existingRecentError.code) {
         await enqueue('food_logs', payload);
-        setToast({ visible: true, message: 'Saved offline — will sync when connected', type: 'info' });
+        setToast({ visible: true, message: t.food.savedOffline, type: 'info' });
         setMealName('');
         setFoods([]);
         setNote('');
       } else {
-        setToast({ visible: true, message: 'Failed to validate meal before saving', type: 'error' });
+        setToast({ visible: true, message: t.food.validateFailed, type: 'error' });
       }
       return;
     }
     if (existingRecent && existingRecent.length > 0) {
       setLoading(false);
-      setToast({ visible: true, message: 'This meal was just logged.', type: 'info' });
+      setToast({ visible: true, message: t.food.removeMealMessage, type: 'info' });
       return;
     }
     const { error } = await supabase.from('food_logs').insert(payload);
@@ -220,14 +226,14 @@ export default function FoodScreen() {
         await enqueue('food_logs', {
           ...payload,
         });
-        setToast({ visible: true, message: 'Saved offline — will sync when connected', type: 'info' });
+        setToast({ visible: true, message: t.food.savedOffline, type: 'info' });
         setMealName(''); setFoods([]); setNote('');
       } else {
-        setToast({ visible: true, message: 'Failed to save food log', type: 'error' });
+        setToast({ visible: true, message: t.food.saveFailed, type: 'error' });
       }
     } else {
       track(Events.MEAL_LOGGED);
-      setToast({ visible: true, message: 'Meal logged!', type: 'success' });
+      setToast({ visible: true, message: t.food.mealLogged, type: 'success' });
       setRecentMeals((prev) => [
         {
           id: Date.now(),
@@ -246,7 +252,7 @@ export default function FoodScreen() {
 
   const handleFavoriteFromRecent = async (meal: { id: number; meal_name: string; meal_type: string; logged_at: string }) => {
     if (!user) {
-      setToast({ visible: true, message: 'Please log in to continue', type: 'error' });
+      setToast({ visible: true, message: t.food.loginRequired, type: 'error' });
       return;
     }
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -257,9 +263,9 @@ export default function FoodScreen() {
         { onConflict: 'user_id,meal_name' }
       );
     if (error) {
-      setToast({ visible: true, message: 'Failed to add favorite', type: 'error' });
+      setToast({ visible: true, message: t.food.addFavoriteFailed, type: 'error' });
     } else {
-      setToast({ visible: true, message: 'Added to favorites ⭐', type: 'success' });
+      setToast({ visible: true, message: t.food.addedFavorite, type: 'success' });
       loadFavorites();
     }
   };
@@ -269,9 +275,9 @@ export default function FoodScreen() {
       'Remove from Favorites',
       `Remove "${fav.meal_name}" from favorites?`,
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: t.common.cancel, style: 'cancel' },
         {
-          text: 'Remove',
+          text: t.common.remove ?? 'Remove',
           style: 'destructive',
           onPress: async () => {
             if (!user) return;
@@ -282,9 +288,9 @@ export default function FoodScreen() {
               .eq('id', fav.id)
               .eq('user_id', user.id);
             if (error) {
-              setToast({ visible: true, message: 'Failed to remove favorite', type: 'error' });
+              setToast({ visible: true, message: t.food.removeFavoriteFailed, type: 'error' });
             } else {
-              setToast({ visible: true, message: 'Removed from favorites', type: 'success' });
+              setToast({ visible: true, message: t.food.removedFavorite, type: 'success' });
               loadFavorites();
             }
           },
@@ -295,13 +301,13 @@ export default function FoodScreen() {
 
   const handleDeleteMeal = async (id: number) => {
     if (!user) {
-      setToast({ visible: true, message: 'Please log in to continue', type: 'error' });
+      setToast({ visible: true, message: t.food.loginRequired, type: 'error' });
       return;
     }
-    Alert.alert('Remove this meal?', 'It will disappear from your food log and correlations.', [
-      { text: 'Cancel', style: 'cancel' },
+    Alert.alert(t.food.removeMeal, 'It will disappear from your food log and correlations.', [
+      { text: t.common.cancel, style: 'cancel' },
       {
-        text: 'Remove',
+        text: t.common.remove ?? 'Remove',
         style: 'destructive',
         onPress: async () => {
           Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -311,9 +317,9 @@ export default function FoodScreen() {
             .eq('id', id)
             .eq('user_id', user.id);
           if (error) {
-            setToast({ visible: true, message: 'Failed to remove meal', type: 'error' });
+            setToast({ visible: true, message: t.food.mealRemoved, type: 'error' });
           } else {
-            setToast({ visible: true, message: 'Meal removed', type: 'success' });
+            setToast({ visible: true, message: t.food.mealRemoved, type: 'success' });
             loadRecentMeals();
           }
         },
@@ -340,16 +346,16 @@ export default function FoodScreen() {
           onPress={() => router.back()}
           activeOpacity={0.7}
           accessibilityRole="button"
-          accessibilityLabel="Go back"
+          accessibilityLabel={t.common.goBack}
         >
           <Ionicons name="chevron-back" size={22} color={Colors.text} />
         </TouchableOpacity>
-        <Text style={styles.navTitle}>Food Log</Text>
+        <Text style={styles.navTitle}>{t.food.title}</Text>
         <View style={styles.backBtn} />
       </View>
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
-        <Text style={styles.title}>Track Your Plate</Text>
+        <Text style={styles.title}>{t.food.tabLog}</Text>
         <Text style={styles.subtitle}>What nourished you today?</Text>
 
         {!isLoading && error && (
@@ -357,7 +363,7 @@ export default function FoodScreen() {
         )}
 
         {/* Scan Button - Premium solid card */}
-        <TouchableOpacity style={styles.scanButton} onPress={() => router.push('/photo-analysis')} activeOpacity={0.7} accessibilityRole="button" accessibilityLabel="Scan a meal photo with AI">
+        <TouchableOpacity style={styles.scanButton} onPress={() => router.push('/photo-analysis')} activeOpacity={0.7} accessibilityRole="button" accessibilityLabel={t.home.accessScanMeal}>
           <View style={styles.scanIcon}>
             <Ionicons name="camera" size={22} color={Colors.primary} />
           </View>
@@ -373,7 +379,7 @@ export default function FoodScreen() {
           <View style={styles.favoritesSection}>
             <View style={styles.sectionHeaderRow}>
               <Ionicons name="star" size={16} color={Colors.accent} />
-              <Text style={styles.sectionTitle}>Favorites</Text>
+              <Text style={styles.sectionTitle}>{t.food.tabFavorites}</Text>
             </View>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.favoritesScroll}>
               {favorites.map(fav => (
@@ -396,7 +402,7 @@ export default function FoodScreen() {
         )}
 
         {/* Meal Type Selector - Pill segments */}
-        <Text style={styles.sectionTitle}>Meal Type</Text>
+        <Text style={styles.sectionTitle}>{t.food.mealTypeLabel}</Text>
         <View style={styles.mealTypes}>
           {MEAL_TYPES.map(m => (
             <TouchableOpacity
@@ -425,7 +431,7 @@ export default function FoodScreen() {
 
         {/* Today's Meals */}
         <View style={styles.todaysMealsSection}>
-          <Text style={styles.sectionLabel}>Today&apos;s meals</Text>
+          <Text style={styles.sectionLabel}>{t.food.todayMeals}</Text>
           {todaysMeals.length > 0 ? (
             <View style={styles.todaysMealsList}>
               {todaysMeals.map((meal) => (
@@ -451,7 +457,7 @@ export default function FoodScreen() {
               ))}
             </View>
           ) : (
-            <Text style={styles.todaysMealsEmpty}>No meals logged yet today.</Text>
+            <Text style={styles.todaysMealsEmpty}>{t.food.noMealsToday}</Text>
           )}
         </View>
 
@@ -531,7 +537,7 @@ export default function FoodScreen() {
                           {isSensitive && (
                       <View style={styles.sensitivityBadge}>
                         <Ionicons name="warning-outline" size={11} color="#D4A373" />
-                        <Text style={styles.sensitivityText}>May trigger</Text>
+                        <Text style={styles.sensitivityText}>{t.food.mayTrigger}</Text>
                       </View>
                     )}
                         </>
