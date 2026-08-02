@@ -14,6 +14,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { useAuth } from '../../contexts/AuthContext';
+import { useTranslation } from '../../lib/i18n';
 import { Input } from '../../components/ui/Input';
 import { Button } from '../../components/ui/Button';
 import { Toast } from '../../components/ui/Toast';
@@ -21,6 +22,7 @@ import { Colors, Spacing, FontSize, FontFamily } from '../../constants/theme';
 
 export default function LoginScreen() {
   const { signIn } = useAuth();
+  const t = useTranslation();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -32,7 +34,7 @@ export default function LoginScreen() {
 
   const handleLogin = async () => {
     if (!email || !password) {
-      setToast({ visible: true, message: 'Please fill in all fields', type: 'error' });
+      setToast({ visible: true, message: t.login.fillAllFields, type: 'error' });
       return;
     }
     setLoading(true);
@@ -90,8 +92,8 @@ export default function LoginScreen() {
               </View>
 
               {/* Title + subtitle */}
-              <Text style={styles.title}>Welcome back</Text>
-              <Text style={styles.subtitle}>Sign in to pick up your gut health journey.</Text>
+              <Text style={styles.title}>{t.login.title}</Text>
+              <Text style={styles.subtitle}>{t.login.subtitle}</Text>
 
               {/* ── Form ── */}
               <View style={styles.form}>
@@ -117,13 +119,13 @@ export default function LoginScreen() {
               {/* Forgot password */}
               <Link href="/(auth)/forgot-password" asChild>
                 <TouchableOpacity activeOpacity={0.7} style={styles.forgotWrap}>
-                  <Text style={styles.forgotText}>Forgot password?</Text>
+                  <Text style={styles.forgotText}>{t.login.forgotPassword}</Text>
                 </TouchableOpacity>
               </Link>
 
               {/* Primary CTA */}
               <Button
-                title="Sign In"
+                title={t.login.signInButton}
                 onPress={handleLogin}
                 loading={loading}
                 size="lg"
@@ -134,10 +136,10 @@ export default function LoginScreen() {
 
               {/* Secondary link */}
               <View style={styles.switchRow}>
-                <Text style={styles.switchText}>Don&apos;t have an account? </Text>
+                <Text style={styles.switchText}>{t.login.noAccount} </Text>
                 <Link href="/(auth)/signup" asChild>
                   <TouchableOpacity activeOpacity={0.7}>
-                    <Text style={styles.switchLink}>Sign Up</Text>
+                    <Text style={styles.switchLink}>{t.common.signUp}</Text>
                   </TouchableOpacity>
                 </Link>
               </View>
