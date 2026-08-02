@@ -1,7 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import {
   Animated,
-  Dimensions,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -17,8 +16,6 @@ import { FontFamily } from '../../constants/theme';
 import StarFieldBackground from '../../components/StarFieldBackground';
 import { track, Events } from '../../lib/analytics';
 
-const { width } = Dimensions.get('window');
-
 const TAGLINES = [
   'Understand your gut.',
   'Find your triggers.',
@@ -31,7 +28,10 @@ const TAGLINE_DISPLAY_MS = 2200;
 const TAGLINE_FADE_MS = 150;
 
 export default function WelcomeScreen() {
-  // Keep import for pattern reference in later screens
+  // useAuth is called here only to match the existing pattern used in later
+  // onboarding screens. The welcome screen itself is only shown when there is
+  // no active session (app/index.tsx guarantees this), so we never redirect
+  // away from here — the user must explicitly choose Create Account or Sign In.
   useAuth();
 
   const [taglineIndex, setTaglineIndex] = useState(0);
@@ -40,15 +40,12 @@ export default function WelcomeScreen() {
 
   useEffect(() => {
     const cycle = () => {
-      // Fade out
       Animated.timing(taglineOpacity, {
         toValue: 0,
         duration: TAGLINE_FADE_MS,
         useNativeDriver: true,
       }).start(() => {
-        // Switch tagline
         setTaglineIndex((prev) => (prev + 1) % TAGLINES.length);
-        // Fade in
         Animated.timing(taglineOpacity, {
           toValue: 1,
           duration: TAGLINE_FADE_MS,
@@ -63,11 +60,18 @@ export default function WelcomeScreen() {
 
     return () => {
       clearTimeout(mountDelay);
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-      }
+      if (intervalRef.current) clearInterval(intervalRef.current);
     };
   }, [taglineOpacity]);
+
+  const handleCreateAccount = () => {
+    track(Events.ONBOARDING_STARTED);
+    router.push('/(onboarding)/features');
+  };
+
+  const handleSignIn = () => {
+    router.push('/(auth)/login');
+  };
 
   return (
     <View style={styles.container}>
@@ -77,13 +81,15 @@ export default function WelcomeScreen() {
 
       {/* Center content */}
       <View style={styles.centerContent}>
-        {/* Logo icon */}
         <View style={styles.iconCircle}>
           <Ionicons name="leaf" size={40} color="#FFFFFF" />
         </View>
 
         {/* App name */}
-        <Text style={styles.appName}>GutWell</Text>
+        <Text style={styles.appName}>GutWell AI</Text>
+
+        {/* Headline — shown only to new / signed-out users */}
+        <Text style={styles.headline}>Welcome to GutWell AI</Text>
 
         {/* Animated tagline */}
         <View style={styles.taglineContainer}>
@@ -93,41 +99,42 @@ export default function WelcomeScreen() {
         </View>
       </View>
 
-      {/* Bottom CTA section */}
-      <View style={styles.bottomSection}>
-        <TouchableOpacity
-          style={styles.primaryButton}
-          onPress={() => {
-            track(Events.ONBOARDING_STARTED);
-            router.push('/(onboarding)/features');
-          }}
-          accessibilityRole="button"
-          accessibilityLabel="Build my gut plan"
-          activeOpacity={0.88}
-        >
-          <Text style={styles.primaryButtonText}>Build My Gut Plan</Text>
-        </TouchableOpacity>
-
-        <View style={styles.signInRow}>
-          <Text style={styles.signInPrompt}>Already have an account? </Text>
+      {/* Bottom CTA — two explicit actions so new users never wonder what to do */}
+      <SafeAreaView edges={['bottom']} style={styles.bottomSafe}>
+        <View style={styles.bottomSection}>
+          {/* Primary: Create Account */}
           <TouchableOpacity
-            onPress={() => router.push('/(auth)/login')}
+            style={styles.primaryButton}
+            onPress={handleCreateAccount}
+            accessibilityRole="button"
+            accessibilityLabel="Create a new GutWell AI account"
+            activeOpacity={0.88}
+          >
+            <Text style={styles.primaryButtonText}>Create Account</Text>
+          </TouchableOpacity>
+
+          {/* Secondary: Sign In — visually distinct, not hidden */}
+          <TouchableOpacity
+            style={styles.secondaryButton}
+            onPress={handleSignIn}
             accessibilityRole="button"
             accessibilityLabel="Sign in to existing account"
-            activeOpacity={0.7}
+            activeOpacity={0.8}
           >
-            <Text style={styles.signInLink}>Sign in</Text>
+            <Text style={styles.secondaryButtonText}>Sign In</Text>
           </TouchableOpacity>
+
+          <Text style={styles.legalNote}>
+            By continuing you agree to our Terms of Service and Privacy Policy.
+          </Text>
         </View>
-      </View>
+      </SafeAreaView>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
+  container: { flex: 1 },
   centerContent: {
     flex: 1,
     justifyContent: 'center',
@@ -146,10 +153,17 @@ const styles = StyleSheet.create({
   },
   appName: {
     fontFamily: FontFamily.displayBold,
-    fontSize: 52,
+    fontSize: 44,
     color: '#FFFFFF',
     marginTop: 16,
     letterSpacing: -0.5,
+  },
+  headline: {
+    fontFamily: FontFamily.sansMedium,
+    fontSize: 16,
+    color: 'rgba(255,255,255,0.55)',
+    marginTop: 6,
+    textAlign: 'center',
   },
   taglineContainer: {
     marginTop: 40,
@@ -163,14 +177,13 @@ const styles = StyleSheet.create({
     color: 'rgba(255,255,255,0.7)',
     textAlign: 'center',
   },
+  bottomSafe: {
+    backgroundColor: 'transparent',
+  },
   bottomSection: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    paddingBottom: 32,
+    paddingBottom: 24,
     paddingHorizontal: 24,
-    gap: 16,
+    gap: 12,
   },
   primaryButton: {
     backgroundColor: '#FFFFFF',
@@ -186,19 +199,27 @@ const styles = StyleSheet.create({
     color: '#0B1F14',
     letterSpacing: -0.3,
   },
-  signInRow: {
-    flexDirection: 'row',
+  secondaryButton: {
+    height: 56,
+    borderRadius: 20,
+    width: '100%',
     justifyContent: 'center',
     alignItems: 'center',
+    borderWidth: 1.5,
+    borderColor: 'rgba(255,255,255,0.25)',
+    backgroundColor: 'rgba(255,255,255,0.06)',
   },
-  signInPrompt: {
-    fontFamily: FontFamily.sansRegular,
-    fontSize: 14,
-    color: 'rgba(255,255,255,0.55)',
-  },
-  signInLink: {
+  secondaryButtonText: {
     fontFamily: FontFamily.sansSemiBold,
-    fontSize: 14,
-    color: '#52B788',
+    fontSize: 17,
+    color: '#FFFFFF',
+    letterSpacing: -0.2,
+  },
+  legalNote: {
+    fontFamily: FontFamily.sansRegular,
+    fontSize: 11,
+    color: 'rgba(255,255,255,0.3)',
+    textAlign: 'center',
+    marginTop: 4,
   },
 });

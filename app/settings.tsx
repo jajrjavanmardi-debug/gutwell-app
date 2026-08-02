@@ -27,6 +27,7 @@ import {
 import { flush, getPendingCount } from '../lib/offline-queue';
 import * as StoreReview from 'expo-store-review';
 import { track, Events } from '../lib/analytics';
+import { loadLanguage, saveLanguage, LANGUAGE_LABELS, type AppLanguage } from '../lib/language';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -275,6 +276,17 @@ export default function SettingsScreen() {
   const [dietModalVisible, setDietModalVisible] = useState(false);
   const [timeModalVisible, setTimeModalVisible] = useState(false);
   const [pendingSyncCount, setPendingSyncCount] = useState(0);
+  const [appLanguage, setAppLanguage] = useState<AppLanguage>('en');
+
+  useEffect(() => {
+    loadLanguage().then(setAppLanguage);
+  }, []);
+
+  const handleLanguageChange = async (lang: AppLanguage) => {
+    await saveLanguage(lang);
+    setAppLanguage(lang);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  };
 
   // Load settings on mount
   useEffect(() => {
@@ -389,7 +401,7 @@ export default function SettingsScreen() {
 
       await Share.share({
         message: JSON.stringify(exportData, null, 2),
-        title: 'GutWell Data Export',
+        title: 'GutWell AI Data Export',
       });
       track(Events.DATA_EXPORTED);
     } catch {
@@ -551,6 +563,31 @@ export default function SettingsScreen() {
           />
         </View>
 
+        {/* LANGUAGE */}
+        <SectionHeader title="Language" />
+        <View style={styles.card}>
+          {(['en', 'de', 'fa'] as AppLanguage[]).map((lang, idx, arr) => (
+            <React.Fragment key={lang}>
+              <SettingsRow
+                icon={appLanguage === lang ? 'radio-button-on-outline' : 'radio-button-off-outline'}
+                label={LANGUAGE_LABELS[lang]}
+                onPress={() => handleLanguageChange(lang)}
+                isFirst={idx === 0}
+                isLast={idx === arr.length - 1}
+                right={
+                  appLanguage === lang ? (
+                    <Ionicons name="checkmark" size={18} color={Colors.secondary} />
+                  ) : undefined
+                }
+              />
+              {idx < arr.length - 1 && <Divider />}
+            </React.Fragment>
+          ))}
+        </View>
+        <Text style={styles.languageNote}>
+          Language affects AI responses in Photo Analysis. Reopen Photo Analysis after changing.
+        </Text>
+
         {/* ACCOUNT */}
         <SectionHeader title="Account" />
         <View style={styles.card}>
@@ -647,6 +684,14 @@ const styles = StyleSheet.create({
   },
 
   // Section Header
+  languageNote: {
+    fontFamily: FontFamily.sansRegular,
+    fontSize: FontSize.xs,
+    color: Colors.textSecondary,
+    paddingHorizontal: Spacing.md,
+    paddingBottom: Spacing.sm,
+    textAlign: 'center',
+  },
   sectionHeader: {
     fontFamily: FontFamily.sansSemiBold,
     fontSize: FontSize.sm,

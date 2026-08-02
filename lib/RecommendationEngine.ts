@@ -40,7 +40,7 @@ export type FoodNutrition = {
 };
 
 export type MealPhotoAnalysisContext = {
-  preferredLanguage?: 'en' | 'de';
+  preferredLanguage?: 'en' | 'de' | 'fa';
   gutScore?: number;
   conditions?: string[];
   symptoms?: string[];
@@ -59,7 +59,7 @@ export type MealPhotoAnalysisContext = {
 };
 
 export type MealCorrectionContext = {
-  preferredLanguage?: 'en' | 'de';
+  preferredLanguage?: 'en' | 'de' | 'fa';
   previousAnalysis: string;
   correction: string;
   gutScore?: number;

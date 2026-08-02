@@ -44,13 +44,14 @@ import {
 import { getRecentSupplements, type SupplementHistoryItem } from '../lib/supplement-history';
 import { supabase } from '../lib/supabase';
 import { track, Events } from '../lib/analytics';
+import { loadLanguage, saveLanguage, type AppLanguage as StoredAppLanguage } from '../lib/language';
 import {
   getTriggerMemories,
   recordTriggerFeedback,
   type TriggerFeedbackItem,
 } from '../lib/user-progress';
 
-type AppLanguage = 'en' | 'de';
+type AppLanguage = 'en' | 'de' | 'fa';
 type WizardStep = 1 | 2 | 3;
 const APP_LANGUAGE_STORAGE_KEY = 'gutwell_app_language';
 /** Shows the 4-slide scan tutorial only on the user's first visit to this screen. */
@@ -224,8 +225,8 @@ const copy = {
     feelingsRequiredMessage: 'Bitte per Sprache oder Text beschreiben, wie du dich fühlst (und optional das Essen)—danach „Analyse erstellen“.',
     share: 'Ergebnis teilen',
     scoreLabel: 'Mahlzeiten-Score',
-    shareTitle: 'Meine GutWell-Mahlzeitenanalyse',
-    snapshotHeading: 'GutWell Mahlzeiten-Snapshot',
+    shareTitle: 'Mein GutWell AI Mahlzeiten-Snapshot',
+    snapshotHeading: 'GutWell AI Mahlzeiten-Snapshot',
     shareErrorTitle: 'Teilen nicht verfügbar',
     shareErrorMessage: 'Teilen kann gerade nicht geöffnet werden.',
     copyResult: 'Vollständiges Ergebnis kopieren',
@@ -299,6 +300,123 @@ const copy = {
     },
     expoGoTextOnlyHint:
       'Expo Go (Entwicklung): Halten-zum-Sprechen ist aus. Beschreib Mahlzeit und Befinden im Textfeld — Analyse, Nürtingen-Hinweise und der 4-Schritte-Ablauf bleiben aktiv.',
+  },
+  fa: {
+    back: 'بازگشت',
+    title: 'تحلیل عکس',
+    wizardStep1Subtitle: 'مرحله ۱ از ۳ — گرفتن عکس',
+    wizardStep2Subtitle: 'مرحله ۲ از ۳ — توضیح',
+    wizardStep3Subtitle: 'مرحله ۳ از ۳ — تحلیل',
+    wizardStep4Hint: 'بررسی نهایی',
+    wizardNext: 'بعدی',
+    changePhoto: 'تغییر عکس',
+    step2Prompt: 'این غذا چیست؟ حالت چطور است؟',
+    generateAnalysis: 'ایجاد تحلیل',
+    isThisAccurate: 'آیا این درست است؟',
+    yes: 'بله',
+    no: 'خیر',
+    correctionPlaceholder: 'چه چیزی را باید اصلاح کنیم؟',
+    applyCorrection: 'اعمال اصلاح',
+    recommendationUnchanged: 'توصیه تغییری نکرد.',
+    subtitle: 'چهار مرحله: عکس، توضیح با صدا یا متن، بررسی تحلیل، تأیید دقت.',
+    profileContextPrefix: 'شخصی‌سازی شده برای ',
+    profileContextEmpty: 'توصیه‌های عمومی روده — چک‌این‌ها پروفایل را کامل می‌کنند',
+    profileContextScore: 'امتیاز روده',
+    findingLocation: 'در حال یافتن گزینه‌های غذایی محلی...',
+    usingLocation: 'زمینه محلی:',
+    locationOptIn: 'برای پیشنهادات غذایی محلی بزنید (از موقعیت تقریبی استفاده می‌کند)',
+    takePhoto: 'گرفتن عکس',
+    takePhotoText: 'دوربین را باز می‌کند. وقتی عکس مناسب بود، بعدی را بزنید.',
+    chooseGallery: 'انتخاب از گالری',
+    chooseGalleryText: 'یک عکس غذا انتخاب کنید، سپس بعدی را بزنید.',
+    analyzing: 'عکس و یادداشت‌ها با پروفایل روده‌تان تحلیل می‌شوند...',
+    analyzingBrand: 'GutWell AI',
+    resultTitle: 'توصیه شخصی‌سازی‌شده روده',
+    symptomsLabel: 'علائم و یادداشت‌ها',
+    symptomsPlaceholder: 'قبل از عکس به‌صورت اختیاری علائم را بنویسید؛ بعد از عکس احساستان را توضیح دهید.',
+    howYouFeelLabel: 'این چیست و حالتان چطور است؟',
+    howYouFeelPlaceholder: 'مثلاً: این سوپ عدس است — احساس نفخ می‌کنم.',
+    photoCapturedPrompt: 'عکس ذخیره شد! صحبت کنید یا بنویسید که چه احساسی دارید.',
+    analyzeCombined: 'تحلیل وعده غذایی',
+    feelingsRequiredTitle: 'ابتدا وعده را توضیح دهید',
+    feelingsRequiredMessage: 'لطفاً با صدا یا متن توضیح دهید که چه احساسی دارید — سپس «ایجاد تحلیل» را بزنید.',
+    share: 'اشتراک‌گذاری نتیجه',
+    scoreLabel: 'امتیاز وعده',
+    shareTitle: 'تحلیل وعده غذایی GutWell AI من',
+    snapshotHeading: 'اسنپ‌شات وعده GutWell AI',
+    shareErrorTitle: 'اشتراک‌گذاری در دسترس نیست',
+    shareErrorMessage: 'در حال حاضر امکان اشتراک‌گذاری وجود ندارد.',
+    copyResult: 'کپی کردن نتیجه کامل',
+    copiedToast: 'تحلیل در کلیپ‌بورد کپی شد.',
+    nothingToShareMessage: 'لطفاً ابتدا یک تحلیل ایجاد کنید.',
+    disagree: 'این به بدنم خوب نبود',
+    planBTitle: 'پلن B',
+    planBText: 'متأسفم که این توصیه مناسب نبود. آن را به‌عنوان محرک ذخیره کردم. پلن B ایمن: این غذا را موقتاً کنار بگذارید، چای زنجبیل یا نعناع بنوشید، هیدراته بمانید و فعلاً چیز ساده‌ای مثل برنج، موز یا سوپ بخورید.',
+    instantReliefTitle: 'نکات آرامش‌بخش ملایم',
+    instantReliefText: 'کمپرس گرم روی شکم، تنفس عمیق آرام، نوشیدن آب به‌آهستگی و استراحت می‌توانند کمک کنند. غذای مشکوک را موقتاً کنار بگذارید. در صورت درد شدید، افزایش‌یابنده، مداوم یا غیرمعمول، فوراً به پزشک مراجعه کنید.',
+    painApology: 'متأسفم که این غذا ممکن است مناسب نبوده باشد. بیایید اول به پلن B امن‌تر برویم.',
+    medicalDisclaimer:
+      'نکته مهم: این تحلیل فقط جنبه اطلاعاتی دارد و جایگزین تشخیص پزشکی نمی‌شود. در صورت بروز علائم شدید، به پزشک مراجعه کنید.',
+    chatPlaceholder: 'اصلاح کنید یا جزئیات اضافه کنید...',
+    send: 'ارسال',
+    newScan: 'اسکن جدید',
+    voiceUnavailableTitle: 'صدا در دسترس نیست',
+    voiceUnavailableMessage:
+      'تشخیص گفتار شروع نشد. می‌توانید تایپ کنید. مجوز میکروفون و تشخیص گفتار را بررسی کنید.',
+    microphoneDisabledToast:
+      'میکروفون غیرفعال است. لطفاً مجوز میکروفون را در تنظیمات تلفن فعال کنید (تنظیمات > GutWell AI > میکروفون).',
+    voiceInputA11yLabel: 'ورودی صوتی',
+    voiceInputA11yHint: 'نگه‌دارید برای ضبط؛ رها کنید برای پایان.',
+    correcting: 'تحلیل با اصلاح شما به‌روز می‌شود...',
+    recording: 'در حال ضبط...',
+    photoAnalysisFailedTitle: 'تحلیل عکس ناموفق بود',
+    photoAnalysisFailedTryAgain: 'لطفاً دوباره امتحان کنید.',
+    photoUnavailableTitle: 'عکس در دسترس نیست',
+    photoUnavailableMessage: 'داده‌های عکس قابل خواندن نبودند. لطفاً دوباره امتحان کنید.',
+    cameraNeededTitle: 'دسترسی به دوربین لازم است',
+    cameraNeededMessage: 'لطفاً اجازه دسترسی به دوربین را برای عکس‌گیری از وعده بدهید.',
+    cameraUnavailableTitle: 'دوربین در دسترس نیست',
+    cameraUnavailableMessage: 'دوربین روی این دستگاه در دسترس نیست. لطفاً عکسی از گالری انتخاب کنید.',
+    libraryNeededTitle: 'دسترسی به کتابخانه عکس لازم است',
+    libraryNeededMessage: 'لطفاً اجازه دسترسی به کتابخانه عکس را برای انتخاب تصویر بدهید.',
+    correctionFailedTitle: 'اصلاح ناموفق بود',
+    correctionFailedTryAgain: 'لطفاً دوباره امتحان کنید.',
+    logMeal: 'ذخیره وعده',
+    logMealSuccess: 'وعده ذخیره شد!',
+    logMealFailed: 'ذخیره وعده ناموفق بود',
+    logMealOffline: 'آفلاین ذخیره شد — همگام‌سازی با اتصال انجام می‌شود',
+    loginRequired: 'لطفاً برای ذخیره وعده‌ها وارد شوید.',
+    pendingScore: 'در انتظار',
+    photoMealDefault: 'وعده (عکس)',
+    insightsHeading: 'بینش‌های روده',
+    addMore: 'افزودن بیشتر',
+    fixResults: 'اصلاح نتایج',
+    done: 'انجام شد',
+    chipGutImpact: 'تأثیر روده',
+    chipMealType: 'وعده',
+    contextSectionLabel: 'شخصی‌سازی این تحلیل',
+    currentStateLabel: 'الان چه احساسی دارید؟',
+    afterActivityLabel: 'بعد از غذا چه برنامه‌ای دارید؟',
+    stateOptions: {
+      fine: 'حالم خوب است',
+      bloating: 'نفخ',
+      pain: 'دل‌درد',
+      lowEnergy: 'انرژی کم',
+      nausea: 'حالت تهوع',
+      reflux: 'رفلاکس',
+    },
+    activityOptions: {
+      rest: 'استراحت',
+      work: 'کار یا مطالعه',
+      driving: 'رانندگی',
+      walking: 'پیاده‌روی',
+      exercise: 'ورزش',
+      competition: 'مسابقه',
+      sleep: 'خواب',
+      social: 'رویداد اجتماعی',
+    },
+    expoGoTextOnlyHint:
+      'Expo Go (توسعه): ضبط صوتی غیرفعال است. وعده و احساستان را در فیلد متن توضیح دهید — تحلیل و جریان ۴ مرحله‌ای همچنان فعال است.',
   },
 } as const;
 
@@ -468,10 +586,11 @@ function hasPainText(value: string): boolean {
 }
 
 function getVoiceLocale(language: AppLanguage): string {
-  return {
+  return ({
     en: 'en-US',
     de: 'de-DE',
-  }[language];
+    fa: 'fa-IR',
+  } as Record<AppLanguage, string>)[language] ?? 'en-US';
 }
 
 function getCorrectionLanguage(correction: string, currentLanguage: AppLanguage): AppLanguage {
@@ -499,6 +618,11 @@ export default function PhotoAnalysisScreen() {
   const [retailLocationHint, setRetailLocationHint] = useState('');
   const [isLocationLoading, setIsLocationLoading] = useState(true);
   const [language, setLanguage] = useState<AppLanguage>('en');
+
+  // Load persisted language preference on mount
+  useEffect(() => {
+    loadLanguage().then((lang) => setLanguage(lang as AppLanguage));
+  }, []);
   /** Pre-analyze field: what the meal is + how the user feels (voice or text). */
   const [wizardStep, setWizardStep] = useState<WizardStep>(1);
   const [accuracyAnswer, setAccuracyAnswer] = useState<'yes' | 'no' | null>(null);
@@ -506,7 +630,7 @@ export default function PhotoAnalysisScreen() {
   const [mealDescription, setMealDescription] = useState('');
   const [currentStateContext, setCurrentStateContext] = useState<string | null>(null);
   const [afterMealActivity, setAfterMealActivity] = useState<string | null>(null);
-  const [contextExpanded, setContextExpanded] = useState(false);
+  const [contextExpanded, setContextExpanded] = useState(true);
   /** Corrections the user submitted this session (typed or sent after voice); fed to revise prompts as prior context. */
   const [userFeedback, setUserFeedback] = useState<string[]>([]);
   const [todaysSupplements, setTodaysSupplements] = useState<SupplementHistoryItem[]>([]);
@@ -598,11 +722,11 @@ export default function PhotoAnalysisScreen() {
   const [showTutorial, setShowTutorial] = useState<boolean | null>(null);
   // UI chrome has EN/DE translations; Persian users get English chrome while
   // the AI analysis itself responds in Persian (server prompt handles fa).
-  const t = copy[language === 'de' ? 'de' : 'en'];
+  const t = copy[language === 'de' ? 'de' : language === 'fa' ? 'fa' : 'en'];
   /** Dev client / standalone only — Expo Go has no custom native STT modules. */
   const voiceNativeEnabled = canUseNativeSpeechToText();
   // No RTL languages are supported (English + German only); kept for styling call sites.
-  const isRtlLanguage = false;
+  const isRtlLanguage = language === 'fa';
   const userEnteredSymptoms = mealDescription
       .split(/[,\n]+/)
       .map((symptom) => symptom.trim())

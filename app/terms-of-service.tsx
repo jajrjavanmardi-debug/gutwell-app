@@ -108,7 +108,7 @@ export default function TermsOfServiceScreen() {
             Singapore
           </Text>
           <Text style={styles.contactText}>
-            support@gutwell.app
+            support@getgutwell.app
           </Text>
         </View>
       </ScrollView>

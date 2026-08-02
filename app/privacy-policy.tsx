@@ -37,7 +37,7 @@ const SECTIONS: SectionData[] = [
   },
   {
     title: '7. Contact',
-    body: 'GutWell is operated by GutWell. For privacy-related questions, contact us at support@gutwell.app.',
+    body: 'GutWell is operated by GutWell. For privacy-related questions, contact us at support@getgutwell.app.',
   },
 ];
 
@@ -100,7 +100,7 @@ export default function PrivacyPolicyScreen() {
           <Ionicons name="mail-outline" size={20} color={Colors.textSecondary} />
           <Text style={styles.contactText}>
             Questions? Reach us at{' '}
-            <Text style={styles.contactEmail}>support@gutwell.app</Text>
+            <Text style={styles.contactEmail}>support@getgutwell.app</Text>
           </Text>
         </View>
       </ScrollView>
