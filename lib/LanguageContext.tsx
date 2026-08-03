@@ -5,12 +5,15 @@
  * Wrap the app root with <LanguageProvider> so useTranslation() works
  * everywhere without prop-drilling.
  *
- * Phase 2B/2C: import useLanguage() in each screen to read/set language.
+ * Import useLanguage() in any screen to read or set the language.
+ *
+ * Supported languages are English and German. The initial value is resolved
+ * once by loadLanguage(), which applies the device-locale default and migrates
+ * legacy stored values to English.
  */
 
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { loadLanguage, saveLanguage } from './language';
-import type { AppLanguage } from './i18n';
+import { loadLanguage, saveLanguage, type AppLanguage } from './language';
 
 type LanguageContextType = {
   language: AppLanguage;

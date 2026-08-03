@@ -28,7 +28,8 @@ import { flush, getPendingCount } from '../lib/offline-queue';
 import * as StoreReview from 'expo-store-review';
 import { track, Events } from '../lib/analytics';
 import { useTranslation } from '../lib/i18n';
-import { loadLanguage, saveLanguage, LANGUAGE_LABELS, type AppLanguage } from '../lib/language';
+import { LANGUAGE_LABELS, SUPPORTED_LANGUAGES, type AppLanguage } from '../lib/language';
+import { useLanguage } from '../lib/LanguageContext';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -230,7 +231,7 @@ function TimePickerModal({
             </View>
             {/* Minute */}
             <View style={styles.timeColumn}>
-              <Text style={styles.timeColumnLabel}>Min</Text>
+              <Text style={styles.timeColumnLabel}>{t.settings.minute}</Text>
               <ScrollView style={styles.timeScroll} showsVerticalScrollIndicator={false}>
                 {MINUTE_OPTIONS.map((m) => (
                   <TouchableOpacity
@@ -279,15 +280,12 @@ export default function SettingsScreen() {
   const [dietModalVisible, setDietModalVisible] = useState(false);
   const [timeModalVisible, setTimeModalVisible] = useState(false);
   const [pendingSyncCount, setPendingSyncCount] = useState(0);
-  const [appLanguage, setAppLanguage] = useState<AppLanguage>('en');
-
-  useEffect(() => {
-    loadLanguage().then(setAppLanguage);
-  }, []);
+  // Language lives in LanguageContext so a change re-renders the whole app
+  // immediately, not just this screen. The context also persists the choice.
+  const { language: appLanguage, setLanguage } = useLanguage();
 
   const handleLanguageChange = async (lang: AppLanguage) => {
-    await saveLanguage(lang);
-    setAppLanguage(lang);
+    await setLanguage(lang);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   };
 
@@ -480,7 +478,7 @@ export default function SettingsScreen() {
         <View style={styles.card}>
           <SettingsRow
             icon="leaf-outline"
-            label="Diet Type"
+            label={t.settings.dietType}
             subtitle={settings.dietType}
             onPress={openDietPicker}
             isFirst
@@ -492,7 +490,7 @@ export default function SettingsScreen() {
         <View style={styles.card}>
           <SettingsRow
             icon="alarm-outline"
-            label="Daily Reminder"
+            label={t.settings.dailyReminder}
             right={
               <Switch
                 value={settings.dailyReminderEnabled}
@@ -507,7 +505,7 @@ export default function SettingsScreen() {
           <Divider />
           <SettingsRow
             icon="flame-outline"
-            label="Streak Alerts"
+            label={t.settings.streakAlerts}
             subtitle="8 PM reminder when streak is at risk"
             right={
               <Switch
@@ -525,7 +523,7 @@ export default function SettingsScreen() {
               <Divider />
               <SettingsRow
                 icon="time-outline"
-                label="Reminder Time"
+                label={t.settings.reminderTime}
                 subtitle={formatTime(settings.reminderHour, settings.reminderMinute)}
                 onPress={() => setTimeModalVisible(true)}
                 isLast
@@ -541,7 +539,7 @@ export default function SettingsScreen() {
             <>
               <SettingsRow
                 icon="cloud-upload-outline"
-                label="Waiting to sync"
+                label={t.settings.syncNow}
                 subtitle={`${pendingSyncCount} ${pendingSyncCount === 1 ? 'entry' : 'entries'} saved offline — tap to sync now`}
                 onPress={handleSyncNow}
                 isFirst
@@ -552,14 +550,14 @@ export default function SettingsScreen() {
           <SettingsRow
             icon="download-outline"
             label={t.settings.exportMyData}
-            subtitle="Download all your records as JSON"
+            subtitle={t.settings.exportSubtitle}
             onPress={handleExportData}
             isFirst={pendingSyncCount === 0}
           />
           <Divider />
           <SettingsRow
             icon="trash-outline"
-            label="Clear All Data"
+            label={t.settings.clearAllData}
             onPress={handleClearData}
             destructive
             isLast
@@ -569,7 +567,7 @@ export default function SettingsScreen() {
         {/* LANGUAGE */}
         <SectionHeader title={t.settings.sectionLanguage} />
         <View style={styles.card}>
-          {(['en', 'de', 'fa'] as AppLanguage[]).map((lang, idx, arr) => (
+          {SUPPORTED_LANGUAGES.map((lang, idx, arr) => (
             <React.Fragment key={lang}>
               <SettingsRow
                 icon={appLanguage === lang ? 'radio-button-on-outline' : 'radio-button-off-outline'}
@@ -588,7 +586,7 @@ export default function SettingsScreen() {
           ))}
         </View>
         <Text style={styles.languageNote}>
-          Language affects AI responses in Photo Analysis. Reopen Photo Analysis after changing.
+          {t.settings.languageNote}
         </Text>
 
         {/* ACCOUNT */}
@@ -596,7 +594,7 @@ export default function SettingsScreen() {
         <View style={styles.card}>
           <SettingsRow
             icon="lock-closed-outline"
-            label="Change Password"
+            label={t.settings.changePassword}
             onPress={() => router.push('/change-password')}
             isFirst
             isLast
@@ -608,20 +606,20 @@ export default function SettingsScreen() {
         <View style={styles.card}>
           <SettingsRow
             icon="information-circle-outline"
-            label="App Version"
+            label={t.settings.appVersion}
             right={<Text style={styles.versionText}>1.0.0</Text>}
             isFirst
           />
           <Divider />
           <SettingsRow
             icon="shield-checkmark-outline"
-            label="Privacy Policy"
+            label={t.settings.privacyPolicy}
             onPress={() => router.push('/privacy-policy')}
           />
           <Divider />
           <SettingsRow
             icon="star-outline"
-            label="Rate GutWell"
+            label={t.settings.rateApp}
             onPress={handleRateApp}
             isLast
           />

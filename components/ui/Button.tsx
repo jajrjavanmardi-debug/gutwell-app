@@ -27,6 +27,9 @@ type Props = {
   icon?: React.ReactNode;
   style?: ViewStyle;
   textStyle?: TextStyle;
+  /** Overrides the spoken label. Falls back to `title`, which is not rendered
+   *  while loading, so screen readers would otherwise announce nothing. */
+  accessibilityLabel?: string;
 };
 
 export function Button({
@@ -41,6 +44,7 @@ export function Button({
   icon,
   style,
   textStyle: textStyleOverride,
+  accessibilityLabel,
 }: Props) {
   const scaleAnim = useRef(new Animated.Value(1)).current;
 
@@ -87,6 +91,9 @@ export function Button({
         onPressOut={handlePressOut}
         disabled={disabled || loading}
         activeOpacity={0.85}
+        accessibilityRole="button"
+        accessibilityLabel={accessibilityLabel ?? title}
+        accessibilityState={{ disabled: disabled || loading, busy: loading }}
       >
         {loading ? (
           <ActivityIndicator

@@ -17,9 +17,9 @@ import StarFieldBackground from '../../components/StarFieldBackground';
 import { track, Events } from '../../lib/analytics';
 import { useTranslation } from '../../lib/i18n';
 
-// Taglines now come from i18n t.welcome.taglines
-
-const TAGLINE_DISPLAY_MS = 2200;
+// Taglines come from i18n (t.welcome.taglines) and cycle in the authored order.
+// Display + both fades land each message at ~2.8s, inside the 2.5–3s target.
+const TAGLINE_DISPLAY_MS = 2500;
 const TAGLINE_FADE_MS = 150;
 
 export default function WelcomeScreen() {
@@ -41,7 +41,7 @@ export default function WelcomeScreen() {
         duration: TAGLINE_FADE_MS,
         useNativeDriver: true,
       }).start(() => {
-        setTaglineIndex((prev) => (prev + 1) % (t.welcome.taglines.length || 5));
+        setTaglineIndex((prev) => (prev + 1) % (t.welcome.taglines.length || 1));
         Animated.timing(taglineOpacity, {
           toValue: 1,
           duration: TAGLINE_FADE_MS,
@@ -120,8 +120,31 @@ export default function WelcomeScreen() {
             <Text style={styles.secondaryButtonText}>{t.welcome.signIn}</Text>
           </TouchableOpacity>
 
+          {/* Terms and Privacy are tappable; the surrounding words are not.
+              Routes are unchanged — both are existing modal screens. */}
           <Text style={styles.legalNote}>
-            {t.welcome.legalNote}
+            {t.welcome.legalPrefix}{' '}
+            <Text
+              style={styles.legalLink}
+              onPress={() => router.push('/terms-of-service')}
+              accessibilityRole="link"
+              accessibilityLabel={t.welcome.accessTerms}
+              suppressHighlighting
+            >
+              {t.welcome.legalTerms}
+            </Text>{' '}
+            {t.welcome.legalAnd}{' '}
+            <Text
+              style={styles.legalLink}
+              onPress={() => router.push('/privacy-policy')}
+              accessibilityRole="link"
+              accessibilityLabel={t.welcome.accessPrivacy}
+              suppressHighlighting
+            >
+              {t.welcome.legalPrivacy}
+            </Text>
+            {t.welcome.legalSuffix === '.' ? '' : ' '}
+            {t.welcome.legalSuffix}
           </Text>
         </View>
       </SafeAreaView>
@@ -217,5 +240,11 @@ const styles = StyleSheet.create({
     color: 'rgba(255,255,255,0.3)',
     textAlign: 'center',
     marginTop: 4,
+    lineHeight: 16,
+  },
+  legalLink: {
+    fontFamily: FontFamily.sansSemiBold,
+    color: 'rgba(255,255,255,0.7)',
+    textDecorationLine: 'underline',
   },
 });

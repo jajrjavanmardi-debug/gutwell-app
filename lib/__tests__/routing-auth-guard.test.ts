@@ -1,100 +1,109 @@
 /**
- * Routing auth guard logic tests.
+ * Routing decision tests.
  *
- * These test the DECISION LOGIC extracted from _layout.tsx and index.tsx —
- * not the React components themselves (which require a full RN environment).
- *
- * Rules verified:
- *  1. No session + in (tabs)      → redirect to welcome
- *  2. No session + in (auth)      → no redirect (stay in auth)
- *  3. No session + in (onboarding)→ no redirect (stay in onboarding)
- *  4. Session + onboarding done   → stay in tabs
- *  5. Session + onboarding not done → redirect to questions
- *  6. No session (cold start)     → redirect to welcome (index.tsx)
+ * These import the SAME functions app/_layout.tsx and app/index.tsx use
+ * (lib/routing.ts), so a regression in the shipped routing rules fails here.
+ * An earlier version of this file re-implemented the rules locally, which
+ * meant it could pass while the app itself was broken.
  */
 
-type Segment = string;
+import { authGuardDecision, indexDecision, PROTECTED_SEGMENTS } from '../routing';
 
-function authGuardDecision(
-  session: boolean,
-  loading: boolean,
-  segments: Segment[],
-): 'welcome' | 'stay' {
-  if (loading) return 'stay';
-  const PROTECTED = ['(tabs)', 'photo-analysis', 'food-history', 'weekly-digest',
-    'settings', 'log-symptom', 'reminders', 'edit-checkin', 'paywall'];
-  const inProtected = PROTECTED.includes(segments[0] ?? '');
-  if (!session && inProtected) return 'welcome';
-  return 'stay';
-}
-
-function indexDecision(
-  session: boolean,
-  loading: boolean,
-  onboardingCompleted: boolean | null,
-): '(onboarding)/welcome' | '(onboarding)/questions' | '(tabs)' | 'loading' {
-  if (loading) return 'loading';
-  if (!session) return '(onboarding)/welcome';
-  if (onboardingCompleted === false) return '(onboarding)/questions';
-  return '(tabs)';
-}
-
-describe('authGuardDecision', () => {
-  test('unauthenticated + in tabs → welcome', () => {
-    expect(authGuardDecision(false, false, ['(tabs)'])).toBe('welcome');
+describe('authGuardDecision (_layout.tsx guard)', () => {
+  test('stays put while auth is still loading', () => {
+    expect(authGuardDecision({ session: false, loading: true, segments: ['(tabs)'] })).toBe('stay');
   });
 
-  test('unauthenticated + in photo-analysis → welcome', () => {
-    expect(authGuardDecision(false, false, ['photo-analysis'])).toBe('welcome');
+  test('sends an unauthenticated user out of every protected screen', () => {
+    for (const segment of PROTECTED_SEGMENTS) {
+      expect(authGuardDecision({ session: false, loading: false, segments: [segment] })).toBe(
+        'welcome'
+      );
+    }
   });
 
-  test('unauthenticated + in (auth) → stay', () => {
-    expect(authGuardDecision(false, false, ['(auth)'])).toBe('stay');
+  test('leaves an unauthenticated user alone in (auth)', () => {
+    expect(
+      authGuardDecision({ session: false, loading: false, segments: ['(auth)', 'login'] })
+    ).toBe('stay');
   });
 
-  test('unauthenticated + in (onboarding) → stay', () => {
-    expect(authGuardDecision(false, false, ['(onboarding)'])).toBe('stay');
+  test('leaves an unauthenticated user alone in (onboarding) — Welcome stays reachable', () => {
+    expect(
+      authGuardDecision({ session: false, loading: false, segments: ['(onboarding)', 'welcome'] })
+    ).toBe('stay');
   });
 
-  test('authenticated + in tabs → stay', () => {
-    expect(authGuardDecision(true, false, ['(tabs)'])).toBe('stay');
+  test('restores a valid session into tabs without redirecting', () => {
+    expect(authGuardDecision({ session: true, loading: false, segments: ['(tabs)'] })).toBe('stay');
   });
 
-  test('loading → stay (no redirect while auth resolves)', () => {
-    expect(authGuardDecision(false, true, ['(tabs)'])).toBe('stay');
+  test('pins a password-recovery session to the New Password screen', () => {
+    expect(
+      authGuardDecision({
+        session: true,
+        loading: false,
+        segments: ['(tabs)'],
+        passwordRecovery: true,
+      })
+    ).toBe('reset-password');
   });
 
-  test('unauthenticated + settings → welcome', () => {
-    expect(authGuardDecision(false, false, ['settings'])).toBe('welcome');
+  test('lets a password-recovery session stay on the New Password screen', () => {
+    expect(
+      authGuardDecision({
+        session: true,
+        loading: false,
+        segments: ['(auth)', 'reset-password'],
+        passwordRecovery: true,
+      })
+    ).toBe('stay');
   });
 
-  test('unauthenticated + paywall → welcome', () => {
-    expect(authGuardDecision(false, false, ['paywall'])).toBe('welcome');
+  test('does not redirect on an empty segment list', () => {
+    expect(authGuardDecision({ session: false, loading: false, segments: [] })).toBe('stay');
   });
 });
 
-describe('indexDecision', () => {
-  test('fresh install (no session) → welcome', () => {
-    expect(indexDecision(false, false, false)).toBe('(onboarding)/welcome');
+describe('indexDecision (app entry)', () => {
+  test('waits while loading', () => {
+    expect(indexDecision({ session: false, loading: true, onboardingCompleted: null })).toBe(
+      'loading'
+    );
   });
 
-  test('fresh install (no session, null profile) → welcome', () => {
-    expect(indexDecision(false, false, null)).toBe('(onboarding)/welcome');
+  test('sends an unauthenticated cold start to Welcome', () => {
+    expect(indexDecision({ session: false, loading: false, onboardingCompleted: null })).toBe(
+      '(onboarding)/welcome'
+    );
   });
 
-  test('session + onboarding done → tabs', () => {
-    expect(indexDecision(true, false, true)).toBe('(tabs)');
+  test('resumes onboarding when the profile says it is incomplete', () => {
+    expect(indexDecision({ session: true, loading: false, onboardingCompleted: false })).toBe(
+      '(onboarding)/questions'
+    );
   });
 
-  test('session + onboarding not done → questions', () => {
-    expect(indexDecision(true, false, false)).toBe('(onboarding)/questions');
+  test('restores a valid, onboarded session into tabs', () => {
+    expect(indexDecision({ session: true, loading: false, onboardingCompleted: true })).toBe(
+      '(tabs)'
+    );
   });
 
-  test('session + profile not yet loaded → tabs (never strand)', () => {
-    expect(indexDecision(true, false, null)).toBe('(tabs)');
+  test('lets a session in without a loaded profile rather than stranding it', () => {
+    expect(indexDecision({ session: true, loading: false, onboardingCompleted: null })).toBe(
+      '(tabs)'
+    );
   });
 
-  test('loading → loading (spinner)', () => {
-    expect(indexDecision(false, true, null)).toBe('loading');
+  test('routes a password-recovery session to the New Password screen, not the app', () => {
+    expect(
+      indexDecision({
+        session: true,
+        loading: false,
+        onboardingCompleted: true,
+        passwordRecovery: true,
+      })
+    ).toBe('(auth)/reset-password');
   });
 });

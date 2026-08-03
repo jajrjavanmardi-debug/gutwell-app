@@ -57,7 +57,7 @@ const CHANGE_WINDOWS_DAYS: (number | null)[] = [3, 7, 14, 30, 90, null];
 export default function ProgressScreen() {
   const t = useTranslation();
   const CHANGE_WINDOWS: ChangeWindow[] = [
-    { label: '3 ' + t.progress.windowLabels['7'].replace('7', '3').replace('۷', '۳'), days: 3 },
+    { label: t.progress.windowLabels['3'], days: 3 },
     { label: t.progress.windowLabels['7'], days: 7 },
     { label: t.progress.windowLabels['14'], days: 14 },
     { label: t.progress.windowLabels['30'], days: 30 },

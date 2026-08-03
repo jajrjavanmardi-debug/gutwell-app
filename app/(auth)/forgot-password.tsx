@@ -28,18 +28,30 @@ export default function ForgotPasswordScreen() {
   const [toast, setToast] = useState({ visible: false, message: '', type: 'info' as 'success' | 'error' | 'info' });
 
   const handleReset = async () => {
-    if (!email) {
+    const trimmed = email.trim();
+    if (!trimmed) {
       setToast({ visible: true, message: t.forgotPassword.fillEmail, type: 'error' });
       return;
     }
-    setLoading(true);
-    const { error } = await resetPassword(email.trim());
-    setLoading(false);
-    if (error) {
-      setToast({ visible: true, message: error.message, type: 'error' });
-    } else {
-      setToast({ visible: true, message: t.forgotPassword.successMessage, type: 'success' });
+    if (!/^\S+@\S+\.\S+$/.test(trimmed)) {
+      setToast({ visible: true, message: t.forgotPassword.invalidEmail, type: 'error' });
+      return;
     }
+
+    setLoading(true);
+    const { error } = await resetPassword(trimmed);
+    setLoading(false);
+
+    if (error) {
+      // Show a safe, localized message. The raw Supabase error is never
+      // surfaced: it can distinguish a real account from an unknown one and
+      // may echo request details back to the user.
+      setToast({ visible: true, message: t.forgotPassword.errorMessage, type: 'error' });
+      return;
+    }
+
+    // Privacy-safe: this wording does not confirm whether an account exists.
+    setToast({ visible: true, message: t.forgotPassword.successMessage, type: 'success' });
   };
 
   return (

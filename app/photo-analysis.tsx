@@ -44,7 +44,8 @@ import {
 import { getRecentSupplements, type SupplementHistoryItem } from '../lib/supplement-history';
 import { supabase } from '../lib/supabase';
 import { track, Events } from '../lib/analytics';
-import { loadLanguage, saveLanguage, type AppLanguage as StoredAppLanguage } from '../lib/language';
+import type { AppLanguage } from '../lib/language';
+import { useLanguage } from '../lib/LanguageContext';
 import { useTranslation } from '../lib/i18n';
 import {
   getTriggerMemories,
@@ -52,9 +53,7 @@ import {
   type TriggerFeedbackItem,
 } from '../lib/user-progress';
 
-type AppLanguage = 'en' | 'de' | 'fa';
 type WizardStep = 1 | 2 | 3;
-const APP_LANGUAGE_STORAGE_KEY = 'gutwell_app_language';
 /** Shows the 4-slide scan tutorial only on the user's first visit to this screen. */
 const SCAN_TUTORIAL_SEEN_KEY = 'gutwell_scan_tutorial_seen';
 /** When set to `Germany`, skips GPS and fixes AI context to Nürtingen (dev/testing only). */
@@ -162,21 +161,17 @@ function sanitizeMealScoring(text: string): string {
   const lines = text.split('\n');
   const result: string[] = [];
   const scoreSectionHeadings = [
-    /^##?\s*برآورد تناسب وعده/,
     /^##?\s*Meal Fit Estimate/i,
     /^##?\s*Orientierende Mahlzeiten-Einschätzung/i,
   ];
   const scoreLinePatterns = [
-    /برآورد آموزشی وعده غذایی\s*:/,
     /^Educational Meal Estimate\s*:/i,
     /^Orientierende Mahlzeiten-Einschätzung\s*:/i,
-    /برآورد مبتنی بر الگو/,
     /^Pattern-based estimate/i,
     /^Musterbasierte Einschätzung/i,
     /\[#{1,20}[-─\s]*\].*\/10/,
     /\[[-─\s]*#{1,20}\].*\/10/,
     /^This is an educational estimate based on your profile/i,
-    /^این یک برآورد آموزشی بر اساس پروفایل/,
     /^Dies ist eine orientierende Einschätzung/i,
   ];
   let skipSection = false;
@@ -238,7 +233,6 @@ function getVoiceLocale(language: AppLanguage): string {
   return ({
     en: 'en-US',
     de: 'de-DE',
-    fa: 'fa-IR',
   } as Record<AppLanguage, string>)[language] ?? 'en-US';
 }
 
@@ -267,12 +261,10 @@ export default function PhotoAnalysisScreen() {
   const [locationContext, setLocationContext] = useState('');
   const [retailLocationHint, setRetailLocationHint] = useState('');
   const [isLocationLoading, setIsLocationLoading] = useState(true);
-  const [language, setLanguage] = useState<AppLanguage>('en');
-
-  // Load persisted language preference on mount
-  useEffect(() => {
-    loadLanguage().then((lang) => setLanguage(lang as AppLanguage));
-  }, []);
+  // Language comes from LanguageContext — the same source Settings writes to.
+  // A previous local loader read an orphan AsyncStorage key that nothing ever
+  // wrote, so this screen always fell back to English and sent 'en' to the AI.
+  const { language } = useLanguage();
   /** Pre-analyze field: what the meal is + how the user feels (voice or text). */
   const [wizardStep, setWizardStep] = useState<WizardStep>(1);
   const [accuracyAnswer, setAccuracyAnswer] = useState<'yes' | 'no' | null>(null);
@@ -370,13 +362,9 @@ export default function PhotoAnalysisScreen() {
    * tutorial for returning users. Skipped entirely when opening saved history.
    */
   const [showTutorial, setShowTutorial] = useState<boolean | null>(null);
-  // UI chrome has EN/DE translations; Persian users get English chrome while
-  // the AI analysis itself responds in Persian (server prompt handles fa).
-  // Local copy object removed — using centralized i18n via t.photoAnalysis
+  // UI chrome and AI output are both EN/DE, driven by the same preference.
   /** Dev client / standalone only — Expo Go has no custom native STT modules. */
   const voiceNativeEnabled = canUseNativeSpeechToText();
-  // No RTL languages are supported (English + German only); kept for styling call sites.
-  const isRtlLanguage = language === 'fa';
   const userEnteredSymptoms = mealDescription
       .split(/[,\n]+/)
       .map((symptom) => symptom.trim())
@@ -506,19 +494,6 @@ export default function PhotoAnalysisScreen() {
     return () => {
       isMounted = false;
     };
-  }, []);
-
-  useEffect(() => {
-    AsyncStorage.getItem(APP_LANGUAGE_STORAGE_KEY)
-      .then((storedLanguage) => {
-        if (storedLanguage === 'en' || storedLanguage === 'de') {
-          setLanguage(storedLanguage);
-        } else {
-          // Legacy 'fa' or unknown values fall back to English.
-          setLanguage('en');
-        }
-      })
-      .catch(console.warn);
   }, []);
 
   useEffect(() => {
@@ -1091,8 +1066,8 @@ export default function PhotoAnalysisScreen() {
             <Text style={styles.backButtonText}>{t.photoAnalysis.back}</Text>
           </Pressable>
           <View style={styles.headerTextBlock}>
-            <Text style={[styles.title, isRtlLanguage && styles.rtlText]}>{t.photoAnalysis.title}</Text>
-            <Text style={[styles.subtitle, isRtlLanguage && styles.rtlText]}>{wizardSubtitle}</Text>
+            <Text style={[styles.title]}>{t.photoAnalysis.title}</Text>
+            <Text style={[styles.subtitle]}>{wizardSubtitle}</Text>
           </View>
           <Pressable
             onPress={() => router.push('/food-history')}
@@ -1123,12 +1098,12 @@ export default function PhotoAnalysisScreen() {
                 <Image source={{ uri: photoUri }} style={styles.wizardThumbnail} />
               ) : null}
 
-              <Text style={[styles.step2PromptText, isRtlLanguage && styles.rtlText]}>{t.photoAnalysis.step2Prompt}</Text>
+              <Text style={[styles.step2PromptText]}>{t.photoAnalysis.step2Prompt}</Text>
 
               {!voiceNativeEnabled ? (
-                <View style={[styles.expoGoHintCard, isRtlLanguage && styles.rtlRow]}>
+                <View style={[styles.expoGoHintCard]}>
                   <Ionicons name="information-circle-outline" size={20} color={Colors.secondaryLight} />
-                  <Text style={[styles.expoGoHintText, isRtlLanguage && styles.rtlText]}>{t.photoAnalysis.expoGoTextOnlyHint}</Text>
+                  <Text style={[styles.expoGoHintText]}>{t.photoAnalysis.expoGoTextOnlyHint}</Text>
                 </View>
               ) : null}
 
@@ -1176,9 +1151,9 @@ export default function PhotoAnalysisScreen() {
                   </View>
 
                   {canRecordFeelings && isListening && voiceTarget === 'feelings' ? (
-                    <View style={[styles.recordingIndicatorInline, styles.wizardRecordingCenter, isRtlLanguage && styles.rtlRow]}>
+                    <View style={[styles.recordingIndicatorInline, styles.wizardRecordingCenter]}>
                       <ActivityIndicator color="#EF4444" size="small" />
-                      <Text style={[styles.correctingText, isRtlLanguage && styles.rtlText]}>{t.photoAnalysis.recording}</Text>
+                      <Text style={[styles.correctingText]}>{t.photoAnalysis.recording}</Text>
                     </View>
                   ) : null}
                 </>
@@ -1194,7 +1169,6 @@ export default function PhotoAnalysisScreen() {
                 style={[
                   styles.wizardFeelingsInput,
                   !voiceNativeEnabled && styles.wizardFeelingsInputExpoGo,
-                  isRtlLanguage && styles.rtlText,
                 ]}
               />
 
@@ -1274,14 +1248,14 @@ export default function PhotoAnalysisScreen() {
               </Pressable>
 
               <Pressable onPress={handleChangePhoto} style={({ pressed }) => [styles.changePhotoLink, pressed && styles.pressed]}>
-                <Text style={[styles.changePhotoLinkText, isRtlLanguage && styles.rtlText]}>{t.photoAnalysis.changePhoto}</Text>
+                <Text style={[styles.changePhotoLinkText]}>{t.photoAnalysis.changePhoto}</Text>
               </Pressable>
 
               {isAnalyzing ? (
                 <View style={styles.scanNotice}>
                   <ActivityIndicator size="large" color={Colors.primary} />
-                  <Text style={[styles.scanNoticeBrand, isRtlLanguage && styles.rtlText]}>{t.photoAnalysis.analyzingBrand}</Text>
-                  <Text style={[styles.scanNoticeText, isRtlLanguage && styles.rtlText]}>{t.photoAnalysis.analyzing}</Text>
+                  <Text style={[styles.scanNoticeBrand]}>{t.photoAnalysis.analyzingBrand}</Text>
+                  <Text style={[styles.scanNoticeText]}>{t.photoAnalysis.analyzing}</Text>
                 </View>
               ) : null}
             </ScrollView>
@@ -1313,7 +1287,7 @@ export default function PhotoAnalysisScreen() {
                   ) : (
                     <View style={styles.scanFramePlaceholder}>
                       <Ionicons name="scan-outline" size={44} color={Colors.secondary} />
-                      <Text style={[styles.scanFrameHint, isRtlLanguage && styles.rtlText]}>
+                      <Text style={[styles.scanFrameHint]}>
                         {t.photoAnalysis.subtitle}
                       </Text>
                     </View>
@@ -1334,8 +1308,8 @@ export default function PhotoAnalysisScreen() {
                     <View style={styles.photoActionIcon}>
                       <Ionicons name="camera" size={30} color={Colors.textInverse} />
                     </View>
-                    <Text style={[styles.photoActionTitle, isRtlLanguage && styles.rtlText]}>{t.photoAnalysis.takePhoto}</Text>
-                    <Text style={[styles.photoActionText, isRtlLanguage && styles.rtlText]}>{t.photoAnalysis.takePhotoText}</Text>
+                    <Text style={[styles.photoActionTitle]}>{t.photoAnalysis.takePhoto}</Text>
+                    <Text style={[styles.photoActionText]}>{t.photoAnalysis.takePhotoText}</Text>
                   </Pressable>
 
                   <Pressable
@@ -1351,8 +1325,8 @@ export default function PhotoAnalysisScreen() {
                     <View style={styles.photoActionIcon}>
                       <Ionicons name="images" size={30} color={Colors.textInverse} />
                     </View>
-                    <Text style={[styles.photoActionTitle, isRtlLanguage && styles.rtlText]}>{t.photoAnalysis.chooseGallery}</Text>
-                    <Text style={[styles.photoActionText, isRtlLanguage && styles.rtlText]}>{t.photoAnalysis.chooseGalleryText}</Text>
+                    <Text style={[styles.photoActionTitle]}>{t.photoAnalysis.chooseGallery}</Text>
+                    <Text style={[styles.photoActionText]}>{t.photoAnalysis.chooseGalleryText}</Text>
                   </Pressable>
                 </View>
 
@@ -1380,14 +1354,13 @@ export default function PhotoAnalysisScreen() {
                 <View style={[
                   styles.profileCard,
                   hasPainSymptom && styles.profilePainCard,
-                  isRtlLanguage && styles.rtlRow,
                 ]}>
                   <Ionicons
                     name={hasPainSymptom ? 'warning' : 'person-circle-outline'}
                     size={18}
                     color={hasPainSymptom ? '#F59E0B' : Colors.primary}
                   />
-                  <Text style={[styles.profileText, isRtlLanguage && styles.rtlText]}>
+                  <Text style={[styles.profileText]}>
                     {(() => {
                       const parts: string[] = [];
                       if (gutProfileContext.gutScore != null) {
@@ -1412,7 +1385,7 @@ export default function PhotoAnalysisScreen() {
                   accessibilityLabel={locationContext ? 'Location suggestions enabled' : 'Enable local food suggestions using your location'}
                 >
                   <Ionicons name="location-outline" size={17} color={Colors.primary} />
-                  <Text style={[styles.locationText, isRtlLanguage && styles.rtlText]}>
+                  <Text style={[styles.locationText]}>
                     {isLocationLoading
                       ? t.photoAnalysis.findingLocation
                       : locationContext
@@ -1424,8 +1397,8 @@ export default function PhotoAnalysisScreen() {
                 {(isAnalyzing || isCorrecting) && analysis ? (
                   <View style={styles.scanNotice}>
                     <ActivityIndicator size="large" color={Colors.primary} />
-                    <Text style={[styles.scanNoticeBrand, isRtlLanguage && styles.rtlText]}>{t.photoAnalysis.analyzingBrand}</Text>
-                    <Text style={[styles.scanNoticeText, isRtlLanguage && styles.rtlText]}>
+                    <Text style={[styles.scanNoticeBrand]}>{t.photoAnalysis.analyzingBrand}</Text>
+                    <Text style={[styles.scanNoticeText]}>
                       {isCorrecting ? t.photoAnalysis.correcting : t.photoAnalysis.analyzing}
                     </Text>
                   </View>
@@ -1441,10 +1414,10 @@ export default function PhotoAnalysisScreen() {
                       <View style={styles.resultTitleRow}>
                         <Ionicons name="nutrition" size={20} color={Colors.secondary} />
                         <View style={styles.resultTitleTextBlock}>
-                          <Text style={[styles.resultMealName, isRtlLanguage && styles.rtlText]} numberOfLines={1}>
+                          <Text style={[styles.resultMealName]} numberOfLines={1}>
                             {extractMealTitle(analysis)}
                           </Text>
-                          <Text style={[styles.resultTitle, isRtlLanguage && styles.rtlText]}>{t.photoAnalysis.resultTitle}</Text>
+                          <Text style={[styles.resultTitle]}>{t.photoAnalysis.resultTitle}</Text>
                         </View>
                       </View>
                     </View>
@@ -1452,7 +1425,6 @@ export default function PhotoAnalysisScreen() {
                       <View style={[
                         styles.scoreBadge,
                         hasPainSymptom && styles.scorePainBadge,
-                        isRtlLanguage && styles.rtlRow,
                       ]}>
                         <Ionicons name="speedometer" size={18} color={Colors.textInverse} />
                         <Text style={styles.scoreBadgeValue}>{mealImpactScore}</Text>
@@ -1463,7 +1435,7 @@ export default function PhotoAnalysisScreen() {
                     ) : null}
 
                     {/* Cal AI info-chips row — adapted to gut-impact (NO numeric food score). */}
-                    <View style={[styles.chipsRow, isRtlLanguage && styles.rtlRow]}>
+                    <View style={[styles.chipsRow]}>
                       <View style={styles.infoChip}>
                         <Ionicons
                           name={hasPainSymptom ? 'alert-circle' : 'leaf'}
@@ -1485,8 +1457,8 @@ export default function PhotoAnalysisScreen() {
                     </View>
 
                     {/* Cal AI "Ingredients … + Add more" header — here: gut insights + add detail. */}
-                    <View style={[styles.insightsHeaderRow, isRtlLanguage && styles.rtlRow]}>
-                      <Text style={[styles.insightsHeading, isRtlLanguage && styles.rtlText]}>
+                    <View style={[styles.insightsHeaderRow]}>
+                      <Text style={[styles.insightsHeading]}>
                         {t.photoAnalysis.insightsHeading}
                       </Text>
                       <Pressable
@@ -1501,31 +1473,31 @@ export default function PhotoAnalysisScreen() {
                       </Pressable>
                     </View>
 
-                    <Text style={[styles.resultText, isRtlLanguage && styles.rtlText]}>{sanitizeAnalysisForDisplay(analysis)}</Text>
+                    <Text style={[styles.resultText]}>{sanitizeAnalysisForDisplay(analysis)}</Text>
                     {hasPainSymptom ? (
                       <View style={styles.instantReliefCard}>
-                        <View style={[styles.instantReliefHeader, isRtlLanguage && styles.rtlRow]}>
+                        <View style={[styles.instantReliefHeader]}>
                           <Ionicons name="medkit" size={18} color="#F59E0B" />
-                          <Text style={[styles.instantReliefTitle, isRtlLanguage && styles.rtlText]}>
+                          <Text style={[styles.instantReliefTitle]}>
                             {t.photoAnalysis.instantReliefTitle}
                           </Text>
                         </View>
-                        <Text style={[styles.instantReliefText, isRtlLanguage && styles.rtlText]}>
+                        <Text style={[styles.instantReliefText]}>
                           {t.photoAnalysis.instantReliefText}
                         </Text>
                       </View>
                     ) : null}
                     {planBMessage ? (
                       <View style={styles.planBCard}>
-                        <View style={[styles.planBHeader, isRtlLanguage && styles.rtlRow]}>
+                        <View style={[styles.planBHeader]}>
                           <Ionicons name="shield-checkmark" size={18} color={Colors.secondary} />
-                          <Text style={[styles.planBTitle, isRtlLanguage && styles.rtlText]}>{t.photoAnalysis.planBTitle}</Text>
+                          <Text style={[styles.planBTitle]}>{t.photoAnalysis.planBTitle}</Text>
                         </View>
-                        <Text style={[styles.planBText, isRtlLanguage && styles.rtlText]}>{sanitizeAnalysisForDisplay(planBMessage)}</Text>
+                        <Text style={[styles.planBText]}>{sanitizeAnalysisForDisplay(planBMessage)}</Text>
                       </View>
                     ) : null}
                     <View style={styles.medicalDisclaimerBox}>
-                      <Text style={[styles.medicalDisclaimerText, isRtlLanguage && styles.rtlText]}>
+                      <Text style={[styles.medicalDisclaimerText]}>
                         {t.photoAnalysis.medicalDisclaimer}
                       </Text>
                     </View>
@@ -1571,10 +1543,10 @@ export default function PhotoAnalysisScreen() {
                   </View>
 
                   <View style={styles.accuracySectionCard}>
-                    <Text style={[styles.accuracyQuestion, isRtlLanguage && styles.rtlText]}>{t.photoAnalysis.isThisAccurate}</Text>
+                    <Text style={[styles.accuracyQuestion]}>{t.photoAnalysis.isThisAccurate}</Text>
 
                     {/* Cal AI bottom actions: Fix Results (outline) + Done (filled). */}
-                    <View style={[styles.fixResultsRow, isRtlLanguage && styles.rtlRow]}>
+                    <View style={[styles.fixResultsRow]}>
                       <Pressable
                         onPress={() => setAccuracyAnswer((prev) => (prev === 'no' ? null : 'no'))}
                         accessibilityRole="button"
@@ -1609,7 +1581,7 @@ export default function PhotoAnalysisScreen() {
 
                     {accuracyAnswer === 'no' ? (
                       <View style={styles.correctionBox}>
-                        <View style={[styles.correctionInputRow, isRtlLanguage && styles.rtlRow]}>
+                        <View style={[styles.correctionInputRow]}>
                           <TextInput
                             value={correctionDraft}
                             onChangeText={setCorrectionDraft}
@@ -1620,7 +1592,6 @@ export default function PhotoAnalysisScreen() {
                             style={[
                               styles.correctionInput,
                               !voiceNativeEnabled && styles.correctionInputExpoGoFull,
-                              isRtlLanguage && styles.rtlText,
                             ]}
                           />
                           {voiceNativeEnabled ? (
@@ -1662,9 +1633,9 @@ export default function PhotoAnalysisScreen() {
                           ) : null}
                         </View>
                         {voiceNativeEnabled && isListening && voiceTarget === 'correction' ? (
-                          <View style={[styles.recordingIndicatorInline, isRtlLanguage && styles.rtlRow]}>
+                          <View style={[styles.recordingIndicatorInline]}>
                             <ActivityIndicator color="#EF4444" size="small" />
-                            <Text style={[styles.correctingText, isRtlLanguage && styles.rtlText]}>{t.photoAnalysis.recording}</Text>
+                            <Text style={[styles.correctingText]}>{t.photoAnalysis.recording}</Text>
                           </View>
                         ) : null}
                         <Pressable
@@ -2762,12 +2733,5 @@ const styles = StyleSheet.create({
     color: '#000000',
     fontFamily: FontFamily.sansBold,
     fontSize: FontSize.sm,
-  },
-  rtlText: {
-    textAlign: 'right',
-    writingDirection: 'rtl',
-  },
-  rtlRow: {
-    flexDirection: 'row-reverse',
   },
 });

@@ -1,10 +1,14 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Platform } from 'react-native';
 import { router, Stack, useSegments } from 'expo-router';
+import * as Linking from 'expo-linking';
 import * as Notifications from 'expo-notifications';
 import { StatusBar } from 'expo-status-bar';
 import { AuthProvider, useAuth } from '../contexts/AuthContext';
 import { LanguageProvider } from '../lib/LanguageContext';
+import { supabase } from '../lib/supabase';
+import { parseAuthDeepLink, isPasswordRecoveryLink } from '../lib/auth-deep-link';
+import { authGuardDecision } from '../lib/routing';
 import { ErrorBoundary } from '../components/ErrorBoundary';
 import { HealthDisclaimerModal, hasAcceptedDisclaimer } from '../components/HealthDisclaimerModal';
 import { useFonts } from 'expo-font';
@@ -42,8 +46,61 @@ SplashScreen.preventAutoHideAsync().catch(() => {
 });
 
 function RootLayoutNav() {
-  const { session, loading } = useAuth();
+  const { session, loading, passwordRecovery, setPasswordRecovery } = useAuth();
   const [showDisclaimer, setShowDisclaimer] = useState(false);
+
+  // Consume Supabase auth deep links (password recovery). The client runs with
+  // detectSessionInUrl: false because there is no browser URL on native, so the
+  // tokens have to be lifted out of the link and handed to Supabase here.
+  useEffect(() => {
+    let cancelled = false;
+
+    const handleUrl = async (url: string | null) => {
+      const parsed = parseAuthDeepLink(url);
+      if (!parsed || cancelled) return;
+
+      if (parsed.kind === 'error') {
+        // Expired or already-used link — send the user to the screen that
+        // explains it rather than leaving them on a dead URL.
+        setPasswordRecovery(true);
+        router.replace('/(auth)/reset-password');
+        return;
+      }
+
+      if (!isPasswordRecoveryLink(parsed)) return;
+
+      try {
+        if (parsed.kind === 'tokens') {
+          await supabase.auth.setSession({
+            access_token: parsed.accessToken,
+            refresh_token: parsed.refreshToken,
+          });
+        } else {
+          await supabase.auth.verifyOtp({ token_hash: parsed.tokenHash, type: 'recovery' });
+        }
+      } catch {
+        // Fall through — the screen reports an invalid link when no session
+        // was established. Never log the link: it carries auth tokens.
+      }
+
+      if (cancelled) return;
+      setPasswordRecovery(true);
+      router.replace('/(auth)/reset-password');
+    };
+
+    // Cold start: the app was launched by the link.
+    Linking.getInitialURL().then(handleUrl).catch(() => {});
+    // Warm start: the app was already running.
+    const sub = Linking.addEventListener('url', ({ url }) => {
+      handleUrl(url);
+    });
+
+    return () => {
+      cancelled = true;
+      sub.remove();
+    };
+  }, [setPasswordRecovery]);
+
 
   // Show the health disclaimer as soon as an account exists (i.e. before any
   // health data can be synced), once per user per device.
@@ -59,17 +116,22 @@ function RootLayoutNav() {
   // Unauthenticated users may freely navigate (auth) and (onboarding).
   // index.tsx is the single routing decision point for unauthenticated entry.
   const segments = useSegments();
+
+  // Decision logic lives in lib/routing.ts so the unit tests exercise the same
+  // code this component runs, rather than a copy of it.
   useEffect(() => {
-    if (loading) return;
-    const inTabs = segments[0] === '(tabs)';
-    const inProtected = inTabs ||
-      ['photo-analysis', 'food-history', 'weekly-digest', 'settings',
-       'log-symptom', 'reminders', 'edit-checkin', 'paywall'].includes(segments[0] ?? '');
-    // If unauthenticated and trying to access a protected screen, send to welcome.
-    if (!session && inProtected) {
+    const decision = authGuardDecision({
+      session: Boolean(session),
+      loading,
+      segments,
+      passwordRecovery,
+    });
+    if (decision === 'welcome') {
       router.replace('/(onboarding)/welcome');
+    } else if (decision === 'reset-password') {
+      router.replace('/(auth)/reset-password');
     }
-  }, [session, loading, segments]);
+  }, [session, loading, segments, passwordRecovery]);
 
   // Identify user for analytics when authenticated
   useEffect(() => {
