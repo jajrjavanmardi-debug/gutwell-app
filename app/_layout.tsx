@@ -6,7 +6,7 @@ import * as Notifications from 'expo-notifications';
 import { StatusBar } from 'expo-status-bar';
 import { AuthProvider, useAuth } from '../contexts/AuthContext';
 import { LanguageProvider } from '../lib/LanguageContext';
-import { supabase } from '../lib/supabase';
+import { supabase, clearStoredAuthSession } from '../lib/supabase';
 import { parseAuthDeepLink, isPasswordRecoveryLink } from '../lib/auth-deep-link';
 import { authGuardDecision } from '../lib/routing';
 import { ErrorBoundary } from '../components/ErrorBoundary';
@@ -32,7 +32,6 @@ import { initSubscription } from '../lib/subscription';
 import { flush } from '../lib/offline-queue';
 import * as SplashScreen from 'expo-splash-screen';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import * as SecureStore from 'expo-secure-store';
 
 // Initialize Sentry for crash reporting
 Sentry.init({
@@ -242,15 +241,9 @@ function RootLayout() {
     AsyncStorage.getItem(INSTALL_MARKER).then(async (marker) => {
       if (!marker) {
         // First launch after install — clear any stale SecureStore session.
-        const SUPABASE_KEYS = [
-          'supabase.auth.token',
-          'supabase.auth.refreshToken',
-          // Supabase JS v2 stores under this key pattern:
-          `sb-${process.env.EXPO_PUBLIC_SUPABASE_URL?.split('.')?.[0]?.split('//')?.pop()}-auth-token`,
-        ];
-        await Promise.all(
-          SUPABASE_KEYS.map((k) => SecureStore.deleteItemAsync(k).catch(() => {}))
-        );
+        // clearStoredAuthSession understands the chunked layout the storage
+        // adapter uses, so no orphan chunks are left behind.
+        await clearStoredAuthSession().catch(() => {});
         await AsyncStorage.setItem(INSTALL_MARKER, '1');
       }
     }).catch(() => {});
