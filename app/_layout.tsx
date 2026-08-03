@@ -27,6 +27,8 @@ import { initAnalytics, identifyUser } from '../lib/analytics';
 import { initSubscription } from '../lib/subscription';
 import { flush } from '../lib/offline-queue';
 import * as SplashScreen from 'expo-splash-screen';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as SecureStore from 'expo-secure-store';
 
 // Initialize Sentry for crash reporting
 Sentry.init({
@@ -53,13 +55,19 @@ function RootLayoutNav() {
     }
   }, [session?.user?.id]);
 
-  // Redirect unauthenticated users to login — fires once when session/loading changes.
+  // Guard: authenticated users only in (tabs) and protected screens.
+  // Unauthenticated users may freely navigate (auth) and (onboarding).
+  // index.tsx is the single routing decision point for unauthenticated entry.
   const segments = useSegments();
   useEffect(() => {
     if (loading) return;
-    const inAuthGroup = segments[0] === '(auth)';
-    if (!session && !inAuthGroup) {
-      router.replace('/(auth)/login');
+    const inTabs = segments[0] === '(tabs)';
+    const inProtected = inTabs ||
+      ['photo-analysis', 'food-history', 'weekly-digest', 'settings',
+       'log-symptom', 'reminders', 'edit-checkin', 'paywall'].includes(segments[0] ?? '');
+    // If unauthenticated and trying to access a protected screen, send to welcome.
+    if (!session && inProtected) {
+      router.replace('/(onboarding)/welcome');
     }
   }, [session, loading, segments]);
 
@@ -161,6 +169,29 @@ function RootLayout() {
 
   useEffect(() => {
     initAnalytics();
+  }, []);
+
+  // On first launch after a fresh install, clear any stale Supabase auth
+  // tokens that may have persisted in SecureStore across app deletions on iOS.
+  // We detect "first launch" by checking a plain AsyncStorage marker
+  // (AsyncStorage IS cleared on app deletion, unlike SecureStore).
+  useEffect(() => {
+    const INSTALL_MARKER = 'gutwell_install_v1';
+    AsyncStorage.getItem(INSTALL_MARKER).then(async (marker) => {
+      if (!marker) {
+        // First launch after install — clear any stale SecureStore session.
+        const SUPABASE_KEYS = [
+          'supabase.auth.token',
+          'supabase.auth.refreshToken',
+          // Supabase JS v2 stores under this key pattern:
+          `sb-${process.env.EXPO_PUBLIC_SUPABASE_URL?.split('.')?.[0]?.split('//')?.pop()}-auth-token`,
+        ];
+        await Promise.all(
+          SUPABASE_KEYS.map((k) => SecureStore.deleteItemAsync(k).catch(() => {}))
+        );
+        await AsyncStorage.setItem(INSTALL_MARKER, '1');
+      }
+    }).catch(() => {});
   }, []);
 
   return (

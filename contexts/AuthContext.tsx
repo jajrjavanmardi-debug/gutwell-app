@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import type { Session, User } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { resetAnalytics } from '../lib/analytics';
 
 type Profile = {
@@ -29,6 +30,27 @@ type AuthContextType = {
 };
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+
+// Keys that must be wiped on sign-out or account deletion so the next
+// session (or a reinstalled app) always starts from the Welcome screen.
+const ONBOARDING_STORAGE_KEYS = [
+  'onboarding_answers',
+  'onboarding_name',
+  'onboarding_checkin_pending',
+  'onboarding_completed',
+  'rate_app_prompted',
+  'gutwell_location_suggestions',
+  'scan_tutorial_seen',
+];
+
+async function clearLocalSessionState(): Promise<void> {
+  try {
+    await AsyncStorage.multiRemove(ONBOARDING_STORAGE_KEYS);
+  } catch {
+    // Best-effort — never block sign-out.
+  }
+}
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
@@ -108,6 +130,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signOut = async () => {
     await supabase.auth.signOut();
     setProfile(null);
+    // Clear onboarding and session-local state so the next launch
+    // always starts from the Welcome screen.
+    await clearLocalSessionState();
     // Unlink the analytics identity so the next account on this device
     // does not inherit this user's event stream.
     resetAnalytics();
