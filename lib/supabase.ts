@@ -1,6 +1,12 @@
 import { createClient } from '@supabase/supabase-js';
 import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
+import {
+  chunkedGet,
+  chunkedRemove,
+  chunkedSet,
+  type SecureBackend,
+} from './secure-chunk-store';
 
 function normalizeKey(raw: string | undefined): string {
   return (raw ?? '').trim().replace(/^['"]|['"]$/g, '');
@@ -117,28 +123,64 @@ function assertRealSupabaseCredentials(url: string, key: string): void {
 
 assertRealSupabaseCredentials(supabaseUrl, supabaseKey);
 
-// Secure storage adapter for auth tokens
+// ─── Secure storage adapter for auth tokens ─────────────────────────────────
+//
+// The Supabase session exceeds expo-secure-store's 2048-byte limit, so it is
+// stored in chunks. See lib/secure-chunk-store.ts for the rationale and the
+// backward-compatible read path.
+
+const secureBackend: SecureBackend = {
+  getItemAsync: (key) => SecureStore.getItemAsync(key),
+  setItemAsync: (key, value) => SecureStore.setItemAsync(key, value),
+  deleteItemAsync: (key) => SecureStore.deleteItemAsync(key),
+};
+
+/**
+ * Wipe any persisted Supabase session, including chunked and legacy layouts.
+ *
+ * Used by the first-launch cleanup in app/_layout.tsx: AsyncStorage is cleared
+ * when an iOS app is deleted but SecureStore is not, so a reinstall can
+ * otherwise resurrect the previous user's session.
+ */
+export async function clearStoredAuthSession(): Promise<void> {
+  if (Platform.OS === 'web') return;
+  const projectRef = (() => {
+    try {
+      return new URL(supabaseUrl).hostname.split('.')[0];
+    } catch {
+      return '';
+    }
+  })();
+
+  const keys = [
+    'supabase.auth.token',
+    'supabase.auth.refreshToken',
+    ...(projectRef ? [`sb-${projectRef}-auth-token`] : []),
+  ];
+  await Promise.all(keys.map((key) => chunkedRemove(secureBackend, key)));
+}
+
 const SecureStoreAdapter = {
   getItem: (key: string) => {
     if (Platform.OS === 'web') {
       if (typeof window !== 'undefined') return localStorage.getItem(key);
       return null;
     }
-    return SecureStore.getItemAsync(key);
+    return chunkedGet(secureBackend, key);
   },
   setItem: (key: string, value: string) => {
     if (Platform.OS === 'web') {
       if (typeof window !== 'undefined') localStorage.setItem(key, value);
       return;
     }
-    return SecureStore.setItemAsync(key, value);
+    return chunkedSet(secureBackend, key, value);
   },
   removeItem: (key: string) => {
     if (Platform.OS === 'web') {
       if (typeof window !== 'undefined') localStorage.removeItem(key);
       return;
     }
-    return SecureStore.deleteItemAsync(key);
+    return chunkedRemove(secureBackend, key);
   },
 };
 

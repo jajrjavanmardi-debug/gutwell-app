@@ -18,6 +18,7 @@ import {
 } from '../lib/notifications';
 import { EmptyState } from '../components/ui/EmptyState';
 import { Colors, Spacing, FontSize, BorderRadius, FontFamily } from '../constants/theme';
+import { useTranslation } from '../lib/i18n';
 
 type ReminderType = 'checkin' | 'food' | 'symptom';
 type Reminder = {
@@ -28,18 +29,19 @@ type Reminder = {
   days: number[];
 };
 
-const REMINDER_TYPES: { key: ReminderType; label: string; icon: keyof typeof Ionicons.glyphMap }[] = [
-  { key: 'checkin', label: 'Check-in', icon: 'body' },
-  { key: 'food', label: 'Meal Log', icon: 'restaurant' },
-  { key: 'symptom', label: 'Symptom', icon: 'medical' },
+// `key` is the value persisted to reminders.reminder_type — never translated.
+// Display labels come from t.reminders.types, keyed by the same value.
+const REMINDER_TYPES: { key: ReminderType; icon: keyof typeof Ionicons.glyphMap }[] = [
+  { key: 'checkin', icon: 'body' },
+  { key: 'food', icon: 'restaurant' },
+  { key: 'symptom', icon: 'medical' },
 ];
-
-const DAY_LABELS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
 
 const QUIET_START = '22:00';
 const QUIET_END = '08:00';
 
 export default function RemindersScreen() {
+  const t = useTranslation();
   const { user } = useAuth();
   const [reminders, setReminders] = useState<Reminder[]>([]);
   const [loading, setLoading] = useState(true);
@@ -77,17 +79,17 @@ export default function RemindersScreen() {
     const { error } = await supabase.from('reminders').update({ enabled }).eq('id', id);
     if (error) {
       setReminders(rs => rs.map(r => r.id === id ? { ...r, enabled: !enabled } : r));
-      setToast({ visible: true, message: 'Failed to update reminder', type: 'error' });
+      setToast({ visible: true, message: t.reminders.updateFailed, type: 'error' });
       return;
     }
     if (user) await syncReminders(user.id);
   };
 
   const deleteReminder = (id: number) => {
-    Alert.alert('Delete Reminder', 'Remove this reminder?', [
-      { text: 'Cancel', style: 'cancel' },
+    Alert.alert(t.reminders.deleteTitle, t.reminders.deleteMessage, [
+      { text: t.common.cancel, style: 'cancel' },
       {
-        text: 'Delete', style: 'destructive', onPress: async () => {
+        text: t.common.delete, style: 'destructive', onPress: async () => {
           await supabase.from('reminders').delete().eq('id', id);
           setReminders(rs => rs.filter(r => r.id !== id));
           if (user) await syncReminders(user.id);
@@ -111,7 +113,7 @@ export default function RemindersScreen() {
     const granted = await requestPermissions();
     if (!granted) {
       setPermissionGranted(false);
-      setToast({ visible: true, message: 'Please enable notifications in Settings', type: 'error' });
+      setToast({ visible: true, message: t.reminders.enableInSettings, type: 'error' });
       return;
     }
     setPermissionGranted(true);
@@ -128,7 +130,7 @@ export default function RemindersScreen() {
     });
 
     if (error) {
-      setToast({ visible: true, message: 'Failed to save reminder', type: 'error' });
+      setToast({ visible: true, message: t.reminders.saveFailed, type: 'error' });
       setSaving(false);
       return;
     }
@@ -143,15 +145,15 @@ export default function RemindersScreen() {
       );
       if (notifId === null && quietHoursEnabled) {
         // Time was in quiet hours — still saved to DB but notification not scheduled
-        setToast({ visible: true, message: 'Reminder saved (quiet hours — notification paused)', type: 'success' });
+        setToast({ visible: true, message: t.reminders.savedQuiet, type: 'success' });
       } else {
         await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        setToast({ visible: true, message: 'Reminder added!', type: 'success' });
+        setToast({ visible: true, message: t.reminders.added, type: 'success' });
       }
     } else {
       await syncReminders(user.id);
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      setToast({ visible: true, message: 'Reminder added!', type: 'success' });
+      setToast({ visible: true, message: t.reminders.added, type: 'success' });
     }
 
     setShowAdd(false);
@@ -165,7 +167,7 @@ export default function RemindersScreen() {
 
   const formatTime = (time: string) => {
     const [h, m] = time.split(':').map(Number);
-    const suffix = h >= 12 ? 'PM' : 'AM';
+    const suffix = h >= 12 ? t.reminders.pm : t.reminders.am;
     const hour12 = h % 12 || 12;
     return `${hour12}:${String(m).padStart(2, '0')} ${suffix}`;
   };
@@ -181,17 +183,17 @@ export default function RemindersScreen() {
           style={styles.backBtn}
           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
           accessibilityRole="button"
-          accessibilityLabel="Go back"
+          accessibilityLabel={t.common.goBack}
         >
           <Ionicons name="chevron-back" size={24} color={Colors.text} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Reminders</Text>
+        <Text style={styles.headerTitle}>{t.reminders.headerTitle}</Text>
         <TouchableOpacity
           onPress={() => setShowAdd(true)}
           style={styles.addBtn}
           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
           accessibilityRole="button"
-          accessibilityLabel="Add reminder"
+          accessibilityLabel={t.reminders.addReminder}
         >
           <Ionicons name="add" size={22} color={Colors.textInverse} />
         </TouchableOpacity>
@@ -202,7 +204,7 @@ export default function RemindersScreen() {
         <View style={styles.permissionBanner}>
           <Ionicons name="notifications-off-outline" size={18} color={Colors.textInverse} />
           <Text style={styles.permissionBannerText}>
-            Notifications are disabled. Enable them in Settings to receive reminders.
+            {t.reminders.permissionDisabled}
           </Text>
         </View>
       )}
@@ -215,9 +217,9 @@ export default function RemindersScreen() {
         {reminders.length === 0 && !loading && (
           <EmptyState
             icon="notifications-outline"
-            title="No reminders yet"
-            message="Daily reminders help you spot what affects your gut. Set one now."
-            actionLabel="Add Your First Reminder"
+            title={t.reminders.emptyTitle}
+            message={t.reminders.emptyMessage}
+            actionLabel={t.reminders.emptyAction}
             onAction={() => setShowAdd(true)}
           />
         )}
@@ -235,7 +237,7 @@ export default function RemindersScreen() {
               </View>
               <View style={styles.reminderInfo}>
                 <Text style={styles.reminderType}>
-                  {typeInfo(r.reminder_type).label}
+                  {t.reminders.types[r.reminder_type]}
                 </Text>
                 <Text style={styles.reminderTime}>
                   {formatTime(r.time)}
@@ -246,6 +248,7 @@ export default function RemindersScreen() {
                 onValueChange={(v) => toggleReminder(r.id, v)}
                 trackColor={{ false: Colors.border, true: Colors.primary }}
                 thumbColor={Colors.surface}
+                accessibilityLabel={`${t.reminders.toggleReminder}: ${t.reminders.types[r.reminder_type]}`}
               />
             </View>
             <View style={styles.reminderDivider} />
@@ -253,9 +256,11 @@ export default function RemindersScreen() {
               onPress={() => deleteReminder(r.id)}
               style={styles.deleteRow}
               hitSlop={{ top: 8, bottom: 8 }}
+              accessibilityRole="button"
+              accessibilityLabel={t.reminders.remove}
             >
               <Ionicons name="trash-outline" size={15} color={Colors.error} />
-              <Text style={styles.deleteText}>Remove</Text>
+              <Text style={styles.deleteText}>{t.reminders.remove}</Text>
             </TouchableOpacity>
           </View>
         ))}
@@ -263,22 +268,25 @@ export default function RemindersScreen() {
         {/* Add Form */}
         {showAdd && (
           <Card style={styles.addCard} variant="elevated">
-            <Text style={styles.addTitle}>New Reminder</Text>
+            <Text style={styles.addTitle}>{t.reminders.newReminder}</Text>
 
             {/* Type Selector */}
-            <Text style={styles.addLabel}>Type</Text>
+            <Text style={styles.addLabel}>{t.reminders.typeLabel}</Text>
             <View style={styles.typeRow}>
-              {REMINDER_TYPES.map((t) => {
-                const isActive = newType === t.key;
+              {REMINDER_TYPES.map((type) => {
+                const isActive = newType === type.key;
                 return (
                   <TouchableOpacity
-                    key={t.key}
+                    key={type.key}
                     style={[styles.typePill, isActive && styles.typePillActive]}
-                    onPress={() => setNewType(t.key)}
+                    onPress={() => setNewType(type.key)}
                     activeOpacity={0.7}
+                    accessibilityRole="button"
+                    accessibilityLabel={t.reminders.types[type.key]}
+                    accessibilityState={{ selected: isActive }}
                   >
                     <Ionicons
-                      name={t.icon}
+                      name={type.icon}
                       size={16}
                       color={isActive ? Colors.primary : Colors.textTertiary}
                     />
@@ -288,7 +296,7 @@ export default function RemindersScreen() {
                         isActive && styles.typePillLabelActive,
                       ]}
                     >
-                      {t.label}
+                      {t.reminders.types[type.key]}
                     </Text>
                   </TouchableOpacity>
                 );
@@ -296,13 +304,13 @@ export default function RemindersScreen() {
             </View>
 
             {/* Time Picker */}
-            <Text style={styles.addLabel}>Time</Text>
+            <Text style={styles.addLabel}>{t.reminders.timeLabel}</Text>
             <View style={styles.timeRow}>
               <View style={styles.timeColumn}>
                 <TouchableOpacity
                   onPress={() => setNewHour((h) => (h + 1) % 24)}
                   style={styles.timeArrow}
-                  accessibilityLabel="Increase hour"
+                  accessibilityLabel={t.reminders.increaseHour}
                 >
                   <Ionicons name="chevron-up" size={22} color={Colors.textSecondary} />
                 </TouchableOpacity>
@@ -312,7 +320,7 @@ export default function RemindersScreen() {
                 <TouchableOpacity
                   onPress={() => setNewHour((h) => (h + 23) % 24)}
                   style={styles.timeArrow}
-                  accessibilityLabel="Decrease hour"
+                  accessibilityLabel={t.reminders.decreaseHour}
                 >
                   <Ionicons name="chevron-down" size={22} color={Colors.textSecondary} />
                 </TouchableOpacity>
@@ -324,7 +332,7 @@ export default function RemindersScreen() {
                 <TouchableOpacity
                   onPress={() => setNewMinute((m) => (m + 5) % 60)}
                   style={styles.timeArrow}
-                  accessibilityLabel="Increase minutes"
+                  accessibilityLabel={t.reminders.increaseMinutes}
                 >
                   <Ionicons name="chevron-up" size={22} color={Colors.textSecondary} />
                 </TouchableOpacity>
@@ -334,7 +342,7 @@ export default function RemindersScreen() {
                 <TouchableOpacity
                   onPress={() => setNewMinute((m) => (m + 55) % 60)}
                   style={styles.timeArrow}
-                  accessibilityLabel="Decrease minutes"
+                  accessibilityLabel={t.reminders.decreaseMinutes}
                 >
                   <Ionicons name="chevron-down" size={22} color={Colors.textSecondary} />
                 </TouchableOpacity>
@@ -345,7 +353,7 @@ export default function RemindersScreen() {
                 style={styles.ampmBtn}
               >
                 <Text style={styles.ampmText}>
-                  {newHour >= 12 ? 'PM' : 'AM'}
+                  {newHour >= 12 ? t.reminders.pm : t.reminders.am}
                 </Text>
               </TouchableOpacity>
             </View>
@@ -355,13 +363,13 @@ export default function RemindersScreen() {
               <View style={styles.quietWarning}>
                 <Ionicons name="moon-outline" size={15} color={Colors.warning ?? '#F59E0B'} />
                 <Text style={styles.quietWarningText}>
-                  This time falls within quiet hours (10 PM – 8 AM). The notification won&apos;t fire unless quiet hours are turned off.
+                  {t.reminders.quietWarning}
                 </Text>
               </View>
             )}
 
             {/* Day Selector */}
-            <Text style={styles.addLabel}>Days</Text>
+            <Text style={styles.addLabel}>{t.reminders.daysLabel}</Text>
             <View style={styles.daysRow}>
               {[1, 2, 3, 4, 5, 6, 7].map((day, i) => {
                 const isActive = newDays.includes(day);
@@ -378,7 +386,7 @@ export default function RemindersScreen() {
                         isActive && styles.dayTextActive,
                       ]}
                     >
-                      {DAY_LABELS[i]}
+                      {t.calendar.dayInitials[i]}
                     </Text>
                   </TouchableOpacity>
                 );
@@ -392,8 +400,8 @@ export default function RemindersScreen() {
                   <Ionicons name="moon-outline" size={18} color={Colors.primary} />
                 </View>
                 <View style={styles.quietHoursTextBlock}>
-                  <Text style={styles.quietHoursTitle}>Quiet Hours</Text>
-                  <Text style={styles.quietHoursSubtext}>No notifications 10 PM – 8 AM</Text>
+                  <Text style={styles.quietHoursTitle}>{t.reminders.quietHoursTitle}</Text>
+                  <Text style={styles.quietHoursSubtext}>{t.reminders.quietHoursSubtext}</Text>
                 </View>
               </View>
               <Switch
@@ -401,20 +409,21 @@ export default function RemindersScreen() {
                 onValueChange={setQuietHoursEnabled}
                 trackColor={{ false: Colors.border, true: Colors.primary }}
                 thumbColor={Colors.surface}
+                accessibilityLabel={t.reminders.toggleQuietHours}
               />
             </View>
 
             {/* Actions */}
             <View style={styles.addActions}>
               <Button
-                title="Cancel"
+                title={t.common.cancel}
                 onPress={() => setShowAdd(false)}
                 variant="outline"
                 size="md"
                 style={styles.addActionBtn}
               />
               <Button
-                title="Save"
+                title={t.common.save}
                 onPress={handleAdd}
                 loading={saving}
                 size="md"

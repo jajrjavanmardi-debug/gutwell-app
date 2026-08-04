@@ -1,6 +1,7 @@
 import React from 'react';
 import { Text, View, StyleSheet } from 'react-native';
 import { BorderRadius, Colors, FontFamily, FontSize, Spacing } from '../constants/theme';
+import { useTranslation } from '../lib/i18n';
 
 type SafeFoodItem = {
   foodName: string;
@@ -12,11 +13,12 @@ type SafeFoodsBoxProps = {
 };
 
 export default function SafeFoodsBox({ safeFoods }: SafeFoodsBoxProps) {
+  const t = useTranslation();
   if (safeFoods.length === 0) return null;
 
   return (
     <>
-      <Text style={styles.sectionTitle}>Safe Foods</Text>
+      <Text style={styles.sectionTitle}>{t.components.safeFoods.title}</Text>
       <View style={styles.safeFoodsRow}>
         {safeFoods.map((item, i) => (
           <View key={i} style={styles.safeFoodChip}>

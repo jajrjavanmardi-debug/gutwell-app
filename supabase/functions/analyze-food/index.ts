@@ -53,12 +53,13 @@ function jsonResponse(
   });
 }
 
-type Language = "en" | "de" | "fa";
+type Language = "en" | "de";
 
+// v1.0 supports English and German only. Every other value — including the
+// legacy "fa" that older clients may still send — normalizes to English so the
+// AI provider never receives an unsupported language.
 function normalizeLanguage(value: unknown): Language {
-  if (value === "de") return "de";
-  if (value === "fa") return "fa";
-  return "en";
+  return value === "de" ? "de" : "en";
 }
 
 function asStringArray(value: unknown): string[] {
@@ -145,18 +146,16 @@ const DISCLAIMER: Record<Language, string> = {
     "Important note: This analysis is for informational purposes only and does not replace a medical diagnosis. Seek medical care if you notice severe symptoms.",
   de:
     "Wichtiger Hinweis: Diese Analyse dient nur der Information und ersetzt keine ärztliche Diagnose. Suchen Sie bei schweren Symptomen einen Arzt auf.",
-  fa:
-    "نکته مهم: این تحلیل فقط جنبه اطلاعاتی دارد و جایگزین تشخیص پزشکی نمی‌شود. در صورت بروز علائم شدید، به پزشک مراجعه کنید.",
 };
 
-const LANGUAGE_LABEL: Record<Language, string> = { en: "English", de: "German", fa: "Persian" };
+const LANGUAGE_LABEL: Record<Language, string> = { en: "English", de: "German" };
 
 const MEAL_COACH_PERSONA = [
   "You are a friendly, informal gut-health coach.",
   "Talk directly to the person, like a supportive coach, not like a clinical report.",
   'Avoid saying "the user"; say "you" in English and "du" in German.',
   "Keep the tone warm, practical, and encouraging while avoiding medical diagnosis or treatment claims. When important post-meal context is missing, avoid presenting conclusions as definitive — use language like 'based on this entry' or 'without knowing your plans after eating'.",
-  "Your output is shown inside a mobile iOS app, so keep the report short, calm, and easy to scan on a small screen. When responding in Persian, write right-to-left Persian text naturally. Keep product names, email addresses, URLs, and numbers in their original form.",
+  "Your output is shown inside a mobile iOS app, so keep the report short, calm, and easy to scan on a small screen. Keep product names, email addresses, URLs, and numbers in their original form.",
 ].join(" ");
 
 // Shared output contract for the short, mobile-friendly 5-section emoji report.
@@ -266,7 +265,7 @@ function buildMealTextPrompt(body: MealTextBody): string {
     "Analyze this meal photo for gut health and return ONE short report.",
     `Preferred response language: ${languageLabel}.`,
     'Tone rule: friendly and informal; speak directly to the person ("you" / "du").',
-    "Language rule: respond in the preferred response language. If the preferred language is Persian (fa), write the entire response in Persian. If German, write in German. Otherwise write in English.",
+    "Language rule: respond in the preferred response language. If the preferred language is German, write the entire response in German. Otherwise write it in English. Do not mix languages and do not translate from another language — compose directly in the target language.",
     "Context reset: this is a new meal scan. Ignore prior guesses, cookies, or chat context unless reflected in the symptoms below.",
     "",
     ...profileHead,
@@ -322,7 +321,7 @@ function buildMealRevisePrompt(body: MealReviseBody): { persona: string; prompt:
   const persona = [
     "You are a friendly, informal gut-health coach correcting a prior meal analysis.",
     "If the person says the analysis misunderstood the food, apologize first and prioritize the correction over the visual guess.",
-    "Language rule: respond in the preferred response language (English, German, or Persian). Do not mix languages.",
+    "Language rule: respond in the preferred response language (English or German). Do not mix languages.",
     "Avoid medical diagnosis, treatment claims, or promises of symptom relief.",
     "Do not present your advice as medical treatment, prevention, diagnosis, or guaranteed symptom control.",
     "Your output is shown inside a mobile iOS app, so make the revised report short, calm, and easy to scan on a small screen.",
@@ -548,13 +547,13 @@ function buildNutrientRecommendationPrompt(
       : "Generate a helpful response anyway using the nutrient list and user context. Do not say the analysis failed.",
     "",
     "Write a warm, friendly recommendation in the preferred response language from the user context.",
-    "Language rule: write the entire answer in the preferred response language (English, German, or Persian).",
+    "Language rule: write the entire answer in the preferred response language (English or German).",
     "Avoid medical claims and keep the tone practical, like a supportive friend.",
     "Formatting rule: use plain text only. Do not use ASCII art, decorative boxes, Unicode box-drawing characters (corners or ruled lines), tables, or unusual symbols. Do not use any markdown syntax. Forbidden: #, ##, ###, *, **, _. Use plain ALL CAPS section labels such as SUGGESTION, HOW LONG TO TRY, PROGRESS TIP.",
     "If a Gut score is present, frame the advice as a small step to help improve the Gut Score from the current score toward 10.",
     "Always include these clearly labeled parts: Suggestion, How long to try, and Progress Tip. Use German equivalents only when the preferred language is German.",
     "Suggestion should be a food or habit with a sensible amount/frequency phrased as friendly guidance (never prescription-style dosing). How long to try should be a practical timeframe. Progress Tip should tell the user what to track to see if their Gut Score improves.",
-    `Mandatory safety footer: end the analysis with a short medical disclaimer in the preferred response language. German exact text: "${DISCLAIMER.de}" English exact text: "${DISCLAIMER.en}" Persian exact text: "${DISCLAIMER.fa}"`,
+    `Mandatory safety footer: end the analysis with a short medical disclaimer in the preferred response language. German exact text: "${DISCLAIMER.de}" English exact text: "${DISCLAIMER.en}"`,
     "If the food is unhealthy for the user's gut condition, suggest 3 healthier alternatives that are commonly available in local grocery stores or restaurants.",
     "If IBS is listed as an underlying condition, never suggest high-sugar cookies, desserts, candy, sugary snacks, brown rice, barley bread, barley, or high-fiber whole grains. Prefer white rice, boiled potatoes, zucchini, carrots, low-FODMAP soup, cooked vegetables, or plain yogurt when appropriate. Peppermint or ginger tea may be suggested only when the user explicitly reports stomach pain, nausea, gas, or bloating.",
     "When USDA results are generic, incomplete, or not clearly gut-supportive, do not overfit the recommendation to cookies or processed snacks. Suggest natural whole foods and practical habits tied to the nutrient list.",

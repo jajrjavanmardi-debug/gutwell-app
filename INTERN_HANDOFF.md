@@ -24,7 +24,7 @@
 8. **It uses YOUR profile now.** Before, *every* user was secretly analyzed as a fake test patient ("IBS + bloating, score 4/10") and told it was "personalized." Now it uses your real conditions, real gut score, and diet type — or honestly says "general guidance" if it knows nothing yet.
 9. **Removed medical-sounding language.** "Instant Relief" sections, prescription-style "Dose/Duration" labels, and promises like "your score will improve by +2 in a week" are gone — replaced with friendly wellness wording plus "see a doctor if it's severe." This keeps the app legal (FDA/App Store rules for wellness apps).
 10. **Removed the developer's hometown.** German users everywhere were told to shop "near Nürtingen." Now it uses the user's own area — and only if they share it.
-11. **Finished Persian (Farsi) support.** The AI can answer in Persian with a proper Persian safety note; Persian voice input works; text flows right-to-left.
+11. ~~**Finished Persian (Farsi) support.**~~ *(Superseded — August 2026.)* Persian was later removed entirely for the v1.0 launch. **v1.0 ships English and German only**, with English as the primary/default language and permanent fallback. Additional languages may be reconsidered after launch through a fresh implementation. This line is kept as a record of what happened in June; it does not describe the current app.
 
 ### Privacy & honesty
 12. **Location is opt-in now.** The scanner used to demand your location immediately and sent exact GPS coordinates to Google. Now nothing happens unless the user taps "use my location," and only the city name is shared — never coordinates.
@@ -83,7 +83,7 @@
 ### 🟢 Things the intern can do (no special accounts needed)
 1. **Test the app like a brand-new user** (see the QA checklist below) and write down anything confusing, broken, or ugly. This is the most valuable thing you can do right now.
 2. **Take App Store screenshots** — once the app runs on a simulator (ask for help getting it running): Home, Check-in, Photo analysis, Progress, Weekly digest. Apple needs at least 3 in the large iPhone size (6.7"/6.9").
-3. **Proof-read all the German text** in the app (and the Persian AI replies if you can) — translations were written by developers, not native review.
+3. **Proof-read all the German text** in the app — translations were written by developers, not native review. The app ships in **English and German only**; German uses the informal *du* throughout, so flag anything that slips into *Sie*. There is no Persian to check any more.
 4. **Draft the privacy policy web page** — copy the sections from the in-app policy into a simple page Hojir can host.
 5. **Keep `LAUNCH_OPERATIONS.md` updated** — tick things off as they get done.
 

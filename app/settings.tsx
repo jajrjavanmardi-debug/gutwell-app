@@ -28,7 +28,8 @@ import { flush, getPendingCount } from '../lib/offline-queue';
 import * as StoreReview from 'expo-store-review';
 import { track, Events } from '../lib/analytics';
 import { useTranslation } from '../lib/i18n';
-import { loadLanguage, saveLanguage, LANGUAGE_LABELS, type AppLanguage } from '../lib/language';
+import { LANGUAGE_LABELS, SUPPORTED_LANGUAGES, type AppLanguage } from '../lib/language';
+import { useLanguage } from '../lib/LanguageContext';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -230,7 +231,7 @@ function TimePickerModal({
             </View>
             {/* Minute */}
             <View style={styles.timeColumn}>
-              <Text style={styles.timeColumnLabel}>Min</Text>
+              <Text style={styles.timeColumnLabel}>{t.settings.minute}</Text>
               <ScrollView style={styles.timeScroll} showsVerticalScrollIndicator={false}>
                 {MINUTE_OPTIONS.map((m) => (
                   <TouchableOpacity
@@ -261,7 +262,7 @@ function TimePickerModal({
               ))}
             </View>
           </View>
-          <TouchableOpacity style={styles.timeConfirmBtn} onPress={handleDone} accessibilityRole="button" accessibilityLabel="Confirm reminder time">
+          <TouchableOpacity style={styles.timeConfirmBtn} onPress={handleDone} accessibilityRole="button" accessibilityLabel={t.settings.accessConfirmTime}>
             <Text style={styles.timeConfirmText}>{t.common.confirm}</Text>
           </TouchableOpacity>
         </View>
@@ -279,15 +280,12 @@ export default function SettingsScreen() {
   const [dietModalVisible, setDietModalVisible] = useState(false);
   const [timeModalVisible, setTimeModalVisible] = useState(false);
   const [pendingSyncCount, setPendingSyncCount] = useState(0);
-  const [appLanguage, setAppLanguage] = useState<AppLanguage>('en');
-
-  useEffect(() => {
-    loadLanguage().then(setAppLanguage);
-  }, []);
+  // Language lives in LanguageContext so a change re-renders the whole app
+  // immediately, not just this screen. The context also persists the choice.
+  const { language: appLanguage, setLanguage } = useLanguage();
 
   const handleLanguageChange = async (lang: AppLanguage) => {
-    await saveLanguage(lang);
-    setAppLanguage(lang);
+    await setLanguage(lang);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
   };
 
@@ -313,15 +311,15 @@ export default function SettingsScreen() {
       const remaining = await getPendingCount();
       setPendingSyncCount(remaining);
       Alert.alert(
-        remaining === 0 ? 'All synced' : 'Partially synced',
+        remaining === 0 ? t.settings.allSynced : t.settings.partiallySynced,
         remaining === 0
-          ? `${synced} ${synced === 1 ? 'entry' : 'entries'} uploaded.`
-          : `${synced} uploaded, ${remaining} still waiting — check your connection and try again.`,
+          ? `${synced} ${synced === 1 ? t.settings.syncedEntry : t.settings.syncedEntries}`
+          : `${synced} ${t.settings.syncedPartialMessage.replace('{remaining}', String(remaining))}`,
       );
     } catch {
       Alert.alert(t.settings.syncFailed, t.settings.syncError);
     }
-  }, []);
+  }, [t]);
 
   const save = useCallback((partial: Partial<Settings>) => {
     setSettings((prev) => {
@@ -337,8 +335,8 @@ export default function SettingsScreen() {
                 // Scheduling refused (time falls in 22:00–08:00 quiet hours) —
                 // tell the user instead of silently never reminding them.
                 Alert.alert(
-                  'Reminder not scheduled',
-                  'That time falls within quiet hours (10 PM – 8 AM). Pick a time outside quiet hours to get your daily reminder.',
+                  t.settings.reminderNotScheduledTitle,
+                  t.settings.reminderNotScheduledMessage,
                 );
               }
             })
@@ -350,7 +348,7 @@ export default function SettingsScreen() {
 
       return next;
     });
-  }, []);
+  }, [t]);
 
   // Diet picker
   const openDietPicker = () => {
@@ -360,7 +358,7 @@ export default function SettingsScreen() {
         {
           options: [...DIET_OPTIONS, t.common.cancel],
           cancelButtonIndex: DIET_OPTIONS.length,
-          title: 'Diet Type',
+          title: t.settings.dietType,
         },
         (index) => {
           if (index < DIET_OPTIONS.length) {
@@ -375,7 +373,7 @@ export default function SettingsScreen() {
 
   const handleExportData = async () => {
     if (!user) return;
-    Alert.alert('Preparing your data...', undefined, undefined, { cancelable: false });
+    Alert.alert(t.settings.preparingData, undefined, undefined, { cancelable: false });
 
     try {
       // Every user-owned table — a GDPR access request must return it all.
@@ -404,7 +402,7 @@ export default function SettingsScreen() {
 
       await Share.share({
         message: JSON.stringify(exportData, null, 2),
-        title: 'GutWell AI Data Export',
+        title: t.settings.exportSubject,
       });
       track(Events.DATA_EXPORTED);
     } catch {
@@ -415,10 +413,10 @@ export default function SettingsScreen() {
   const handleClearData = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     Alert.alert(
-      'Clear All Data',
-      'This will permanently delete all your check-ins, food logs, symptoms, water logs, gut scores, favorites, and streaks. Your account stays; the data cannot be recovered.',
+      t.settings.clearAllData,
+      t.settings.clearAllMessage,
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: t.common.cancel, style: 'cancel' },
         {
           text: t.settings.clearConfirm,
           style: 'destructive',
@@ -436,8 +434,8 @@ export default function SettingsScreen() {
             const failed = results.filter((r) => r.error);
             if (failed.length > 0) {
               Alert.alert(
-                'Partially cleared',
-                'Some records could not be deleted. Please check your connection and try again.',
+                t.settings.partiallyCleared,
+                t.settings.partiallyClearedMessage,
               );
             } else {
               Alert.alert(t.settings.clearDone, t.settings.clearSuccess);
@@ -464,7 +462,7 @@ export default function SettingsScreen() {
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity style={styles.backButton} onPress={() => router.back()} accessibilityRole="button" accessibilityLabel="Go back">
+        <TouchableOpacity style={styles.backButton} onPress={() => router.back()} accessibilityRole="button" accessibilityLabel={t.common.goBack}>
           <Ionicons name="chevron-back" size={24} color={Colors.text} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>{t.settings.title}</Text>
@@ -480,7 +478,7 @@ export default function SettingsScreen() {
         <View style={styles.card}>
           <SettingsRow
             icon="leaf-outline"
-            label="Diet Type"
+            label={t.settings.dietType}
             subtitle={settings.dietType}
             onPress={openDietPicker}
             isFirst
@@ -492,14 +490,14 @@ export default function SettingsScreen() {
         <View style={styles.card}>
           <SettingsRow
             icon="alarm-outline"
-            label="Daily Reminder"
+            label={t.settings.dailyReminder}
             right={
               <Switch
                 value={settings.dailyReminderEnabled}
                 onValueChange={(v) => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); save({ dailyReminderEnabled: v }); }}
                 trackColor={{ false: Colors.border, true: Colors.secondary }}
                 thumbColor={Colors.surface}
-                accessibilityLabel="Toggle daily check-in reminder"
+                accessibilityLabel={t.settings.accessToggleDaily}
               />
             }
             isFirst
@@ -507,15 +505,15 @@ export default function SettingsScreen() {
           <Divider />
           <SettingsRow
             icon="flame-outline"
-            label="Streak Alerts"
-            subtitle="8 PM reminder when streak is at risk"
+            label={t.settings.streakAlerts}
+            subtitle={t.settings.streakAlertsSubtitle}
             right={
               <Switch
                 value={settings.streakAlertsEnabled}
                 onValueChange={(v) => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); save({ streakAlertsEnabled: v }); }}
                 trackColor={{ false: Colors.border, true: Colors.secondary }}
                 thumbColor={Colors.surface}
-                accessibilityLabel="Toggle streak alerts"
+                accessibilityLabel={t.settings.accessToggleStreak}
               />
             }
             isLast={!settings.dailyReminderEnabled}
@@ -525,7 +523,7 @@ export default function SettingsScreen() {
               <Divider />
               <SettingsRow
                 icon="time-outline"
-                label="Reminder Time"
+                label={t.settings.reminderTime}
                 subtitle={formatTime(settings.reminderHour, settings.reminderMinute)}
                 onPress={() => setTimeModalVisible(true)}
                 isLast
@@ -541,7 +539,7 @@ export default function SettingsScreen() {
             <>
               <SettingsRow
                 icon="cloud-upload-outline"
-                label="Waiting to sync"
+                label={t.settings.syncNow}
                 subtitle={`${pendingSyncCount} ${pendingSyncCount === 1 ? 'entry' : 'entries'} saved offline — tap to sync now`}
                 onPress={handleSyncNow}
                 isFirst
@@ -552,14 +550,14 @@ export default function SettingsScreen() {
           <SettingsRow
             icon="download-outline"
             label={t.settings.exportMyData}
-            subtitle="Download all your records as JSON"
+            subtitle={t.settings.exportSubtitle}
             onPress={handleExportData}
             isFirst={pendingSyncCount === 0}
           />
           <Divider />
           <SettingsRow
             icon="trash-outline"
-            label="Clear All Data"
+            label={t.settings.clearAllData}
             onPress={handleClearData}
             destructive
             isLast
@@ -569,7 +567,7 @@ export default function SettingsScreen() {
         {/* LANGUAGE */}
         <SectionHeader title={t.settings.sectionLanguage} />
         <View style={styles.card}>
-          {(['en', 'de', 'fa'] as AppLanguage[]).map((lang, idx, arr) => (
+          {SUPPORTED_LANGUAGES.map((lang, idx, arr) => (
             <React.Fragment key={lang}>
               <SettingsRow
                 icon={appLanguage === lang ? 'radio-button-on-outline' : 'radio-button-off-outline'}
@@ -588,7 +586,7 @@ export default function SettingsScreen() {
           ))}
         </View>
         <Text style={styles.languageNote}>
-          Language affects AI responses in Photo Analysis. Reopen Photo Analysis after changing.
+          {t.settings.languageNote}
         </Text>
 
         {/* ACCOUNT */}
@@ -596,7 +594,7 @@ export default function SettingsScreen() {
         <View style={styles.card}>
           <SettingsRow
             icon="lock-closed-outline"
-            label="Change Password"
+            label={t.settings.changePassword}
             onPress={() => router.push('/change-password')}
             isFirst
             isLast
@@ -608,20 +606,20 @@ export default function SettingsScreen() {
         <View style={styles.card}>
           <SettingsRow
             icon="information-circle-outline"
-            label="App Version"
+            label={t.settings.appVersion}
             right={<Text style={styles.versionText}>1.0.0</Text>}
             isFirst
           />
           <Divider />
           <SettingsRow
             icon="shield-checkmark-outline"
-            label="Privacy Policy"
+            label={t.settings.privacyPolicy}
             onPress={() => router.push('/privacy-policy')}
           />
           <Divider />
           <SettingsRow
             icon="star-outline"
-            label="Rate GutWell"
+            label={t.settings.rateApp}
             onPress={handleRateApp}
             isLast
           />

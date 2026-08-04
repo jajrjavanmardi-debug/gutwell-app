@@ -185,9 +185,7 @@ export default function NotificationsScreen() {
               <Ionicons name="leaf" size={48} color="#52B788" />
             </View>
             <Text style={styles.celebrationTitle}>{t.notifications.allSet}</Text>
-            <Text style={styles.celebrationSubtitle}>
-              Your gut health journey starts now
-            </Text>
+            <Text style={styles.celebrationSubtitle}>{t.notifications.journeyStarts}</Text>
           </Animated.View>
         </Animated.View>
       )}

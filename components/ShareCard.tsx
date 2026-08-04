@@ -14,6 +14,7 @@ import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors, FontFamily, FontSize, BorderRadius, Spacing, Shadows } from '../constants/theme';
+import { useTranslation } from '../lib/i18n';
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
@@ -41,6 +42,7 @@ export function ShareCard({
   weekTrend,
   onClose,
 }: ShareCardProps) {
+  const t = useTranslation();
   const scaleAnim = useRef(new Animated.Value(0.88)).current;
   const opacityAnim = useRef(new Animated.Value(0)).current;
 
@@ -75,7 +77,9 @@ export function ShareCard({
   const handleShare = async () => {
     try {
       await Share.share({
-        message: `My GutWell gut score this week: ${score ?? '--'}/100 🌿 Day ${streak} streak! Download GutWell to track your gut health.`,
+        message: t.shareCard.shareMessage
+          .replace('{score}', String(score ?? '--'))
+          .replace('{streak}', String(streak)),
       });
     } catch {
       // Share cancelled — no action needed
@@ -114,6 +118,8 @@ export function ShareCard({
             style={styles.closeBtn}
             onPress={onClose}
             hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+            accessibilityRole="button"
+            accessibilityLabel={t.shareCard.close}
           >
             <Ionicons name="close" size={20} color={Colors.textSecondary} />
           </TouchableOpacity>
@@ -140,7 +146,7 @@ export function ShareCard({
               </View>
             </View>
 
-            <Text style={styles.scoreLabel}>Gut Score</Text>
+            <Text style={styles.scoreLabel}>{t.shareCard.gutScore}</Text>
 
             {/* Trend pill */}
             {weekTrend && weekTrend !== 'flat' && (
@@ -151,7 +157,7 @@ export function ShareCard({
                   color={weekTrend === 'up' ? Colors.secondary : '#E07070'}
                 />
                 <Text style={[styles.trendPillText, { color: weekTrend === 'up' ? Colors.secondary : '#E07070' }]}>
-                  {weekTrend === 'up' ? 'Improving' : 'Declining'} this week
+                  {weekTrend === 'up' ? t.shareCard.trendUp : t.shareCard.trendDown}
                 </Text>
               </View>
             )}
@@ -164,27 +170,33 @@ export function ShareCard({
               <View style={styles.statItem}>
                 <Ionicons name="flame-outline" size={16} color={Colors.accent} />
                 <Text style={styles.statValue}>{streak}</Text>
-                <Text style={styles.statLabel}>day streak</Text>
+                <Text style={styles.statLabel}>{t.shareCard.dayStreak}</Text>
               </View>
               <View style={styles.statSep} />
               <View style={styles.statItem}>
                 <Ionicons name="ribbon-outline" size={16} color={Colors.secondary} />
                 <Text style={styles.statValue}>{level}</Text>
-                <Text style={styles.statLabel}>level</Text>
+                <Text style={styles.statLabel}>{t.shareCard.level}</Text>
               </View>
             </View>
 
             {/* Footer tagline */}
-            <Text style={styles.cardFooter}>Track your gut health daily</Text>
+            <Text style={styles.cardFooter}>{t.shareCard.cardFooter}</Text>
           </LinearGradient>
 
           {/* Action Area */}
           <View style={styles.actions}>
-            <Text style={styles.actionsTitle}>Share your progress</Text>
+            <Text style={styles.actionsTitle}>{t.shareCard.actionsTitle}</Text>
 
-            <TouchableOpacity style={styles.shareBtn} onPress={handleShare} activeOpacity={0.8}>
+            <TouchableOpacity
+              style={styles.shareBtn}
+              onPress={handleShare}
+              activeOpacity={0.8}
+              accessibilityRole="button"
+              accessibilityLabel={t.shareCard.shareButton}
+            >
               <Ionicons name="share-social-outline" size={18} color={Colors.textInverse} />
-              <Text style={styles.shareBtnText}>Share</Text>
+              <Text style={styles.shareBtnText}>{t.shareCard.shareButton}</Text>
             </TouchableOpacity>
 
           </View>

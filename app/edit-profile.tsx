@@ -21,8 +21,10 @@ import {
   FontSize,
   FontFamily,
 } from '../constants/theme';
+import { useTranslation } from '../lib/i18n';
 
 export default function EditProfileScreen() {
+  const t = useTranslation();
   const { user, profile, refreshProfile } = useAuth();
   const [displayName, setDisplayName] = useState(profile?.display_name || '');
   const [saving, setSaving] = useState(false);
@@ -36,7 +38,7 @@ export default function EditProfileScreen() {
     if (!user) return;
     const trimmed = displayName.trim();
     if (!trimmed) {
-      setToast({ visible: true, message: 'Display name cannot be empty', type: 'error' });
+      setToast({ visible: true, message: t.editProfile.emptyName, type: 'error' });
       return;
     }
 
@@ -48,14 +50,14 @@ export default function EditProfileScreen() {
         .eq('id', user.id);
 
       if (error) {
-        setToast({ visible: true, message: error.message || 'Failed to update profile', type: 'error' });
+        setToast({ visible: true, message: t.editProfile.updateFailed, type: 'error' });
       } else {
         await refreshProfile();
-        setToast({ visible: true, message: 'Profile updated', type: 'success' });
+        setToast({ visible: true, message: t.editProfile.success, type: 'success' });
         setTimeout(() => router.back(), 600);
       }
     } catch {
-      setToast({ visible: true, message: 'Something went wrong. Please try again.', type: 'error' });
+      setToast({ visible: true, message: t.editProfile.genericError, type: 'error' });
     } finally {
       setSaving(false);
     }
@@ -69,11 +71,11 @@ export default function EditProfileScreen() {
           style={styles.backButton}
           onPress={() => router.back()}
           accessibilityRole="button"
-          accessibilityLabel="Go back"
+          accessibilityLabel={t.common.goBack}
         >
           <Ionicons name="chevron-back" size={24} color={Colors.text} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Edit Profile</Text>
+        <Text style={styles.headerTitle}>{t.editProfile.headerTitle}</Text>
         <View style={styles.backButton} />
       </View>
 
@@ -84,10 +86,10 @@ export default function EditProfileScreen() {
         <View style={styles.content}>
           {/* Display Name */}
           <Input
-            label="Display Name"
+            label={t.editProfile.displayNameLabel}
             value={displayName}
             onChangeText={setDisplayName}
-            placeholder="Enter your name"
+            placeholder={t.editProfile.displayNamePlaceholder}
             autoCapitalize="words"
             autoCorrect={false}
             maxLength={50}
@@ -97,7 +99,7 @@ export default function EditProfileScreen() {
 
           {/* Save Button */}
           <Button
-            title="Save"
+            title={t.editProfile.saveButton}
             onPress={handleSave}
             loading={saving}
             shape="pill"

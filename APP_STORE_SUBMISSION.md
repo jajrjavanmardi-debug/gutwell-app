@@ -22,7 +22,8 @@ Legend: ✅ done · 🔧 code/config (Claude can do) · 👤 you (Apple account 
 
 ## Phase 2 — App Store Connect setup (👤)
 - 👤 Register the bundle ID (Certificates, Identifiers & Profiles) — or let EAS do it.
-- 👤 Create the **app record** in App Store Connect (name "GutWell", primary language, category **Health & Fitness**, bundle ID).
+- 👤 Create the **app record** in App Store Connect (name "GutWell", primary language **English**, category **Health & Fitness**, bundle ID).
+- 👤 **Localizations:** add **English (primary/default)** and **German** only. v1.0 ships no other language — do not add Persian/Farsi. Additional languages may be reconsidered after launch.
 - 👤 **In-App Purchases**: create the subscription product(s) matching the RevenueCat offering; add to a subscription group; set pricing; add localized display name/description; submit them WITH the build.
 - 👤 **App Privacy "nutrition label"** — see the data-type mapping in `APP_STORE_PRIVACY_LABEL.md` (Claude will generate).
 - 👤 **Age rating** questionnaire (likely 12+ for "Medical/Treatment Information: Infrequent/Mild" — gut-health content; answer honestly, claim NO medical treatment advice).

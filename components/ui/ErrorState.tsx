@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors, FontFamily, FontSize, Spacing, BorderRadius } from '../../constants/theme';
+import { useTranslation } from '../../lib/i18n';
 
 interface ErrorStateProps {
   title?: string;
@@ -18,10 +19,23 @@ export const ErrorState: React.FC<ErrorStateProps> = ({
   icon,
   type = 'error',
 }) => {
+  const t = useTranslation();
   const defaults = {
-    error: { icon: 'alert-circle-outline', title: 'Something went wrong', message: 'Please try again.' },
-    offline: { icon: 'cloud-offline-outline', title: 'No connection', message: 'Check your internet and try again.' },
-    empty: { icon: 'leaf-outline', title: 'Nothing here yet', message: 'Data will appear once you start logging.' },
+    error: {
+      icon: 'alert-circle-outline',
+      title: t.states.errorTitle,
+      message: t.states.errorMessage,
+    },
+    offline: {
+      icon: 'cloud-offline-outline',
+      title: t.states.offlineTitle,
+      message: t.states.offlineMessage,
+    },
+    empty: {
+      icon: 'leaf-outline',
+      title: t.states.emptyTitle,
+      message: t.states.emptyMessage,
+    },
   };
   const d = defaults[type];
   const displayIcon = (icon || d.icon) as keyof typeof Ionicons.glyphMap;
@@ -46,9 +60,15 @@ export const ErrorState: React.FC<ErrorStateProps> = ({
       <Text style={styles.title}>{displayTitle}</Text>
       <Text style={styles.message}>{displayMessage}</Text>
       {onRetry && (
-        <TouchableOpacity style={styles.retryBtn} onPress={onRetry} activeOpacity={0.7}>
+        <TouchableOpacity
+          style={styles.retryBtn}
+          onPress={onRetry}
+          activeOpacity={0.7}
+          accessibilityRole="button"
+          accessibilityLabel={t.states.tryAgain}
+        >
           <Ionicons name="refresh" size={15} color={Colors.secondary} />
-          <Text style={styles.retryText}>Try again</Text>
+          <Text style={styles.retryText}>{t.states.tryAgain}</Text>
         </TouchableOpacity>
       )}
     </View>

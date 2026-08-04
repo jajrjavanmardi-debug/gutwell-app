@@ -28,8 +28,6 @@ import { useTranslation } from '../../lib/i18n';
 
 const STREAK_MILESTONES = [7, 14, 30, 100, 180, 366];
 
-const SEVERITY_LABELS = ['None', 'Mild', 'Moderate', 'Strong', 'Severe'];
-const ENERGY_LABELS = ['Low', 'Below avg', 'Normal', 'Good', 'High'];
 
 // ─── Progress Indicator ──────────────────────────────────────────────────────
 
@@ -259,15 +257,15 @@ export default function CheckinScreen() {
         >
           <Ionicons name="chevron-back" size={22} color={Colors.text} />
         </TouchableOpacity>
-        <Text style={styles.navTitle}>Check-in</Text>
+        <Text style={styles.navTitle}>{t.checkin.headerTitle}</Text>
         <View style={styles.backBtn} />
       </View>
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
         <Animated.View style={{ opacity: sectionFade }}>
         {/* Heading */}
-        <Text style={styles.title}>Daily Check-in</Text>
-        <Text style={styles.subtitle}>How is your gut feeling today?</Text>
+        <Text style={styles.title}>{t.checkin.heading}</Text>
+        <Text style={styles.subtitle}>{t.checkin.subtitle}</Text>
 
         {/* Progress */}
         <ProgressDots
@@ -292,44 +290,44 @@ export default function CheckinScreen() {
         {/* Symptoms */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>{t.checkin.sectionSymptoms}</Text>
-          <Text style={styles.sectionHint}>Rate each symptom on a 1-5 scale</Text>
+          <Text style={styles.sectionHint}>{t.checkin.symptomsHint}</Text>
 
           <View style={styles.symptomCard}>
             <View style={styles.symptomHeader}>
               <Ionicons name="balloon-outline" size={18} color={Colors.primaryLight} />
-              <Text style={styles.symptomLabel}>Bloating</Text>
+              <Text style={styles.symptomLabel}>{t.checkin.bloating}</Text>
             </View>
-            <PillSlider value={bloating} onChange={setBloating} labels={SEVERITY_LABELS} />
+            <PillSlider value={bloating} onChange={setBloating} labels={[...t.checkin.severityLabels]} />
           </View>
 
           <View style={styles.symptomCard}>
             <View style={styles.symptomHeader}>
               <Ionicons name="flash-outline" size={18} color={Colors.primaryLight} />
-              <Text style={styles.symptomLabel}>Abdominal Pain</Text>
+              <Text style={styles.symptomLabel}>{t.checkin.abdominalPain}</Text>
             </View>
-            <PillSlider value={pain} onChange={setPain} labels={SEVERITY_LABELS} />
+            <PillSlider value={pain} onChange={setPain} labels={[...t.checkin.severityLabels]} />
           </View>
 
           <View style={styles.symptomCard}>
             <View style={styles.symptomHeader}>
               <Ionicons name="battery-charging-outline" size={18} color={Colors.primaryLight} />
-              <Text style={styles.symptomLabel}>Energy Level</Text>
+              <Text style={styles.symptomLabel}>{t.checkin.energyLevel}</Text>
             </View>
-            <PillSlider value={energy} onChange={setEnergy} labels={ENERGY_LABELS} />
+            <PillSlider value={energy} onChange={setEnergy} labels={[...t.checkin.energyLabels]} />
           </View>
         </View>
 
         {/* Mood */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>{t.checkin.sectionMood}</Text>
-          <Text style={styles.sectionHint}>How are you feeling emotionally?</Text>
+          <Text style={styles.sectionHint}>{t.checkin.moodHint}</Text>
           <MoodSelector value={mood} onChange={setMood} />
         </View>
 
         {/* Water Tracking */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Water Intake</Text>
-          <Text style={styles.sectionHint}>Track your hydration throughout the day</Text>
+          <Text style={styles.sectionTitle}>{t.checkin.waterTitle}</Text>
+          <Text style={styles.sectionHint}>{t.checkin.waterHint}</Text>
           <WaterTracker
             glasses={waterGlasses}
             onAdd={() => setWaterGlasses(g => Math.min(g + 1, 12))}
@@ -340,7 +338,7 @@ export default function CheckinScreen() {
         {/* Notes */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>{t.checkin.sectionNotes}</Text>
-          <Text style={styles.sectionHint}>Anything else worth noting?</Text>
+          <Text style={styles.sectionHint}>{t.checkin.notesHint}</Text>
           <Input
             placeholder={t.checkin.notesPlaceholder}
             value={note}

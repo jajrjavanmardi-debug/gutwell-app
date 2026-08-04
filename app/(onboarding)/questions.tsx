@@ -231,7 +231,7 @@ export default function QuestionsScreen() {
               accessibilityLabel={t.questions.accessSkip}
               activeOpacity={0.7}
             >
-              <Text style={styles.skipText}>Skip</Text>
+              <Text style={styles.skipText}>{t.questions.skip}</Text>
             </TouchableOpacity>
           ) : null}
         </View>
@@ -284,6 +284,8 @@ function Header({ title, subtitle }: { title: string; subtitle?: string }) {
 }
 
 function ScrollableStep({ step, value, onSetField }: StepContentProps) {
+  // Sub-components need their own hook — hooks do not cross function boundaries.
+  const t = useTranslation();
   return (
     <ScrollView
       style={styles.scroll}
@@ -360,7 +362,7 @@ function ScrollableStep({ step, value, onSetField }: StepContentProps) {
             style={styles.referralInput}
             value={typeof value === 'string' ? value : ''}
             onChangeText={(text) => onSetField(step.field, text.toUpperCase())}
-            placeholder="Enter code"
+            placeholder={t.questions.enterCode}
             placeholderTextColor="rgba(255,255,255,0.35)"
             autoCapitalize="characters"
             autoCorrect={false}
@@ -528,6 +530,8 @@ function InfoStepView({ step }: { step: Extract<OnboardingStep, { type: 'info' }
 }
 
 function InfoIllustration({ step }: { step: Extract<OnboardingStep, { type: 'info' }> }) {
+  // Sub-components need their own hook — hooks do not cross function boundaries.
+  const t = useTranslation();
   if (step.illustration === 'comparison') {
     return (
       <View style={styles.comparison}>
@@ -563,8 +567,8 @@ function InfoIllustration({ step }: { step: Extract<OnboardingStep, { type: 'inf
           <View style={[styles.chartDot, { alignSelf: down ? 'flex-end' : 'flex-start' }]} />
         </View>
         <View style={styles.chartAxis}>
-          <Text style={styles.chartAxisLabel}>Now</Text>
-          <Text style={styles.chartAxisLabel}>12 weeks</Text>
+          <Text style={styles.chartAxisLabel}>{t.questions.chartNow}</Text>
+          <Text style={styles.chartAxisLabel}>{t.questions.chartTwelveWeeks}</Text>
         </View>
       </View>
     );

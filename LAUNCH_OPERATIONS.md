@@ -5,6 +5,18 @@ Project ref: `peipdakrqtgabnvpazrc` · Bundle id: `com.parallellabs.gutwell` · 
 
 ---
 
+## 🌐 v1.0 language scope (decided August 2026)
+
+- **English** — primary, default, and the permanent fallback for any unrecognised value.
+- **German** — the only additional launch language. Informal *du* register throughout.
+- **Persian (`fa`) is not supported in v1.0.** It was removed from the app, the
+  `analyze-food` Edge Function, and the `user_profiles.preferred_language` CHECK
+  constraint. Legacy stored `fa` preferences migrate one-way to English.
+- Additional languages may be reconsidered after v1.0 via a fresh implementation.
+- Only `en` or `de` is ever sent to AI or backend services.
+
+---
+
 ## ✅ Done (was blocking, now resolved)
 
 | Item | Status |

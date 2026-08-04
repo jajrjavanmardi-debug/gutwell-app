@@ -2,13 +2,16 @@ import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { Colors, Spacing, FontSize, BorderRadius, FontFamily } from '../constants/theme';
+import { useTranslation } from '../lib/i18n';
 
+// `value` is the 1–5 score persisted to Supabase; labels come from
+// t.components.mood.levels, indexed by value - 1.
 const MOODS = [
-  { value: 1, emoji: '😞', label: 'Bad' },
-  { value: 2, emoji: '😔', label: 'Low' },
-  { value: 3, emoji: '😐', label: 'Okay' },
-  { value: 4, emoji: '😊', label: 'Good' },
-  { value: 5, emoji: '😄', label: 'Great' },
+  { value: 1, emoji: '😞' },
+  { value: 2, emoji: '😔' },
+  { value: 3, emoji: '😐' },
+  { value: 4, emoji: '😊' },
+  { value: 5, emoji: '😄' },
 ];
 
 type Props = {
@@ -17,6 +20,8 @@ type Props = {
 };
 
 export function MoodSelector({ value, onChange }: Props) {
+  const t = useTranslation();
+  const moodLabel = (v: number) => t.components.mood.levels[v - 1] ?? String(v);
   return (
     <View style={styles.container}>
       {MOODS.map(mood => {
@@ -34,7 +39,7 @@ export function MoodSelector({ value, onChange }: Props) {
             onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); onChange(mood.value); }}
             activeOpacity={0.7}
             accessibilityRole="button"
-            accessibilityLabel={`${mood.label} mood`}
+            accessibilityLabel={moodLabel(mood.value)}
             accessibilityState={{ selected: isSelected }}
           >
             <Text style={styles.emoji}>{mood.emoji}</Text>
@@ -42,7 +47,7 @@ export function MoodSelector({ value, onChange }: Props) {
               styles.label,
               isSelected && { color: Colors.mood[mood.value], fontFamily: FontFamily.sansSemiBold },
             ]}>
-              {mood.label}
+              {moodLabel(mood.value)}
             </Text>
           </TouchableOpacity>
         );

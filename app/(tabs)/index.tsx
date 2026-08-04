@@ -427,10 +427,8 @@ export default function HomeScreen() {
               <Ionicons name="camera" size={24} color={Colors.secondary} />
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={styles.scanTitle}>Scan your meal</Text>
-              <Text style={styles.scanSubtitle}>
-                Snap a photo — get gut-friendly insights in seconds
-              </Text>
+              <Text style={styles.scanTitle}>{t.home.scanTitle}</Text>
+              <Text style={styles.scanSubtitle}>{t.home.scanSubtitle}</Text>
             </View>
             <Ionicons name="chevron-forward" size={18} color={Colors.textTertiary} />
           </TouchableOpacity>
@@ -452,8 +450,13 @@ export default function HomeScreen() {
                 <Text style={styles.triggerFood}>{topTrigger.foodName}</Text>
                 <Text style={styles.triggerDetail}>
                   {topTrigger.topSymptom
-                    ? `Linked to ${topTrigger.topSymptom.toLowerCase()} after ${topTrigger.timesWithSymptoms} of ${topTrigger.timesLogged} logs`
-                    : `Symptoms followed ${topTrigger.timesWithSymptoms} of ${topTrigger.timesLogged} logs`}
+                    ? t.home.triggerLinked
+                        .replace('{symptom}', topTrigger.topSymptom.toLowerCase())
+                        .replace('{withSymptoms}', String(topTrigger.timesWithSymptoms))
+                        .replace('{logged}', String(topTrigger.timesLogged))
+                    : t.home.triggerFollowed
+                        .replace('{withSymptoms}', String(topTrigger.timesWithSymptoms))
+                        .replace('{logged}', String(topTrigger.timesLogged))}
                 </Text>
               </View>
               <Ionicons name="chevron-forward" size={16} color={Colors.textTertiary} />
@@ -462,9 +465,9 @@ export default function HomeScreen() {
 
           {/* Recently logged */}
           <View style={styles.sectionRow}>
-            <Text style={styles.sectionTitle}>Recently logged</Text>
+            <Text style={styles.sectionTitle}>{t.home.recentlyLogged}</Text>
             {recentEntries.length > 0 && (
-              <TouchableOpacity onPress={() => router.push('/(tabs)/progress')} accessibilityRole="button" accessibilityLabel={t.home.seeAll + " recent activity"}>
+              <TouchableOpacity onPress={() => router.push('/(tabs)/progress')} accessibilityRole="button" accessibilityLabel={t.home.accessSeeAllRecent}>
                 <Text style={styles.seeAllLink}>{t.home.seeAll}</Text>
               </TouchableOpacity>
             )}
@@ -513,7 +516,7 @@ export default function HomeScreen() {
                   <View style={[styles.emptyLine, { width: '45%' }]} />
                 </View>
               </TouchableOpacity>
-              <Text style={styles.emptyHint}>Tap + to log your first entry of the day</Text>
+              <Text style={styles.emptyHint}>{t.home.emptyHint}</Text>
             </>
           )}
 

@@ -17,6 +17,7 @@ import type { PurchasesOffering, PurchasesPackage } from 'react-native-purchases
 import { useAuth } from '../contexts/AuthContext';
 import { Colors, FontFamily, FontSize, Spacing, BorderRadius } from '../constants/theme';
 import { track, Events } from '../lib/analytics';
+import { useTranslation } from '../lib/i18n';
 import {
   getPaywallOffering,
   initSubscription,
@@ -28,12 +29,13 @@ import {
 // Only features that are actually premium-gated. Data export, reminders, and
 // achievements are free for everyone (export is a data-rights feature and
 // must never sit behind a paywall).
-const FEATURES: { icon: string; text: string }[] = [
-  { icon: 'analytics-outline', text: 'Full trigger-food analysis — every correlation, not just your strongest' },
-  { icon: 'shield-checkmark-outline', text: 'Your personal safe-foods list' },
-  { icon: 'calendar-outline', text: 'Weekly gut health digest' },
-  { icon: 'trending-up-outline', text: 'Advanced trends & mood insights' },
-];
+// Icons stay in code; the copy lives in t.paywall.feature*.
+const FEATURE_ICONS = [
+  'analytics-outline',
+  'shield-checkmark-outline',
+  'calendar-outline',
+  'trending-up-outline',
+] as const;
 
 /** Pick the package matching a plan from an offering, mirroring lib/subscription. */
 function packageForPlan(
@@ -60,6 +62,11 @@ function packageForPlan(
 }
 
 export default function PaywallScreen() {
+  const t = useTranslation();
+  const FEATURES = FEATURE_ICONS.map((icon, i) => ({
+    icon,
+    text: [t.paywall.featureTrigger, t.paywall.featureSafeFoods, t.paywall.featureDigest, t.paywall.featureTrends][i],
+  }));
   const { user } = useAuth();
   const { source } = useLocalSearchParams<{ source?: string }>();
   const [selectedPlan, setSelectedPlan] = useState<'monthly' | 'annual'>('annual');
@@ -128,31 +135,28 @@ export default function PaywallScreen() {
       typeof annualProduct.price !== 'number' || typeof monthlyProduct.price !== 'number' ||
       monthlyProduct.price <= 0
     ) {
-      return 'Billed annually — save 52%';
+      return t.paywall.billedAnnuallySave.replace('{pct}', '52');
     }
     const pct = Math.round((1 - annualProduct.price / (monthlyProduct.price * 12)) * 100);
-    return pct > 0 ? `Billed annually — save ${pct}%` : 'Billed annually';
+    return pct > 0 ? t.paywall.billedAnnuallySave.replace('{pct}', String(pct)) : t.paywall.billedAnnually;
   })();
 
   // Trial copy must reflect the SELECTED plan's actual introductory offer.
   const selectedPkg = selectedPlan === 'annual' ? annualPkg : monthlyPkg;
   const selectedIntro = selectedPkg?.product.introPrice;
   const trialCtaLabel = (() => {
-    if (!selectedIntro || selectedIntro.price !== 0) return 'Continue';
+    if (!selectedIntro || selectedIntro.price !== 0) return t.paywall.continueButton;
     const unit = selectedIntro.periodUnit?.toLowerCase() ?? 'day';
     const n = selectedIntro.periodNumberOfUnits ?? 0;
-    if (!n) return 'Start Free Trial';
+    if (!n) return t.paywall.startFreeTrial;
     const unitLabel = unit.charAt(0).toUpperCase() + unit.slice(1);
-    return `Start ${n}-${unitLabel} Free Trial`;
+    return t.paywall.startTrialWithPeriod.replace('{n}', String(n)).replace('{unit}', unitLabel);
   })();
 
   const handleCTA = async () => {
     if (purchasing) return;
     if (!canPurchase) {
-      Alert.alert(
-        'Coming Soon',
-        'Subscriptions are not available yet. Please try again later.',
-      );
+      Alert.alert(t.paywall.comingSoon, t.paywall.comingSoonBody);
       return;
     }
     setPurchasing(true);
@@ -161,14 +165,14 @@ export default function PaywallScreen() {
 
     if (result.success) {
       track('purchase_success', { plan: selectedPlan });
-      Alert.alert('Success', 'Premium is now active.');
+      Alert.alert(t.paywall.successTitle, t.paywall.activateSuccess);
       router.back();
       return;
     }
 
     if (!result.cancelled) {
       track('purchase_failed', { plan: selectedPlan, message: result.message });
-      Alert.alert('Purchase Failed', result.message || 'Please try again.');
+      Alert.alert(t.paywall.purchaseFailed, result.message || t.paywall.tryAgain);
     }
   };
 
@@ -180,13 +184,13 @@ export default function PaywallScreen() {
 
     if (result.success) {
       track('restore_success');
-      Alert.alert('Restore Complete', 'Premium access has been restored.');
+      Alert.alert(t.paywall.restoreComplete, t.paywall.restoreSuccess);
       router.back();
       return;
     }
 
     track('restore_failed', { message: result.message });
-    Alert.alert('Restore Purchases', result.message || 'No previous purchases found.');
+    Alert.alert(t.paywall.restorePurchases, result.message || t.paywall.noPurchases);
   };
 
   return (
@@ -215,8 +219,8 @@ export default function PaywallScreen() {
           {/* Hero — Cal AI free-trial framing */}
           <View style={styles.hero}>
             <Text style={styles.heroTitle}>
-              We want you to try{'\n'}
-              <Ionicons name="leaf" size={30} color="#52B788" /> GutWell for free
+              {t.paywall.heroLine1}{'\n'}
+              <Ionicons name="leaf" size={30} color="#52B788" /> {t.paywall.heroLine2}
             </Text>
           </View>
 
@@ -232,7 +236,7 @@ export default function PaywallScreen() {
               <View style={styles.previewScoreCard}>
                 <View>
                   <Text style={styles.previewScoreValue}>82</Text>
-                  <Text style={styles.previewScoreLabel}>Gut Score today</Text>
+                  <Text style={styles.previewScoreLabel}>{t.paywall.gutScoreToday}</Text>
                 </View>
                 <View style={styles.previewRing}>
                   <Ionicons name="pulse-outline" size={20} color="#52B788" />
@@ -241,9 +245,9 @@ export default function PaywallScreen() {
 
               <View style={styles.previewStatsRow}>
                 {[
-                  { v: '6', l: 'Day streak' },
-                  { v: '3', l: 'Safe foods' },
-                  { v: '12', l: 'Check-ins' },
+                  { v: '6', l: t.paywall.previewDayStreak },
+                  { v: '3', l: t.paywall.previewSafeFoods },
+                  { v: '12', l: t.paywall.previewCheckIns },
                 ].map((s) => (
                   <View key={s.l} style={styles.previewStat}>
                     <Text style={styles.previewStatValue}>{s.v}</Text>
@@ -252,10 +256,10 @@ export default function PaywallScreen() {
                 ))}
               </View>
 
-              <Text style={styles.previewSectionLabel}>Recently logged</Text>
+              <Text style={styles.previewSectionLabel}>{t.paywall.recentlyLogged}</Text>
               <View style={styles.previewMealRow}>
-                <Text style={styles.previewMealName}>Greek yogurt + berries</Text>
-                <Text style={styles.previewMealScore}>Gut 9/10</Text>
+                <Text style={styles.previewMealName}>{t.paywall.sampleMeal}</Text>
+                <Text style={styles.previewMealScore}>{t.paywall.sampleScore}</Text>
               </View>
             </View>
           </View>
@@ -263,7 +267,7 @@ export default function PaywallScreen() {
           {/* No Payment Due Now reassurance */}
           <View style={styles.reassuranceRow}>
             <Ionicons name="checkmark-circle" size={20} color="#52B788" />
-            <Text style={styles.reassuranceText}>No Payment Due Now</Text>
+            <Text style={styles.reassuranceText}>{t.paywall.noPaymentDue}</Text>
           </View>
 
           {/* Features List */}
@@ -289,7 +293,7 @@ export default function PaywallScreen() {
             >
               <Text style={styles.pricingAmount}>{monthlyPrice}</Text>
               <Text style={styles.pricingPeriod}>/mo</Text>
-              <Text style={styles.pricingBilled}>Billed monthly</Text>
+              <Text style={styles.pricingBilled}>{t.paywall.billedMonthly}</Text>
             </TouchableOpacity>
 
             {/* Annual */}
@@ -302,7 +306,7 @@ export default function PaywallScreen() {
               activeOpacity={0.8}
             >
               <View style={styles.bestValueBadge}>
-                <Text style={styles.bestValueText}>BEST VALUE</Text>
+                <Text style={styles.bestValueText}>{t.paywall.bestValue}</Text>
               </View>
               <Text style={styles.pricingAmount}>{annualPrice}</Text>
               <Text style={styles.pricingPeriod}>/yr</Text>
@@ -342,11 +346,11 @@ export default function PaywallScreen() {
           {/* Legal links — required on subscription paywalls (Guideline 3.1.2) */}
           <View style={styles.legalRow}>
             <TouchableOpacity onPress={() => router.push('/terms-of-service')} accessibilityRole="link">
-              <Text style={styles.legalLink}>Terms of Service</Text>
+              <Text style={styles.legalLink}>{t.paywall.termsOfService}</Text>
             </TouchableOpacity>
             <Text style={styles.legalDot}>·</Text>
             <TouchableOpacity onPress={() => router.push('/privacy-policy')} accessibilityRole="link">
-              <Text style={styles.legalLink}>Privacy Policy</Text>
+              <Text style={styles.legalLink}>{t.paywall.privacyPolicy}</Text>
             </TouchableOpacity>
           </View>
 

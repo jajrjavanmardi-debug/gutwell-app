@@ -1,8 +1,24 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import type { Session, User } from '@supabase/supabase-js';
+import * as Linking from 'expo-linking';
 import { supabase } from '../lib/supabase';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { resetAnalytics } from '../lib/analytics';
+
+/**
+ * Deep link Supabase sends the user back to after they tap the reset link in
+ * their email. Built from the app scheme (app.json → "scheme": "gutwellapp")
+ * so it resolves correctly in Expo Go, dev clients and release builds alike.
+ *
+ * This exact value must be present in the Supabase Dashboard's Redirect URL
+ * allow-list, otherwise Supabase falls back to the Site URL and the link never
+ * reaches the app.
+ */
+export const PASSWORD_RESET_PATH = 'reset-password';
+
+export function passwordResetRedirectTo(): string {
+  return Linking.createURL(`/${PASSWORD_RESET_PATH}`);
+}
 
 type Profile = {
   id: string;
@@ -27,6 +43,10 @@ type AuthContextType = {
   resetPassword: (email: string) => Promise<{ error: any }>;
   updatePassword: (newPassword: string) => Promise<{ error: any }>;
   refreshProfile: () => Promise<void>;
+  /** True while a password-recovery session is active, so routing can send the
+   *  user to the New Password screen instead of into the app. */
+  passwordRecovery: boolean;
+  setPasswordRecovery: (value: boolean) => void;
 };
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -56,6 +76,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [passwordRecovery, setPasswordRecovery] = useState(false);
 
   const fetchProfile = async (userId: string) => {
     const { data } = await supabase
@@ -89,8 +110,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setLoading(false);
     });
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       setSession(session);
+      // A recovery link produces a real but limited session. Flag it so the
+      // router sends the user to the New Password screen rather than into the
+      // authenticated tab stack.
+      if (event === 'PASSWORD_RECOVERY') {
+        setPasswordRecovery(true);
+      } else if (event === 'SIGNED_OUT') {
+        setPasswordRecovery(false);
+      }
       if (session?.user) {
         fetchProfile(session.user.id);
       } else {
@@ -139,8 +168,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const resetPassword = async (email: string) => {
-    const { error } = await supabase.auth.resetPasswordForEmail(email);
-    return { error };
+    try {
+      // redirectTo is what brings the user back into the app from the email.
+      // Without it Supabase falls back to the project's Site URL, which is a
+      // web address and cannot open GutWell AI.
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: passwordResetRedirectTo(),
+      });
+      return { error };
+    } catch (e) {
+      // Network failures throw rather than resolving with an error.
+      const message =
+        e instanceof Error
+          ? e.message
+          : (e as { message?: string })?.message ?? 'Network request failed';
+      return { error: { message } as { message: string } };
+    }
   };
 
   const updatePassword = async (newPassword: string) => {
@@ -171,6 +214,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         resetPassword,
         updatePassword,
         refreshProfile,
+        passwordRecovery,
+        setPasswordRecovery,
       }}
     >
       {children}

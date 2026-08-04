@@ -7,13 +7,6 @@ import { FontFamily } from '../../constants/theme';
 import { useTranslation } from '../../lib/i18n';
 import StarFieldBackground from '../../components/StarFieldBackground';
 
-const ANALYSIS_STEPS = [
-  'Reviewing your gut profile...',
-  'Identifying your symptom patterns...',
-  'Mapping your food-energy connections...',
-  'Building your personalised plan...',
-];
-
 export default function AnalysingScreen() {
   const t = useTranslation();
   const progressAnim = useRef(new Animated.Value(0)).current;
@@ -21,6 +14,13 @@ export default function AnalysingScreen() {
   const [stepIndex, setStepIndex] = useState(0);
   const [percent, setPercent] = useState(0);
   const stepFade = useRef(new Animated.Value(1)).current;
+
+  // Both languages define the same number of steps; captured so the effect
+
+  // does not depend on the whole translation object.
+
+  const stepCount = t.analysing.steps.length;
+
 
   useEffect(() => {
     // Fade in content
@@ -51,7 +51,7 @@ export default function AnalysingScreen() {
     let step = 0;
     const interval = setInterval(() => {
       step++;
-      if (step >= ANALYSIS_STEPS.length) {
+      if (step >= stepCount) {
         clearInterval(interval);
         return;
       }

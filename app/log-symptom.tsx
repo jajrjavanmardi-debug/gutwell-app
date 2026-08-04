@@ -13,24 +13,36 @@ import { Colors, Spacing, FontSize, BorderRadius, FontFamily } from '../constant
 import { updateTodayScore } from '../lib/scoring';
 import { enqueue } from '../lib/offline-queue';
 import { track, Events } from '../lib/analytics';
+import { useTranslation } from '../lib/i18n';
 
+// `key` is the value persisted to symptoms.symptom_type — never translated.
+// Display labels come from t.symptomTypes, keyed by the same value.
 const SYMPTOM_TYPES = [
-  { key: 'bloating', label: 'Bloating', icon: 'ellipse' as const },
-  { key: 'gas', label: 'Gas', icon: 'cloud' as const },
-  { key: 'cramps', label: 'Cramps', icon: 'flash' as const },
-  { key: 'nausea', label: 'Nausea', icon: 'water' as const },
-  { key: 'heartburn', label: 'Heartburn', icon: 'flame' as const },
-  { key: 'fatigue', label: 'Fatigue', icon: 'bed' as const },
-  { key: 'constipation', label: 'Constipation', icon: 'lock-closed' as const },
-  { key: 'diarrhea', label: 'Diarrhea', icon: 'rainy' as const },
-  { key: 'acid_reflux', label: 'Acid Reflux', icon: 'arrow-up-circle' as const },
-  { key: 'other', label: 'Other', icon: 'add-circle' as const },
-];
-
-const SEVERITY_LABELS = ['Mild', 'Minor', 'Moderate', 'Strong', 'Severe'];
+  { key: 'bloating', icon: 'ellipse' as const },
+  { key: 'gas', icon: 'cloud' as const },
+  { key: 'cramps', icon: 'flash' as const },
+  { key: 'nausea', icon: 'water' as const },
+  { key: 'heartburn', icon: 'flame' as const },
+  { key: 'fatigue', icon: 'bed' as const },
+  { key: 'constipation', icon: 'lock-closed' as const },
+  { key: 'diarrhea', icon: 'rainy' as const },
+  { key: 'acid_reflux', icon: 'arrow-up-circle' as const },
+  { key: 'other', icon: 'add-circle' as const },
+] as const;
 
 export default function LogSymptomScreen() {
+  const t = useTranslation();
   const { user } = useAuth();
+
+  /**
+   * Display label for a stored symptom_type. Falls back to the raw value with
+   * underscores replaced, so a type written by an older build still reads
+   * sensibly instead of rendering blank.
+   */
+  const symptomLabel = (key: string) =>
+    (t.symptomTypes as Record<string, string>)[key] ??
+    key.charAt(0).toUpperCase() + key.slice(1).replace(/_/g, ' ');
+
   const [selected, setSelected] = useState<string | null>(null);
   const [severity, setSeverity] = useState(3);
   const [note, setNote] = useState('');
@@ -74,11 +86,11 @@ export default function LogSymptomScreen() {
 
   const handleSave = async () => {
     if (!selected) {
-      setToast({ visible: true, message: 'Please select a symptom', type: 'error' });
+      setToast({ visible: true, message: t.logSymptom.selectSymptom, type: 'error' });
       return;
     }
     if (!user) {
-      setToast({ visible: true, message: 'Please log in to continue', type: 'error' });
+      setToast({ visible: true, message: t.logSymptom.loginRequired, type: 'error' });
       return;
     }
 
@@ -96,15 +108,15 @@ export default function LogSymptomScreen() {
     if (error) {
       if (error.message?.includes('network') || error.message?.includes('Network') || error.code === 'PGRST301' || !error.code) {
         await enqueue('symptoms', payload);
-        setToast({ visible: true, message: 'Saved offline — will sync when connected', type: 'success' });
+        setToast({ visible: true, message: t.logSymptom.savedOffline, type: 'success' });
         setTimeout(() => router.back(), 1200);
       } else {
-        setToast({ visible: true, message: 'Failed to log symptom', type: 'error' });
+        setToast({ visible: true, message: t.logSymptom.saveFailed, type: 'error' });
       }
     } else {
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       track(Events.SYMPTOM_LOGGED);
-      setToast({ visible: true, message: 'Symptom logged!', type: 'success' });
+      setToast({ visible: true, message: t.logSymptom.success, type: 'success' });
       setTodaysSymptoms((prev) => [
         {
           id: `${Date.now()}`,
@@ -128,12 +140,12 @@ export default function LogSymptomScreen() {
           style={styles.backBtn}
           activeOpacity={0.7}
           accessibilityRole="button"
-          accessibilityLabel="Go back"
+          accessibilityLabel={t.common.goBack}
           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
         >
           <Ionicons name="chevron-back" size={22} color={Colors.text} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Symptom</Text>
+        <Text style={styles.headerTitle}>{t.logSymptom.headerTitle}</Text>
         <View style={styles.backBtn} />
       </View>
 
@@ -142,10 +154,10 @@ export default function LogSymptomScreen() {
         showsVerticalScrollIndicator={false}
       >
         {/* Heading */}
-        <Text style={styles.heading}>Log a symptom</Text>
+        <Text style={styles.heading}>{t.logSymptom.heading}</Text>
 
         {/* Section: Symptom Type */}
-        <Text style={styles.sectionLabel}>What are you experiencing?</Text>
+        <Text style={styles.sectionLabel}>{t.logSymptom.typeQuestion}</Text>
         <View style={styles.grid}>
           {SYMPTOM_TYPES.map((s) => {
             const isSelected = selected === s.key;
@@ -158,6 +170,9 @@ export default function LogSymptomScreen() {
                   setSelected(s.key);
                 }}
                 activeOpacity={0.7}
+                accessibilityRole="button"
+                accessibilityLabel={symptomLabel(s.key)}
+                accessibilityState={{ selected: isSelected }}
               >
                 <View
                   style={[
@@ -177,31 +192,33 @@ export default function LogSymptomScreen() {
                     isSelected && styles.symptomLabelSelected,
                   ]}
                 >
-                  {s.label}
+                  {symptomLabel(s.key)}
                 </Text>
               </TouchableOpacity>
             );
           })}
         </View>
 
-        <Text style={styles.sectionLabel}>Today&apos;s symptoms</Text>
+        <Text style={styles.sectionLabel}>{t.logSymptom.todaysSymptoms}</Text>
         {todaysSymptoms.length > 0 ? (
           <View style={styles.todaysSymptomsList}>
             {todaysSymptoms.map((item) => (
               <View key={`${item.id}-${item.logged_at}`} style={styles.todaysSymptomRow}>
                 <Text style={styles.todaysSymptomName}>
-                  {item.symptom_type.charAt(0).toUpperCase() + item.symptom_type.slice(1).replace(/_/g, ' ')}
+                  {symptomLabel(item.symptom_type)}
                 </Text>
-                <Text style={styles.todaysSymptomMeta}>Severity {item.severity}</Text>
+                <Text style={styles.todaysSymptomMeta}>
+                  {t.logSymptom.severityPrefix} {item.severity}
+                </Text>
               </View>
             ))}
           </View>
         ) : (
-          <Text style={styles.todaysSymptomsEmpty}>No symptoms logged yet today.</Text>
+          <Text style={styles.todaysSymptomsEmpty}>{t.logSymptom.noSymptomsToday}</Text>
         )}
 
         {/* Section: Severity */}
-        <Text style={styles.sectionLabel}>How severe is it?</Text>
+        <Text style={styles.sectionLabel}>{t.logSymptom.severityQuestion}</Text>
         <View style={styles.severityContainer}>
           <View style={styles.severityRow}>
             {[1, 2, 3, 4, 5].map((v) => {
@@ -225,6 +242,9 @@ export default function LogSymptomScreen() {
                     setSeverity(v);
                   }}
                   activeOpacity={0.7}
+                  accessibilityRole="button"
+                  accessibilityLabel={`${t.logSymptom.accessSeverity} ${v}: ${t.logSymptom.severityLevels[v - 1]}`}
+                  accessibilityState={{ selected: isActive }}
                 >
                   <Text
                     style={[
@@ -240,15 +260,15 @@ export default function LogSymptomScreen() {
           </View>
           <View style={styles.severityLabelRow}>
             <Text style={[styles.severityLabelText, { color: Colors.severity[severity] }]}>
-              {SEVERITY_LABELS[severity - 1]}
+              {t.logSymptom.severityLevels[severity - 1]}
             </Text>
           </View>
         </View>
 
         {/* Section: Notes */}
-        <Text style={styles.sectionLabel}>Notes</Text>
+        <Text style={styles.sectionLabel}>{t.logSymptom.notesLabel}</Text>
         <Input
-          placeholder="Any additional details..."
+          placeholder={t.logSymptom.notesPlaceholder}
           value={note}
           onChangeText={setNote}
           multiline
@@ -257,7 +277,7 @@ export default function LogSymptomScreen() {
 
         {/* Save Button */}
         <Button
-          title="Log Symptom"
+          title={t.logSymptom.saveButton}
           onPress={handleSave}
           loading={loading}
           size="lg"

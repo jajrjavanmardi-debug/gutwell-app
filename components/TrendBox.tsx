@@ -2,6 +2,7 @@ import React from 'react';
 import { Text, View, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { BorderRadius, Colors, FontFamily, FontSize, Shadows } from '../constants/theme';
+import { useTranslation } from '../lib/i18n';
 
 type TrendBoxProps = {
   avgScore: number;
@@ -10,6 +11,7 @@ type TrendBoxProps = {
 };
 
 export default function TrendBox({ avgScore, bestDay, trend }: TrendBoxProps) {
+  const t = useTranslation();
   const trendIcon = trend === 'up' ? 'trending-up' : trend === 'down' ? 'trending-down' : 'remove';
   const trendColor = trend === 'up' ? Colors.secondary : trend === 'down' ? '#E07070' : Colors.textTertiary;
   const trendLabel = trend === 'up' ? 'Improving' : trend === 'down' ? 'Declining' : 'Steady';
@@ -17,7 +19,7 @@ export default function TrendBox({ avgScore, bestDay, trend }: TrendBoxProps) {
   return (
     <View style={styles.card}>
       <View style={styles.header}>
-        <Text style={styles.title}>This Week</Text>
+        <Text style={styles.title}>{t.components.trendBox.thisWeek}</Text>
         <View style={[styles.badge, { backgroundColor: `${trendColor}20` }]}>
           <Ionicons name={trendIcon} size={14} color={trendColor} />
           <Text style={[styles.badgeText, { color: trendColor }]}>{trendLabel}</Text>
@@ -26,12 +28,12 @@ export default function TrendBox({ avgScore, bestDay, trend }: TrendBoxProps) {
       <View style={styles.row}>
         <View style={styles.stat}>
           <Text style={styles.statValue}>{avgScore}</Text>
-          <Text style={styles.statLabel}>Avg Score</Text>
+          <Text style={styles.statLabel}>{t.components.trendBox.avgScore}</Text>
         </View>
         {bestDay ? (
           <View style={styles.bestDay}>
             <Text style={styles.bestDayValue}>{bestDay}</Text>
-            <Text style={styles.statLabel}>Best Day</Text>
+            <Text style={styles.statLabel}>{t.components.trendBox.bestDay}</Text>
           </View>
         ) : null}
       </View>

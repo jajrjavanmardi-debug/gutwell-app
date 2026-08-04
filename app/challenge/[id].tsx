@@ -4,6 +4,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Colors, FontFamily, FontSize, Spacing, BorderRadius } from '../../constants/theme';
+import { useTranslation, type Translations } from '../../lib/i18n';
+import { useLanguage } from '../../lib/LanguageContext';
 import { useAuth } from '../../contexts/AuthContext';
 import {
   getChallenge,
@@ -19,33 +21,20 @@ import { Button } from '../../components/ui/Button';
 import { ErrorState } from '../../components/ui/ErrorState';
 import { LoadingSkeleton } from '../../components/ui/LoadingSkeleton';
 
-/** A short rules / daily-task list tailored by challenge type. */
-function dailyTasksFor(type: string): string[] {
+/**
+ * A short rules / daily-task list tailored by challenge type.
+ * `type` is the value stored on the challenge row; only the copy is localized.
+ */
+function dailyTasksFor(t: Translations, type: string): readonly string[] {
   switch (type) {
     case 'check-in':
-      return [
-        'Open the app and log a daily gut check-in',
-        'Note any symptoms while they’re fresh',
-        'Keep the streak alive — one check-in per day',
-      ];
+      return t.challengeDetail.tasksCheckIn;
     case 'habit':
-      return [
-        'Complete today’s habit and log it',
-        'Stack it onto an existing routine',
-        'Check in daily to keep your streak going',
-      ];
+      return t.challengeDetail.tasksHabit;
     case 'reset':
-      return [
-        'Stick to the guided plan for the day',
-        'Log meals and how your gut responds',
-        'Avoid reintroducing foods until the window ends',
-      ];
+      return t.challengeDetail.tasksReset;
     default:
-      return [
-        'Avoid your known trigger foods today',
-        'Log your meals so patterns stay visible',
-        'Check in daily to extend your streak',
-      ];
+      return t.challengeDetail.tasksDefault;
   }
 }
 
@@ -55,6 +44,8 @@ function formatCount(n: number): string {
 }
 
 export default function ChallengeDetailScreen() {
+  const t = useTranslation();
+  const { language } = useLanguage();
   const { id } = useLocalSearchParams<{ id: string }>();
   const { user } = useAuth();
 
@@ -69,7 +60,7 @@ export default function ChallengeDetailScreen() {
     if (!id) return;
     setError(false);
     try {
-      const c = await getChallenge(id);
+      const c = await getChallenge(id, language);
       setChallenge(c);
       if (c && user?.id) {
         const uc = await getUserChallenge(user.id, id);
@@ -86,7 +77,7 @@ export default function ChallengeDetailScreen() {
     } finally {
       setLoading(false);
     }
-  }, [id, user?.id]);
+  }, [id, user?.id, language]);
 
   useEffect(() => {
     load();
@@ -120,11 +111,11 @@ export default function ChallengeDetailScreen() {
           activeOpacity={0.7}
           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
           accessibilityRole="button"
-          accessibilityLabel="Back"
+          accessibilityLabel={t.challengeDetail.accessBack}
         >
           <Ionicons name="chevron-back" size={24} color={Colors.text} />
         </TouchableOpacity>
-        <Text style={styles.topbarTitle}>Challenge</Text>
+        <Text style={styles.topbarTitle}>{t.challengeDetail.headerTitle}</Text>
         <View style={styles.backBtn} />
       </View>
 
@@ -140,8 +131,8 @@ export default function ChallengeDetailScreen() {
       ) : !challenge ? (
         <ErrorState
           type="empty"
-          title="Challenge not found"
-          message="This challenge may have ended or been removed."
+          title={t.challengeDetail.notFoundTitle}
+          message={t.challengeDetail.notFoundMessage}
         />
       ) : (
         <>
@@ -161,12 +152,14 @@ export default function ChallengeDetailScreen() {
               <View style={styles.metaRow}>
                 <View style={styles.metaPill}>
                   <Ionicons name="time-outline" size={14} color={Colors.textSecondary} />
-                  <Text style={styles.metaText}>{challenge.durationDays} days</Text>
+                  <Text style={styles.metaText}>
+                    {challenge.durationDays} {t.challenges.daysSuffix}
+                  </Text>
                 </View>
                 <View style={styles.metaPill}>
                   <Ionicons name="people-outline" size={14} color={Colors.textSecondary} />
                   <Text style={styles.metaText}>
-                    {formatCount(challenge.participantsCount)} joined
+                    {formatCount(challenge.participantsCount)} {t.challenges.joinedSuffix}
                   </Text>
                 </View>
               </View>
@@ -178,9 +171,9 @@ export default function ChallengeDetailScreen() {
             {joined && progress && (
               <Card variant="outlined" style={styles.progressCard}>
                 <View style={styles.progressHeader}>
-                  <Text style={styles.progressTitle}>Your progress</Text>
+                  <Text style={styles.progressTitle}>{t.challengeDetail.yourProgress}</Text>
                   <Text style={styles.progressCount}>
-                    {progress.progressDays} / {challenge.durationDays} days
+                    {progress.progressDays} / {challenge.durationDays} {t.challenges.daysSuffix}
                   </Text>
                 </View>
                 <View style={styles.progressTrack}>
@@ -192,9 +185,9 @@ export default function ChallengeDetailScreen() {
             )}
 
             {/* Daily tasks / rules */}
-            <Text style={styles.sectionTitle}>Daily tasks</Text>
+            <Text style={styles.sectionTitle}>{t.challengeDetail.dailyTasks}</Text>
             <Card variant="outlined" style={styles.tasksCard}>
-              {dailyTasksFor(challenge.type).map((task, i) => (
+              {dailyTasksFor(t, challenge.type).map((task, i) => (
                 <View key={i} style={styles.taskRow}>
                   <Ionicons
                     name="checkmark-circle-outline"
@@ -209,7 +202,7 @@ export default function ChallengeDetailScreen() {
 
           <View style={styles.ctaBar}>
             <Button
-              title={joined ? 'Leave Challenge' : 'Join Challenge'}
+              title={joined ? t.challengeDetail.leaveChallenge : t.challengeDetail.joinChallenge}
               variant={joined ? 'outline' : 'primary'}
               fullWidth
               shape="pill"

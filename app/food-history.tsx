@@ -13,6 +13,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { BorderRadius, Colors, FontFamily, FontSize, Spacing } from '../constants/theme';
 import { getPhotoAnalysisHistory, type PhotoAnalysisHistoryItem } from '../lib/photo-analysis-history';
+import { useTranslation } from '../lib/i18n';
 
 function ImageWithFallback({ uri, style }: { uri: string; style: object }) {
   const [failed, setFailed] = useState(false);
@@ -28,6 +29,7 @@ function ImageWithFallback({ uri, style }: { uri: string; style: object }) {
 }
 
 export default function FoodHistoryScreen() {
+  const t = useTranslation();
   const [history, setHistory] = useState<PhotoAnalysisHistoryItem[]>([]);
 
   useEffect(() => {
@@ -44,17 +46,17 @@ export default function FoodHistoryScreen() {
           hitSlop={10}
           style={styles.backButton}
           accessibilityRole="button"
-          accessibilityLabel="Go back"
+          accessibilityLabel={t.common.goBack}
         >
           <Ionicons name="chevron-back" size={22} color={Colors.text} />
         </Pressable>
-        <Text style={styles.headerTitle}>History</Text>
+        <Text style={styles.headerTitle}>{t.foodHistory.headerTitle}</Text>
         <View style={styles.backButton} />
       </View>
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <Text style={styles.heading}>Meal History</Text>
-        <Text style={styles.subheading}>Your last 14 days of meal scans</Text>
+        <Text style={styles.heading}>{t.foodHistory.heading}</Text>
+        <Text style={styles.subheading}>{t.foodHistory.subheading}</Text>
         {history.length > 0 ? (
           history.map((item) => (
             <Pressable
@@ -64,6 +66,8 @@ export default function FoodHistoryScreen() {
                 params: { historyId: item.id },
               })}
               style={({ pressed }) => [styles.card, pressed && styles.pressed]}
+              accessibilityRole="button"
+              accessibilityLabel={`${t.foodHistory.openAnalysis}: ${item.mealName}`}
             >
               <ImageWithFallback uri={item.imageUri} style={styles.image} />
               <View style={styles.cardCopy}>
@@ -71,7 +75,7 @@ export default function FoodHistoryScreen() {
                 <Text numberOfLines={1} style={styles.mealName}>{item.mealName}</Text>
                 <View style={styles.scoreBadge}>
                   <Ionicons name="speedometer" size={13} color={Colors.secondary} />
-                  <Text style={styles.scoreText}>{item.mealImpactScore ?? 'Score pending'}</Text>
+                  <Text style={styles.scoreText}>{item.mealImpactScore ?? t.foodHistory.scorePending}</Text>
                 </View>
               </View>
               <Ionicons name="chevron-forward" size={18} color={Colors.textTertiary} />
@@ -80,8 +84,8 @@ export default function FoodHistoryScreen() {
         ) : (
           <View style={styles.emptyCard}>
             <Ionicons name="images-outline" size={28} color={Colors.secondary} />
-            <Text style={styles.emptyTitle}>No meal scans yet</Text>
-            <Text style={styles.emptyText}>Completed analyses are saved automatically and kept locally for 14 days. Your next scan will appear here.</Text>
+            <Text style={styles.emptyTitle}>{t.foodHistory.emptyTitle}</Text>
+            <Text style={styles.emptyText}>{t.foodHistory.emptyMessage}</Text>
           </View>
         )}
       </ScrollView>

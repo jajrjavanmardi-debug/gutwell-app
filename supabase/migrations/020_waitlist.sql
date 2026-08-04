@@ -12,10 +12,16 @@ CREATE TABLE IF NOT EXISTS public.waitlist (
 -- No public access at all — Edge Function uses service role
 ALTER TABLE public.waitlist ENABLE ROW LEVEL SECURITY;
 
--- Explicitly deny all access to anon and authenticated roles
+-- Explicitly deny all access to anon and authenticated roles.
+-- The table was originally created directly against production, so these
+-- policies may already exist. CREATE POLICY has no IF NOT EXISTS, so drop
+-- first — inside the migration's transaction there is no exposure window,
+-- and the recreated policies are identical.
+DROP POLICY IF EXISTS "deny_all_select" ON public.waitlist;
 CREATE POLICY "deny_all_select" ON public.waitlist
   FOR SELECT USING (false);
 
+DROP POLICY IF EXISTS "deny_all_insert" ON public.waitlist;
 CREATE POLICY "deny_all_insert" ON public.waitlist
   FOR INSERT WITH CHECK (false);
 

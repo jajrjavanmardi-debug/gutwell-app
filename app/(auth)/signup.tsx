@@ -91,16 +91,16 @@ export default function SignupScreen() {
               {/* ── Form ── */}
               <View style={styles.form}>
                 <Input
-                  label="Name"
-                  placeholder="Your name"
+                  label={t.signup.nameLabel}
+                  placeholder={t.signup.namePlaceholder}
                   value={name}
                   onChangeText={setName}
                   autoCapitalize="words"
                   autoComplete="name"
                 />
                 <Input
-                  label="Email"
-                  placeholder="you@example.com"
+                  label={t.signup.emailLabel}
+                  placeholder={t.signup.emailPlaceholder}
                   value={email}
                   onChangeText={setEmail}
                   keyboardType="email-address"
@@ -108,15 +108,15 @@ export default function SignupScreen() {
                   autoComplete="email"
                 />
                 <Input
-                  label="Password"
-                  placeholder="At least 6 characters"
+                  label={t.signup.passwordLabel}
+                  placeholder={t.signup.passwordPlaceholder}
                   value={password}
                   onChangeText={setPassword}
                   secureTextEntry
                 />
                 <Input
-                  label="Confirm Password"
-                  placeholder="Repeat your password"
+                  label={t.signup.confirmPasswordLabel}
+                  placeholder={t.signup.confirmPasswordPlaceholder}
                   value={confirmPassword}
                   onChangeText={setConfirmPassword}
                   secureTextEntry
@@ -132,19 +132,21 @@ export default function SignupScreen() {
                     {termsAccepted && <Ionicons name="checkmark" size={14} color="#FFFFFF" />}
                   </View>
                   <Text style={styles.termsText}>
-                    I agree to the{' '}
+                    {t.signup.termsAgree}{' '}
                     <Text
                       style={styles.termsLink}
                       onPress={() => router.push('/terms-of-service')}
+                      accessibilityRole="link"
                     >
-                      Terms of Service
+                      {t.signup.termsOfService}
                     </Text>
-                    {' '}and{' '}
+                    {' '}{t.signup.termsAnd}{' '}
                     <Text
                       style={styles.termsLink}
                       onPress={() => router.push('/privacy-policy')}
+                      accessibilityRole="link"
                     >
-                      Privacy Policy
+                      {t.signup.privacyPolicy}
                     </Text>
                   </Text>
                 </TouchableOpacity>
@@ -152,7 +154,7 @@ export default function SignupScreen() {
 
               {/* Primary CTA */}
               <Button
-                title="Create Account"
+                title={t.signup.createButton}
                 onPress={handleSignup}
                 loading={loading}
                 size="lg"

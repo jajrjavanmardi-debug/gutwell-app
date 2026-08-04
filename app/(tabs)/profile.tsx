@@ -116,7 +116,7 @@ export default function ProfileScreen() {
       t.profile.deleteTitle,
       t.profile.deleteMessage,
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: t.common.cancel, style: 'cancel' },
         {
           text: t.profile.deleteConfirm,
           style: 'destructive',
@@ -155,12 +155,12 @@ export default function ProfileScreen() {
 
   const handleDisclaimer = () =>
     Alert.alert(
-      'Health Disclaimer',
-      'GutWell is a wellness tracking tool and is not intended to diagnose, treat, cure, or prevent any disease. Always consult your healthcare provider for medical advice.',
-      [{ text: 'OK' }],
+      t.profile.healthDisclaimer,
+      t.profile.disclaimerBody,
+      [{ text: t.common.ok }],
     );
 
-  const planLabel = premium ? 'Premium' : 'Free plan';
+  const planLabel = premium ? t.profile.premiumPlan : t.profile.freePlan;
 
   return (
     <SafeAreaView style={styles.outerContainer} edges={['top']}>
@@ -181,7 +181,7 @@ export default function ProfileScreen() {
             router.push('/edit-profile');
           }}
           accessibilityRole="button"
-          accessibilityLabel="Edit profile"
+          accessibilityLabel={t.profile.accessEditProfile}
         >
           <View style={[styles.headerAvatar, { backgroundColor: avatarColor }]}>
             <Text style={styles.headerAvatarText}>{initials}</Text>
@@ -196,7 +196,7 @@ export default function ProfileScreen() {
               <Text style={styles.planLabel}>{planLabel}</Text>
             </View>
             <Text style={styles.headerName} numberOfLines={1}>
-              {profile?.display_name || 'Set your name'}
+              {profile?.display_name || t.profile.setYourName}
             </Text>
             <Text style={styles.headerHint}>{t.profile.tapToEdit}</Text>
           </View>
@@ -214,9 +214,9 @@ export default function ProfileScreen() {
 
         {/* ── Stats row ── */}
         <View style={styles.statsRow}>
-          <StatCard value={accountStats.checkIns} label="Check-ins" />
-          <StatCard value={accountStats.meals} label="Meals" />
-          <StatCard value={accountStats.symptoms} label="Symptoms" />
+          <StatCard value={accountStats.checkIns} label={t.profile.checkIns} />
+          <StatCard value={accountStats.meals} label={t.profile.meals} />
+          <StatCard value={accountStats.symptoms} label={t.profile.symptoms} />
         </View>
 
         {/* ── Account section ── */}
@@ -224,19 +224,19 @@ export default function ProfileScreen() {
         <View style={styles.listCard}>
           <ListRow
             icon="person-outline"
-            label="Personal Details"
+            label={t.profile.personalDetails}
             onPress={() => router.push('/edit-profile')}
           />
           <Divider />
           <ListRow
             icon="options-outline"
-            label="Preferences"
+            label={t.profile.preferences}
             onPress={() => router.push('/settings')}
           />
           <Divider />
           <ListRow
             icon="lock-closed-outline"
-            label="Change Password"
+            label={t.profile.changePassword}
             onPress={() => router.push('/change-password')}
             isLast
           />
@@ -247,19 +247,19 @@ export default function ProfileScreen() {
         <View style={styles.listCard}>
           <ListRow
             icon="trending-up-outline"
-            label="Progress & Insights"
+            label={t.profile.progressInsights}
             onPress={() => router.push('/progress')}
           />
           <Divider />
           <ListRow
             icon="restaurant-outline"
-            label="Food History"
+            label={t.profile.foodHistory}
             onPress={() => router.push('/food-history')}
           />
           <Divider />
           <ListRow
             icon="notifications-outline"
-            label="Reminders"
+            label={t.profile.reminders}
             onPress={() => router.push('/reminders')}
             isLast={!(isMonetizationEnabled() && !premium)}
           />
@@ -268,7 +268,7 @@ export default function ProfileScreen() {
               <Divider />
               <ListRow
                 icon="star-outline"
-                label="Upgrade to Premium"
+                label={t.profile.upgradePremium}
                 onPress={() => router.push('/paywall')}
                 isLast
               />
@@ -288,9 +288,7 @@ export default function ProfileScreen() {
             <Text style={styles.widgetCaption}>Gutwell</Text>
           </View>
           <View style={styles.widgetHintWrap}>
-            <Text style={styles.widgetHint}>
-              Add a Gutwell widget from your Home Screen to glance at your daily progress.
-            </Text>
+            <Text style={styles.widgetHint}>{t.profile.widgetHint}</Text>
           </View>
         </View>
 
@@ -299,31 +297,31 @@ export default function ProfileScreen() {
         <View style={styles.listCard}>
           <ListRow
             icon="mail-outline"
-            label="Support Email"
+            label={t.profile.supportEmail}
             onPress={handleSupport}
           />
           <Divider />
           <ListRow
             icon="download-outline"
-            label="Export Data"
+            label={t.profile.exportData}
             onPress={handleExport}
           />
           <Divider />
           <ListRow
             icon="shield-checkmark-outline"
-            label="Privacy Policy"
+            label={t.profile.privacyPolicy}
             onPress={() => router.push('/privacy-policy')}
           />
           <Divider />
           <ListRow
             icon="document-text-outline"
-            label="Terms of Service"
+            label={t.profile.termsOfService}
             onPress={() => router.push('/terms-of-service')}
           />
           <Divider />
           <ListRow
             icon="information-circle-outline"
-            label="Health Disclaimer"
+            label={t.profile.healthDisclaimer}
             onPress={handleDisclaimer}
             isLast
           />
@@ -357,7 +355,7 @@ export default function ProfileScreen() {
         <View style={styles.listCard}>
           <ListRow
             icon="log-out-outline"
-            label="Logout"
+            label={t.profile.signOut}
             onPress={handleSignOut}
           />
           <Divider />
@@ -371,7 +369,7 @@ export default function ProfileScreen() {
           />
         </View>
 
-        <Text style={styles.versionText}>Version 1.0.0</Text>
+        <Text style={styles.versionText}>{t.common.version} 1.0.0</Text>
 
         <View style={{ height: Spacing.xxl }} />
       </ScrollView>

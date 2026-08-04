@@ -2,6 +2,7 @@ import React from 'react';
 import { Text, View, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { BorderRadius, Colors, FontFamily, FontSize, Shadows, Spacing } from '../constants/theme';
+import { useTranslation } from '../lib/i18n';
 
 type TriggerFoodItem = {
   foodName: string;
@@ -15,9 +16,10 @@ type TriggerFoodsBoxProps = {
 };
 
 export default function TriggerFoodsBox({ triggerFoods }: TriggerFoodsBoxProps) {
+  const t = useTranslation();
   return (
     <>
-      <Text style={styles.sectionTitle}>Trigger Foods</Text>
+      <Text style={styles.sectionTitle}>{t.components.triggerFoods.title}</Text>
       {triggerFoods.length > 0 ? (
         <>
           {triggerFoods.map((item, i) => {
@@ -46,8 +48,8 @@ export default function TriggerFoodsBox({ triggerFoods }: TriggerFoodsBoxProps) 
       ) : (
         <View style={styles.insufficientCard}>
           <Ionicons name="analytics-outline" size={28} color={Colors.textTertiary} />
-          <Text style={styles.insufficientTitle}>No Trigger Foods Yet</Text>
-          <Text style={styles.insufficientText}>Log 2+ weeks of meals to detect trigger foods.</Text>
+          <Text style={styles.insufficientTitle}>{t.components.triggerFoods.emptyTitle}</Text>
+          <Text style={styles.insufficientText}>{t.components.triggerFoods.emptyMessage}</Text>
         </View>
       )}
     </>

@@ -17,6 +17,7 @@ import Animated, {
 } from 'react-native-reanimated';
 
 import { BorderRadius, Colors, Spacing, Typography } from '../constants/theme';
+import { useTranslation } from '../lib/i18n';
 
 export type FabAction = {
   key: string;
@@ -34,6 +35,7 @@ export type FabActionMenuProps = {
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
 export function FabActionMenu({ visible, onClose, actions }: FabActionMenuProps) {
+  const t = useTranslation();
   // Entrance animation: fade + slight upward translate of the tile grid.
   const progress = useSharedValue(0);
 
@@ -73,7 +75,7 @@ export function FabActionMenu({ visible, onClose, actions }: FabActionMenuProps)
           exiting={FadeOut.duration(150)}
           onPress={onClose}
           accessibilityRole="button"
-          accessibilityLabel="Close menu"
+          accessibilityLabel={t.tabs.closeMenu}
         >
           <BlurView intensity={40} tint="dark" style={StyleSheet.absoluteFill} />
           <View style={styles.scrim} />
