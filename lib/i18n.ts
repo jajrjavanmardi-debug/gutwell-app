@@ -1004,7 +1004,7 @@ const en = {
     vsLastWeek: 'vs last week',
     atAGlance: 'AT A GLANCE',
     checkIns: 'Check-ins',
-    mealsLogged: 'Meals logged',
+    mealsLogged: 'Meals',
     symptoms: 'Symptoms',
     highlights: 'HIGHLIGHTS',
     bestDay: 'Highest Score',
@@ -1425,12 +1425,16 @@ const de: Translations = {
     accessLanguageHint: 'Öffnet ein Menü zur Auswahl der App-Sprache',
     languageModalTitle: 'Sprache wählen',
     accessLanguageOptionHint: 'Legt die App-Sprache fest',
+    // Shortened for the 327pt of tagline width available on a 375pt iPhone.
+    // The longest of these measures 81.5% of that; the previous set had one
+    // outright overflow (104%) and three above 92%. Order and meaning match
+    // the English sequence; "mögliche" is kept for cautious wording.
     taglines: [
-      'Behalte deine Darmgesundheit im Blick.',
-      'Verstehe deinen Darm besser.',
-      'Erkenne mögliche Zusammenhänge.',
-      'Finde deine persönlichen Auslöser.',
-      'Entwickle gesündere Gewohnheiten.',
+      'Behalte deinen Darm im Blick.',
+      'Verstehe deinen Darm.',
+      'Erkenne mögliche Muster.',
+      'Finde deine Auslöser.',
+      'Entwickle gesündere Routinen.',
       'Fühl dich rundum wohl.',
       'Genieße deine Mahlzeiten.',
     ],
@@ -2206,7 +2210,7 @@ const de: Translations = {
     vsLastWeek: 'ggü. letzter Woche',
     atAGlance: 'AUF EINEN BLICK',
     checkIns: 'Check-ins',
-    mealsLogged: 'Mahlzeiten erfasst',
+    mealsLogged: 'Mahlzeiten',
     symptoms: 'Symptome',
     highlights: 'HIGHLIGHTS',
     bestDay: 'Höchster Score',
@@ -2281,7 +2285,7 @@ const de: Translations = {
     discover: 'Entdecken',
     allJoinedTitle: 'Du bist bei jeder Challenge dabei',
     allJoinedMessage: 'Stark — du hast bei allen mitgemacht. Zieh nach unten, um neue Darmgesundheits-Challenges zu laden.',
-    joining: 'Wird beigetreten …',
+    joining: 'Beitreten …',
     join: '+ Mitmachen',
     dayLabel: 'Tag',
     ofLabel: 'von',

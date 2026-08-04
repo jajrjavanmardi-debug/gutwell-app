@@ -174,7 +174,15 @@ export default function WelcomeScreen() {
 
         {/* Animated tagline */}
         <View style={styles.taglineContainer}>
-          <Animated.Text style={[styles.tagline, { opacity: taglineOpacity }]}>
+          <Animated.Text
+            style={[styles.tagline, { opacity: taglineOpacity }]}
+            // The container is a fixed height so the hero does not jump between
+            // messages. Shrink-to-fit rather than clip, which also keeps the
+            // line intact at larger Dynamic Type sizes.
+            numberOfLines={1}
+            adjustsFontSizeToFit
+            minimumFontScale={0.85}
+          >
             {t.welcome.taglines[taglineIndex] ?? ''}
           </Animated.Text>
         </View>
@@ -245,8 +253,13 @@ const styles = StyleSheet.create({
   topBar: {
     flexDirection: 'row',
     justifyContent: 'flex-end',
-    paddingHorizontal: 20,
-    paddingTop: 8,
+    // 24 matches centerContent and bottomSection, so the chip's right edge
+    // lines up with the hero text and the CTA buttons below it.
+    paddingHorizontal: 24,
+    // Sits below the safe-area inset, so this is clearance from the Dynamic
+    // Island / notch rather than from the physical top edge.
+    paddingTop: 14,
+    paddingBottom: 4,
   },
   languageChip: {
     flexDirection: 'row',

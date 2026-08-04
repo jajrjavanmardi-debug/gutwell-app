@@ -91,11 +91,11 @@ describe('welcome hero sequence', () => {
   ];
 
   const EXPECTED_DE = [
-    'Behalte deine Darmgesundheit im Blick.',
-    'Verstehe deinen Darm besser.',
-    'Erkenne mögliche Zusammenhänge.',
-    'Finde deine persönlichen Auslöser.',
-    'Entwickle gesündere Gewohnheiten.',
+    'Behalte deinen Darm im Blick.',
+    'Verstehe deinen Darm.',
+    'Erkenne mögliche Muster.',
+    'Finde deine Auslöser.',
+    'Entwickle gesündere Routinen.',
     'Fühl dich rundum wohl.',
     'Genieße deine Mahlzeiten.',
   ];
