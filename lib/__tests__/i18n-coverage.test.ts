@@ -5,7 +5,7 @@
  * two resources, and the claim-safety rules that apply to user-facing copy.
  */
 
-import { translations, getTranslation, SUPPORTED_LANGUAGES } from '../i18n';
+import { translations, getTranslation, SUPPORTED_LANGUAGES, LANGUAGE_LABELS } from '../i18n';
 
 const PERSIAN_SCRIPT = /[؀-ۿ]/;
 
@@ -173,5 +173,24 @@ describe('password reset copy', () => {
       expect(translations[lang].welcome.legalPrivacy).toBeTruthy();
       expect(translations[lang].welcome.legalPrefix).toBeTruthy();
     }
+  });
+
+  test('both languages define the Welcome language selector copy', () => {
+    // The selector is reachable before sign-up, so a missing key here would
+    // ship an untranslated control on the very first screen.
+    for (const lang of ['en', 'de'] as const) {
+      const w = translations[lang].welcome;
+      expect(w.languageLabel).toBeTruthy();
+      expect(w.accessLanguageHint).toBeTruthy();
+      expect(w.languageModalTitle).toBeTruthy();
+      expect(w.accessLanguageOptionHint).toBeTruthy();
+    }
+  });
+
+  test('the selector reads its option names from LANGUAGE_LABELS, not translations', () => {
+    // English and Deutsch are endonyms: each is shown in its own language and
+    // must NOT be translated, so they live in LANGUAGE_LABELS rather than in
+    // the per-language resources.
+    expect(LANGUAGE_LABELS).toEqual({ en: 'English', de: 'Deutsch' });
   });
 });

@@ -170,6 +170,11 @@ const en = {
     accessPrivacy: 'Open Privacy Policy',
     accessCreateAccount: 'Create a new GutWell AI account',
     accessSignIn: 'Sign in to existing account',
+    // Language selector shown before sign-up / sign-in.
+    languageLabel: 'Language',
+    accessLanguageHint: 'Opens a menu to choose the app language',
+    languageModalTitle: 'Choose language',
+    accessLanguageOptionHint: 'Sets the app language',
     taglines: [
       'Track your gut health.',
       'Understand your gut.',
@@ -1416,6 +1421,10 @@ const de: Translations = {
     accessPrivacy: 'Datenschutzrichtlinie öffnen',
     accessCreateAccount: 'Neues GutWell AI Konto erstellen',
     accessSignIn: 'Bei bestehendem Konto anmelden',
+    languageLabel: 'Sprache',
+    accessLanguageHint: 'Öffnet ein Menü zur Auswahl der App-Sprache',
+    languageModalTitle: 'Sprache wählen',
+    accessLanguageOptionHint: 'Legt die App-Sprache fest',
     taglines: [
       'Behalte deine Darmgesundheit im Blick.',
       'Verstehe deinen Darm besser.',
