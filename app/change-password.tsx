@@ -20,8 +20,10 @@ import {
   FontSize,
   FontFamily,
 } from '../constants/theme';
+import { useTranslation } from '../lib/i18n';
 
 export default function ChangePasswordScreen() {
+  const t = useTranslation();
   const { updatePassword } = useAuth();
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -36,11 +38,11 @@ export default function ChangePasswordScreen() {
 
   const handleSave = async () => {
     if (newPassword.length < 6) {
-      setToast({ visible: true, message: 'Password must be at least 6 characters', type: 'error' });
+      setToast({ visible: true, message: t.changePassword.tooShort, type: 'error' });
       return;
     }
     if (newPassword !== confirmPassword) {
-      setToast({ visible: true, message: 'Passwords do not match', type: 'error' });
+      setToast({ visible: true, message: t.changePassword.mismatch, type: 'error' });
       return;
     }
 
@@ -48,13 +50,13 @@ export default function ChangePasswordScreen() {
     try {
       const { error } = await updatePassword(newPassword);
       if (error) {
-        setToast({ visible: true, message: error.message || 'Failed to update password', type: 'error' });
+        setToast({ visible: true, message: t.changePassword.updateFailed, type: 'error' });
       } else {
-        setToast({ visible: true, message: 'Password updated successfully', type: 'success' });
+        setToast({ visible: true, message: t.changePassword.success, type: 'success' });
         setTimeout(() => router.back(), 600);
       }
     } catch {
-      setToast({ visible: true, message: 'Something went wrong. Please try again.', type: 'error' });
+      setToast({ visible: true, message: t.changePassword.genericError, type: 'error' });
     } finally {
       setSaving(false);
     }
@@ -68,11 +70,11 @@ export default function ChangePasswordScreen() {
           style={styles.backButton}
           onPress={() => router.back()}
           accessibilityRole="button"
-          accessibilityLabel="Go back"
+          accessibilityLabel={t.common.goBack}
         >
           <Ionicons name="chevron-back" size={24} color={Colors.text} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Change Password</Text>
+        <Text style={styles.headerTitle}>{t.changePassword.headerTitle}</Text>
         <View style={styles.backButton} />
       </View>
 
@@ -84,11 +86,11 @@ export default function ChangePasswordScreen() {
           {/* New Password */}
           <View style={styles.field}>
             <Input
-              label="New Password"
+              label={t.changePassword.newPasswordLabel}
               style={styles.input}
               value={newPassword}
               onChangeText={setNewPassword}
-              placeholder="Enter new password"
+              placeholder={t.changePassword.newPasswordPlaceholder}
               secureTextEntry={!showNew}
               autoCapitalize="none"
               autoCorrect={false}
@@ -99,7 +101,7 @@ export default function ChangePasswordScreen() {
               onPress={() => setShowNew(!showNew)}
               hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
               accessibilityRole="button"
-              accessibilityLabel={showNew ? 'Hide new password' : 'Show new password'}
+              accessibilityLabel={showNew ? t.changePassword.hideNewPassword : t.changePassword.showNewPassword}
             >
               <Ionicons
                 name={showNew ? 'eye-off-outline' : 'eye-outline'}
@@ -112,11 +114,11 @@ export default function ChangePasswordScreen() {
           {/* Confirm Password */}
           <View style={styles.field}>
             <Input
-              label="Confirm Password"
+              label={t.changePassword.confirmPasswordLabel}
               style={styles.input}
               value={confirmPassword}
               onChangeText={setConfirmPassword}
-              placeholder="Re-enter new password"
+              placeholder={t.changePassword.confirmPasswordPlaceholder}
               secureTextEntry={!showConfirm}
               autoCapitalize="none"
               autoCorrect={false}
@@ -128,7 +130,7 @@ export default function ChangePasswordScreen() {
               onPress={() => setShowConfirm(!showConfirm)}
               hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
               accessibilityRole="button"
-              accessibilityLabel={showConfirm ? 'Hide confirm password' : 'Show confirm password'}
+              accessibilityLabel={showConfirm ? t.changePassword.hideConfirmPassword : t.changePassword.showConfirmPassword}
             >
               <Ionicons
                 name={showConfirm ? 'eye-off-outline' : 'eye-outline'}
@@ -138,11 +140,11 @@ export default function ChangePasswordScreen() {
             </TouchableOpacity>
           </View>
 
-          <Text style={styles.hint}>Password must be at least 6 characters.</Text>
+          <Text style={styles.hint}>{t.changePassword.hint}</Text>
 
           {/* Save Button */}
           <Button
-            title="Update Password"
+            title={t.changePassword.saveButton}
             onPress={handleSave}
             loading={saving}
             shape="pill"

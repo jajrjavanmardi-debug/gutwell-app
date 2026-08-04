@@ -25,6 +25,7 @@ import { Button } from '../../components/ui/Button';
 import { ErrorState } from '../../components/ui/ErrorState';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { CardSkeleton } from '../../components/ui/LoadingSkeleton';
+import { useTranslation } from '../../lib/i18n';
 
 type ActiveProgress = ActiveChallenge & { ratio: number; progressDays: number };
 
@@ -34,6 +35,7 @@ function formatCount(n: number): string {
 }
 
 export default function ChallengesScreen() {
+  const t = useTranslation();
   const { user } = useAuth();
   const [catalog, setCatalog] = useState<Challenge[]>([]);
   const [active, setActive] = useState<ActiveProgress[]>([]);
@@ -104,12 +106,12 @@ export default function ChallengesScreen() {
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Challenges</Text>
+        <Text style={styles.headerTitle}>{t.challenges.headerTitle}</Text>
         <TouchableOpacity
           style={styles.bell}
           activeOpacity={0.7}
           accessibilityRole="button"
-          accessibilityLabel="Notifications"
+          accessibilityLabel={t.challenges.notifications}
           onPress={() => router.push('/(tabs)/progress')}
         >
           <Ionicons name="notifications-outline" size={20} color={Colors.text} />
@@ -141,7 +143,7 @@ export default function ChallengesScreen() {
               {/* Active section */}
               {active.length > 0 && (
                 <View style={styles.section}>
-                  <Text style={styles.sectionTitle}>Active</Text>
+                  <Text style={styles.sectionTitle}>{t.challenges.active}</Text>
                   {active.map((item) => (
                     <ActiveCard key={item.id} item={item} />
                   ))}
@@ -150,12 +152,12 @@ export default function ChallengesScreen() {
 
               {/* Discover section */}
               <View style={styles.section}>
-                <Text style={styles.sectionTitle}>Discover</Text>
+                <Text style={styles.sectionTitle}>{t.challenges.discover}</Text>
                 {discover.length === 0 ? (
                   <EmptyState
                     icon="trophy-outline"
-                    title="You're in every challenge"
-                    message="Nice work — you've joined them all. Pull to refresh for new gut-health challenges."
+                    title={t.challenges.allJoinedTitle}
+                    message={t.challenges.allJoinedMessage}
                   />
                 ) : (
                   discover.map((item) => (
@@ -178,6 +180,7 @@ export default function ChallengesScreen() {
 }
 
 function ActiveCard({ item }: { item: ActiveProgress }) {
+  const t = useTranslation();
   return (
     <TouchableOpacity
       activeOpacity={0.85}
@@ -197,7 +200,8 @@ function ActiveCard({ item }: { item: ActiveProgress }) {
               {item.challenge.title}
             </Text>
             <Text style={styles.progressLabel}>
-              Day {item.progressDays} of {item.challenge.durationDays}
+              {t.challenges.dayLabel} {item.progressDays} {t.challenges.ofLabel}{' '}
+              {item.challenge.durationDays}
             </Text>
             <View style={styles.progressTrack}>
               <View
@@ -222,6 +226,7 @@ function DiscoverCard({
   onJoin: () => void;
   onOpen: () => void;
 }) {
+  const t = useTranslation();
   return (
     <TouchableOpacity activeOpacity={0.85} onPress={onOpen}>
       <Card variant="outlined" style={styles.card}>
@@ -240,14 +245,15 @@ function DiscoverCard({
               {item.title}
             </Text>
             <Text style={styles.metaText}>
-              {formatCount(item.participantsCount)} joined · {item.durationDays} days
+              {formatCount(item.participantsCount)} {t.challenges.joinedSuffix} ·{' '}
+              {item.durationDays} {t.challenges.daysSuffix}
             </Text>
             <Text style={styles.description} numberOfLines={2}>
               {item.description}
             </Text>
           </View>
           <Button
-            title={joining ? 'Joining…' : '+ Join'}
+            title={joining ? t.challenges.joining : t.challenges.join}
             variant="outline"
             size="sm"
             shape="pill"

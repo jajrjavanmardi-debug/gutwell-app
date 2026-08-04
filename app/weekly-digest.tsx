@@ -20,6 +20,7 @@ import { EmptyState } from '../components/ui/EmptyState';
 import { Colors, Spacing, FontSize, BorderRadius, Shadows, FontFamily } from '../constants/theme';
 import { addDaysToLocalDateKey, getLocalDateKey, localDateKeyToDate } from '../lib/date';
 import { isPremiumFeature, refreshPremiumStatus } from '../lib/subscription';
+import { useTranslation, type Translations } from '../lib/i18n';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -49,11 +50,9 @@ function getMonday(): Date {
   return monday;
 }
 
-function formatDayDate(dateStr: string): string {
+function formatDayDate(dateStr: string, calendar: Translations['calendar']): string {
   const d = new Date(dateStr + 'T00:00:00');
-  const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-  return `${days[d.getDay()]}, ${months[d.getMonth()]} ${d.getDate()}`;
+  return `${calendar.weekdaysShort[d.getDay()]}, ${calendar.monthsShort[d.getMonth()]} ${d.getDate()}`;
 }
 
 function mean(arr: number[]): number {
@@ -61,12 +60,20 @@ function mean(arr: number[]): number {
   return arr.reduce((s, v) => s + v, 0) / arr.length;
 }
 
-const DOW_LABELS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
-
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export default function WeeklyDigestScreen() {
+  const t = useTranslation();
   const { user } = useAuth();
+
+  /**
+   * Display label for a stored symptom_type. Falls back to the raw value with
+   * underscores replaced, so an unknown type still reads sensibly.
+   */
+  const symptomLabel = (key: string) =>
+    (t.symptomTypes as Record<string, string>)[key] ??
+    key.charAt(0).toUpperCase() + key.slice(1).replace(/_/g, ' ');
+
   const [data, setData] = useState<DigestData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -265,24 +272,31 @@ export default function WeeklyDigestScreen() {
 
   const getMotivation = () => {
     if (!data) return '';
-    if (data.avgScore && data.avgScore >= 75) return 'Outstanding week — your gut is thriving.';
-    if (data.avgScore && data.avgScore >= 50) return 'Solid progress. Keep building on these habits.';
-    if (data.checkInCount >= 5) return 'Great consistency. Patterns become clearer each week.';
-    return 'Every check-in counts. This week is a fresh start.';
+    if (data.avgScore && data.avgScore >= 75) return t.weeklyDigest.motivationHigh;
+    if (data.avgScore && data.avgScore >= 50) return t.weeklyDigest.motivationMid;
+    if (data.checkInCount >= 5) return t.weeklyDigest.motivationConsistent;
+    return t.weeklyDigest.motivationDefault;
   };
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity style={styles.closeBtn} onPress={() => router.back()}>
+        <TouchableOpacity
+          style={styles.closeBtn}
+          onPress={() => router.back()}
+          accessibilityRole="button"
+          accessibilityLabel={t.common.goBack}
+        >
           <Ionicons name="chevron-back" size={22} color={Colors.text} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Weekly Digest</Text>
+        <Text style={styles.headerTitle}>{t.weeklyDigest.headerTitle}</Text>
         <TouchableOpacity
           style={styles.closeBtn}
           onPress={() => setShowShareCard(true)}
           disabled={!data}
+          accessibilityRole="button"
+          accessibilityLabel={t.weeklyDigest.shareDigest}
         >
           <Ionicons name="share-outline" size={20} color={data ? Colors.text : Colors.textTertiary} />
         </TouchableOpacity>
@@ -300,17 +314,16 @@ export default function WeeklyDigestScreen() {
             <View style={styles.lockedIconWrap}>
               <Ionicons name="lock-closed" size={32} color={Colors.secondary} />
             </View>
-            <Text style={styles.lockedTitle}>Weekly Digest is Premium</Text>
-            <Text style={styles.lockedMessage}>
-              Unlock your weekly gut health recap — average score, best and toughest
-              days, top symptoms, and your full week trend.
-            </Text>
+            <Text style={styles.lockedTitle}>{t.weeklyDigest.lockedTitle}</Text>
+            <Text style={styles.lockedMessage}>{t.weeklyDigest.lockedMessage}</Text>
             <TouchableOpacity
               style={styles.lockedCta}
               onPress={() => router.push({ pathname: '/paywall', params: { source: 'weekly_digest' } })}
               activeOpacity={0.85}
+              accessibilityRole="button"
+              accessibilityLabel={t.weeklyDigest.unlockCta}
             >
-              <Text style={styles.lockedCtaText}>Unlock with Premium</Text>
+              <Text style={styles.lockedCtaText}>{t.weeklyDigest.unlockCta}</Text>
               <Ionicons name="chevron-forward" size={16} color="#FFFFFF" />
             </TouchableOpacity>
           </View>
@@ -329,7 +342,7 @@ export default function WeeklyDigestScreen() {
               end={{ x: 0.4, y: 1 }}
               style={styles.heroCard}
             >
-              <Text style={styles.heroLabel}>This Week&apos;s Average</Text>
+              <Text style={styles.heroLabel}>{t.weeklyDigest.heroLabel}</Text>
               <View style={styles.heroScoreRow}>
                 <Text style={[styles.heroScore, { color: getScoreColor(data.avgScore) }]}>
                   {data.avgScore != null ? data.avgScore : '--'}
@@ -348,47 +361,47 @@ export default function WeeklyDigestScreen() {
                       styles.trendText,
                       { color: data.scoreDiff > 0 ? Colors.secondary : data.scoreDiff < 0 ? '#E07070' : 'rgba(255,255,255,0.5)' },
                     ]}>
-                      {data.scoreDiff > 0 ? '+' : ''}{data.scoreDiff} vs last week
+                      {data.scoreDiff > 0 ? '+' : ''}{data.scoreDiff} {t.weeklyDigest.vsLastWeek}
                     </Text>
                   </View>
                 )}
               </View>
-              <Text style={styles.heroSubtext}>out of 100</Text>
+              <Text style={styles.heroSubtext}>{t.weeklyDigest.outOf100}</Text>
               <Text style={styles.motivation}>{getMotivation()}</Text>
             </LinearGradient>
 
             {/* Stats Row */}
-            <Text style={styles.sectionTitle}>AT A GLANCE</Text>
+            <Text style={styles.sectionTitle}>{t.weeklyDigest.atAGlance}</Text>
             <View style={styles.statsRow}>
               <View style={styles.statCard}>
                 <Ionicons name="checkmark-circle-outline" size={22} color={Colors.secondary} />
                 <Text style={styles.statValue}>{data.checkInCount}<Text style={styles.statDenom}>/7</Text></Text>
-                <Text style={styles.statLabel}>Check-ins</Text>
+                <Text style={styles.statLabel}>{t.weeklyDigest.checkIns}</Text>
               </View>
               <View style={styles.statCard}>
                 <Ionicons name="restaurant-outline" size={22} color={Colors.accent} />
                 <Text style={styles.statValue}>{data.mealsLogged}</Text>
-                <Text style={styles.statLabel}>Meals logged</Text>
+                <Text style={styles.statLabel}>{t.weeklyDigest.mealsLogged}</Text>
               </View>
               <View style={styles.statCard}>
                 <Ionicons name="pulse-outline" size={22} color='#E07070' />
                 <Text style={styles.statValue}>{data.topSymptoms.reduce((s, t) => s + t.count, 0)}</Text>
-                <Text style={styles.statLabel}>Symptoms</Text>
+                <Text style={styles.statLabel}>{t.weeklyDigest.symptoms}</Text>
               </View>
             </View>
 
             {/* Best / Worst Day */}
             {(data.bestDay || data.worstDay) && (
               <>
-                <Text style={styles.sectionTitle}>HIGHLIGHTS</Text>
+                <Text style={styles.sectionTitle}>{t.weeklyDigest.highlights}</Text>
                 <View style={styles.dayRow}>
                   {data.bestDay && (
                     <View style={styles.dayCard}>
                       <View style={[styles.dayIcon, { backgroundColor: Colors.secondary + '18' }]}>
                         <Ionicons name="sunny-outline" size={18} color={Colors.secondary} />
                       </View>
-                      <Text style={styles.dayLabel}>Best Day</Text>
-                      <Text style={styles.dayDate}>{formatDayDate(data.bestDay.date)}</Text>
+                      <Text style={styles.dayLabel}>{t.weeklyDigest.bestDay}</Text>
+                      <Text style={styles.dayDate}>{formatDayDate(data.bestDay.date, t.calendar)}</Text>
                       <Text style={[styles.dayScore, { color: Colors.secondary }]}>{data.bestDay.score}</Text>
                     </View>
                   )}
@@ -397,8 +410,8 @@ export default function WeeklyDigestScreen() {
                       <View style={[styles.dayIcon, { backgroundColor: Colors.accent + '18' }]}>
                         <Ionicons name="cloudy-outline" size={18} color={Colors.accent} />
                       </View>
-                      <Text style={styles.dayLabel}>Toughest Day</Text>
-                      <Text style={styles.dayDate}>{formatDayDate(data.worstDay.date)}</Text>
+                      <Text style={styles.dayLabel}>{t.weeklyDigest.toughestDay}</Text>
+                      <Text style={styles.dayDate}>{formatDayDate(data.worstDay.date, t.calendar)}</Text>
                       <Text style={[styles.dayScore, { color: Colors.accent }]}>{data.worstDay.score}</Text>
                     </View>
                   )}
@@ -409,14 +422,12 @@ export default function WeeklyDigestScreen() {
             {/* Top Symptoms */}
             {data.topSymptoms.length > 0 && (
               <>
-                <Text style={styles.sectionTitle}>TOP SYMPTOMS THIS WEEK</Text>
+                <Text style={styles.sectionTitle}>{t.weeklyDigest.topSymptoms}</Text>
                 <View style={styles.symptomCard}>
                   {data.topSymptoms.map((s, i) => (
                     <View key={i} style={[styles.symptomRow, i < data.topSymptoms.length - 1 && styles.symptomRowBorder]}>
                       <View style={[styles.symptomDot, { backgroundColor: Colors.severity[Math.min(5, Math.max(1, s.severity || 1))] }]} />
-                      <Text style={styles.symptomName}>
-                        {s.name.charAt(0).toUpperCase() + s.name.slice(1).replace(/_/g, ' ')}
-                      </Text>
+                      <Text style={styles.symptomName}>{symptomLabel(s.name)}</Text>
                       <View style={styles.symptomRight}>
                         <View style={styles.symptomBarTrack}>
                           <View style={[styles.symptomBarFill, {
@@ -433,10 +444,10 @@ export default function WeeklyDigestScreen() {
             )}
 
             {/* Week Trend — day-by-day dots */}
-            <Text style={styles.sectionTitle}>WEEK TREND</Text>
+            <Text style={styles.sectionTitle}>{t.weeklyDigest.weekTrend}</Text>
             <View style={styles.weekTrendCard}>
               <View style={styles.weekRow}>
-                {DOW_LABELS.map((label, i) => {
+                {t.calendar.dayInitials.map((label, i) => {
                   const checked = data.weekDays[i];
                   const score = data.scoreByDay[i];
                   const isToday = (() => {
@@ -472,8 +483,8 @@ export default function WeeklyDigestScreen() {
             {data.checkInCount === 0 && data.mealsLogged === 0 && (
               <EmptyState
                 icon="calendar-outline"
-                title="Check back after your first full week of tracking"
-                message="Start checking in daily to see your weekly digest here."
+                title={t.weeklyDigest.emptyTitle}
+                message={t.weeklyDigest.emptyMessage}
               />
             )}
           </>

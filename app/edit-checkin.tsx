@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -20,19 +20,11 @@ import { Toast } from '../components/ui/Toast';
 import { MoodSelector } from '../components/MoodSelector';
 import { WaterTracker } from '../components/WaterTracker';
 import { Colors, Spacing, FontSize, BorderRadius, Shadows, FontFamily } from '../constants/theme';
+import { useTranslation } from '../lib/i18n';
 
-const BRISTOL_TYPES = [
-  { type: 1, desc: 'Hard lumps' },
-  { type: 2, desc: 'Lumpy sausage' },
-  { type: 3, desc: 'Cracked sausage' },
-  { type: 4, desc: 'Smooth sausage' },
-  { type: 5, desc: 'Soft blobs' },
-  { type: 6, desc: 'Mushy' },
-  { type: 7, desc: 'Liquid' },
-];
-
-const SEVERITY_LABELS = ['None', 'Mild', 'Moderate', 'Strong', 'Severe'];
-const ENERGY_LABELS = ['Low', 'Below avg', 'Normal', 'Good', 'High'];
+// The numeric Bristol type is what gets persisted; descriptions come from
+// t.editCheckin.bristolDescriptions, keyed by the same number.
+const BRISTOL_TYPES = [1, 2, 3, 4, 5, 6, 7] as const;
 
 // ─── Pill Slider ─────────────────────────────────────────────────────────────
 
@@ -59,6 +51,9 @@ function PillSlider({ value, onChange, labels }: {
                 onChange(v);
               }}
               activeOpacity={0.7}
+              accessibilityRole="button"
+              accessibilityLabel={`${v}: ${labels[v - 1]}`}
+              accessibilityState={{ selected: isSelected }}
             >
               <Text style={[styles.pillText, isSelected && styles.pillTextSelected]}>
                 {v}
@@ -75,6 +70,7 @@ function PillSlider({ value, onChange, labels }: {
 // ─── Main Screen ─────────────────────────────────────────────────────────────
 
 export default function EditCheckinScreen() {
+  const t = useTranslation();
   const { id } = useLocalSearchParams<{ id: string }>();
   const { user } = useAuth();
 
@@ -90,9 +86,15 @@ export default function EditCheckinScreen() {
   const [deleting, setDeleting] = useState(false);
   const [toast, setToast] = useState({ visible: false, message: '', type: 'success' as 'success' | 'error' });
 
+  // The load effect runs once per check-in id. It reads copy through a ref so
+  // it never lists `t` as a dependency — depending on `t` would refetch the
+  // check-in every time the user switches language.
+  const tRef = useRef(t);
+  tRef.current = t;
+
   useEffect(() => {
     if (!id) {
-      setToast({ visible: true, message: 'Missing check-in ID', type: 'error' });
+      setToast({ visible: true, message: tRef.current.editCheckin.missingId, type: 'error' });
       setFetching(false);
       return;
     }
@@ -103,7 +105,7 @@ export default function EditCheckinScreen() {
         .eq('id', id)
         .single();
       if (error || !data) {
-        setToast({ visible: true, message: 'Could not load check-in', type: 'error' });
+        setToast({ visible: true, message: tRef.current.editCheckin.loadFailed, type: 'error' });
         setFetching(false);
         return;
       }
@@ -120,15 +122,15 @@ export default function EditCheckinScreen() {
 
   const handleSave = async () => {
     if (!stoolType) {
-      setToast({ visible: true, message: 'Please select a stool type', type: 'error' });
+      setToast({ visible: true, message: t.editCheckin.selectStoolType, type: 'error' });
       return;
     }
     if (!id) {
-      setToast({ visible: true, message: 'Missing check-in ID', type: 'error' });
+      setToast({ visible: true, message: t.editCheckin.missingId, type: 'error' });
       return;
     }
     if (!user) {
-      setToast({ visible: true, message: 'Please log in to continue', type: 'error' });
+      setToast({ visible: true, message: t.editCheckin.loginRequired, type: 'error' });
       return;
     }
     setSaving(true);
@@ -146,30 +148,30 @@ export default function EditCheckinScreen() {
       .eq('id', id);
     setSaving(false);
     if (error) {
-      setToast({ visible: true, message: 'Failed to save changes', type: 'error' });
+      setToast({ visible: true, message: t.editCheckin.saveFailed, type: 'error' });
     } else {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      setToast({ visible: true, message: 'Check-in updated!', type: 'success' });
+      setToast({ visible: true, message: t.editCheckin.success, type: 'success' });
       setTimeout(() => router.back(), 800);
     }
   };
 
   const handleDelete = () => {
     Alert.alert(
-      'Delete Entry',
-      'Are you sure you want to delete this check-in? This cannot be undone.',
+      t.editCheckin.deleteTitle,
+      t.editCheckin.deleteMessage,
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: t.common.cancel, style: 'cancel' },
         {
-          text: 'Delete',
+          text: t.common.delete,
           style: 'destructive',
           onPress: async () => {
             if (!id) {
-              setToast({ visible: true, message: 'Missing check-in ID', type: 'error' });
+              setToast({ visible: true, message: t.editCheckin.missingId, type: 'error' });
               return;
             }
             if (!user) {
-              setToast({ visible: true, message: 'Please log in to continue', type: 'error' });
+              setToast({ visible: true, message: t.editCheckin.loginRequired, type: 'error' });
               return;
             }
             setDeleting(true);
@@ -179,7 +181,7 @@ export default function EditCheckinScreen() {
               .eq('id', id);
             setDeleting(false);
             if (error) {
-              setToast({ visible: true, message: 'Failed to delete entry', type: 'error' });
+              setToast({ visible: true, message: t.editCheckin.deleteFailed, type: 'error' });
             } else {
               Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
               router.back();
@@ -209,29 +211,30 @@ export default function EditCheckinScreen() {
           onPress={() => router.back()}
           activeOpacity={0.7}
           accessibilityRole="button"
-          accessibilityLabel="Go back"
+          accessibilityLabel={t.common.goBack}
         >
           <Ionicons name="chevron-back" size={22} color={Colors.text} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Check-in</Text>
+        <Text style={styles.headerTitle}>{t.editCheckin.headerTitle}</Text>
         <View style={styles.backBtn} />
       </View>
 
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
         {/* Heading */}
-        <Text style={styles.heading}>Edit check-in</Text>
+        <Text style={styles.heading}>{t.editCheckin.heading}</Text>
 
         {/* Bristol Stool Chart */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Stool Type</Text>
-          <Text style={styles.sectionHint}>Select the closest match</Text>
+          <Text style={styles.sectionTitle}>{t.editCheckin.stoolTypeTitle}</Text>
+          <Text style={styles.sectionHint}>{t.editCheckin.stoolTypeHint}</Text>
           <View style={styles.bristolGrid}>
-            {BRISTOL_TYPES.map(b => {
-              const isSelected = stoolType === b.type;
-              const color = Colors.bristol[b.type];
+            {BRISTOL_TYPES.map(type => {
+              const isSelected = stoolType === type;
+              const color = Colors.bristol[type];
+              const desc = t.editCheckin.bristolDescriptions[type];
               return (
                 <TouchableOpacity
-                  key={b.type}
+                  key={type}
                   style={[
                     styles.bristolItem,
                     isSelected && {
@@ -241,9 +244,12 @@ export default function EditCheckinScreen() {
                   ]}
                   onPress={() => {
                     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                    setStoolType(b.type);
+                    setStoolType(type);
                   }}
                   activeOpacity={0.7}
+                  accessibilityRole="button"
+                  accessibilityLabel={`${t.editCheckin.stoolTypeTitle} ${type}: ${desc}`}
+                  accessibilityState={{ selected: isSelected }}
                 >
                   {isSelected && (
                     <View style={[styles.bristolCheck, { backgroundColor: color }]}>
@@ -254,13 +260,13 @@ export default function EditCheckinScreen() {
                     styles.bristolType,
                     isSelected && { color, fontFamily: FontFamily.sansBold },
                   ]}>
-                    {b.type}
+                    {type}
                   </Text>
                   <Text style={[
                     styles.bristolDesc,
                     isSelected && { color: Colors.text },
                   ]}>
-                    {b.desc}
+                    {desc}
                   </Text>
                 </TouchableOpacity>
               );
@@ -269,52 +275,52 @@ export default function EditCheckinScreen() {
           {stoolType === 4 && (
             <View style={styles.idealBadge}>
               <Ionicons name="leaf" size={14} color={Colors.secondary} />
-              <Text style={styles.idealBadgeText}>Ideal range</Text>
+              <Text style={styles.idealBadgeText}>{t.editCheckin.idealRange}</Text>
             </View>
           )}
         </View>
 
         {/* Symptoms */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Symptoms</Text>
-          <Text style={styles.sectionHint}>Rate each symptom on a 1-5 scale</Text>
+          <Text style={styles.sectionTitle}>{t.editCheckin.symptomsTitle}</Text>
+          <Text style={styles.sectionHint}>{t.editCheckin.symptomsHint}</Text>
 
           <View style={styles.symptomCard}>
             <View style={styles.symptomHeader}>
               <Ionicons name="balloon-outline" size={18} color={Colors.primaryLight} />
-              <Text style={styles.symptomLabel}>Bloating</Text>
+              <Text style={styles.symptomLabel}>{t.editCheckin.bloating}</Text>
             </View>
-            <PillSlider value={bloating} onChange={setBloating} labels={SEVERITY_LABELS} />
+            <PillSlider value={bloating} onChange={setBloating} labels={[...t.editCheckin.severityLabels]} />
           </View>
 
           <View style={styles.symptomCard}>
             <View style={styles.symptomHeader}>
               <Ionicons name="flash-outline" size={18} color={Colors.primaryLight} />
-              <Text style={styles.symptomLabel}>Abdominal Pain</Text>
+              <Text style={styles.symptomLabel}>{t.editCheckin.abdominalPain}</Text>
             </View>
-            <PillSlider value={pain} onChange={setPain} labels={SEVERITY_LABELS} />
+            <PillSlider value={pain} onChange={setPain} labels={[...t.editCheckin.severityLabels]} />
           </View>
 
           <View style={styles.symptomCard}>
             <View style={styles.symptomHeader}>
               <Ionicons name="battery-charging-outline" size={18} color={Colors.primaryLight} />
-              <Text style={styles.symptomLabel}>Energy Level</Text>
+              <Text style={styles.symptomLabel}>{t.editCheckin.energyLevel}</Text>
             </View>
-            <PillSlider value={energy} onChange={setEnergy} labels={ENERGY_LABELS} />
+            <PillSlider value={energy} onChange={setEnergy} labels={[...t.editCheckin.energyLabels]} />
           </View>
         </View>
 
         {/* Mood */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Mood</Text>
-          <Text style={styles.sectionHint}>How were you feeling emotionally?</Text>
+          <Text style={styles.sectionTitle}>{t.editCheckin.moodTitle}</Text>
+          <Text style={styles.sectionHint}>{t.editCheckin.moodHint}</Text>
           <MoodSelector value={mood} onChange={setMood} />
         </View>
 
         {/* Water Tracking */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Water Intake</Text>
-          <Text style={styles.sectionHint}>How hydrated were you?</Text>
+          <Text style={styles.sectionTitle}>{t.editCheckin.waterTitle}</Text>
+          <Text style={styles.sectionHint}>{t.editCheckin.waterHint}</Text>
           <WaterTracker
             glasses={waterGlasses}
             onAdd={() => setWaterGlasses(g => Math.min(g + 1, 12))}
@@ -324,10 +330,10 @@ export default function EditCheckinScreen() {
 
         {/* Notes */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Notes</Text>
-          <Text style={styles.sectionHint}>Anything else worth noting?</Text>
+          <Text style={styles.sectionTitle}>{t.editCheckin.notesTitle}</Text>
+          <Text style={styles.sectionHint}>{t.editCheckin.notesHint}</Text>
           <Input
-            placeholder="Food reactions, stress, sleep quality..."
+            placeholder={t.editCheckin.notesPlaceholder}
             value={note}
             onChangeText={setNote}
             multiline
@@ -339,7 +345,7 @@ export default function EditCheckinScreen() {
 
         {/* Save Button */}
         <Button
-          title="Save Changes"
+          title={t.editCheckin.saveButton}
           onPress={handleSave}
           loading={saving}
           size="lg"
@@ -354,13 +360,15 @@ export default function EditCheckinScreen() {
           onPress={handleDelete}
           activeOpacity={0.7}
           disabled={deleting}
+          accessibilityRole="button"
+          accessibilityLabel={t.editCheckin.deleteEntry}
         >
           {deleting ? (
             <ActivityIndicator size="small" color={Colors.error} />
           ) : (
             <Ionicons name="trash-outline" size={18} color={Colors.error} />
           )}
-          <Text style={styles.deleteButtonText}>{deleting ? 'Deleting...' : 'Delete Entry'}</Text>
+          <Text style={styles.deleteButtonText}>{deleting ? t.editCheckin.deleting : t.editCheckin.deleteEntry}</Text>
         </TouchableOpacity>
       </ScrollView>
 

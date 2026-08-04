@@ -17,10 +17,12 @@ import { StatusBar } from 'expo-status-bar';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { FontFamily } from '../../constants/theme';
 import StarFieldBackground from '../../components/StarFieldBackground';
+import { useTranslation } from '../../lib/i18n';
 
 const { width } = Dimensions.get('window');
 
 export default function AboutScreen() {
+  const t = useTranslation();
   const [name, setName] = useState('');
   const [focused, setFocused] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -53,6 +55,8 @@ export default function AboutScreen() {
             style={styles.backButton}
             onPress={() => router.back()}
             activeOpacity={0.7}
+            accessibilityRole="button"
+            accessibilityLabel={t.common.goBack}
           >
             <Ionicons name="chevron-back" size={24} color="#FFFFFF" />
           </TouchableOpacity>
@@ -60,11 +64,9 @@ export default function AboutScreen() {
 
         {/* Main content */}
         <View style={styles.content}>
-          <Text style={styles.label}>ABOUT YOU</Text>
-          <Text style={styles.title}>{"What should we\ncall you?"}</Text>
-          <Text style={styles.subtitle}>
-            {"We'll personalise your gut health journey\naround you."}
-          </Text>
+          <Text style={styles.label}>{t.about.label}</Text>
+          <Text style={styles.title}>{t.about.title}</Text>
+          <Text style={styles.subtitle}>{t.about.subtitle}</Text>
 
           {/* Name input */}
           <View
@@ -77,7 +79,8 @@ export default function AboutScreen() {
               style={styles.input}
               value={name}
               onChangeText={setName}
-              placeholder="Your first name"
+              placeholder={t.about.namePlaceholder}
+              accessibilityLabel={t.about.accessNameInput}
               placeholderTextColor="rgba(255,255,255,0.35)"
               autoCapitalize="words"
               autoFocus={false}
@@ -96,8 +99,10 @@ export default function AboutScreen() {
             onPress={handleContinue}
             disabled={!canContinue || loading}
             activeOpacity={0.88}
+            accessibilityRole="button"
+            accessibilityLabel={t.common.continue}
           >
-            <Text style={styles.continueText}>Continue</Text>
+            <Text style={styles.continueText}>{t.common.continue}</Text>
           </TouchableOpacity>
         </View>
       </View>
