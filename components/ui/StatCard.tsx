@@ -40,7 +40,16 @@ export function StatCard({
       <Text style={styles.value} numberOfLines={1} adjustsFontSizeToFit>
         {value}
       </Text>
-      <Text style={styles.label} numberOfLines={2}>
+      {/* One line, always. Two lines let a long word ellipsize ("Week
+          consist…") and left the three cards' icon badges misaligned, because
+          a 2-line label is taller than a 1-line one. Shrink-to-fit replaces
+          truncation and also covers larger Dynamic Type. */}
+      <Text
+        style={styles.label}
+        numberOfLines={1}
+        adjustsFontSizeToFit
+        minimumFontScale={0.85}
+      >
         {label}
       </Text>
 
@@ -137,7 +146,9 @@ const styles = StyleSheet.create({
   },
   label: {
     fontFamily: FontFamily.sansMedium,
-    fontSize: FontSize.sm,
+    // xs, not sm: three cards across a 375pt screen leave ~72pt of label width,
+    // which 14pt could not fit for any of the longer labels in either language.
+    fontSize: FontSize.xs,
     color: Colors.textSecondary,
   },
 });

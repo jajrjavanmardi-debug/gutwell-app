@@ -145,8 +145,10 @@ export default function TabLayout() {
             borderTopWidth: 1,
             paddingTop: 8,
             paddingBottom: Platform.OS === 'ios' ? 0 : 8,
-            // Cluster the 4 tabs to the left, leaving room for the "+" FAB on the right (Cal AI layout).
-            paddingRight: 72,
+            // Symmetric padding: the 4 tabs sit 2-per-side around a centre
+            // gutter (see tabBarItemStyle on progress/challenges) that holds
+            // the "+" FAB.
+            paddingRight: 4,
             paddingLeft: 4,
             height: Platform.OS === 'ios' ? 90 : 66,
             ...Shadows.sm,
@@ -178,6 +180,8 @@ export default function TabLayout() {
           name="progress"
           options={{
             title: t.tabs.progress,
+            // Right half of the centre gutter for the FAB.
+            tabBarItemStyle: { marginRight: FAB_GUTTER / 2 },
             tabBarIcon: ({ color, focused }) => (
               renderTabIcon(focused, 'trending-up', 'trending-up-outline', color)
             ),
@@ -187,6 +191,8 @@ export default function TabLayout() {
           name="challenges"
           options={{
             title: t.tabs.challenges,
+            // Left half of the centre gutter for the FAB.
+            tabBarItemStyle: { marginLeft: FAB_GUTTER / 2 },
             tabBarIcon: ({ color, focused }) => (
               renderTabIcon(focused, 'flame', 'flame-outline', color)
             ),
@@ -206,7 +212,8 @@ export default function TabLayout() {
         <Tabs.Screen name="food" options={{ href: null }} />
       </Tabs>
 
-      {/* Right-anchored floating "+" FAB (Cal AI layout; toggles to X while the menu is open). */}
+      {/* Centre-anchored floating "+" FAB (toggles to X while the menu is open).
+          alignSelf centres it on any iPhone width without hard-coding one. */}
       <TouchableOpacity
         style={styles.fab}
         activeOpacity={0.85}
@@ -231,6 +238,10 @@ export default function TabLayout() {
   );
 }
 
+/** Centre gap reserved in the tab bar for the 54pt FAB, plus ~5pt clearance
+ *  either side so the circle never touches a tab label. */
+const FAB_GUTTER = 64;
+
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: Colors.background },
   iconWrap: {
@@ -245,7 +256,10 @@ const styles = StyleSheet.create({
   },
   fab: {
     position: 'absolute',
-    right: 16,
+    // Horizontally centred on every screen width. Using alignSelf rather than
+    // left/right:0 keeps the 54pt circle as the only tappable area instead of
+    // stretching the touch target across the whole bar.
+    alignSelf: 'center',
     bottom: Platform.OS === 'ios' ? 30 : 14,
     width: 54,
     height: 54,
