@@ -409,7 +409,7 @@ export default function ProgressScreen() {
         {/* Cal AI "Current Weight" analog: current Gut Score + next milestone */}
         <Card style={styles.statusCard}>
           <View style={styles.statusTopRow}>
-            <Text style={styles.statusLabel}>Current Gut Score</Text>
+            <Text style={styles.statusLabel}>{t.progress.currentGutScore}</Text>
             {nextLevel ? (
               <View style={styles.statusPill}>
                 <Text style={styles.statusPillText}>Next: {nextLevel.name}</Text>
@@ -425,9 +425,9 @@ export default function ProgressScreen() {
             <View style={[styles.statusBarFill, { width: `${Math.round(levelProgress * 100)}%` }]} />
           </View>
           <View style={styles.statusBottomRow}>
-            <Text style={styles.statusMeta}>Level: <Text style={styles.statusMetaStrong}>{level.name}</Text></Text>
+            <Text style={styles.statusMeta}>{t.progress.levelLabel} <Text style={styles.statusMetaStrong}>{level.name}</Text></Text>
             <Text style={styles.statusMeta}>
-              {nextLevel ? `${Math.round(levelProgress * 100)}${t.progress.toNextLevel}` : 'Top tier reached'}
+              {nextLevel ? `${Math.round(levelProgress * 100)}${t.progress.toNextLevel}` : t.progress.maxLevel}
             </Text>
           </View>
         </Card>
@@ -495,7 +495,7 @@ export default function ProgressScreen() {
         {/* Cal AI "Weight Changes" analog: Gut Score change over day windows */}
         {allScores.length >= 2 && (
           <>
-            <Text style={styles.sectionTitle}>Score Changes</Text>
+            <Text style={styles.sectionTitle}>{t.progress.scoreChanges}</Text>
             <Card style={styles.changesCard}>
               {CHANGE_WINDOWS.map((window, idx) => {
                 const change = computeWindowChange(window.days);
@@ -503,7 +503,7 @@ export default function ProgressScreen() {
                 const down = change != null && change < 0;
                 const color = up ? Colors.secondary : down ? Colors.error : Colors.textTertiary;
                 const iconName = up ? 'arrow-up' : down ? 'arrow-down' : 'remove';
-                const tag = change == null ? 'No data' : up ? 'Improved' : down ? 'Declined' : 'No change';
+                const tag = change == null ? t.progress.changeNoData : up ? t.progress.changeImproved : down ? t.progress.changeDeclined : t.progress.changeNone;
                 return (
                   <View
                     key={window.label}
@@ -528,7 +528,7 @@ export default function ProgressScreen() {
         {/* Contribution Calendar */}
         {checkInDates.length > 0 && (
           <>
-            <Text style={styles.sectionTitle}>Check-in Consistency</Text>
+            <Text style={styles.sectionTitle}>{t.progress.checkinConsistency}</Text>
             <View style={styles.calendarCard}>
               <ContributionCalendar data={buildHeatmapData()} />
             </View>
@@ -541,7 +541,7 @@ export default function ProgressScreen() {
             {moodHistory.length === 0 ? (
               <View style={styles.moodEmpty}>
                 <Text style={styles.moodEmptyEmoji}>🙂</Text>
-                <Text style={styles.moodEmptyText}>Log your mood during check-ins to see trends</Text>
+                <Text style={styles.moodEmptyText}>{t.progress.moodEmpty}</Text>
               </View>
             ) : (
               <>
@@ -559,7 +559,7 @@ export default function ProgressScreen() {
                       <View style={styles.moodAvgInfo}>
                         <Text style={[styles.moodAvgValue, { color: MOOD_COLORS[clampedAvg] }]}>{avgMood.toFixed(1)} / 5</Text>
                         <Text style={styles.moodAvgLabel}>{MOOD_LABELS[clampedAvg]}</Text>
-                        <Text style={styles.moodAvgSub}>avg mood this period</Text>
+                        <Text style={styles.moodAvgSub}>{t.progress.avgMoodPeriod}</Text>
                       </View>
                     </View>
                   );
@@ -652,7 +652,7 @@ export default function ProgressScreen() {
             {safeFoods.length === 0 && triggerFoods.length === 0 && !correlations && (
               <View style={styles.insufficientCard}>
                 <Ionicons name="leaf-outline" size={24} color={Colors.textTertiary} />
-                <Text style={styles.insufficientText}>Safe foods appear after consistent tracking.</Text>
+                <Text style={styles.insufficientText}>{t.progress.safeFoodsInsufficient}</Text>
               </View>
             )}
           </>
@@ -662,7 +662,7 @@ export default function ProgressScreen() {
             + avg gut score into a single banded index card. */}
         {(bestStreak > 0 || currentScore != null) && (
           <>
-            <Text style={styles.sectionTitle}>Gut Health Index</Text>
+            <Text style={styles.sectionTitle}>{t.progress.gutHealthIndex}</Text>
             <Card style={styles.indexCard}>
               <View style={styles.indexHeader}>
                 <Text style={styles.indexValue}>{currentScore != null ? currentScore : '--'}</Text>

@@ -16,6 +16,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Button } from './ui/Button';
 import { Colors, FontFamily, FontSize, Spacing } from '../constants/theme';
+import { useTranslation } from '../lib/i18n';
 import { supabase } from '../lib/supabase';
 
 // Per-user acceptance: a second account on the same device must see the
@@ -35,6 +36,7 @@ type Props = {
 };
 
 export function HealthDisclaimerModal({ visible, onAccept, userId }: Props) {
+  const t = useTranslation();
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
 
@@ -111,7 +113,7 @@ export function HealthDisclaimerModal({ visible, onAccept, userId }: Props) {
             </View>
 
             {/* Title */}
-            <Text style={styles.title}>Health Disclaimer</Text>
+            <Text style={styles.title}>{t.components.healthDisclaimer.title}</Text>
 
             {/* Body */}
             <Text style={styles.body}>
@@ -139,14 +141,14 @@ export function HealthDisclaimerModal({ visible, onAccept, userId }: Props) {
           {/* Buttons */}
           <View style={styles.buttonSection}>
             <Button
-              title="I Understand"
+              title={t.components.healthDisclaimer.accept}
               onPress={handleAccept}
               size="lg"
               style={styles.primaryButton}
               textStyle={styles.primaryButtonText}
             />
             <Button
-              title="View Privacy Policy"
+              title={t.components.healthDisclaimer.viewPrivacy}
               onPress={handleViewPrivacy}
               variant="ghost"
               size="lg"

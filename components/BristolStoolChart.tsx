@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import Svg, { Circle, Rect, Path, Ellipse, Line } from 'react-native-svg';
 import { Colors, FontFamily, Spacing, BorderRadius } from '../constants/theme';
+import { useTranslation } from '../lib/i18n';
 
 // ─── Color palette per spec ──────────────────────────────────────────────────
 const FILL_COLORS: Record<number, string> = {
@@ -133,14 +134,16 @@ const VISUAL_MAP: Record<number, React.ReactElement> = {
 
 // ─── Type metadata ────────────────────────────────────────────────────────────
 
+// `type` is the numeric value persisted to Supabase. The label and the
+// description come from t.components.bristol, keyed by the same number.
 const BRISTOL_META = [
-  { type: 1, label: 'Type 1', desc: 'Separate lumps', ideal: false },
-  { type: 2, label: 'Type 2', desc: 'Lumpy sausage', ideal: false },
-  { type: 3, label: 'Type 3', desc: 'Cracked sausage', ideal: false },
-  { type: 4, label: 'Type 4', desc: 'Smooth sausage', ideal: true },
-  { type: 5, label: 'Type 5', desc: 'Soft blobs', ideal: false },
-  { type: 6, label: 'Type 6', desc: 'Mushy', ideal: false },
-  { type: 7, label: 'Type 7', desc: 'Watery', ideal: false },
+  { type: 1, ideal: false },
+  { type: 2, ideal: false },
+  { type: 3, ideal: false },
+  { type: 4, ideal: true },
+  { type: 5, ideal: false },
+  { type: 6, ideal: false },
+  { type: 7, ideal: false },
 ];
 
 // ─── Props ────────────────────────────────────────────────────────────────────
@@ -154,19 +157,19 @@ interface BristolStoolChartProps {
 
 function BristolCell({
   type,
-  label,
-  desc,
   ideal,
   isSelected,
   onPress,
 }: {
   type: number;
-  label: string;
-  desc: string;
   ideal: boolean;
   isSelected: boolean;
   onPress: () => void;
 }) {
+  // Sub-components need their own hook — hooks do not cross function boundaries.
+  const t = useTranslation();
+  const label = `${t.components.bristol.typePrefix} ${type}`;
+  const desc = t.components.bristol.descriptions[type as 1 | 2 | 3 | 4 | 5 | 6 | 7];
   const isIdealSelected = ideal && isSelected;
 
   return (
@@ -179,7 +182,7 @@ function BristolCell({
       onPress={onPress}
       activeOpacity={0.72}
       accessibilityRole="button"
-      accessibilityLabel={`Select stool type ${type}, ${desc}${ideal ? ', ideal' : ''}`}
+      accessibilityLabel={`${label}: ${desc}${ideal ? `, ${t.components.bristol.ideal}` : ''}`}
       accessibilityState={{ selected: isSelected }}
     >
       {/* SVG visual centered */}
@@ -196,7 +199,7 @@ function BristolCell({
       {/* Ideal badge */}
       {ideal && (
         <View style={styles.idealBadge}>
-          <Text style={styles.idealBadgeText}>Ideal</Text>
+          <Text style={styles.idealBadgeText}>{t.components.bristol.ideal}</Text>
         </View>
       )}
     </TouchableOpacity>

@@ -1075,7 +1075,7 @@ export default function PhotoAnalysisScreen() {
             style={styles.historyButton}
             accessibilityRole="button"
             accessibilityLabel={t.photoAnalysis.back}
-            accessibilityHint="Opens a list of your saved photo analyses"
+            accessibilityHint={t.photoAnalysis.accessHistoryHint}
           >
             <Ionicons name="time-outline" size={18} color="#FFFFFF" />
             <Text style={styles.historyButtonLabel}>{t.photoAnalysis.title}</Text>
@@ -1382,7 +1382,7 @@ export default function PhotoAnalysisScreen() {
                     if (!locationContext && !isLocationLoading) void loadLocation(true);
                   }}
                   accessibilityRole="button"
-                  accessibilityLabel={locationContext ? 'Location suggestions enabled' : 'Enable local food suggestions using your location'}
+                  accessibilityLabel={locationContext ? t.photoAnalysis.locationSuggestionsEnabled : t.photoAnalysis.locationSuggestionsLabel}
                 >
                   <Ionicons name="location-outline" size={17} color={Colors.primary} />
                   <Text style={[styles.locationText]}>

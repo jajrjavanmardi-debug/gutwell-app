@@ -103,7 +103,7 @@ export default function WelcomeScreen() {
             style={styles.primaryButton}
             onPress={handleCreateAccount}
             accessibilityRole="button"
-            accessibilityLabel="Create a new GutWell AI account"
+            accessibilityLabel={t.welcome.accessCreateAccount}
             activeOpacity={0.88}
           >
             <Text style={styles.primaryButtonText}>{t.welcome.createAccount}</Text>
@@ -114,7 +114,7 @@ export default function WelcomeScreen() {
             style={styles.secondaryButton}
             onPress={handleSignIn}
             accessibilityRole="button"
-            accessibilityLabel="Sign in to existing account"
+            accessibilityLabel={t.welcome.accessSignIn}
             activeOpacity={0.8}
           >
             <Text style={styles.secondaryButtonText}>{t.welcome.signIn}</Text>

@@ -262,7 +262,7 @@ function TimePickerModal({
               ))}
             </View>
           </View>
-          <TouchableOpacity style={styles.timeConfirmBtn} onPress={handleDone} accessibilityRole="button" accessibilityLabel="Confirm reminder time">
+          <TouchableOpacity style={styles.timeConfirmBtn} onPress={handleDone} accessibilityRole="button" accessibilityLabel={t.settings.accessConfirmTime}>
             <Text style={styles.timeConfirmText}>{t.common.confirm}</Text>
           </TouchableOpacity>
         </View>
@@ -311,15 +311,15 @@ export default function SettingsScreen() {
       const remaining = await getPendingCount();
       setPendingSyncCount(remaining);
       Alert.alert(
-        remaining === 0 ? 'All synced' : 'Partially synced',
+        remaining === 0 ? t.settings.allSynced : t.settings.partiallySynced,
         remaining === 0
-          ? `${synced} ${synced === 1 ? 'entry' : 'entries'} uploaded.`
-          : `${synced} uploaded, ${remaining} still waiting — check your connection and try again.`,
+          ? `${synced} ${synced === 1 ? t.settings.syncedEntry : t.settings.syncedEntries}`
+          : `${synced} ${t.settings.syncedPartialMessage.replace('{remaining}', String(remaining))}`,
       );
     } catch {
       Alert.alert(t.settings.syncFailed, t.settings.syncError);
     }
-  }, []);
+  }, [t]);
 
   const save = useCallback((partial: Partial<Settings>) => {
     setSettings((prev) => {
@@ -335,8 +335,8 @@ export default function SettingsScreen() {
                 // Scheduling refused (time falls in 22:00–08:00 quiet hours) —
                 // tell the user instead of silently never reminding them.
                 Alert.alert(
-                  'Reminder not scheduled',
-                  'That time falls within quiet hours (10 PM – 8 AM). Pick a time outside quiet hours to get your daily reminder.',
+                  t.settings.reminderNotScheduledTitle,
+                  t.settings.reminderNotScheduledMessage,
                 );
               }
             })
@@ -348,7 +348,7 @@ export default function SettingsScreen() {
 
       return next;
     });
-  }, []);
+  }, [t]);
 
   // Diet picker
   const openDietPicker = () => {
@@ -358,7 +358,7 @@ export default function SettingsScreen() {
         {
           options: [...DIET_OPTIONS, t.common.cancel],
           cancelButtonIndex: DIET_OPTIONS.length,
-          title: 'Diet Type',
+          title: t.settings.dietType,
         },
         (index) => {
           if (index < DIET_OPTIONS.length) {
@@ -373,7 +373,7 @@ export default function SettingsScreen() {
 
   const handleExportData = async () => {
     if (!user) return;
-    Alert.alert('Preparing your data...', undefined, undefined, { cancelable: false });
+    Alert.alert(t.settings.preparingData, undefined, undefined, { cancelable: false });
 
     try {
       // Every user-owned table — a GDPR access request must return it all.
@@ -402,7 +402,7 @@ export default function SettingsScreen() {
 
       await Share.share({
         message: JSON.stringify(exportData, null, 2),
-        title: 'GutWell AI Data Export',
+        title: t.settings.exportSubject,
       });
       track(Events.DATA_EXPORTED);
     } catch {
@@ -413,10 +413,10 @@ export default function SettingsScreen() {
   const handleClearData = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     Alert.alert(
-      'Clear All Data',
-      'This will permanently delete all your check-ins, food logs, symptoms, water logs, gut scores, favorites, and streaks. Your account stays; the data cannot be recovered.',
+      t.settings.clearAllData,
+      t.settings.clearAllMessage,
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: t.common.cancel, style: 'cancel' },
         {
           text: t.settings.clearConfirm,
           style: 'destructive',
@@ -434,8 +434,8 @@ export default function SettingsScreen() {
             const failed = results.filter((r) => r.error);
             if (failed.length > 0) {
               Alert.alert(
-                'Partially cleared',
-                'Some records could not be deleted. Please check your connection and try again.',
+                t.settings.partiallyCleared,
+                t.settings.partiallyClearedMessage,
               );
             } else {
               Alert.alert(t.settings.clearDone, t.settings.clearSuccess);
@@ -462,7 +462,7 @@ export default function SettingsScreen() {
     <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity style={styles.backButton} onPress={() => router.back()} accessibilityRole="button" accessibilityLabel="Go back">
+        <TouchableOpacity style={styles.backButton} onPress={() => router.back()} accessibilityRole="button" accessibilityLabel={t.common.goBack}>
           <Ionicons name="chevron-back" size={24} color={Colors.text} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>{t.settings.title}</Text>
@@ -497,7 +497,7 @@ export default function SettingsScreen() {
                 onValueChange={(v) => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); save({ dailyReminderEnabled: v }); }}
                 trackColor={{ false: Colors.border, true: Colors.secondary }}
                 thumbColor={Colors.surface}
-                accessibilityLabel="Toggle daily check-in reminder"
+                accessibilityLabel={t.settings.accessToggleDaily}
               />
             }
             isFirst
@@ -506,14 +506,14 @@ export default function SettingsScreen() {
           <SettingsRow
             icon="flame-outline"
             label={t.settings.streakAlerts}
-            subtitle="8 PM reminder when streak is at risk"
+            subtitle={t.settings.streakAlertsSubtitle}
             right={
               <Switch
                 value={settings.streakAlertsEnabled}
                 onValueChange={(v) => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); save({ streakAlertsEnabled: v }); }}
                 trackColor={{ false: Colors.border, true: Colors.secondary }}
                 thumbColor={Colors.surface}
-                accessibilityLabel="Toggle streak alerts"
+                accessibilityLabel={t.settings.accessToggleStreak}
               />
             }
             isLast={!settings.dailyReminderEnabled}

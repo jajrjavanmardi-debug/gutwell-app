@@ -14,6 +14,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors, FontFamily, FontSize } from '../constants/theme';
+import { useTranslation } from '../lib/i18n';
 
 interface Props {
   visible: boolean;
@@ -23,6 +24,7 @@ interface Props {
 }
 
 export function CheckInSuccessOverlay({ visible, score, streak, onDone }: Props) {
+  const t = useTranslation();
   const opacity = useSharedValue(0);
   const checkScale = useSharedValue(0);
   const checkOpacity = useSharedValue(0);
@@ -80,7 +82,7 @@ export function CheckInSuccessOverlay({ visible, score, streak, onDone }: Props)
             </Animated.View>
 
             {/* Logged! */}
-            <Text style={styles.loggedText}>Logged!</Text>
+            <Text style={styles.loggedText}>{t.components.checkinSuccess.logged}</Text>
 
             {/* Streak */}
             {streak != null && streak > 0 && (

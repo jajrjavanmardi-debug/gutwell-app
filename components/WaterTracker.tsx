@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { Colors, Spacing, FontSize, BorderRadius, FontFamily, Shadows } from '../constants/theme';
+import { useTranslation } from '../lib/i18n';
 
 type Props = {
   glasses: number;
@@ -12,6 +13,7 @@ type Props = {
 };
 
 export function WaterTracker({ glasses, onAdd, onRemove, goal = 8 }: Props) {
+  const t = useTranslation();
   const progress = Math.min(glasses / goal, 1);
 
   const handleAdd = () => {
@@ -35,7 +37,7 @@ export function WaterTracker({ glasses, onAdd, onRemove, goal = 8 }: Props) {
           <Ionicons name="water" size={20} color={Colors.secondary} />
         </View>
         <View style={{ flex: 1 }}>
-          <Text style={styles.title}>Hydration</Text>
+          <Text style={styles.title}>{t.components.water.title}</Text>
           <Text style={styles.subtitle}>{glasses} of {goal} glasses</Text>
         </View>
         <View style={styles.controls}>
@@ -45,11 +47,11 @@ export function WaterTracker({ glasses, onAdd, onRemove, goal = 8 }: Props) {
             disabled={glasses === 0}
             activeOpacity={0.7}
             accessibilityRole="button"
-            accessibilityLabel="Remove water glass"
+            accessibilityLabel={t.components.water.accessRemove}
           >
             <Ionicons name="remove" size={18} color={glasses === 0 ? Colors.textTertiary : Colors.primary} />
           </TouchableOpacity>
-          <TouchableOpacity onPress={handleAdd} style={styles.controlBtn} activeOpacity={0.7} accessibilityRole="button" accessibilityLabel="Add water glass">
+          <TouchableOpacity onPress={handleAdd} style={styles.controlBtn} activeOpacity={0.7} accessibilityRole="button" accessibilityLabel={t.components.water.accessAdd}>
             <Ionicons name="add" size={18} color={Colors.primary} />
           </TouchableOpacity>
         </View>

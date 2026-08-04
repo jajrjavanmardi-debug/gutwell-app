@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { Colors, Spacing, FontSize, BorderRadius, FontFamily } from '../constants/theme';
+import { useTranslation } from '../lib/i18n';
 
 type Props = {
   /** Map of date string (YYYY-MM-DD) to completion count (0-4) */
@@ -9,6 +10,7 @@ type Props = {
 };
 
 export function ContributionCalendar({ data, weeks = 12 }: Props) {
+  const t = useTranslation();
   const today = new Date();
   const dayOfWeek = today.getDay(); // 0 = Sun
   const totalDays = weeks * 7;
@@ -85,11 +87,11 @@ export function ContributionCalendar({ data, weeks = 12 }: Props) {
         ))}
       </View>
       <View style={styles.legend}>
-        <Text style={styles.legendText}>Less</Text>
+        <Text style={styles.legendText}>{t.components.calendar.less}</Text>
         {levelColors.map((color, i) => (
           <View key={i} style={[styles.legendCell, { backgroundColor: color }]} />
         ))}
-        <Text style={styles.legendText}>More</Text>
+        <Text style={styles.legendText}>{t.components.calendar.more}</Text>
       </View>
     </View>
   );

@@ -14,33 +14,45 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { FireAnimation } from './FireAnimation';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors, FontFamily, FontSize, BorderRadius, Spacing } from '../constants/theme';
+import { useTranslation, type Translations } from '../lib/i18n';
 
 // ─── Types & Constants ───────────────────────────────────────────────────────
 
 export type StreakMilestone = {
   days: number;
-  label: string;
+  key: MilestoneKey;
 };
 
+export type MilestoneKey = 'start' | 'week' | 'month' | 'hundred' | 'halfYear' | 'year';
+
+// `key` maps to t.components.streakPopup.milestones — the label is never
+// stored, only the day threshold is.
 const MILESTONES: StreakMilestone[] = [
-  { days: 0,   label: 'Starting Out' },
-  { days: 7,   label: '1 Week'       },
-  { days: 30,  label: '1 Month'      },
-  { days: 100, label: '100 Days'     },
-  { days: 180, label: '6 Months'     },
-  { days: 366, label: '1 Year'       },
+  { days: 0,   key: 'start'    },
+  { days: 7,   key: 'week'     },
+  { days: 30,  key: 'month'    },
+  { days: 100, key: 'hundred'  },
+  { days: 180, key: 'halfYear' },
+  { days: 366, key: 'year'     },
 ];
+
+
+function milestoneLabel(t: Translations, key: string): string {
+  return (t.components.streakPopup.milestones as Record<string, string>)[key] ?? key;
+}
 
 const MILESTONE_THRESHOLDS = [0, 7, 30, 100, 180, 366];
 
-const DAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
-const STATE_MESSAGES: Record<string, string> = {
-  active:  'Your gut is thriving!',
-  at_risk: 'Keep your streak alive!',
-  broken:  'Every day is a fresh start.',
-  new:     'Begin your gut health journey!',
-};
+// Keyed by the streakState prop. "Your gut is thriving" was removed: it
+// asserted a health status rather than describing the tracking streak.
+function stateMessage(t: Translations, state: string): string {
+  const m = t.components.streakPopup;
+  if (state === 'active') return m.stateActive;
+  if (state === 'at_risk') return m.stateAtRisk;
+  if (state === 'broken') return m.stateBroken;
+  return m.stateNew;
+}
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const CARD_WIDTH = Math.min(SCREEN_WIDTH - 48, 360);
@@ -96,6 +108,7 @@ export function StreakPopup({
   weeklyCompletions = Array(7).fill(false),
   onClose,
 }: StreakPopupProps) {
+  const t = useTranslation();
   const scaleAnim = useRef(new Animated.Value(0.85)).current;
   const opacityAnim = useRef(new Animated.Value(0)).current;
 
@@ -103,7 +116,7 @@ export function StreakPopup({
   const nextMilestone = getNextMilestone(currentStreak);
   const milestoneProgress = getMilestoneProgress(currentStreak);
   const lottieIndex = MILESTONES.indexOf(milestone);
-  const message = STATE_MESSAGES[streakState] ?? STATE_MESSAGES.new;
+  const message = stateMessage(t, streakState);
   const completionPct = Math.round(completionRate * 100);
 
   // Derive day labels relative to today (today = last element, index 6)
@@ -111,7 +124,7 @@ export function StreakPopup({
   const dayLabels = Array.from({ length: 7 }, (_, i) => {
     const d = new Date(today);
     d.setDate(today.getDate() - (6 - i));
-    return DAY_LABELS[d.getDay() === 0 ? 6 : d.getDay() - 1]; // Mon=0 … Sun=6
+    return t.calendar.weekdaysShortMonFirst[d.getDay() === 0 ? 6 : d.getDay() - 1]; // Mon=0 … Sun=6
   });
 
   useEffect(() => {
@@ -180,7 +193,7 @@ export function StreakPopup({
 
           {/* Streak Number */}
           <Text style={styles.streakNumber}>{currentStreak}</Text>
-          <Text style={styles.streakLabel}>Day Streak</Text>
+          <Text style={styles.streakLabel}>{t.components.streakPopup.dayStreak}</Text>
 
           {/* Motivational Message */}
           <View style={[
@@ -196,7 +209,7 @@ export function StreakPopup({
           <View style={styles.divider} />
 
           {/* 7-Day Weekly Check-in Row */}
-          <Text style={styles.sectionHeading}>This Week</Text>
+          <Text style={styles.sectionHeading}>{t.components.streakPopup.thisWeek}</Text>
           <View style={styles.weekRow}>
             {dayLabels.map((label, i) => {
               const done = weeklyCompletions[i] ?? false;
@@ -224,13 +237,13 @@ export function StreakPopup({
           <View style={styles.divider} />
 
           {/* Milestone Progress */}
-          <Text style={styles.sectionHeading}>Milestone Progress</Text>
+          <Text style={styles.sectionHeading}>{t.components.streakPopup.milestoneProgress}</Text>
           <View style={styles.milestoneRow}>
-            <Text style={styles.milestoneCurrent}>{milestone.label}</Text>
+            <Text style={styles.milestoneCurrent}>{milestoneLabel(t, milestone.key)}</Text>
             {nextMilestone ? (
-              <Text style={styles.milestoneNext}>{nextMilestone.label} ({nextMilestone.days}d)</Text>
+              <Text style={styles.milestoneNext}>{milestoneLabel(t, nextMilestone.key)} ({nextMilestone.days}d)</Text>
             ) : (
-              <Text style={styles.milestoneNext}>Max reached!</Text>
+              <Text style={styles.milestoneNext}>{t.components.streakPopup.maxReached}</Text>
             )}
           </View>
           <View style={styles.progressTrack}>
@@ -243,7 +256,11 @@ export function StreakPopup({
           </View>
           {nextMilestone && (
             <Text style={styles.progressSubtext}>
-              {nextMilestone.days - currentStreak} day{nextMilestone.days - currentStreak !== 1 ? 's' : ''} until {nextMilestone.label}
+              {nextMilestone.days - currentStreak}{' '}
+              {nextMilestone.days - currentStreak === 1
+                ? t.components.streakPopup.dayUnit
+                : t.components.streakPopup.daysUnit}{' '}
+              {t.components.streakPopup.daysUntil} {milestoneLabel(t, nextMilestone.key)}
             </Text>
           )}
 
@@ -255,13 +272,13 @@ export function StreakPopup({
             <View style={styles.statItem}>
               <Ionicons name="trophy-outline" size={18} color={Colors.secondary} />
               <Text style={styles.statValue}>{bestStreak}</Text>
-              <Text style={styles.statLabel}>Best Streak</Text>
+              <Text style={styles.statLabel}>{t.components.streakPopup.bestStreak}</Text>
             </View>
             <View style={styles.statDivider} />
             <View style={styles.statItem}>
               <Ionicons name="checkmark-circle-outline" size={18} color={Colors.secondary} />
               <Text style={styles.statValue}>{completionPct}%</Text>
-              <Text style={styles.statLabel}>Completion Rate</Text>
+              <Text style={styles.statLabel}>{t.components.streakPopup.completionRate}</Text>
             </View>
           </View>
         </LinearGradient>

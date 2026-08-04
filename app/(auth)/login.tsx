@@ -98,8 +98,8 @@ export default function LoginScreen() {
               {/* ── Form ── */}
               <View style={styles.form}>
                 <Input
-                  label="Email"
-                  placeholder="you@example.com"
+                  label={t.login.emailLabel}
+                  placeholder={t.login.emailPlaceholder}
                   value={email}
                   onChangeText={setEmail}
                   keyboardType="email-address"
@@ -107,8 +107,8 @@ export default function LoginScreen() {
                   autoComplete="email"
                 />
                 <Input
-                  label="Password"
-                  placeholder="Your password"
+                  label={t.login.passwordLabel}
+                  placeholder={t.login.passwordPlaceholder}
                   value={password}
                   onChangeText={setPassword}
                   secureTextEntry

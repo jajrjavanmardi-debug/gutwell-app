@@ -7,21 +7,27 @@ import { Platform, StyleSheet, View, Text, TouchableOpacity } from 'react-native
 import { BlurView } from 'expo-blur';
 import { Colors, FontSize, FontFamily, Shadows, Spacing } from '../../constants/theme';
 import { FabActionMenu } from '../../components/FabActionMenu';
+import { useTranslation } from '../../lib/i18n';
 
 /** Expo Router error boundary for all tab screens */
 export function ErrorBoundary({ error, retry }: { error: Error; retry: () => void }) {
+  const t = useTranslation();
   return (
     <View style={ebStyles.container}>
       <View style={ebStyles.iconCircle}>
         <Ionicons name="leaf-outline" size={32} color={Colors.secondary} />
       </View>
-      <Text style={ebStyles.title}>Something went wrong</Text>
-      <Text style={ebStyles.subtitle}>
-        An unexpected error occurred. Please try again.
-      </Text>
-      <TouchableOpacity style={ebStyles.retryButton} onPress={retry} activeOpacity={0.7}>
+      <Text style={ebStyles.title}>{t.errorBoundary.title}</Text>
+      <Text style={ebStyles.subtitle}>{t.errorBoundary.message}</Text>
+      <TouchableOpacity
+        style={ebStyles.retryButton}
+        onPress={retry}
+        activeOpacity={0.7}
+        accessibilityRole="button"
+        accessibilityLabel={t.errorBoundary.retry}
+      >
         <Ionicons name="refresh" size={18} color="#FFFFFF" />
-        <Text style={ebStyles.retryText}>Try Again</Text>
+        <Text style={ebStyles.retryText}>{t.errorBoundary.retry}</Text>
       </TouchableOpacity>
     </View>
   );
@@ -75,6 +81,7 @@ const ebStyles = StyleSheet.create({
 });
 
 export default function TabLayout() {
+  const t = useTranslation();
   const { session, loading } = useAuth();
   const router = useRouter();
   const [menuOpen, setMenuOpen] = useState(false);
@@ -100,25 +107,25 @@ export default function TabLayout() {
   const fabActions = [
     {
       key: 'scan',
-      label: 'Scan meal',
+      label: t.tabs.fabScanMeal,
       icon: <Ionicons name="scan-outline" size={26} color={Colors.secondary} />,
       onPress: () => router.push('/photo-analysis'),
     },
     {
       key: 'checkin',
-      label: 'Daily check-in',
+      label: t.tabs.fabDailyCheckin,
       icon: <Ionicons name="body-outline" size={26} color={Colors.secondary} />,
       onPress: () => router.push('/(tabs)/checkin'),
     },
     {
       key: 'symptom',
-      label: 'Log symptom',
+      label: t.tabs.fabLogSymptom,
       icon: <Ionicons name="pulse-outline" size={26} color={Colors.secondary} />,
       onPress: () => router.push('/log-symptom'),
     },
     {
       key: 'food',
-      label: 'Log food',
+      label: t.tabs.fabLogFood,
       icon: <Ionicons name="restaurant-outline" size={26} color={Colors.secondary} />,
       onPress: () => router.push('/(tabs)/food'),
     },
@@ -161,7 +168,7 @@ export default function TabLayout() {
         <Tabs.Screen
           name="index"
           options={{
-            title: 'Home',
+            title: t.tabs.home,
             tabBarIcon: ({ color, focused }) => (
               renderTabIcon(focused, 'home', 'home-outline', color)
             ),
@@ -170,7 +177,7 @@ export default function TabLayout() {
         <Tabs.Screen
           name="progress"
           options={{
-            title: 'Progress',
+            title: t.tabs.progress,
             tabBarIcon: ({ color, focused }) => (
               renderTabIcon(focused, 'trending-up', 'trending-up-outline', color)
             ),
@@ -179,7 +186,7 @@ export default function TabLayout() {
         <Tabs.Screen
           name="challenges"
           options={{
-            title: 'Challenges',
+            title: t.tabs.challenges,
             tabBarIcon: ({ color, focused }) => (
               renderTabIcon(focused, 'flame', 'flame-outline', color)
             ),
@@ -188,7 +195,7 @@ export default function TabLayout() {
         <Tabs.Screen
           name="profile"
           options={{
-            title: 'Profile',
+            title: t.tabs.profile,
             tabBarIcon: ({ color, focused }) => (
               renderTabIcon(focused, 'person', 'person-outline', color)
             ),
@@ -204,7 +211,7 @@ export default function TabLayout() {
         style={styles.fab}
         activeOpacity={0.85}
         accessibilityRole="button"
-        accessibilityLabel={menuOpen ? 'Close add menu' : 'Open add menu'}
+        accessibilityLabel={menuOpen ? t.tabs.closeAddMenu : t.tabs.openAddMenu}
         onPress={() => {
           if (Platform.OS === 'ios') {
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);

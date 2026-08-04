@@ -168,6 +168,8 @@ const en = {
     legalSuffix: '.',
     accessTerms: 'Open Terms of Service',
     accessPrivacy: 'Open Privacy Policy',
+    accessCreateAccount: 'Create a new GutWell AI account',
+    accessSignIn: 'Sign in to existing account',
     taglines: [
       'Track your gut health.',
       'Understand your gut.',
@@ -301,6 +303,16 @@ const en = {
     dataExported: 'Data exported successfully',
     exportFailed: 'Failed to export data',
     deleteFailed: 'Failed to delete account. Please try again.',
+    accessEditProfile: 'Edit profile',
+    setYourName: 'Set your name',
+    personalDetails: 'Personal Details',
+    preferences: 'Preferences',
+    progressInsights: 'Progress & Insights',
+    reminders: 'Reminders',
+    upgradePremium: 'Upgrade to Premium',
+    supportEmail: 'Support Email',
+    widgetHint: 'Add a GutWell AI widget from your Home Screen to glance at your daily progress.',
+    disclaimerBody: 'GutWell AI is a wellness tracking tool and is not intended to diagnose, treat, cure, or prevent any disease. Always consult a qualified medical professional about health concerns.',
   },
 
   // ── Settings ──────────────────────────────────────────────────────────────
@@ -335,12 +347,25 @@ const en = {
     syncNow: 'Waiting to sync',
     syncSubtitle: 'entries saved offline — tap to sync now',
     allSynced: 'All synced',
+    partiallySynced: 'Partially synced',
+    syncedEntries: 'entries uploaded.',
+    syncedEntry: 'entry uploaded.',
+    syncedPartialMessage: 'uploaded, {remaining} still waiting — check your connection and try again.',
     setReminderTime: 'Set Reminder Time',
     confirmReminderTime: 'Confirm reminder time',
     hour: 'Hour',
     minute: 'Min',
     period: 'Period',
     languageNote: 'Your language applies across the app and to AI responses in Photo Analysis.',
+    accessConfirmTime: 'Confirm reminder time',
+    accessToggleDaily: 'Toggle daily check-in reminder',
+    accessToggleStreak: 'Toggle streak alerts',
+    reminderNotScheduledTitle: 'Reminder not scheduled',
+    reminderNotScheduledMessage: 'That time falls within quiet hours (10 PM – 8 AM). Pick a time outside quiet hours to get your daily reminder.',
+    preparingData: 'Preparing your data...',
+    partiallyCleared: 'Partially cleared',
+    partiallyClearedMessage: 'Some records could not be deleted. Please check your connection and try again.',
+    exportSubject: 'GutWell AI Data Export',
     dietOptions: {
       general: 'General Wellness',
       vegetarian: 'Vegetarian',
@@ -385,6 +410,20 @@ const en = {
     gutScoreToday: 'Gut Score today',
     dayStreak: 'Day streak',
     recentlyLogged: 'Recently logged',
+    forFree: 'GutWell for free',
+    sampleMeal: 'Greek yogurt + berries',
+    sampleScore: 'Gut 9/10',
+    comingSoonBody: 'Subscriptions are not available yet. Please try again later.',
+    purchaseFailed: 'Purchase Failed',
+    restorePurchases: 'Restore Purchases',
+    heroLine1: 'We want you to try',
+    heroLine2: 'GutWell for free',
+    billedAnnuallySave: 'Billed annually — save {pct}%',
+    startFreeTrial: 'Start Free Trial',
+    startTrialWithPeriod: 'Start {n}-{unit} Free Trial',
+    previewDayStreak: 'Day streak',
+    previewSafeFoods: 'Safe foods',
+    previewCheckIns: 'Check-ins',
   },
 
   // ── Error & Empty States ──────────────────────────────────────────────────
@@ -418,6 +457,8 @@ const en = {
     enterCode: 'Enter code',
     referralPlaceholder: 'FRIEND123',
     ctaGeneratePlan: 'Generate My Plan',
+    chartNow: 'Now',
+    chartTwelveWeeks: '12 weeks',
   },
 
   // ── Legal Screens — UI only (substantive content NOT localized) ──────────
@@ -580,6 +621,13 @@ const en = {
     todayActivity: "Today's Activity",
     recentMeals: 'Recent Meals',
     noDataYet: 'No data yet',
+    scanTitle: 'Scan your meal',
+    scanSubtitle: 'Snap a photo — get gut-friendly insights in seconds',
+    recentlyLogged: 'Recently logged',
+    emptyHint: 'Tap + to log your first entry of the day',
+    accessSeeAllRecent: 'See all recent activity',
+    triggerLinked: 'May be associated with {symptom} — {withSymptoms} of {logged} logs',
+    triggerFollowed: 'Symptoms followed {withSymptoms} of {logged} logs',
   },
 
   // ── Check-in ──────────────────────────────────────────────────────────────
@@ -601,6 +649,19 @@ const en = {
     savedOffline: 'Saved offline — will sync when connected',
     errorSaveFailed: 'Failed to save check-in',
     stoolLabels: ['Type 1', 'Type 2', 'Type 3', 'Type 4', 'Type 5', 'Type 6', 'Type 7'],
+    headerTitle: 'Check-in',
+    heading: 'Daily Check-in',
+    subtitle: 'How is your gut feeling today?',
+    symptomsHint: 'Rate each symptom on a 1-5 scale',
+    bloating: 'Bloating',
+    abdominalPain: 'Abdominal Pain',
+    energyLevel: 'Energy Level',
+    moodHint: 'How are you feeling emotionally?',
+    waterTitle: 'Water Intake',
+    waterHint: 'Track your hydration throughout the day',
+    notesHint: 'Anything else worth noting?',
+    severityLabels: ['None', 'Mild', 'Moderate', 'Strong', 'Severe'],
+    energyLabels: ['Low', 'Below avg', 'Normal', 'Good', 'High'],
   },
 
   // ── Progress ──────────────────────────────────────────────────────────────
@@ -635,6 +696,17 @@ const en = {
     premiumTriggerTeaser: 'See all your trigger foods and safe foods with Premium',
     premiumFoodInsights: 'Unlock food-symptom insights with Premium',
     windowLabels: { '3': '3 days', '7': '7 days', '14': '14 days', '30': '30 days', '90': '90 days', null: 'All Time' },
+    currentGutScore: 'Current Gut Score',
+    scoreChanges: 'Score Changes',
+    checkinConsistency: 'Check-in Consistency',
+    moodEmpty: 'Log your mood during check-ins to see trends',
+    avgMoodPeriod: 'avg mood this period',
+    safeFoodsInsufficient: 'Well-tolerated foods appear after consistent tracking.',
+    gutHealthIndex: 'Gut Health Index',
+    changeNoData: 'No data',
+    changeImproved: 'Improved',
+    changeDeclined: 'Declined',
+    changeNone: 'No change',
   },
 
   // ── Food ──────────────────────────────────────────────────────────────────
@@ -793,6 +865,9 @@ const en = {
     stateOptions: { fine: 'Feeling fine', bloating: 'Bloating', pain: 'Stomach pain', lowEnergy: 'Low energy', nausea: 'Nausea', reflux: 'Reflux' },
     activityOptions: { rest: 'Rest', work: 'Work or study', driving: 'Driving', walking: 'Walking', exercise: 'Exercise', competition: 'Competition', sleep: 'Sleep', social: 'Social event' },
     expoGoTextOnlyHint: 'Expo Go (development): hold-to-talk voice is off. Describe your meal and how you feel below — analysis and the 4-step flow still work.',
+    accessHistoryHint: 'Opens a list of your saved photo analyses',
+    locationSuggestionsLabel: 'Enable local food suggestions using your location',
+    locationSuggestionsEnabled: 'Location suggestions enabled',
   },
 
   // ── Shared symptom vocabulary ────────────────────────────────────────────
@@ -817,6 +892,7 @@ const en = {
     weekdaysShort: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'],
     monthsShort: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
     dayInitials: ['M', 'T', 'W', 'T', 'F', 'S', 'S'],
+    weekdaysShortMonFirst: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
   },
 
   // ── Change Password ───────────────────────────────────────────────────────
@@ -1044,6 +1120,178 @@ const en = {
     // {score} and {streak} are substituted at runtime.
     shareMessage: 'My GutWell Gut Score this week: {score}/100 🌿 Day {streak} streak! Download GutWell to track your gut health.',
   },
+
+  // ── Tab bar + quick-action menu + tab error boundary ──────────────────────
+  tabs: {
+    home: 'Home',
+    progress: 'Progress',
+    challenges: 'Challenges',
+    profile: 'Profile',
+    fabScanMeal: 'Scan meal',
+    fabDailyCheckin: 'Daily check-in',
+    fabLogSymptom: 'Log symptom',
+    fabLogFood: 'Log food',
+    closeMenu: 'Close menu',
+    openAddMenu: 'Open add menu',
+    closeAddMenu: 'Close add menu',
+  },
+
+  // ── Crash fallback (also used by the root ErrorBoundary) ──────────────────
+  errorBoundary: {
+    title: 'Something went wrong',
+    message: 'An unexpected error occurred. Please try again.',
+    retry: 'Try Again',
+  },
+
+  // ── Challenge detail ──────────────────────────────────────────────────────
+  challengeDetail: {
+    headerTitle: 'Challenge',
+    yourProgress: 'Your progress',
+    dailyTasks: 'Daily tasks',
+    tasksCheckIn: [
+      'Open the app and log a daily gut check-in',
+      'Note any symptoms while they’re fresh',
+      'Keep the streak alive — one check-in per day',
+    ],
+    tasksHabit: [
+      'Complete today’s habit and log it',
+      'Stack it onto an existing routine',
+      'Check in daily to keep your streak going',
+    ],
+    tasksReset: [
+      'Stick to the guided plan for the day',
+      'Log meals and how your gut responds',
+      'Avoid reintroducing foods until the window ends',
+    ],
+    tasksDefault: [
+      'Avoid your possible trigger foods today',
+      'Log your meals so patterns stay visible',
+      'Check in daily to extend your streak',
+    ],
+    notFoundTitle: 'Challenge not found',
+    notFoundMessage: 'This challenge may have ended or been removed.',
+    accessBack: 'Back',
+  },
+
+  // ── Shared components ─────────────────────────────────────────────────────
+  components: {
+    bristol: {
+      typePrefix: 'Type',
+      ideal: 'Ideal',
+      descriptions: {
+        1: 'Separate lumps',
+        2: 'Lumpy sausage',
+        3: 'Cracked sausage',
+        4: 'Smooth sausage',
+        5: 'Soft blobs',
+        6: 'Mushy',
+        7: 'Watery',
+      },
+    },
+    mood: {
+      levels: ['Bad', 'Low', 'Okay', 'Good', 'Great'],
+    },
+    water: {
+      title: 'Hydration',
+      accessRemove: 'Remove water glass',
+      accessAdd: 'Add water glass',
+    },
+    streakPopup: {
+      dayStreak: 'Day Streak',
+      thisWeek: 'This Week',
+      milestoneProgress: 'Milestone Progress',
+      maxReached: 'Max reached!',
+      bestStreak: 'Best Streak',
+      completionRate: 'Completion Rate',
+      daysUntil: 'until',
+      dayUnit: 'day',
+      daysUnit: 'days',
+      stateActive: 'Your streak is going strong!',
+      stateAtRisk: 'Keep your streak alive!',
+      stateBroken: 'Every day is a fresh start.',
+      stateNew: 'Begin your gut health journey!',
+      milestones: {
+        start: 'Starting Out',
+        week: '1 Week',
+        month: '1 Month',
+        hundred: '100 Days',
+        halfYear: '6 Months',
+        year: '1 Year',
+      },
+    },
+    trendBox: {
+      thisWeek: 'This Week',
+      avgScore: 'Avg Score',
+      bestDay: 'Highest Score',
+    },
+    triggerFoods: {
+      title: 'Possible Trigger Foods',
+      emptyTitle: 'No Possible Triggers Yet',
+      emptyMessage: 'Log 2+ weeks of meals to see possible patterns.',
+    },
+    safeFoods: {
+      title: 'Well-Tolerated Foods',
+    },
+    dailyTip: {
+      title: 'Daily Insight',
+    },
+    calendar: {
+      less: 'Less',
+      more: 'More',
+    },
+    checkinSuccess: {
+      logged: 'Logged!',
+    },
+    healthDisclaimer: {
+      title: 'Health Disclaimer',
+      accept: 'I Understand',
+      viewPrivacy: 'View Privacy Policy',
+    },
+    swipe: {
+      favorite: 'Favorite',
+      delete: 'Delete',
+    },
+    scanTutorial: {
+      slides: [
+        {
+          title: 'Get the clearest scan',
+          heroCaption: 'Frame the whole plate',
+          bullets: [
+            'Hold the phone steady',
+            'Use bright, even light',
+            'Keep every ingredient in view',
+          ],
+        },
+        {
+          title: 'GutWell AI reads your meal',
+          heroCaption: 'Reads your meal for gut impact',
+          bullets: [
+            'Ingredients are recognized',
+            'Fiber, ferments and possible triggers are weighed',
+            'Gut-impact insights in a few seconds',
+          ],
+        },
+        {
+          title: 'Confirm or fix the result',
+          heroCaption: 'You stay in control',
+          bullets: [
+            'Check that the read looks right',
+            'Speak or type what to correct',
+            'Tap to refine if something is off',
+          ],
+        },
+        {
+          title: 'Tips for accurate insights',
+          heroCaption: 'Small details, sharper insight',
+          bullets: [
+            'Name the dish and how you feel',
+            'Note portion size and add-ons',
+            'Log symptoms so patterns sharpen over time',
+          ],
+        },
+      ],
+    },
+  },
 } as const;
 
 // ─── German ──────────────────────────────────────────────────────────────────
@@ -1164,6 +1412,8 @@ const de: Translations = {
     legalSuffix: 'zu.',
     accessTerms: 'Nutzungsbedingungen öffnen',
     accessPrivacy: 'Datenschutzrichtlinie öffnen',
+    accessCreateAccount: 'Neues GutWell AI Konto erstellen',
+    accessSignIn: 'Bei bestehendem Konto anmelden',
     taglines: [
       'Behalte deine Darmgesundheit im Blick.',
       'Verstehe deinen Darm besser.',
@@ -1287,6 +1537,16 @@ const de: Translations = {
     dataExported: 'Daten erfolgreich exportiert',
     exportFailed: 'Datenexport fehlgeschlagen',
     deleteFailed: 'Konto konnte nicht gelöscht werden. Bitte erneut versuchen.',
+    accessEditProfile: 'Profil bearbeiten',
+    setYourName: 'Trag deinen Namen ein',
+    personalDetails: 'Persönliche Angaben',
+    preferences: 'Einstellungen',
+    progressInsights: 'Fortschritt & Erkenntnisse',
+    reminders: 'Erinnerungen',
+    upgradePremium: 'Auf Premium upgraden',
+    supportEmail: 'Support-E-Mail',
+    widgetHint: 'Füge ein GutWell AI Widget zu deinem Home-Bildschirm hinzu, um deinen Tagesfortschritt auf einen Blick zu sehen.',
+    disclaimerBody: 'GutWell AI ist ein Wellness-Tracking-Tool und ist nicht dazu bestimmt, Krankheiten zu diagnostizieren, zu behandeln, zu heilen oder ihnen vorzubeugen. Wende dich bei gesundheitlichen Anliegen immer an eine qualifizierte medizinische Fachperson.',
   },
   settings: {
     title: 'Einstellungen',
@@ -1319,12 +1579,25 @@ const de: Translations = {
     syncNow: 'Warten auf Synchronisierung',
     syncSubtitle: 'Einträge offline gespeichert — tippen zum Synchronisieren',
     allSynced: 'Alles synchronisiert',
+    partiallySynced: 'Teilweise synchronisiert',
+    syncedEntries: 'Einträge hochgeladen.',
+    syncedEntry: 'Eintrag hochgeladen.',
+    syncedPartialMessage: 'hochgeladen, {remaining} warten noch — prüfe deine Verbindung und versuche es erneut.',
     setReminderTime: 'Erinnerungszeit festlegen',
     confirmReminderTime: 'Erinnerungszeit bestätigen',
     hour: 'Stunde',
     minute: 'Min',
     period: 'Zeitraum',
     languageNote: 'Deine Sprache gilt für die gesamte App und für KI-Antworten in der Fotoanalyse.',
+    accessConfirmTime: 'Erinnerungszeit bestätigen',
+    accessToggleDaily: 'Tägliche Check-in-Erinnerung ein- oder ausschalten',
+    accessToggleStreak: 'Serien-Hinweise ein- oder ausschalten',
+    reminderNotScheduledTitle: 'Erinnerung nicht geplant',
+    reminderNotScheduledMessage: 'Diese Uhrzeit liegt in den Ruhezeiten (22–8 Uhr). Wähle eine Zeit außerhalb der Ruhezeiten, um deine tägliche Erinnerung zu erhalten.',
+    preparingData: 'Deine Daten werden vorbereitet ...',
+    partiallyCleared: 'Teilweise gelöscht',
+    partiallyClearedMessage: 'Einige Einträge konnten nicht gelöscht werden. Prüfe deine Verbindung und versuche es erneut.',
+    exportSubject: 'GutWell AI Datenexport',
     dietOptions: {
       general: 'Allgemeines Wohlbefinden',
       vegetarian: 'Vegetarisch',
@@ -1368,6 +1641,20 @@ const de: Translations = {
     gutScoreToday: 'Darm-Score heute',
     dayStreak: 'Tage-Streak',
     recentlyLogged: 'Zuletzt protokolliert',
+    forFree: 'GutWell kostenlos',
+    sampleMeal: 'Griechischer Joghurt + Beeren',
+    sampleScore: 'Darm 9/10',
+    comingSoonBody: 'Abonnements sind noch nicht verfügbar. Bitte versuche es später erneut.',
+    purchaseFailed: 'Kauf fehlgeschlagen',
+    restorePurchases: 'Käufe wiederherstellen',
+    heroLine1: 'Wir möchten, dass du',
+    heroLine2: 'GutWell kostenlos testest',
+    billedAnnuallySave: 'Jährliche Abrechnung — spare {pct} %',
+    startFreeTrial: 'Kostenlos testen',
+    startTrialWithPeriod: '{n} {unit} kostenlos testen',
+    previewDayStreak: 'Tage in Folge',
+    previewSafeFoods: 'Verträgliche Lebensmittel',
+    previewCheckIns: 'Check-ins',
   },
   errorStates: {
     genericTitle: 'Etwas ist schiefgelaufen',
@@ -1391,6 +1678,8 @@ const de: Translations = {
     enterCode: 'Code eingeben',
     referralPlaceholder: 'FREUND123',
     ctaGeneratePlan: 'Meinen Plan erstellen',
+    chartNow: 'Jetzt',
+    chartTwelveWeeks: '12 Wochen',
   },
   legalScreens: {
     privacyPolicyTitle: 'Datenschutzrichtlinie',
@@ -1545,6 +1834,13 @@ const de: Translations = {
     todayActivity: 'Heutige Aktivität',
     recentMeals: 'Letzte Mahlzeiten',
     noDataYet: 'Noch keine Daten',
+    scanTitle: 'Mahlzeit scannen',
+    scanSubtitle: 'Foto machen — in Sekunden eine Einschätzung für deinen Darm',
+    recentlyLogged: 'Zuletzt erfasst',
+    emptyHint: 'Tippe auf +, um deinen ersten Eintrag des Tages zu erfassen',
+    accessSeeAllRecent: 'Alle letzten Aktivitäten ansehen',
+    triggerLinked: 'Möglicher Zusammenhang mit {symptom} — bei {withSymptoms} von {logged} Einträgen',
+    triggerFollowed: 'Symptome folgten bei {withSymptoms} von {logged} Einträgen',
   },
   checkin: {
     title: 'Check-in',
@@ -1564,6 +1860,19 @@ const de: Translations = {
     savedOffline: 'Offline gespeichert — Synchronisation folgt bei Verbindung',
     errorSaveFailed: 'Check-in konnte nicht gespeichert werden',
     stoolLabels: ['Typ 1', 'Typ 2', 'Typ 3', 'Typ 4', 'Typ 5', 'Typ 6', 'Typ 7'],
+    headerTitle: 'Check-in',
+    heading: 'Tägliches Check-in',
+    subtitle: 'Wie geht es deinem Darm heute?',
+    symptomsHint: 'Bewerte jedes Symptom auf einer Skala von 1 bis 5',
+    bloating: 'Blähbauch',
+    abdominalPain: 'Bauchschmerzen',
+    energyLevel: 'Energielevel',
+    moodHint: 'Wie ging es dir gefühlsmäßig?',
+    waterTitle: 'Wasserzufuhr',
+    waterHint: 'Behalte deine Flüssigkeitszufuhr über den Tag im Blick',
+    notesHint: 'Gibt es sonst noch etwas Erwähnenswertes?',
+    severityLabels: ['Keine', 'Leicht', 'Mittel', 'Stark', 'Sehr stark'],
+    energyLabels: ['Niedrig', 'Unterdurch.', 'Normal', 'Gut', 'Hoch'],
   },
   progress: {
     title: 'Fortschritt',
@@ -1596,6 +1905,17 @@ const de: Translations = {
     premiumTriggerTeaser: 'Alle Trigger- und sichere Lebensmittel mit Premium ansehen',
     premiumFoodInsights: 'Ernährungs-Symptom-Einblicke mit Premium freischalten',
     windowLabels: { '3': '3 Tage', '7': '7 Tage', '14': '14 Tage', '30': '30 Tage', '90': '90 Tage', null: 'Gesamt' },
+    currentGutScore: 'Aktueller Darm-Score',
+    scoreChanges: 'Score-Veränderungen',
+    checkinConsistency: 'Check-in-Beständigkeit',
+    moodEmpty: 'Erfasse deine Stimmung beim Check-in, um Verläufe zu sehen',
+    avgMoodPeriod: 'Ø Stimmung in diesem Zeitraum',
+    safeFoodsInsufficient: 'Gut verträgliche Lebensmittel erscheinen nach beständigem Tracking.',
+    gutHealthIndex: 'Darmgesundheits-Index',
+    changeNoData: 'Keine Daten',
+    changeImproved: 'Gestiegen',
+    changeDeclined: 'Gesunken',
+    changeNone: 'Unverändert',
   },
   food: {
     title: 'Ernährungsprotokoll',
@@ -1750,6 +2070,9 @@ const de: Translations = {
     stateOptions: { fine: 'Fühle mich gut', bloating: 'Blähungen', pain: 'Magenschmerzen', lowEnergy: 'Wenig Energie', nausea: 'Übelkeit', reflux: 'Sodbrennen' },
     activityOptions: { rest: 'Ausruhen', work: 'Arbeit oder Lernen', driving: 'Autofahren', walking: 'Spaziergang', exercise: 'Sport', competition: 'Wettkampf', sleep: 'Schlafen', social: 'Soziales Event' },
     expoGoTextOnlyHint: 'Expo Go (Entwicklung): Halten-zum-Sprechen ist aus. Beschreib Mahlzeit und Befinden im Textfeld — Analyse und der 4-Schritte-Ablauf bleiben aktiv.',
+    accessHistoryHint: 'Öffnet eine Liste deiner gespeicherten Fotoanalysen',
+    locationSuggestionsLabel: 'Lokale Lebensmittel-Vorschläge über deinen Standort aktivieren',
+    locationSuggestionsEnabled: 'Standort-Vorschläge aktiviert',
   },
   disclaimer: {
     short: 'GutWell AI ist ein Wellness-Tool. Es bietet keine medizinische Beratung.',
@@ -1774,6 +2097,7 @@ const de: Translations = {
     weekdaysShort: ['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa'],
     monthsShort: ['Jan', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dez'],
     dayInitials: ['M', 'D', 'M', 'D', 'F', 'S', 'S'],
+    weekdaysShortMonFirst: ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'],
   },
 
   changePassword: {
@@ -1983,6 +2307,174 @@ const de: Translations = {
     shareButton: 'Teilen',
     close: 'Schließen',
     shareMessage: 'Mein GutWell Darm-Score diese Woche: {score}/100 🌿 Tag {streak} in Folge! Lade GutWell herunter, um deine Darmgesundheit zu verfolgen.',
+  },
+
+  tabs: {
+    home: 'Start',
+    progress: 'Fortschritt',
+    challenges: 'Challenges',
+    profile: 'Profil',
+    fabScanMeal: 'Mahlzeit scannen',
+    fabDailyCheckin: 'Tägliches Check-in',
+    fabLogSymptom: 'Symptom erfassen',
+    fabLogFood: 'Mahlzeit erfassen',
+    closeMenu: 'Menü schließen',
+    openAddMenu: 'Hinzufügen-Menü öffnen',
+    closeAddMenu: 'Hinzufügen-Menü schließen',
+  },
+
+  errorBoundary: {
+    title: 'Etwas ist schiefgelaufen',
+    message: 'Ein unerwarteter Fehler ist aufgetreten. Bitte versuche es erneut.',
+    retry: 'Erneut versuchen',
+  },
+
+  challengeDetail: {
+    headerTitle: 'Challenge',
+    yourProgress: 'Dein Fortschritt',
+    dailyTasks: 'Tägliche Aufgaben',
+    tasksCheckIn: [
+      'Öffne die App und mach dein tägliches Darm-Check-in',
+      'Notiere Symptome, solange sie frisch sind',
+      'Halte die Serie am Leben — ein Check-in pro Tag',
+    ],
+    tasksHabit: [
+      'Erledige die heutige Gewohnheit und erfasse sie',
+      'Häng sie an eine bestehende Routine an',
+      'Mach täglich dein Check-in, damit deine Serie weiterläuft',
+    ],
+    tasksReset: [
+      'Halte dich für heute an den geführten Plan',
+      'Erfasse Mahlzeiten und wie dein Darm reagiert',
+      'Führe Lebensmittel erst nach Ablauf des Zeitraums wieder ein',
+    ],
+    tasksDefault: [
+      'Meide heute deine möglichen Auslöser',
+      'Erfasse deine Mahlzeiten, damit Muster sichtbar bleiben',
+      'Mach täglich dein Check-in, um deine Serie zu verlängern',
+    ],
+    notFoundTitle: 'Challenge nicht gefunden',
+    notFoundMessage: 'Diese Challenge ist möglicherweise beendet oder wurde entfernt.',
+    accessBack: 'Zurück',
+  },
+
+  components: {
+    bristol: {
+      typePrefix: 'Typ',
+      ideal: 'Ideal',
+      descriptions: {
+        1: 'Einzelne Klümpchen',
+        2: 'Klumpige Wurst',
+        3: 'Rissige Wurst',
+        4: 'Glatte Wurst',
+        5: 'Weiche Klümpchen',
+        6: 'Breiig',
+        7: 'Wässrig',
+      },
+    },
+    mood: {
+      levels: ['Schlecht', 'Mäßig', 'Okay', 'Gut', 'Sehr gut'],
+    },
+    water: {
+      title: 'Flüssigkeitszufuhr',
+      accessRemove: 'Glas Wasser entfernen',
+      accessAdd: 'Glas Wasser hinzufügen',
+    },
+    streakPopup: {
+      dayStreak: 'Tage in Folge',
+      thisWeek: 'Diese Woche',
+      milestoneProgress: 'Meilenstein-Fortschritt',
+      maxReached: 'Maximum erreicht!',
+      bestStreak: 'Beste Serie',
+      completionRate: 'Abschlussquote',
+      daysUntil: 'bis',
+      dayUnit: 'Tag',
+      daysUnit: 'Tage',
+      stateActive: 'Deine Serie läuft richtig gut!',
+      stateAtRisk: 'Halte deine Serie am Leben!',
+      stateBroken: 'Jeder Tag ist ein Neuanfang.',
+      stateNew: 'Starte deine Darmgesundheits-Reise!',
+      milestones: {
+        start: 'Aller Anfang',
+        week: '1 Woche',
+        month: '1 Monat',
+        hundred: '100 Tage',
+        halfYear: '6 Monate',
+        year: '1 Jahr',
+      },
+    },
+    trendBox: {
+      thisWeek: 'Diese Woche',
+      avgScore: 'Ø Score',
+      bestDay: 'Höchster Score',
+    },
+    triggerFoods: {
+      title: 'Mögliche Auslöser',
+      emptyTitle: 'Noch keine möglichen Auslöser',
+      emptyMessage: 'Erfasse mindestens 2 Wochen Mahlzeiten, um mögliche Zusammenhänge zu sehen.',
+    },
+    safeFoods: {
+      title: 'Gut verträgliche Lebensmittel',
+    },
+    dailyTip: {
+      title: 'Tages-Impuls',
+    },
+    calendar: {
+      less: 'Weniger',
+      more: 'Mehr',
+    },
+    checkinSuccess: {
+      logged: 'Erfasst!',
+    },
+    healthDisclaimer: {
+      title: 'Gesundheitshinweis',
+      accept: 'Verstanden',
+      viewPrivacy: 'Datenschutzrichtlinie ansehen',
+    },
+    swipe: {
+      favorite: 'Favorit',
+      delete: 'Löschen',
+    },
+    scanTutorial: {
+      slides: [
+        {
+          title: 'So wird der Scan am klarsten',
+          heroCaption: 'Den ganzen Teller einfangen',
+          bullets: [
+            'Halte das Handy ruhig',
+            'Sorge für helles, gleichmäßiges Licht',
+            'Achte darauf, dass alle Zutaten im Bild sind',
+          ],
+        },
+        {
+          title: 'GutWell AI liest deine Mahlzeit',
+          heroCaption: 'Liest deine Mahlzeit auf Darmwirkung',
+          bullets: [
+            'Zutaten werden erkannt',
+            'Ballaststoffe, Fermentiertes und mögliche Auslöser werden abgewogen',
+            'Einschätzung zur Darmwirkung in wenigen Sekunden',
+          ],
+        },
+        {
+          title: 'Ergebnis bestätigen oder korrigieren',
+          heroCaption: 'Du behältst die Kontrolle',
+          bullets: [
+            'Prüfe, ob die Erkennung passt',
+            'Sprich oder tippe, was korrigiert werden soll',
+            'Tippe zum Nachbessern, falls etwas nicht stimmt',
+          ],
+        },
+        {
+          title: 'Tipps für genauere Einschätzungen',
+          heroCaption: 'Kleine Details, klarere Einschätzung',
+          bullets: [
+            'Benenne das Gericht und wie du dich fühlst',
+            'Notiere Portionsgröße und Beilagen',
+            'Erfasse Symptome, damit Muster mit der Zeit klarer werden',
+          ],
+        },
+      ],
+    },
   },
 };
 

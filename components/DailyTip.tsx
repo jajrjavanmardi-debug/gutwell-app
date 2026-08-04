@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors, Spacing, FontSize, BorderRadius, FontFamily, Shadows } from '../constants/theme';
+import { useTranslation } from '../lib/i18n';
 import { getTodaysTip, getPersonalizedTip } from '../lib/tips';
 
 type DailyTipProps = {
@@ -10,6 +11,7 @@ type DailyTipProps = {
 };
 
 export function DailyTip({ gutConcern, goal }: DailyTipProps = {}) {
+  const t = useTranslation();
   const tip = gutConcern || goal
     ? getPersonalizedTip(gutConcern, goal)
     : getTodaysTip();
@@ -30,7 +32,7 @@ export function DailyTip({ gutConcern, goal }: DailyTipProps = {}) {
           <Ionicons name={tip.icon as any} size={18} color={color} />
         </View>
         <View style={{ flex: 1 }}>
-          <Text style={styles.label}>Daily Insight</Text>
+          <Text style={styles.label}>{t.components.dailyTip.title}</Text>
           <Text style={styles.title}>{tip.title}</Text>
         </View>
         <View style={[styles.categoryPill, { backgroundColor: color + '15' }]}>
