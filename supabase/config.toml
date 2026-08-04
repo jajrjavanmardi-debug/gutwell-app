@@ -61,22 +61,26 @@ double_confirm_changes = true
 enable_confirmations = false
 
 # ── Custom SMTP ─────────────────────────────────────────────────────────────
-# Sending architecture (approved): authentication mail is sent from the
-# dedicated subdomain mail.getgutwell.app, NOT from the root domain.
+# Sending architecture: authentication mail is sent from the ROOT domain.
+# The Resend Free plan verifies one domain, and the root is the one that gives
+# the From address users recognise on a security email.
 #
-#   sender          auth@mail.getgutwell.app      machine-sent, send-only
+#   sender          auth@getgutwell.app
 #   human contact   support@ / hello@ / legal@ @getgutwell.app  (IONOS, root MX)
 #
-# The subdomain isolates sending reputation: if transactional or, later,
-# marketing mail is ever flagged, it cannot damage the root domain that carries
-# the human mailboxes and the brand. Resend places its bounce MX and SPF under
-# send.mail.getgutwell.app, so the root MX and root SPF are never touched and
-# inbound mail to the human addresses is unaffected.
+# Inbound mail is unaffected. Resend puts its bounce MX and SPF under
+# send.getgutwell.app, and MX records only apply to the subdomain they sit on,
+# so the root MX (IONOS) and the root SPF are never modified.
+#
+# Accepted trade-off: sending reputation now attaches to the root domain, which
+# also carries the human mailboxes and the brand. The mitigation is discipline —
+# the root sends TRANSACTIONAL AUTH MAIL ONLY. Never send marketing or bulk from
+# it; if that day comes, upgrade the plan and move bulk to its own subdomain.
 #
 # See EMAIL_ARCHITECTURE.md for the full rationale and the DNS records.
 #
 # STILL COMMENTED OUT ON PURPOSE. Enable only after Resend reports
-# mail.getgutwell.app as Verified — enabling it earlier points Supabase at an
+# getgutwell.app as Verified — enabling it earlier points Supabase at an
 # unverified sender and every recovery email is rejected.
 #
 # To enable: uncomment, export SMTP_PASSWORD (the Resend API key) in the shell,
@@ -89,7 +93,7 @@ enable_confirmations = false
 # port = 465                      # implicit TLS; use 587 (STARTTLS) if 465 is blocked
 # user = "resend"                 # literal string "resend" — not an email address
 # pass = "env(SMTP_PASSWORD)"
-# admin_email = "auth@mail.getgutwell.app"
+# admin_email = "auth@getgutwell.app"
 # sender_name = "GutWell AI"
 
 # ── Recovery email template ─────────────────────────────────────────────────
