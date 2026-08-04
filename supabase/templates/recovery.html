@@ -1,0 +1,62 @@
+<!--
+  Password recovery email — GutWell AI.
+
+  {{ .ConfirmationURL }} is the only link that works. Supabase rewrites it to
+  its own /auth/v1/verify endpoint, which validates the token and then redirects
+  to the redirect_to value the app supplied (the gutwellapp:// deep link), so
+  the app receives a real recovery session. Do not replace it with a hand-built
+  URL — that would skip verification and the link would not sign the user in.
+
+  Copy rules: no medical or health claims, no diagnosis or treatment language.
+  This is an account-security email and says nothing about gut health.
+
+  Supabase serves ONE template per email type — there is no built-in per-locale
+  selection. See the report: localising this for DE needs a Send Email Hook.
+-->
+<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;max-width:520px;margin:0 auto;padding:32px 24px;color:#1a1a1a;">
+
+  <p style="font-size:20px;font-weight:600;margin:0 0 24px;color:#1B4332;">
+    GutWell&nbsp;AI
+  </p>
+
+  <p style="font-size:17px;font-weight:600;margin:0 0 16px;">
+    Reset your password
+  </p>
+
+  <p style="font-size:15px;line-height:22px;margin:0 0 24px;">
+    We received a request to reset the password for your GutWell&nbsp;AI account.
+    Tap the button below to choose a new one. The link opens the GutWell&nbsp;AI
+    app.
+  </p>
+
+  <p style="margin:0 0 28px;">
+    <a href="{{ .ConfirmationURL }}"
+       style="display:inline-block;background:#1B4332;color:#ffffff;text-decoration:none;font-size:16px;font-weight:600;padding:14px 28px;border-radius:10px;">
+      Reset password
+    </a>
+  </p>
+
+  <p style="font-size:14px;line-height:21px;color:#555;margin:0 0 8px;">
+    If the button doesn't work, copy and paste this link into your browser:
+  </p>
+  <p style="font-size:13px;line-height:19px;word-break:break-all;margin:0 0 28px;">
+    <a href="{{ .ConfirmationURL }}" style="color:#1B4332;">{{ .ConfirmationURL }}</a>
+  </p>
+
+  <p style="font-size:14px;line-height:21px;color:#555;margin:0 0 8px;">
+    This link can only be used once and expires shortly for your security.
+  </p>
+
+  <p style="font-size:14px;line-height:21px;color:#555;margin:0 0 28px;">
+    If you didn't ask to reset your password, you can safely ignore this email —
+    your password will stay as it is.
+  </p>
+
+  <hr style="border:none;border-top:1px solid #e4e4e4;margin:0 0 20px;" />
+
+  <p style="font-size:13px;line-height:19px;color:#777;margin:0;">
+    Need help? Contact us at
+    <a href="mailto:support@getgutwell.app" style="color:#1B4332;">support@getgutwell.app</a>.
+  </p>
+
+</div>

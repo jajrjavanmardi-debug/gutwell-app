@@ -24,8 +24,29 @@ file_size_limit = "50MiB"
 
 [auth]
 enabled = true
-site_url = "http://127.0.0.1:3000"
-additional_redirect_urls = ["https://127.0.0.1:3000"]
+site_url = "https://getgutwell.app"
+
+# Password recovery returns the user to the app through the custom scheme
+# registered in app.json and ios/GutWell/Info.plist (CFBundleURLSchemes).
+#
+# Both slash forms are listed deliberately. The app builds the redirect with
+# expo-linking's Linking.createURL('/reset-password'). In a release build that
+# resolves to gutwellapp:///reset-password (three slashes) — createURL appends a
+# leading slash to an empty hostUri — not the gutwellapp://reset-password form
+# people usually write by hand. Listing both, plus a wildcard, means the
+# allow-list matches whichever the runtime actually emits.
+additional_redirect_urls = [
+  "gutwellapp://reset-password",
+  "gutwellapp:///reset-password",
+  "gutwellapp://**",
+  # Local web dev (kept from the previous config).
+  "http://127.0.0.1:3000",
+  "https://127.0.0.1:3000",
+  # Expo Go / dev client on a LAN address — createURL emits exp://<host>/--/<path>
+  # there, so the scheme differs from the release build.
+  "exp://**",
+]
+
 jwt_expiry = 3600
 enable_refresh_token_rotation = true
 refresh_token_reuse_interval = 10
@@ -34,7 +55,37 @@ enable_signup = true
 [auth.email]
 enable_signup = true
 double_confirm_changes = true
+# Kept false to match the project's current hosted setting (mailer_autoconfirm
+# is true). Revisit once custom SMTP is live and outbound mail is proven —
+# turning confirmations on before then would lock new users out.
 enable_confirmations = false
+
+# ── Custom SMTP ─────────────────────────────────────────────────────────────
+# INTENTIONALLY COMMENTED OUT. Supabase's default shared sender only delivers to
+# members of the Supabase organisation, which is why recovery mail has never
+# arrived. Custom SMTP is required before production.
+#
+# Uncomment once the sender domain is verified with the provider, then export
+# SMTP_PASSWORD in the shell before running `supabase config push`. The value is
+# read from the environment via env() so no secret is ever written to this file
+# or committed.
+#
+# [auth.email.smtp]
+# enabled = true
+# host = "smtp.resend.com"
+# port = 465
+# user = "resend"
+# pass = "env(SMTP_PASSWORD)"
+# admin_email = "support@getgutwell.app"
+# sender_name = "GutWell AI"
+
+# ── Recovery email template ─────────────────────────────────────────────────
+# Uncomment to manage the template in-repo rather than in the Dashboard.
+# The file already exists at supabase/templates/recovery.html.
+#
+# [auth.email.template.recovery]
+# subject = "Reset your GutWell AI password"
+# content_path = "./templates/recovery.html"
 
 [edge_runtime]
 enabled = true
