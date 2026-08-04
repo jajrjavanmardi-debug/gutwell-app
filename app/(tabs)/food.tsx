@@ -17,17 +17,22 @@ import { ErrorState } from '../../components/ui/ErrorState';
 import { enqueue } from '../../lib/offline-queue';
 import { track, Events } from '../../lib/analytics';
 import { useTranslation } from '../../lib/i18n';
+import { useLanguage } from '../../lib/LanguageContext';
 
-function formatMealTime(iso: string): string {
+function formatMealTime(
+  iso: string,
+  labels: { today: string; yesterday: string },
+  locale: string,
+): string {
   const date = new Date(iso);
   const now = new Date();
   const isToday = date.toDateString() === now.toDateString();
   const yesterday = new Date(now); yesterday.setDate(now.getDate() - 1);
   const isYesterday = date.toDateString() === yesterday.toDateString();
-  const time = date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
-  if (isToday) return `Today ${time}`;
-  if (isYesterday) return `Yesterday ${time}`;
-  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + ` ${time}`;
+  const time = date.toLocaleTimeString(locale, { hour: 'numeric', minute: '2-digit', hour12: true });
+  if (isToday) return `${labels.today} ${time}`;
+  if (isYesterday) return `${labels.yesterday} ${time}`;
+  return date.toLocaleDateString(locale, { month: 'short', day: 'numeric' }) + ` ${time}`;
 }
 
 const MEAL_TYPE_KEYS = [
@@ -50,11 +55,18 @@ function isSameLocalDay(iso: string, reference = new Date()): boolean {
 }
 
 export default function FoodScreen() {
+  // `t` must be initialised before MEAL_TYPES reads it. Declaring MEAL_TYPES
+  // first hit the temporal dead zone and threw
+  // "Cannot access 't' before initialization" on every render of this screen.
+  const t = useTranslation();
+  const { language } = useLanguage();
   const MEAL_TYPES = MEAL_TYPE_KEYS.map(m => ({
     ...m,
     label: t.food.mealTypes[m.key as keyof typeof t.food.mealTypes] ?? m.key,
   }));
-  const t = useTranslation();
+  // Passed into the module-level formatMealTime, which cannot use the hook.
+  const mealTimeLabels = { today: t.food.today, yesterday: t.food.yesterday };
+  const dateLocale = language === 'de' ? 'de-DE' : 'en-US';
   const { user } = useAuth();
   const [mealType, setMealType] = useState('breakfast');
   const [mealName, setMealName] = useState('');
@@ -272,8 +284,8 @@ export default function FoodScreen() {
 
   const handleDeleteFavorite = (fav: Favorite) => {
     Alert.alert(
-      'Remove from Favorites',
-      `Remove "${fav.meal_name}" from favorites?`,
+      t.food.removeFavoriteTitle,
+      `${t.food.accessUnfavorite}: ${fav.meal_name}?`,
       [
         { text: t.common.cancel, style: 'cancel' },
         {
@@ -304,7 +316,7 @@ export default function FoodScreen() {
       setToast({ visible: true, message: t.food.loginRequired, type: 'error' });
       return;
     }
-    Alert.alert(t.food.removeMeal, 'It will disappear from your food log and correlations.', [
+    Alert.alert(t.food.removeMeal, t.food.removeMealMessageLong, [
       { text: t.common.cancel, style: 'cancel' },
       {
         text: t.common.remove ?? 'Remove',
@@ -356,7 +368,7 @@ export default function FoodScreen() {
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
         <Text style={styles.title}>{t.food.tabLog}</Text>
-        <Text style={styles.subtitle}>What nourished you today?</Text>
+        <Text style={styles.subtitle}>{t.food.subtitle}</Text>
 
         {!isLoading && error && (
           <ErrorState type="offline" onRetry={() => { setError(null); loadData(); }} />
@@ -368,8 +380,8 @@ export default function FoodScreen() {
             <Ionicons name="camera" size={22} color={Colors.primary} />
           </View>
           <View style={styles.scanContent}>
-            <Text style={styles.scanTitle}>Photo Meal Analysis</Text>
-            <Text style={styles.scanSubtitle}>Take or choose a meal photo for gut-health analysis</Text>
+            <Text style={styles.scanTitle}>{t.food.scanTitle}</Text>
+            <Text style={styles.scanSubtitle}>{t.food.scanSubtitle}</Text>
           </View>
           <Ionicons name="chevron-forward" size={18} color={Colors.textTertiary} />
         </TouchableOpacity>
@@ -391,7 +403,8 @@ export default function FoodScreen() {
                   delayLongPress={400}
                   activeOpacity={0.7}
                   accessibilityRole="button"
-                  accessibilityLabel={`Quick log ${fav.meal_name}. Long press to remove from favorites`}
+                  accessibilityLabel={`${t.food.accessQuickLog}: ${fav.meal_name}`}
+                  accessibilityHint={t.food.accessQuickLogHint}
                 >
                   <Ionicons name="add-circle" size={16} color={Colors.primary} />
                   <Text style={styles.favoriteText} numberOfLines={1}>{fav.meal_name}</Text>
@@ -412,7 +425,7 @@ export default function FoodScreen() {
               activeOpacity={0.7}
               accessibilityRole="button"
               accessibilityState={{ selected: mealType === m.key }}
-              accessibilityLabel={`Meal type ${m.key}`}
+              accessibilityLabel={`${t.food.accessMealType}: ${m.label}`}
             >
               <Ionicons
                 name={m.icon}
@@ -427,7 +440,7 @@ export default function FoodScreen() {
         </View>
 
         {/* Meal Name Input */}
-        <Input label="Meal Name" placeholder="e.g., Chicken salad" value={mealName} onChangeText={setMealName} />
+        <Input label={t.food.mealNameLabel} placeholder={t.food.mealNameExample} value={mealName} onChangeText={setMealName} />
 
         {/* Today's Meals */}
         <View style={styles.todaysMealsSection}>
@@ -440,13 +453,13 @@ export default function FoodScreen() {
                     <Text style={styles.todaysMealName} numberOfLines={1}>
                       {meal.meal_name}
                     </Text>
-                    <Text style={styles.todaysMealTime}>{formatMealTime(meal.logged_at)}</Text>
+                    <Text style={styles.todaysMealTime}>{formatMealTime(meal.logged_at, mealTimeLabels, dateLocale)}</Text>
                   </View>
                   <TouchableOpacity
                     style={styles.todaysMealDeleteBtn}
                     activeOpacity={0.7}
                     accessibilityRole="button"
-                    accessibilityLabel={`Delete ${meal.meal_name}`}
+                    accessibilityLabel={`${t.food.accessDeleteMeal}: ${meal.meal_name}`}
                     onPress={() => {
                       handleDeleteMeal(meal.id);
                     }}
@@ -462,17 +475,17 @@ export default function FoodScreen() {
         </View>
 
         {/* Food Tags */}
-        <Text style={styles.sectionLabel}>Foods (optional tags)</Text>
+        <Text style={styles.sectionLabel}>{t.food.foodTagsLabel}</Text>
         <View style={styles.foodInputRow}>
           <View style={styles.foodInputWrap}>
-            <Input placeholder="Add a food item..." value={currentFood} onChangeText={setCurrentFood} onSubmitEditing={addFood} returnKeyType="done" />
+            <Input placeholder={t.food.addFoodPlaceholder} value={currentFood} onChangeText={setCurrentFood} onSubmitEditing={addFood} returnKeyType="done" />
           </View>
-          <Button title="Add" onPress={addFood} variant="secondary" size="sm" />
+          <Button title={t.food.addFood} onPress={addFood} variant="secondary" size="sm" />
         </View>
         {foods.length > 0 && (
           <View style={styles.foodTags}>
             {foods.map((food, i) => (
-              <TouchableOpacity key={i} style={styles.foodTag} onPress={() => setFoods(foods.filter((_, idx) => idx !== i))} activeOpacity={0.7} accessibilityRole="button" accessibilityLabel={`Remove ${food} from this meal`}>
+              <TouchableOpacity key={i} style={styles.foodTag} onPress={() => setFoods(foods.filter((_, idx) => idx !== i))} activeOpacity={0.7} accessibilityRole="button" accessibilityLabel={`${food}: ${t.food.accessRemoveFood}`}>
                 <Text style={styles.foodTagText}>{food}</Text>
                 <Ionicons name="close" size={14} color={Colors.primary} />
               </TouchableOpacity>
@@ -481,11 +494,11 @@ export default function FoodScreen() {
         )}
 
         {/* Notes */}
-        <Input label="Notes (optional)" placeholder="How did it make you feel?" value={note} onChangeText={setNote} multiline numberOfLines={2} style={{ minHeight: 60, textAlignVertical: 'top' }} />
+        <Input label={t.food.notesLabel} placeholder={t.food.notesPlaceholder} value={note} onChangeText={setNote} multiline numberOfLines={2} style={{ minHeight: 60, textAlignVertical: 'top' }} />
 
         {/* Log Meal Button */}
         <Button
-          title="Log Meal"
+          title={t.food.logMeal}
           onPress={handleSave}
           loading={loading}
           size="lg"
@@ -499,20 +512,20 @@ export default function FoodScreen() {
         {recentMeals.length === 0 && !isLoading && (
           <EmptyState
             icon="restaurant-outline"
-            title="No meals logged yet"
-            message="Start tracking your meals to discover what foods make you feel your best."
+            title={t.food.noMealsTitle}
+            message={t.food.noMealsMessage}
           />
         )}
         {recentMeals.length > 0 && (
           <View style={styles.recentSection}>
-            <Text style={styles.sectionTitle}>Recent Meals</Text>
+            <Text style={styles.sectionTitle}>{t.food.recentMeals}</Text>
             {recentMeals.map(meal => (
               <SwipeableCard
                 key={meal.id}
                 onFavorite={() => handleFavoriteFromRecent(meal)}
                 onDelete={() => handleDeleteMeal(meal.id)}
-                favoriteLabel="Favorite"
-                deleteLabel="Delete"
+                favoriteLabel={t.food.swipeFavorite}
+                deleteLabel={t.food.swipeDelete}
               >
                 <View style={styles.recentCard}>
                   <View style={styles.recentIconWrap}>
@@ -522,9 +535,11 @@ export default function FoodScreen() {
                     {(() => {
                       const safeMealName = typeof meal.meal_name === 'string' ? meal.meal_name : '';
                       const safeMealType = typeof meal.meal_type === 'string' ? meal.meal_type : '';
-                      const mealTypeLabel = safeMealType
-                        ? safeMealType.charAt(0).toUpperCase() + safeMealType.slice(1)
-                        : 'Meal';
+                      const mealTypeLabel =
+                        (t.food.mealTypes as Record<string, string>)[safeMealType] ??
+                        (safeMealType
+                          ? safeMealType.charAt(0).toUpperCase() + safeMealType.slice(1)
+                          : t.food.genericMealLabel);
                       const normalizedMealName = safeMealName ? safeMealName.toLowerCase() : null;
                       const isSensitive = normalizedMealName ? sensitiveFoods.includes(normalizedMealName) : false;
 
@@ -532,7 +547,7 @@ export default function FoodScreen() {
                         <>
                     <Text style={styles.recentName} numberOfLines={1}>{meal.meal_name}</Text>
                     <Text style={styles.recentMeta}>
-                          {mealTypeLabel} · {formatMealTime(meal.logged_at)}
+                          {mealTypeLabel} · {formatMealTime(meal.logged_at, mealTimeLabels, dateLocale)}
                     </Text>
                           {isSensitive && (
                       <View style={styles.sensitivityBadge}>
