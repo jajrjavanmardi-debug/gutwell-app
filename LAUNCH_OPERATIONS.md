@@ -46,6 +46,32 @@ https://supabase.com/dashboard/project/peipdakrqtgabnvpazrc/settings/billing
   (Without it the nutrient-recommendation enrichment stays disabled; core analysis works on Gemini.)
 - **Gemini:** already a server secret — leave as is.
 
+### #2b — Transactional email (Resend + sending subdomain) 🔴 BLOCKS PASSWORD RESET
+Password recovery cannot work until this is done. Supabase's built-in sender only
+delivers to members of the Supabase org, which is why reset mail has never arrived.
+
+Architecture is decided and documented in `EMAIL_ARCHITECTURE.md`:
+**authentication mail sends from `auth@mail.getgutwell.app`**, human mail stays on
+the root domain with IONOS. Root MX and root SPF are never touched.
+
+1. Resend → add domain **`mail.getgutwell.app`** (not the root).
+2. Add the 3 records Resend shows, at IONOS, name field without the domain suffix:
+   `MX send.mail`, `TXT send.mail` (SPF), `TXT resend._domainkey.mail` (DKIM).
+3. Wait for Resend to report **Verified**.
+4. Resend → API key with *Sending access*.
+5. Supabase → Auth → SMTP: `smtp.resend.com` : 465, user `resend`, pass = API key,
+   sender `auth@mail.getgutwell.app`, name `GutWell AI`.
+   (Or uncomment `[auth.email.smtp]` in `supabase/config.toml`, export
+   `SMTP_PASSWORD`, and `supabase config push`.)
+6. Supabase → Auth → URL Configuration: Site URL `https://getgutwell.app`;
+   redirect allow-list gets `gutwellapp://reset-password`,
+   `gutwellapp:///reset-password`, `gutwellapp://**` and `exp://**` (dev only).
+7. Supabase → Auth → Rate Limits: raise the email limit before testing.
+8. Paste `supabase/templates/recovery.html` into the Reset Password template.
+
+⚠️ Never add a Resend SPF include to the **root** TXT record. Two SPF records make
+all mail — including IONOS human mail — fail SPF.
+
 ### #3 — Apple Developer + eas.json
 - Enroll: https://developer.apple.com/programs/enroll/ ($99/yr)
 - Then provide the 3 values for `eas.json → submit.production.ios`:

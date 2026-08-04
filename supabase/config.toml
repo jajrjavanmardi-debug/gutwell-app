@@ -61,22 +61,35 @@ double_confirm_changes = true
 enable_confirmations = false
 
 # ── Custom SMTP ─────────────────────────────────────────────────────────────
-# INTENTIONALLY COMMENTED OUT. Supabase's default shared sender only delivers to
-# members of the Supabase organisation, which is why recovery mail has never
-# arrived. Custom SMTP is required before production.
+# Sending architecture (approved): authentication mail is sent from the
+# dedicated subdomain mail.getgutwell.app, NOT from the root domain.
 #
-# Uncomment once the sender domain is verified with the provider, then export
-# SMTP_PASSWORD in the shell before running `supabase config push`. The value is
-# read from the environment via env() so no secret is ever written to this file
-# or committed.
+#   sender          auth@mail.getgutwell.app      machine-sent, send-only
+#   human contact   support@ / hello@ / legal@ @getgutwell.app  (IONOS, root MX)
+#
+# The subdomain isolates sending reputation: if transactional or, later,
+# marketing mail is ever flagged, it cannot damage the root domain that carries
+# the human mailboxes and the brand. Resend places its bounce MX and SPF under
+# send.mail.getgutwell.app, so the root MX and root SPF are never touched and
+# inbound mail to the human addresses is unaffected.
+#
+# See EMAIL_ARCHITECTURE.md for the full rationale and the DNS records.
+#
+# STILL COMMENTED OUT ON PURPOSE. Enable only after Resend reports
+# mail.getgutwell.app as Verified — enabling it earlier points Supabase at an
+# unverified sender and every recovery email is rejected.
+#
+# To enable: uncomment, export SMTP_PASSWORD (the Resend API key) in the shell,
+# then run `supabase config push`. pass uses env() so no secret is ever written
+# to this file or committed.
 #
 # [auth.email.smtp]
 # enabled = true
 # host = "smtp.resend.com"
-# port = 465
-# user = "resend"
+# port = 465                      # implicit TLS; use 587 (STARTTLS) if 465 is blocked
+# user = "resend"                 # literal string "resend" — not an email address
 # pass = "env(SMTP_PASSWORD)"
-# admin_email = "support@getgutwell.app"
+# admin_email = "auth@mail.getgutwell.app"
 # sender_name = "GutWell AI"
 
 # ── Recovery email template ─────────────────────────────────────────────────
