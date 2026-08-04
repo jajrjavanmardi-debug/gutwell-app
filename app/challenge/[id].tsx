@@ -5,6 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Colors, FontFamily, FontSize, Spacing, BorderRadius } from '../../constants/theme';
 import { useTranslation, type Translations } from '../../lib/i18n';
+import { useLanguage } from '../../lib/LanguageContext';
 import { useAuth } from '../../contexts/AuthContext';
 import {
   getChallenge,
@@ -44,6 +45,7 @@ function formatCount(n: number): string {
 
 export default function ChallengeDetailScreen() {
   const t = useTranslation();
+  const { language } = useLanguage();
   const { id } = useLocalSearchParams<{ id: string }>();
   const { user } = useAuth();
 
@@ -58,7 +60,7 @@ export default function ChallengeDetailScreen() {
     if (!id) return;
     setError(false);
     try {
-      const c = await getChallenge(id);
+      const c = await getChallenge(id, language);
       setChallenge(c);
       if (c && user?.id) {
         const uc = await getUserChallenge(user.id, id);
@@ -75,7 +77,7 @@ export default function ChallengeDetailScreen() {
     } finally {
       setLoading(false);
     }
-  }, [id, user?.id]);
+  }, [id, user?.id, language]);
 
   useEffect(() => {
     load();
@@ -150,12 +152,14 @@ export default function ChallengeDetailScreen() {
               <View style={styles.metaRow}>
                 <View style={styles.metaPill}>
                   <Ionicons name="time-outline" size={14} color={Colors.textSecondary} />
-                  <Text style={styles.metaText}>{challenge.durationDays} days</Text>
+                  <Text style={styles.metaText}>
+                    {challenge.durationDays} {t.challenges.daysSuffix}
+                  </Text>
                 </View>
                 <View style={styles.metaPill}>
                   <Ionicons name="people-outline" size={14} color={Colors.textSecondary} />
                   <Text style={styles.metaText}>
-                    {formatCount(challenge.participantsCount)} joined
+                    {formatCount(challenge.participantsCount)} {t.challenges.joinedSuffix}
                   </Text>
                 </View>
               </View>
@@ -169,7 +173,7 @@ export default function ChallengeDetailScreen() {
                 <View style={styles.progressHeader}>
                   <Text style={styles.progressTitle}>{t.challengeDetail.yourProgress}</Text>
                   <Text style={styles.progressCount}>
-                    {progress.progressDays} / {challenge.durationDays} days
+                    {progress.progressDays} / {challenge.durationDays} {t.challenges.daysSuffix}
                   </Text>
                 </View>
                 <View style={styles.progressTrack}>
@@ -198,7 +202,7 @@ export default function ChallengeDetailScreen() {
 
           <View style={styles.ctaBar}>
             <Button
-              title={joined ? 'Leave Challenge' : 'Join Challenge'}
+              title={joined ? t.challengeDetail.leaveChallenge : t.challengeDetail.joinChallenge}
               variant={joined ? 'outline' : 'primary'}
               fullWidth
               shape="pill"

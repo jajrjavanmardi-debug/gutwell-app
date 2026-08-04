@@ -26,6 +26,7 @@ import { ErrorState } from '../../components/ui/ErrorState';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { CardSkeleton } from '../../components/ui/LoadingSkeleton';
 import { useTranslation } from '../../lib/i18n';
+import { useLanguage } from '../../lib/LanguageContext';
 
 type ActiveProgress = ActiveChallenge & { ratio: number; progressDays: number };
 
@@ -36,6 +37,10 @@ function formatCount(n: number): string {
 
 export default function ChallengesScreen() {
   const t = useTranslation();
+  // Catalog copy is remote, so the fetch has to know the language. Including it
+  // in the load callback's deps means switching language refetches the catalog
+  // in the new language — the same list, only its title/description differ.
+  const { language } = useLanguage();
   const { user } = useAuth();
   const [catalog, setCatalog] = useState<Challenge[]>([]);
   const [active, setActive] = useState<ActiveProgress[]>([]);
@@ -47,10 +52,10 @@ export default function ChallengesScreen() {
   const load = useCallback(async () => {
     setError(false);
     try {
-      const all = await listChallenges();
+      const all = await listChallenges(language);
       let activeWithProgress: ActiveProgress[] = [];
       if (user?.id) {
-        const joined = await listUserChallenges(user.id);
+        const joined = await listUserChallenges(user.id, language);
         activeWithProgress = await Promise.all(
           joined.map(async (uc) => {
             const p = await computeChallengeProgress(
@@ -69,7 +74,7 @@ export default function ChallengesScreen() {
     } finally {
       setLoading(false);
     }
-  }, [user?.id]);
+  }, [user?.id, language]);
 
   useEffect(() => {
     load();

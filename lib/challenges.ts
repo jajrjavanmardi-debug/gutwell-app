@@ -1,6 +1,7 @@
 import { supabase } from './supabase';
 import { getStreakSnapshot } from './streaks';
 import { getLocalDateKey, localDateKeyToDate } from './date';
+import type { AppLanguage } from './language';
 
 /** A challenge from the public catalog (public.challenges). */
 export type Challenge = {
@@ -33,8 +34,12 @@ export type ActiveChallenge = UserChallenge & { challenge: Challenge };
 type ChallengeRow = {
   id: string;
   slug: string;
+  /** Canonical English, and the fallback for every other language. */
   title: string;
   description: string | null;
+  /** German. NULL means "fall back to the English column". */
+  title_de: string | null;
+  description_de: string | null;
   duration_days: number | null;
   type: string | null;
   icon: string | null;
@@ -53,12 +58,26 @@ type UserChallengeRow = {
   completed_at: string | null;
 };
 
-function mapChallenge(row: ChallengeRow): Challenge {
+/**
+ * Pick the localized value for a language, falling back to English.
+ *
+ * English is the fallback by construction: an unsupported language, a NULL
+ * column and an empty string all resolve to the canonical English value, so a
+ * partially-translated catalog can never render a blank title.
+ *
+ * Exported so the fallback rule is unit tested directly.
+ */
+export function localized(english: string, german: string | null, language: AppLanguage): string {
+  if (language === 'de' && german && german.trim()) return german;
+  return english;
+}
+
+function mapChallenge(row: ChallengeRow, language: AppLanguage): Challenge {
   return {
     id: row.id,
     slug: row.slug,
-    title: row.title,
-    description: row.description ?? '',
+    title: localized(row.title, row.title_de, language),
+    description: localized(row.description ?? '', row.description_de, language),
     durationDays: row.duration_days ?? 7,
     type: row.type ?? 'streak',
     icon: row.icon ?? 'flame-outline',
@@ -81,8 +100,8 @@ function mapUserChallenge(row: UserChallengeRow): UserChallenge {
   };
 }
 
-/** Fetch the full public challenge catalog, featured first. */
-export async function listChallenges(): Promise<Challenge[]> {
+/** Fetch the full public challenge catalog, featured first, in `language`. */
+export async function listChallenges(language: AppLanguage): Promise<Challenge[]> {
   const { data, error } = await supabase
     .from('challenges')
     .select('*')
@@ -90,11 +109,14 @@ export async function listChallenges(): Promise<Challenge[]> {
     .order('participants_count', { ascending: false });
 
   if (error) throw error;
-  return (data ?? []).map((row) => mapChallenge(row as ChallengeRow));
+  return (data ?? []).map((row) => mapChallenge(row as ChallengeRow, language));
 }
 
-/** Fetch one challenge by id, or null if it doesn't exist. */
-export async function getChallenge(challengeId: string): Promise<Challenge | null> {
+/** Fetch one challenge by id in `language`, or null if it doesn't exist. */
+export async function getChallenge(
+  challengeId: string,
+  language: AppLanguage,
+): Promise<Challenge | null> {
   const { data, error } = await supabase
     .from('challenges')
     .select('*')
@@ -102,11 +124,14 @@ export async function getChallenge(challengeId: string): Promise<Challenge | nul
     .maybeSingle();
 
   if (error) throw error;
-  return data ? mapChallenge(data as ChallengeRow) : null;
+  return data ? mapChallenge(data as ChallengeRow, language) : null;
 }
 
 /** Fetch the user's joined challenges, each with its catalog details attached. */
-export async function listUserChallenges(userId: string): Promise<ActiveChallenge[]> {
+export async function listUserChallenges(
+  userId: string,
+  language: AppLanguage,
+): Promise<ActiveChallenge[]> {
   const { data, error } = await supabase
     .from('user_challenges')
     .select('*, challenge:challenges(*)')
@@ -119,7 +144,7 @@ export async function listUserChallenges(userId: string): Promise<ActiveChalleng
     .map((row) => {
       const r = row as UserChallengeRow & { challenge: ChallengeRow | null };
       if (!r.challenge) return null;
-      return { ...mapUserChallenge(r), challenge: mapChallenge(r.challenge) };
+      return { ...mapUserChallenge(r), challenge: mapChallenge(r.challenge, language) };
     })
     .filter((x): x is ActiveChallenge => x !== null);
 }

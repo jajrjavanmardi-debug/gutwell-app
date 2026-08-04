@@ -1171,6 +1171,8 @@ const en = {
     notFoundTitle: 'Challenge not found',
     notFoundMessage: 'This challenge may have ended or been removed.',
     accessBack: 'Back',
+    joinChallenge: 'Join Challenge',
+    leaveChallenge: 'Leave Challenge',
   },
 
   // ── Shared components ─────────────────────────────────────────────────────
@@ -2356,6 +2358,8 @@ const de: Translations = {
     notFoundTitle: 'Challenge nicht gefunden',
     notFoundMessage: 'Diese Challenge ist möglicherweise beendet oder wurde entfernt.',
     accessBack: 'Zurück',
+    joinChallenge: 'Mitmachen',
+    leaveChallenge: 'Challenge verlassen',
   },
 
   components: {
