@@ -20,9 +20,11 @@ jobs:
         run: npm ci
 
       - name: Type check
-        # Deno-typed supabase/functions are excluded — they compile in the
-        # edge runtime, not the app bundle.
-        run: npx tsc --noEmit 2>&1 | grep -v '^supabase/functions' | tee /tmp/tsc.log; test ! -s /tmp/tsc.log
+        # supabase/functions is excluded in tsconfig.json — those files are
+        # Deno-typed and compile in the edge runtime, not the app bundle.
+        # No output filtering here on purpose: any error tsc reports is a real
+        # app error and must fail the build.
+        run: npx tsc --noEmit
 
       - name: Lint
         run: npx expo lint -- --max-warnings 60
