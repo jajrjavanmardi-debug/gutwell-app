@@ -13,15 +13,15 @@ type SectionData = {
 const SECTIONS: SectionData[] = [
   {
     title: '1. Data We Collect',
-    body: 'GutWell collects the data you voluntarily enter: check-in logs (stool type, bloating, pain, energy, mood, water intake), food logs (meal names, meal types, meal photos you choose to analyze), symptom logs (type, severity), supplement notes, onboarding answers (your gut concerns and goals), and basic account information (email, display name). If you use voice input, your speech is converted to text on your device or by your phone\u2019s operating system; we store only the resulting text. If you grant location access for local food suggestions, your approximate location is used during that analysis.',
+    body: 'GutWell AI collects the data you voluntarily enter: check-in logs (stool type, bloating, pain, energy, mood, water intake), food logs (meal names, meal types, meal photos you choose to analyze), symptom logs (type, severity), supplement notes, onboarding answers (your gut concerns and goals), and basic account information (email, display name). If you use voice input, your speech is converted to text on your device or by your phone\u2019s operating system; we store only the resulting text. If you grant location access for local food suggestions, your approximate location is used during that analysis.',
   },
   {
     title: '2. How We Use Your Data',
-    body: 'Your data is used to provide the GutWell service \u2014 displaying your health trends, calculating your gut health score, detecting food\u2013symptom patterns, personalizing AI meal analysis, and sending reminders you configure. We never sell your data, and we do not use it for advertising or cross-app tracking.',
+    body: 'Your data is used to provide the GutWell AI service \u2014 displaying your health trends, calculating your gut health score, detecting food\u2013symptom patterns, personalizing AI meal analysis, and sending reminders you configure. We never sell your data, and we do not use it for advertising or cross-app tracking.',
   },
   {
     title: '3. Service Providers We Share Data With',
-    body: 'To run GutWell we use a small number of processors, each bound by their own privacy commitments:\n\n\u2022 Supabase (hosted on AWS, EU region) \u2014 stores your account and all logs described above.\n\u2022 Google Gemini API \u2014 when you analyze a meal photo, the photo plus the context you provide (symptoms, conditions, supplements, and \u2014 if enabled \u2014 approximate location) is sent to Google\u2019s AI service to generate your analysis. Google does not use this data to train models per its API terms.\n\u2022 PostHog (analytics) \u2014 anonymous-style usage events (e.g. \u201ccheck-in logged\u201d) linked to a random user ID. We do not send your health values, name, or email to analytics.\n\u2022 Sentry (crash reporting) \u2014 technical crash data, not linked to your identity.\n\u2022 Apple / RevenueCat \u2014 only if you make a purchase, to process and validate it.\n\nWe do not sell or share your personal health data with any other third parties.',
+    body: 'To run GutWell AI we use a small number of processors, each bound by their own privacy commitments:\n\n\u2022 Supabase (hosted on AWS, EU region) \u2014 stores your account and all logs described above.\n\u2022 Google Gemini API \u2014 when you analyze a meal photo, the photo plus the context you provide (symptoms, conditions, supplements, and \u2014 if enabled \u2014 approximate location) is sent to Google\u2019s AI service to generate your analysis. Google does not use this data to train models per its API terms.\n\u2022 PostHog (analytics) \u2014 anonymous-style usage events (e.g. \u201ccheck-in logged\u201d) linked to a random user ID. We do not send your health values, name, or email to analytics.\n\u2022 Sentry (crash reporting) \u2014 technical crash data, not linked to your identity.\n\u2022 Apple / RevenueCat \u2014 only if you make a purchase, to process and validate it.\n\nWe do not sell or share your personal health data with any other third parties.',
   },
   {
     title: '4. Data Storage & Security',
@@ -37,7 +37,7 @@ const SECTIONS: SectionData[] = [
   },
   {
     title: '7. Contact',
-    body: 'GutWell is operated by GutWell. For privacy-related questions, contact us at support@getgutwell.app.',
+    body: 'GutWell AI is operated by GutWell AI. For privacy-related questions, contact us at support@getgutwell.app.',
   },
 ];
 
