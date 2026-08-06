@@ -16,7 +16,7 @@ export async function exportUserData(userId: string) {
     supabase.from('favorites').select('*').eq('user_id', userId),
   ]);
 
-  let csv = 'GutWell Data Export\n\n';
+  let csv = 'GutWell AI Data Export\n\n';
 
   // Check-ins
   csv += '=== CHECK-INS ===\n';
@@ -69,7 +69,7 @@ export async function exportUserData(userId: string) {
   if (await Sharing.isAvailableAsync()) {
     await Sharing.shareAsync(filePath, {
       mimeType: 'text/csv',
-      dialogTitle: 'Export GutWell Data',
+      dialogTitle: 'Export GutWell AI Data',
       UTI: 'public.comma-separated-values-text',
     });
   }

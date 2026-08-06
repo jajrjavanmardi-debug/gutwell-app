@@ -185,7 +185,7 @@ struct GutWellStreakWidget: Widget {
                 GutWellWidgetEntryView(entry: entry)
             }
         }
-        .configurationDisplayName("GutWell")
+        .configurationDisplayName("GutWell AI")
         .description("Track your gut score and check-in streak.")
         .supportedFamilies([.systemSmall, .systemMedium])
     }

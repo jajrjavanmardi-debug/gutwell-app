@@ -203,7 +203,7 @@ const en = {
       {
         title: 'Spot Patterns Over Time',
         description:
-          'GutWell connects your food, mood, and symptoms so you can review possible patterns over time.',
+          'GutWell AI connects your food, mood, and symptoms so you can review possible patterns over time.',
       },
       {
         title: 'Your Privacy, Protected',
@@ -415,14 +415,14 @@ const en = {
     gutScoreToday: 'Gut Score today',
     dayStreak: 'Day streak',
     recentlyLogged: 'Recently logged',
-    forFree: 'GutWell for free',
+    forFree: 'GutWell AI for free',
     sampleMeal: 'Greek yogurt + berries',
     sampleScore: 'Gut 9/10',
     comingSoonBody: 'Subscriptions are not available yet. Please try again later.',
     purchaseFailed: 'Purchase Failed',
     restorePurchases: 'Restore Purchases',
     heroLine1: 'We want you to try',
-    heroLine2: 'GutWell for free',
+    heroLine2: 'GutWell AI for free',
     billedAnnuallySave: 'Billed annually — save {pct}%',
     startFreeTrial: 'Start Free Trial',
     startTrialWithPeriod: 'Start {n}-{unit} Free Trial',
@@ -1123,7 +1123,7 @@ const en = {
     shareButton: 'Share',
     close: 'Close',
     // {score} and {streak} are substituted at runtime.
-    shareMessage: 'My GutWell Gut Score this week: {score}/100 🌿 Day {streak} streak! Download GutWell to track your gut health.',
+    shareMessage: 'My GutWell AI Gut Score this week: {score}/100 🌿 Day {streak} streak! Download GutWell AI to track your gut health.',
   },
 
   // ── Tab bar + quick-action menu + tab error boundary ──────────────────────
@@ -1455,7 +1455,7 @@ const de: Translations = {
       {
         title: 'Muster über Zeit erkennen',
         description:
-          'GutWell verbindet dein Essen, deine Stimmung und deine Symptome, damit du mögliche Muster im Laufe der Zeit überprüfen kannst.',
+          'GutWell AI verbindet dein Essen, deine Stimmung und deine Symptome, damit du mögliche Muster im Laufe der Zeit überprüfen kannst.',
       },
       {
         title: 'Deine Privatsphäre, geschützt',
@@ -1656,14 +1656,14 @@ const de: Translations = {
     gutScoreToday: 'Darm-Score heute',
     dayStreak: 'Tage-Streak',
     recentlyLogged: 'Zuletzt protokolliert',
-    forFree: 'GutWell kostenlos',
+    forFree: 'GutWell AI kostenlos',
     sampleMeal: 'Griechischer Joghurt + Beeren',
     sampleScore: 'Darm 9/10',
     comingSoonBody: 'Abonnements sind noch nicht verfügbar. Bitte versuche es später erneut.',
     purchaseFailed: 'Kauf fehlgeschlagen',
     restorePurchases: 'Käufe wiederherstellen',
     heroLine1: 'Wir möchten, dass du',
-    heroLine2: 'GutWell kostenlos testest',
+    heroLine2: 'GutWell AI kostenlos testest',
     billedAnnuallySave: 'Jährliche Abrechnung — spare {pct} %',
     startFreeTrial: 'Kostenlos testen',
     startTrialWithPeriod: '{n} {unit} kostenlos testen',
@@ -2321,7 +2321,7 @@ const de: Translations = {
     actionsTitle: 'Teile deinen Fortschritt',
     shareButton: 'Teilen',
     close: 'Schließen',
-    shareMessage: 'Mein GutWell Darm-Score diese Woche: {score}/100 🌿 Tag {streak} in Folge! Lade GutWell herunter, um deine Darmgesundheit zu verfolgen.',
+    shareMessage: 'Mein GutWell AI Darm-Score diese Woche: {score}/100 🌿 Tag {streak} in Folge! Lade GutWell AI herunter, um deine Darmgesundheit zu verfolgen.',
   },
 
   tabs: {

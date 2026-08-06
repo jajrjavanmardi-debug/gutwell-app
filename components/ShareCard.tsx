@@ -134,7 +134,7 @@ export function ShareCard({
             {/* Brand header */}
             <View style={styles.brandRow}>
               <Ionicons name="leaf" size={14} color={Colors.secondary} />
-              <Text style={styles.brandName}>GutWell</Text>
+              <Text style={styles.brandName}>GutWell AI</Text>
             </View>
 
             {/* Score Circle */}

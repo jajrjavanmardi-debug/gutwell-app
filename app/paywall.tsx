@@ -230,7 +230,7 @@ export default function PaywallScreen() {
             <View style={styles.previewApp}>
               <View style={styles.previewBrandRow}>
                 <Ionicons name="leaf" size={14} color="#1B4332" />
-                <Text style={styles.previewBrand}>GutWell</Text>
+                <Text style={styles.previewBrand}>GutWell AI</Text>
               </View>
 
               <View style={styles.previewScoreCard}>
