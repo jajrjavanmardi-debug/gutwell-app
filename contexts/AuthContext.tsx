@@ -30,6 +30,12 @@ type Profile = {
   gut_concern: string | null;
   symptom_frequency: string | null;
   goal: string | null;
+  /**
+   * Resume point for an unfinished onboarding. NULL for every pre-v1.0 profile
+   * and for anyone who has finished — see lib/onboarding-stage.ts. Never
+   * authoritative for completion; onboarding_completed decides that.
+   */
+  onboarding_stage: string | null;
 };
 
 type AuthContextType = {
@@ -95,6 +101,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         gut_concern: data.gut_concern ?? null,
         symptom_frequency: data.symptom_frequency ?? null,
         goal: data.goal ?? null,
+        onboarding_stage: data.onboarding_stage ?? null,
       });
     }
   };

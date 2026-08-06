@@ -9,6 +9,8 @@
  * components would not have been caught.
  */
 
+import type { OnboardingStage } from './onboarding-stage';
+
 /** Screens that require an authenticated session. */
 export const PROTECTED_SEGMENTS = [
   '(tabs)',
@@ -56,24 +58,84 @@ export type IndexDecision =
   | '(auth)/reset-password'
   | '(onboarding)/welcome'
   | '(onboarding)/questions'
+  | '(onboarding)/example'
+  | '(onboarding)/notifications'
+  | 'photo-analysis-onboarding'
   | '(tabs)';
 
 /**
  * App entry decision (app/index.tsx) — the single routing decision point.
  *
- * When the profile hasn't loaded yet the user is let into tabs rather than
- * stranded: tabs only need the session.
+ * Ordering matters, and each rule earns its position:
+ *
+ * 1. loading / password recovery win over everything, as before.
+ * 2. `onboarding_completed === true` returns tabs *before* the stage is even
+ *    read. A finished user is finished; a stale stage left over from an
+ *    interrupted run must never pull them back into onboarding. This is also
+ *    why a completed user never waits on the AsyncStorage read.
+ * 3. Only then does the stage matter, so `stageReady` is required no earlier
+ *    than the point where it is actually consulted.
+ *
+ * Unknown, absent or newer-build stage values arrive here as null (see
+ * asOnboardingStage) and fall through to the safe default for that branch —
+ * Welcome when signed out, the onboarding analysis when signed in.
+ *
+ * A pre-signup stage (goal/feeling/example) on an authenticated user is
+ * contradictory: v1.0 creates the account only after both questions, so an
+ * account means they are past that point. Such a stage is treated as stale and
+ * the user resumes at the first analysis rather than being re-asked.
+ *
+ * When the profile hasn't loaded yet (`onboardingCompleted === null`, e.g. an
+ * offline cold start) the user is let into tabs rather than stranded — tabs
+ * only need the session. That behaviour predates this change and is preserved.
  */
 export function indexDecision(params: {
   session: boolean;
   loading: boolean;
   onboardingCompleted: boolean | null;
+  /** Resolved by resolveStage(); null means "no usable information". */
+  stage?: OnboardingStage | null;
+  /** False while the local stage is still being read from AsyncStorage. */
+  stageReady?: boolean;
   passwordRecovery?: boolean;
 }): IndexDecision {
-  const { session, loading, onboardingCompleted, passwordRecovery = false } = params;
+  const {
+    session,
+    loading,
+    onboardingCompleted,
+    stage = null,
+    stageReady = true,
+    passwordRecovery = false,
+  } = params;
+
   if (loading) return 'loading';
   if (passwordRecovery) return '(auth)/reset-password';
-  if (!session) return '(onboarding)/welcome';
-  if (onboardingCompleted === false) return '(onboarding)/questions';
+
+  // A completed user is routed without consulting the stage at all.
+  if (session && onboardingCompleted === true) return '(tabs)';
+
+  if (!stageReady) return 'loading';
+
+  if (!session) {
+    if (stage === 'example') return '(onboarding)/example';
+    if (stage === 'goal' || stage === 'feeling') return '(onboarding)/questions';
+    return '(onboarding)/welcome';
+  }
+
+  if (onboardingCompleted === false) {
+    if (stage === 'completed') return '(tabs)';
+    if (stage === 'notifications') return '(onboarding)/notifications';
+    // Everything else means "signed up, no result yet" — including a missing,
+    // unknown or pre-signup stage.
+    //
+    // In the v1.0 flow the account is created AFTER both questions, so an
+    // authenticated user has necessarily answered them. Sending such a user to
+    // the questionnaire would re-ask what they already answered and strand them
+    // short of the first analysis; sending them to the camera resumes exactly
+    // where the flow stopped. A pre-signup stage on an account is contradictory
+    // and is treated as stale for the same reason.
+    return 'photo-analysis-onboarding';
+  }
+
   return '(tabs)';
 }

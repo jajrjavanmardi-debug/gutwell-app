@@ -78,9 +78,13 @@ describe('indexDecision (app entry)', () => {
     );
   });
 
-  test('resumes onboarding when the profile says it is incomplete', () => {
+  test('resumes onboarding at the first analysis when the profile says it is incomplete', () => {
+    // Changed in the v1.0 onboarding redesign. The account is now created after
+    // both questions, so an authenticated but incomplete user has already
+    // answered them and belongs at the camera, not back in the questionnaire.
+    // See lib/__tests__/onboarding-completion.test.ts for the full stage matrix.
     expect(indexDecision({ session: true, loading: false, onboardingCompleted: false })).toBe(
-      '(onboarding)/questions'
+      'photo-analysis-onboarding'
     );
   });
 
