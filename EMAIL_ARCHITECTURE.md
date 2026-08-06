@@ -1,6 +1,15 @@
 # GutWell AI — Email Architecture
 
-**Decided 4 August 2026.** Applies to v1.0.
+**Decided 4 August 2026. Implemented and verified live 6 August 2026.** Applies to v1.0.
+
+> **STATUS: LIVE.** Custom SMTP is enabled on the hosted project and password
+> recovery has been completed end to end on a physical iPhone (6 Aug, 13:40:58 UTC).
+> The branded template from `supabase/templates/recovery.html` is applied.
+> DNS re-verified the same day: Resend `MX`/SPF/DKIM present under
+> `send.getgutwell.app`, root `MX` still IONOS, and **exactly one** root SPF record.
+>
+> ⚠️ **Never run `supabase config push`** — `[auth.email.smtp]` below is still
+> commented out, so a push would wipe the working hosted config.
 
 > **Supersedes** an earlier decision (same day) to use a dedicated sending
 > subdomain, `mail.getgutwell.app`. Reverted while on the **Resend Free plan**.
@@ -106,24 +115,31 @@ nowhere to go at all. Supabase Auth exposes a sender name and address but no
 
 ## Supabase configuration
 
-In `supabase/config.toml` under `[auth.email.smtp]` — currently commented out and
-gated on Resend reporting **Verified**:
+**These values are live in the hosted project, set through the Dashboard.** The
+matching `[auth.email.smtp]` block in `supabase/config.toml` is still commented
+out, so local and hosted config have deliberately diverged:
 
 ```
 host         smtp.resend.com
 port         465            (implicit TLS; 587/STARTTLS if 465 is blocked)
 user         resend         (literal string, not an email address)
-pass         env(SMTP_PASSWORD)   — the Resend API key, never committed
+pass         the Resend API key — Dashboard only, never in the repo
 admin_email  auth@getgutwell.app
 sender_name  GutWell AI
 ```
 
-Also required, in the Dashboard or via `config push`:
+Also live, verified 6 August 2026:
 
 - **Site URL** — `https://getgutwell.app`
 - **Redirect URLs** — `gutwellapp://reset-password`, `gutwellapp:///reset-password`,
-  `gutwellapp://**`, and `exp://**` for dev *(remove `exp://**` before release)*
-- **Rate limits** — raise the Auth email limit; the built-in default throttles testing
+  `gutwellapp://**`. Note `exp://**` is **not** in the hosted allow-list, so Expo Go
+  cannot complete a reset; dev-client and release builds use `gutwellapp://` and work.
+- **Rate limits** — `rate_limit_email_sent` 30/hour, and `smtp_max_frequency` 60 s
+  **per address**. A rapid retest is throttled, not broken.
+
+⚠️ Change these in the **Dashboard**, not by uncommenting the block and running
+`supabase config push` — that would push this repo's empty SMTP section over the
+working hosted one and silently break recovery for every user.
 
 **Leave email confirmations off** (`mailer_autoconfirm` stays true) until recovery
 mail is proven to deliver. Turning confirmations on before then locks out every

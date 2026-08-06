@@ -79,13 +79,27 @@ enable_confirmations = false
 #
 # See EMAIL_ARCHITECTURE.md for the full rationale and the DNS records.
 #
-# STILL COMMENTED OUT ON PURPOSE. Enable only after Resend reports
-# getgutwell.app as Verified — enabling it earlier points Supabase at an
-# unverified sender and every recovery email is rejected.
+# ┌────────────────────────────────────────────────────────────────────────┐
+# │  DO NOT RUN `supabase config push`                                     │
+# └────────────────────────────────────────────────────────────────────────┘
 #
-# To enable: uncomment, export SMTP_PASSWORD (the Resend API key) in the shell,
-# then run `supabase config push`. pass uses env() so no secret is ever written
-# to this file or committed.
+# As of 6 August 2026 custom SMTP is CONFIGURED AND LIVE on the hosted project,
+# set through the Dashboard. Password recovery has been verified end to end on a
+# physical iPhone.
+#
+# The block below is STILL COMMENTED OUT. That means the local config no longer
+# matches the hosted config, and `supabase config push` would push this file's
+# empty SMTP section over the live one — disabling custom SMTP and silently
+# breaking password recovery for every user. The failure is invisible until a
+# user tries to reset a password.
+#
+# Live values (the password lives only in the Dashboard, never here):
+#   host smtp.resend.com : 465 · user resend
+#   sender auth@getgutwell.app / GutWell AI
+#
+# If you ever DO need to manage this from the repo: uncomment the block, export
+# SMTP_PASSWORD (the Resend API key) in the shell, then push. pass uses env() so
+# no secret is written to this file or committed. Re-verify recovery afterwards.
 #
 # [auth.email.smtp]
 # enabled = true

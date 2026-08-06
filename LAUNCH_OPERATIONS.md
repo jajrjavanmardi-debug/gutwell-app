@@ -27,7 +27,8 @@ Project ref: `peipdakrqtgabnvpazrc` · Bundle id: `com.parallellabs.gutwell` · 
 | Auth & onboarding funnel | **RESTORED** (was unreachable since 2 May); welcome → quiz → signup → notifications → tabs, verified end-to-end |
 | Free-launch mode | Code ships free cleanly: all premium gates unlocked, paywall unreachable while `EXPO_PUBLIC_REVENUECAT_IOS_KEY` is unset (no dead "Coming Soon" purchase UI) |
 | Privacy | In-app policy rewritten (names all processors); analytics carries no health values or names; location strictly opt-in, city-only; per-user disclaimer with server-side consent timestamp |
-| Tests & CI | 26 unit tests + GitHub Actions (tsc, lint, jest) on every PR |
+| Tests & CI | 126 unit tests across 10 suites + GitHub Actions (tsc, lint, jest) on every PR |
+| **Password recovery** | **LIVE & VERIFIED (6 Aug 2026)** — custom SMTP via Resend from `auth@getgutwell.app`, branded template applied, full reset completed on a physical iPhone. See #2b below |
 
 ---
 
@@ -46,36 +47,59 @@ https://supabase.com/dashboard/project/peipdakrqtgabnvpazrc/settings/billing
   (Without it the nutrient-recommendation enrichment stays disabled; core analysis works on Gemini.)
 - **Gemini:** already a server secret — leave as is.
 
-### #2b — Transactional email (Resend, root domain) 🔴 BLOCKS PASSWORD RESET
-Password recovery cannot work until this is done. Supabase's built-in sender only
-delivers to members of the Supabase org, which is why reset mail has never arrived.
+### #2b — Transactional email (Resend, root domain) ✅ DONE — 6 August 2026
+
+**Password recovery is live and verified end to end.** Nothing here is outstanding.
 
 Architecture in `EMAIL_ARCHITECTURE.md`: on the **Resend Free plan** (1 domain,
 100 emails/day) authentication mail sends from **`auth@getgutwell.app`** on the
-**root** domain. Human mail stays on IONOS. Root MX and root SPF are never touched.
+**root** domain. Human mail stays on IONOS. Root MX and root SPF were never touched.
 
-1. Resend → add domain **`getgutwell.app`** (the root).
-2. Add the 3 records Resend shows, at IONOS, name field without the domain suffix:
-   `MX send`, `TXT send` (SPF), `TXT resend._domainkey` (DKIM).
-3. Wait for Resend to report **Verified**.
-4. IONOS → create **`auth@getgutwell.app` as a forwarder to `support@`**, so
-   replies to a reset email reach a human instead of bouncing.
-5. Resend → API key with *Sending access*.
-6. Supabase → Auth → SMTP: `smtp.resend.com` : 465, user `resend`, pass = API key,
-   sender `auth@getgutwell.app`, name `GutWell AI`.
-   (Or uncomment `[auth.email.smtp]` in `supabase/config.toml`, export
-   `SMTP_PASSWORD`, and `supabase config push`.)
-7. Supabase → Auth → URL Configuration: Site URL `https://getgutwell.app`;
-   redirect allow-list gets `gutwellapp://reset-password`,
-   `gutwellapp:///reset-password`, `gutwellapp://**` and `exp://**` (dev only).
-8. Supabase → Auth → Rate Limits: raise the email limit before testing.
-9. Paste `supabase/templates/recovery.html` into the Reset Password template.
+Verified live configuration (read from the Management API, not the dashboard UI):
+
+| Setting | Value |
+|---|---|
+| Host / Port | `smtp.resend.com` : `465` |
+| Username | `resend` |
+| Password | stored (API returns a 64-char digest; the value is never readable) |
+| Sender | `auth@getgutwell.app` / `GutWell AI` |
+| Recovery template | branded, 2918 chars, matches `supabase/templates/recovery.html` |
+| Site URL | `https://getgutwell.app` |
+| Redirect allow-list | `gutwellapp://reset-password`, `gutwellapp:///reset-password`, `gutwellapp://**` |
+
+**Evidence of a working end-to-end reset (6 Aug, 13:40:58 UTC):** on the test
+account, `last_sign_in_at` and `updated_at` both moved to that instant while
+`recovery_sent_at` became `null` — GoTrue nulls that column only when a recovery
+token is *consumed*. That is the signature of a link being used and a password
+actually changed, confirmed on a physical iPhone.
+
+#### Still open (non-blocking)
+
+- **IONOS: create `auth@getgutwell.app` as a forwarder to `support@`.** Until then,
+  anyone replying to a reset email gets a bounce.
+- **The reset email is English only.** Supabase Auth serves one template per email
+  type, so a German reset email requires a Send Email Hook branching on
+  `user_profiles.preferred_language`. Do not assume DE users get German mail.
+
+#### Operational gotchas — read before touching email again
+
+⚠️ **Never run `supabase config push`.** `[auth.email.smtp]` is commented out in
+`supabase/config.toml`, so a push would wipe the working hosted SMTP config and
+silently break password recovery for every user.
+
+⚠️ `smtp_max_frequency = 60` s **per address**. A rapid retest is throttled, not
+broken. Wait a minute between sends before concluding anything has failed.
+
+⚠️ `exp://**` is listed in `supabase/config.toml` but is **not** in the hosted
+allow-list. Expo Go cannot complete a reset. Dev-client and release builds use the
+`gutwellapp://` scheme and work correctly.
 
 ⚠️ Never add a Resend SPF include to the **root** TXT record. Two SPF records make
-all mail — including IONOS human mail — fail SPF.
+all mail — including IONOS human mail — fail SPF. Verified: exactly one root SPF
+record, still IONOS-only, and root MX still `mx00`/`mx01.ionos.de`.
 
-⚠️ Keep email confirmations OFF until recovery mail is proven to deliver, or new
-signups get locked out.
+⚠️ Keep email confirmations OFF (`mailer_autoconfirm` stays true) unless you have
+re-proven delivery, or new signups get locked out.
 
 ⚠️ Root domain = no reputation firewall. Send **transactional auth mail only**.
 Marketing gets its own subdomain and a paid plan, never the root.
@@ -151,3 +175,4 @@ Pre-flight: `npx tsc --noEmit` · `npx expo lint` · `npx jest` (CI runs all thr
 4. Apple enrollment + 3 values (#3) → I fill `eas.json`
 5. Host the privacy policy at a public URL (#4)
 6. Create the ASC listing with the copy above + screenshots (#4)
+7. IONOS: `auth@getgutwell.app` forwarder to `support@` (#2b) — replies bounce without it
