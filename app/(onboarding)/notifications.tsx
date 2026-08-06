@@ -8,6 +8,7 @@ import { router } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Sentry from '@sentry/react-native';
 import { useTranslation } from '../../lib/i18n';
+import { saveLocalStage } from '../../lib/onboarding-stage';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import { FontFamily } from '../../constants/theme';
@@ -26,6 +27,9 @@ export default function NotificationsScreen() {
   const t = useTranslation();
   const [showCelebration, setShowCelebration] = useState(false);
 
+  // Guards double-completion: repeated taps, or a tap during the 1.8s
+  // celebration before navigation actually happens.
+  const completingRef = useRef(false);
   const celebrationFade = useRef(new Animated.Value(0)).current;
   const celebrationScale = useRef(new Animated.Value(0.8)).current;
   const buttonAnim = useRef(new Animated.Value(0)).current;
@@ -42,30 +46,56 @@ export default function NotificationsScreen() {
     return () => clearTimeout(timer);
   }, [buttonAnim]);
 
-  const completeOnboarding = async () => {
+  /**
+   * Finish onboarding. Reached from BOTH Allow and Skip — the notification
+   * decision never gates completion.
+   *
+   * Idempotent by guard: repeated taps (or a tap during the celebration delay)
+   * return immediately rather than issuing a second write or a second navigation.
+   *
+   * The user reaches Home no matter what fails. A profile write that errors is
+   * reported to Sentry and then ignored for navigation purposes: being trapped
+   * on this screen is a far worse outcome than a profile row that is briefly
+   * missing a goal value, which the user can set later in Settings.
+   */
+  const completeOnboardingFlow = async () => {
+    if (completingRef.current) return;
+    completingRef.current = true;
+
     if (!user) {
-      // Shouldn't happen in the normal flow (results routes through signup),
-      // but never strand the user on a button that does nothing.
+      // Shouldn't happen — this screen is only reachable after signup — but
+      // never strand the user on a button that does nothing.
       router.replace('/(auth)/signup');
       return;
     }
-    try {
-      const [rawName, rawAnswers] = await Promise.all([
-        AsyncStorage.getItem('onboarding_name'),
-        AsyncStorage.getItem('onboarding_answers'),
-      ]);
 
-      const name = rawName ?? '';
+    // Local stage first: it is what resumes this device, and it must be set
+    // even if the network is down. saveLocalStage never throws.
+    await saveLocalStage('completed');
+
+    try {
+      const rawAnswers = await AsyncStorage.getItem('onboarding_answers');
       const answers: Record<string, string> = rawAnswers ? JSON.parse(rawAnswers) : {};
 
+      // One write, so completion and the legacy answers can never disagree.
+      //
+      // display_name is deliberately absent: the handle_new_user trigger already
+      // sets it from the signup metadata, making signup the single source. The
+      // old `onboarding_name` read came from the retired About screen.
+      //
+      // symptom_frequency resolves to null for v1.0 users — the question that
+      // fed `bloating_frequency` is no longer asked. The column is nullable and
+      // has no functional readers, so null is written honestly rather than
+      // back-filled with an invented value.
       await supabase
         .from('profiles')
         .update({
           onboarding_completed: true,
-          display_name: name || undefined,
+          onboarding_stage: 'completed',
           gut_concern: answers.meal_feeling ?? null,
           symptom_frequency: answers.bloating_frequency ?? null,
           goal: answers.goal ?? null,
+          // answers.avoid stays local on purpose — no column, no AI payload.
         })
         .eq('id', user.id);
 
@@ -101,7 +131,7 @@ export default function NotificationsScreen() {
     } catch (err) {
       console.warn('[onboarding] enabling notifications failed', err);
     }
-    await completeOnboarding();
+    await completeOnboardingFlow();
   };
 
   return (
@@ -166,7 +196,7 @@ export default function NotificationsScreen() {
             <Text style={styles.allowButtonText}>{t.notifications.enableButton}</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity onPress={completeOnboarding} accessibilityRole="button" accessibilityLabel={t.notifications.skipButton} activeOpacity={0.7}>
+          <TouchableOpacity onPress={() => void completeOnboardingFlow()} accessibilityRole="button" accessibilityLabel={t.notifications.skipButton} activeOpacity={0.7}>
             <Text style={styles.skipText}>{t.notifications.skipButton}</Text>
           </TouchableOpacity>
         </Animated.View>

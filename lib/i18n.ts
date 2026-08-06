@@ -288,9 +288,16 @@ const en = {
 
   // ── Onboarding — Notifications ────────────────────────────────────────────
   notifications: {
-    title: 'Your first check-in is saved.',
-    subtitle: 'Would a gentle daily reminder help you keep the pattern going? You can change this anytime in Settings.',
-    benefitDaily: 'Daily check-in reminder at your chosen time',
+    // Shown only after a real first analysis, so the reminder has something
+    // concrete to refer back to. Optional by design — no pressure language, and
+    // nothing here implies the app needs notifications to work.
+    title: 'Your first analysis is saved.',
+    subtitle: 'Would you like a reminder to log another meal tomorrow? You can change this anytime in Settings.',
+    // Deliberately neutral about WHAT the reminder is. The subtitle above asks
+    // about logging another meal, while the scheduler currently fires a
+    // check-in reminder (lib/notifications.ts) — naming either one here would
+    // contradict the other. Revisit if the notification body is reworded.
+    benefitDaily: 'A gentle daily reminder at a time you choose',
     benefitStreak: 'Streak alerts so you never lose progress',
     benefitDigest: 'Weekly gut health digest every Sunday',
     enableButton: 'Set a daily reminder',
@@ -1590,9 +1597,9 @@ const de: Translations = {
     },
   },
   notifications: {
-    title: 'Dein erstes Check-in ist gespeichert.',
-    subtitle: 'Hilft dir eine tägliche Erinnerung, das Muster beizubehalten? Du kannst dies jederzeit in den Einstellungen ändern.',
-    benefitDaily: 'Tägliche Check-in-Erinnerung zu deiner gewählten Zeit',
+    title: 'Deine erste Analyse ist gespeichert.',
+    subtitle: 'Möchtest du morgen daran erinnert werden, eine weitere Mahlzeit zu erfassen? Du kannst dies jederzeit in den Einstellungen ändern.',
+    benefitDaily: 'Eine sanfte tägliche Erinnerung zu deiner gewählten Zeit',
     benefitStreak: 'Streak-Benachrichtigungen, damit du deinen Fortschritt nicht verlierst',
     benefitDigest: 'Wöchentliche Darm-Zusammenfassung jeden Sonntag',
     enableButton: 'Tägliche Erinnerung einrichten',
