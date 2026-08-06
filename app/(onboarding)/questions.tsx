@@ -26,6 +26,7 @@ import { OptionCard } from '../../components/ui/OptionCard';
 import { WheelPicker, type WheelPickerOption } from '../../components/ui/WheelPicker';
 import { RulerSlider } from '../../components/ui/RulerSlider';
 import { useTranslation } from '../../lib/i18n';
+import { saveLocalStage } from '../../lib/onboarding-stage';
 import {
   ONBOARDING_STEPS,
   TOTAL_STEPS,
@@ -33,6 +34,36 @@ import {
 } from '../../lib/onboarding-config';
 
 const ANSWERS_KEY = 'onboarding_answers';
+
+/**
+ * Localized copy for a step.
+ *
+ * The step definitions in lib/onboarding-config.ts carry English strings only.
+ * Before v1.0 the stepper rendered those directly, so the questionnaire showed
+ * English even in German — t.onboardingSteps existed but nothing read it.
+ * This resolves i18n first and falls back to the config, so a missing key
+ * degrades to English rather than to a blank screen.
+ */
+function stepCopy(
+  dict: Record<string, unknown>,
+  stepId: string,
+): Record<string, any> | undefined {
+  const entry = dict?.[stepId];
+  return entry && typeof entry === 'object' ? (entry as Record<string, any>) : undefined;
+}
+
+/** Resolve an option's label/description through i18n, falling back to config. */
+function optionCopy(
+  copy: Record<string, any> | undefined,
+  opt: { value: string; label: string; description?: string },
+): { label: string; description?: string } {
+  const raw = copy?.options?.[opt.value];
+  if (typeof raw === 'string') return { label: raw, description: opt.description };
+  if (raw && typeof raw === 'object') {
+    return { label: raw.label ?? opt.label, description: raw.description ?? opt.description };
+  }
+  return { label: opt.label, description: opt.description };
+}
 const FADE_OUT_MS = 220;
 const FADE_IN_MS = 320;
 
@@ -155,9 +186,14 @@ export default function QuestionsScreen() {
     const isLast = index === ONBOARDING_STEPS.length - 1;
     if (isLast) {
       track(Events.ONBOARDING_STEP, { step: 'quiz_completed' });
-      router.push('/(onboarding)/analysing');
+      // Both questions answered — the example screen is next. Stage is written
+      // before navigating so a relaunch resumes there rather than re-asking.
+      void saveLocalStage('example');
+      router.push('/(onboarding)/example');
       return;
     }
+    // Advancing off the goal question means the feeling question is next.
+    void saveLocalStage('feeling');
     goToStep(index + 1);
   }, [goToStep, index, step.id]);
 
@@ -209,6 +245,7 @@ export default function QuestionsScreen() {
             step={step}
             value={currentValue}
             onSetField={setField}
+            answers={answers}
           />
         </Animated.View>
 
@@ -255,14 +292,16 @@ type StepContentProps = {
   step: OnboardingStep;
   value: AnswerValue | undefined;
   onSetField: (field: string, value: AnswerValue) => void;
+  /** Full answer map — the chip row reads its own field, not `value`. */
+  answers?: Answers;
 };
 
-function StepContent({ step, value, onSetField }: StepContentProps) {
+function StepContent({ step, value, onSetField, answers }: StepContentProps) {
   switch (step.type) {
     case 'single-select':
     case 'multi-select':
     case 'referral':
-      return <ScrollableStep step={step} value={value} onSetField={onSetField} />;
+      return <ScrollableStep step={step} value={value} onSetField={onSetField} answers={answers} />;
     case 'wheel':
       return <WheelStepView step={step} value={value} onSetField={onSetField} />;
     case 'ruler':
@@ -283,9 +322,10 @@ function Header({ title, subtitle }: { title: string; subtitle?: string }) {
   );
 }
 
-function ScrollableStep({ step, value, onSetField }: StepContentProps) {
+function ScrollableStep({ step, value, onSetField, answers }: StepContentProps) {
   // Sub-components need their own hook — hooks do not cross function boundaries.
   const t = useTranslation();
+  const copy = stepCopy(t.onboardingSteps as unknown as Record<string, unknown>, step.id);
   return (
     <ScrollView
       style={styles.scroll}
@@ -293,20 +333,21 @@ function ScrollableStep({ step, value, onSetField }: StepContentProps) {
       showsVerticalScrollIndicator={false}
       keyboardShouldPersistTaps="handled"
     >
-      <Header title={step.title} subtitle={step.subtitle} />
+      <Header title={copy?.title ?? step.title} subtitle={copy?.subtitle ?? step.subtitle} />
 
       {step.type === 'single-select' ? (
         <View style={styles.options}>
           {step.options.map((opt) => {
             const selected = value === opt.value;
+            const oc = optionCopy(copy, opt);
             const icon = opt.icon ? (
               <Ionicons name={opt.icon} size={22} color={selected ? '#52B788' : '#FFFFFF'} />
             ) : undefined;
             return step.variant === 'card' ? (
               <OptionCard
                 key={opt.value}
-                title={opt.label}
-                subtitle={opt.description}
+                title={oc.label}
+                subtitle={oc.description}
                 icon={icon}
                 selected={selected}
                 onPress={() => onSetField(step.field, opt.value)}
@@ -314,14 +355,48 @@ function ScrollableStep({ step, value, onSetField }: StepContentProps) {
             ) : (
               <OptionRow
                 key={opt.value}
-                label={opt.label}
-                description={opt.description}
+                label={oc.label}
+                description={oc.description}
                 icon={icon}
                 selected={selected}
                 onPress={() => onSetField(step.field, opt.value)}
               />
             );
           })}
+        </View>
+      ) : null}
+
+      {step.type === 'single-select' && step.chips ? (
+        <View style={styles.chipsBlock}>
+          <View style={styles.chipsHeaderRow}>
+            <Text style={styles.chipsTitle}>{copy?.chipsTitle ?? 'Anything you tend to avoid?'}</Text>
+            <Text style={styles.chipsOptional}>{copy?.chipsOptional ?? 'Optional'}</Text>
+          </View>
+          <View style={styles.chipsWrap}>
+            {step.chips.options.map((chip) => {
+              const chipField = step.chips!.field;
+              const raw = answers?.[chipField];
+              const list = Array.isArray(raw) ? raw : [];
+              const on = list.includes(chip.value);
+              const label = copy?.chips?.[chip.value] ?? chip.label;
+              return (
+                <TouchableOpacity
+                  key={chip.value}
+                  style={[styles.chip, on && styles.chipOn]}
+                  activeOpacity={0.8}
+                  accessibilityRole="checkbox"
+                  accessibilityState={{ checked: on }}
+                  accessibilityLabel={label}
+                  onPress={() => {
+                    const next = on ? list.filter((v) => v !== chip.value) : [...list, chip.value];
+                    onSetField(chipField, next);
+                  }}
+                >
+                  <Text style={[styles.chipText, on && styles.chipTextOn]}>{label}</Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
         </View>
       ) : null}
 
@@ -592,6 +667,43 @@ function InfoIllustration({ step }: { step: Extract<OnboardingStep, { type: 'inf
 }
 
 const styles = StyleSheet.create({
+  // ── Optional avoid-food chips (v1.0 after-meal-feeling step) ──────────────
+  // Local-only answers: never written to the database, never sent to
+  // analyze-food. Copy must not claim they personalise the analysis.
+  chipsBlock: { marginTop: 28 },
+  chipsHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+    gap: 12,
+  },
+  chipsTitle: {
+    fontFamily: FontFamily.sansMedium,
+    fontSize: 15,
+    color: '#FFFFFF',
+    flexShrink: 1,
+  },
+  chipsOptional: {
+    fontFamily: FontFamily.sansRegular,
+    fontSize: 13,
+    color: 'rgba(255,255,255,0.55)',
+  },
+  // flexWrap + no fixed height: German labels and larger Dynamic Type sizes
+  // reflow onto more rows instead of clipping.
+  chipsWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  chip: {
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 22,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.22)',
+    backgroundColor: 'rgba(255,255,255,0.06)',
+  },
+  chipOn: { borderColor: '#52B788', backgroundColor: 'rgba(82,183,136,0.18)' },
+  chipText: { fontFamily: FontFamily.sansRegular, fontSize: 15, color: 'rgba(255,255,255,0.85)' },
+  chipTextOn: { fontFamily: FontFamily.sansMedium, color: '#FFFFFF' },
+
   flex: { flex: 1 },
   container: { flex: 1 },
   safeTop: { paddingHorizontal: 16 },

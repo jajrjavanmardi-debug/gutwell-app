@@ -19,6 +19,7 @@ import StarFieldBackground from '../../components/StarFieldBackground';
 import { track, Events } from '../../lib/analytics';
 import { useTranslation } from '../../lib/i18n';
 import { useLanguage } from '../../lib/LanguageContext';
+import { saveLocalStage } from '../../lib/onboarding-stage';
 import { LANGUAGE_LABELS, SUPPORTED_LANGUAGES, type AppLanguage } from '../../lib/language';
 
 // Taglines come from i18n (t.welcome.taglines) and cycle in the authored order.
@@ -79,7 +80,11 @@ export default function WelcomeScreen() {
 
   const handleCreateAccount = () => {
     track(Events.ONBOARDING_STARTED);
-    router.push('/(onboarding)/features');
+    // Stage is written before navigating so a relaunch resumes at the goal
+    // question rather than starting over. Features/About are no longer on the
+    // route: the value points below replace them.
+    void saveLocalStage('goal');
+    router.push('/(onboarding)/questions');
   };
 
   const handleSignIn = () => {
@@ -171,6 +176,18 @@ export default function WelcomeScreen() {
 
         {/* Headline — shown only to new / signed-out users */}
         <Text style={styles.headline}>{t.welcome.headline}</Text>
+
+        {/* Three mechanism lines — what the product does, in order. These
+            replace the Features and About screens that used to sit between
+            Welcome and the first question. */}
+        <View style={styles.valuePoints}>
+          {t.welcome.valuePoints.map((point) => (
+            <View key={point} style={styles.valueRow}>
+              <Ionicons name="checkmark-circle" size={18} color="#52B788" />
+              <Text style={styles.valueText}>{point}</Text>
+            </View>
+          ))}
+        </View>
 
         {/* Animated tagline */}
         <View style={styles.taglineContainer}>
@@ -341,6 +358,15 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255,255,255,0.15)',
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  valuePoints: { marginTop: 22, gap: 10, alignSelf: 'stretch', paddingHorizontal: 8 },
+  valueRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  // flexShrink so long German lines wrap instead of clipping at 375pt.
+  valueText: {
+    fontFamily: FontFamily.sansRegular,
+    fontSize: 15,
+    color: 'rgba(255,255,255,0.85)',
+    flexShrink: 1,
   },
   appName: {
     fontFamily: FontFamily.displayBold,

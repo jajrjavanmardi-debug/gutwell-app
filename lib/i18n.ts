@@ -153,7 +153,35 @@ const en = {
   },
 
   // ── Onboarding — Welcome ──────────────────────────────────────────────────
+  // ── Onboarding — Example analysis (static, pre-signup) ───────────────────
+  // Copy rules: this screen shows a SAMPLE meal, never the user's own data.
+  // No diagnosis or treatment language, no promised outcome, no personalisation
+  // claim. Hedged wording only ("may", "for some people", "notice how you feel").
+  example: {
+    label: 'Example analysis',
+    intro: 'This is what a result looks like. It uses a sample meal — not your data.',
+    mealName: 'Chicken salad with dressing',
+    mealImageAlt: 'Illustration of a generic salad bowl',
+    gutImpactTitle: 'Gut Impact',
+    gutImpactValue: 'Balanced overall',
+    sensitivityTitle: 'Possible sensitivity',
+    sensitivityValue: 'High-fat dressing may feel heavy for some people',
+    betterOptionTitle: 'Better option',
+    betterOptionValue: 'Try a lighter olive-oil vinaigrette',
+    nextStepTitle: 'Next step',
+    nextStepValue: 'Notice how you feel over the next few hours',
+    disclaimer: 'General wellness information, not a diagnosis.',
+    cta: 'Create account',
+    accessCta: 'Create an account to analyse your first meal',
+    signIn: 'I already have an account',
+    accessSignIn: 'Sign in to an existing account',
+  },
+
   welcome: {
+    // Three concrete mechanism lines. They replace the cycling marketing
+    // taglines: stating how the product works earns more trust on first run
+    // than a benefit claim, and it makes no health promise.
+    valuePoints: ['Scan meals', 'AI analyses them', 'Discover possible patterns'],
     appName: 'GutWell AI',
     headline: 'Welcome to GutWell AI',
     createAccount: 'Create Account',
@@ -477,6 +505,35 @@ const en = {
 
   // ── Onboarding Steps ─────────────────────────────────────────────────────
   onboardingSteps: {
+    main_goal: {
+      title: 'What is your main goal?',
+      subtitle: 'You can change this later.',
+      options: {
+        'Reduce bloating': 'Reduce bloating',
+        'Improve digestion': 'Improve digestion',
+        'Find food triggers': 'Find food triggers',
+        'Improve everyday wellbeing': 'Improve everyday wellbeing',
+      },
+    },
+    after_meal_feeling: {
+      title: 'How do you usually feel after meals?',
+      subtitle: 'Whatever is most typical for you.',
+      options: {
+        Comfortable: { label: 'Comfortable', description: 'Usually settled' },
+        Bloated: { label: 'Bloated', description: 'Full or swollen' },
+        Heavy: { label: 'Heavy or sluggish', description: 'Low energy after eating' },
+        'It varies': { label: 'It varies', description: 'Depends on the meal' },
+      },
+      chipsTitle: 'Anything you tend to avoid?',
+      chipsOptional: 'Optional',
+      chips: {
+        Lactose: 'Lactose',
+        Gluten: 'Gluten',
+        'Spicy foods': 'Spicy foods',
+        'High-fat foods': 'High-fat foods',
+        Other: 'Other',
+      },
+    },
     sex: {
       title: 'Which best describes you?',
       subtitle: 'This helps us tailor your gut-health plan.',
@@ -1407,7 +1464,29 @@ const de: Translations = {
     backToSignIn: 'Zurück zur Anmeldung',
     accessSaveButton: 'Passwort aktualisieren',
   },
+  // ── Onboarding — Beispielanalyse (statisch, vor der Registrierung) ────────
+  example: {
+    label: 'Beispielanalyse',
+    intro: 'So sieht ein Ergebnis aus. Es zeigt eine Beispielmahlzeit — nicht deine Daten.',
+    mealName: 'Hähnchensalat mit Dressing',
+    mealImageAlt: 'Illustration einer allgemeinen Salatschüssel',
+    gutImpactTitle: 'Darm-Wirkung',
+    gutImpactValue: 'Insgesamt ausgewogen',
+    sensitivityTitle: 'Mögliche Empfindlichkeit',
+    sensitivityValue: 'Fettreiches Dressing kann sich für manche Menschen schwer anfühlen',
+    betterOptionTitle: 'Bessere Option',
+    betterOptionValue: 'Probier eine leichtere Olivenöl-Vinaigrette',
+    nextStepTitle: 'Nächster Schritt',
+    nextStepValue: 'Achte darauf, wie du dich in den nächsten Stunden fühlst',
+    disclaimer: 'Allgemeine Informationen zum Wohlbefinden, keine Diagnose.',
+    cta: 'Konto erstellen',
+    accessCta: 'Konto erstellen, um deine erste Mahlzeit zu analysieren',
+    signIn: 'Ich habe schon ein Konto',
+    accessSignIn: 'Bei einem bestehenden Konto anmelden',
+  },
+
   welcome: {
+    valuePoints: ['Mahlzeiten scannen', 'Die KI analysiert sie', 'Mögliche Muster entdecken'],
     appName: 'GutWell AI',
     headline: 'Willkommen bei GutWell AI',
     createAccount: 'Konto erstellen',
@@ -1705,6 +1784,35 @@ const de: Translations = {
   },
 
   onboardingSteps: {
+    main_goal: {
+      title: 'Was ist dein Hauptziel?',
+      subtitle: 'Du kannst das später ändern.',
+      options: {
+        'Reduce bloating': 'Blähungen reduzieren',
+        'Improve digestion': 'Verdauung verbessern',
+        'Find food triggers': 'Auslöser finden',
+        'Improve everyday wellbeing': 'Wohlbefinden im Alltag steigern',
+      },
+    },
+    after_meal_feeling: {
+      title: 'Wie fühlst du dich meistens nach dem Essen?',
+      subtitle: 'Was für dich am typischsten ist.',
+      options: {
+        Comfortable: { label: 'Wohl', description: 'Meist entspannt' },
+        Bloated: { label: 'Aufgebläht', description: 'Voll oder geschwollen' },
+        Heavy: { label: 'Schwer oder träge', description: 'Wenig Energie danach' },
+        'It varies': { label: 'Unterschiedlich', description: 'Kommt auf das Essen an' },
+      },
+      chipsTitle: 'Meidest du etwas davon?',
+      chipsOptional: 'Optional',
+      chips: {
+        Lactose: 'Laktose',
+        Gluten: 'Gluten',
+        'Spicy foods': 'Scharfes',
+        'High-fat foods': 'Fettreiches',
+        Other: 'Anderes',
+      },
+    },
     sex: {
       title: 'Was trifft am besten auf dich zu?',
       subtitle: 'Das hilft uns, deinen Darmgesundheitsplan anzupassen.',

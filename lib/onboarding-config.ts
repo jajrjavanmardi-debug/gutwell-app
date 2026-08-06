@@ -44,6 +44,21 @@ type BaseStep = {
   subtitle?: string;
 };
 
+/**
+ * An optional multi-select chip row rendered *below* the primary options on the
+ * same screen. Introduced so the v1.0 flow can ask "how do you feel after
+ * meals?" and "anything you avoid?" without spending a second screen on it.
+ *
+ * The chip answer is stored locally in onboarding_answers only. It is NOT
+ * written to the database and NOT sent to analyze-food, so no copy anywhere may
+ * claim it personalises the analysis. See LAUNCH_OPERATIONS.md.
+ */
+export type StepChips = {
+  /** Answer key, stored as string[]. */
+  field: string;
+  options: SelectOption[];
+};
+
 export type SingleSelectStep = BaseStep & {
   type: 'single-select';
   /** Profile/answer key this step writes. */
@@ -51,6 +66,8 @@ export type SingleSelectStep = BaseStep & {
   /** Larger goal-style cards vs. compact rows. */
   variant?: 'row' | 'card';
   options: SelectOption[];
+  /** Optional secondary chip row on the same screen. Never required. */
+  chips?: StepChips;
 };
 
 export type MultiSelectStep = BaseStep & {
@@ -122,7 +139,14 @@ export type OnboardingStep =
  * The ordered sequence. Indices map ~1:1 onto Cal AI's 31-shot onboarding,
  * remapped from weight-loss to gut health.
  */
-export const ONBOARDING_STEPS: OnboardingStep[] = [
+/**
+ * The pre-v1.0 21-step sequence, kept for reference and rollback.
+ *
+ * UNREACHABLE as of the v1.0 onboarding redesign: nothing imports it and the
+ * stepper walks ONBOARDING_STEPS below. Retained (not deleted) along with its
+ * translation keys until the new flow is proven on real users.
+ */
+export const LEGACY_ONBOARDING_STEPS: OnboardingStep[] = [
   // 02 — Choose your sex
   {
     id: 'sex',
@@ -413,7 +437,7 @@ export const ONBOARDING_STEPS: OnboardingStep[] = [
 ];
 
 /** Steps that count toward the visible progress bar (selects/pickers/info). */
-export const TOTAL_STEPS = ONBOARDING_STEPS.length;
+export const LEGACY_TOTAL_STEPS = LEGACY_ONBOARDING_STEPS.length;
 
 /** Look up a step by id (handy for analytics + tests). */
 export function getStep(id: string): OnboardingStep | undefined {
@@ -458,3 +482,67 @@ export function computePlan(answers: Record<string, unknown>): {
 
   return { targetScore, focusAreas };
 }
+
+/* ──────────────────────────────────────────────────────────────────────────
+ * v1.0 ACTIVE ONBOARDING — exactly two questions.
+ *
+ * The 21-step sequence above asked for body measurements inherited from a
+ * weight-loss template and eight tap-through interstitials. Only three of its
+ * answers ever reached the database. These two steps preserve all three that
+ * matter, and nothing else:
+ *
+ *   main_goal          → field 'goal'          → profiles.goal
+ *   after_meal_feeling → field 'meal_feeling'  → profiles.gut_concern
+ *                                                (feeds analyze-food via
+ *                                                 photo-analysis.tsx)
+ *
+ * `id` drives the i18n lookup (t.onboardingSteps[id]); `field` is the storage
+ * key and deliberately keeps its legacy name so the profile write in
+ * notifications.tsx keeps working untouched.
+ *
+ * Strings below are English fallbacks only. The stepper resolves display copy
+ * from i18n — see stepCopy() in app/(onboarding)/questions.tsx.
+ * ────────────────────────────────────────────────────────────────────────── */
+export const ONBOARDING_STEPS: OnboardingStep[] = [
+  {
+    id: 'main_goal',
+    type: 'single-select',
+    field: 'goal',
+    variant: 'card',
+    title: 'What is your main goal?',
+    subtitle: 'You can change this later.',
+    options: [
+      { value: 'Reduce bloating', label: 'Reduce bloating', icon: 'remove-circle-outline' },
+      { value: 'Improve digestion', label: 'Improve digestion', icon: 'leaf-outline' },
+      { value: 'Find food triggers', label: 'Find food triggers', icon: 'search-outline' },
+      { value: 'Improve everyday wellbeing', label: 'Improve everyday wellbeing', icon: 'sunny-outline' },
+    ],
+  },
+  {
+    id: 'after_meal_feeling',
+    type: 'single-select',
+    field: 'meal_feeling',
+    variant: 'card',
+    title: 'How do you usually feel after meals?',
+    subtitle: 'Whatever is most typical for you.',
+    options: [
+      { value: 'Comfortable', label: 'Comfortable', description: 'Usually settled', icon: 'happy-outline' },
+      { value: 'Bloated', label: 'Bloated', description: 'Full or swollen', icon: 'ellipse-outline' },
+      { value: 'Heavy', label: 'Heavy or sluggish', description: 'Low energy after eating', icon: 'battery-dead-outline' },
+      { value: 'It varies', label: 'It varies', description: 'Depends on the meal', icon: 'shuffle-outline' },
+    ],
+    // Optional, local-only. No database write, no AI payload — see StepChips.
+    chips: {
+      field: 'avoid',
+      options: [
+        { value: 'Lactose', label: 'Lactose' },
+        { value: 'Gluten', label: 'Gluten' },
+        { value: 'Spicy foods', label: 'Spicy foods' },
+        { value: 'High-fat foods', label: 'High-fat foods' },
+        { value: 'Other', label: 'Other' },
+      ],
+    },
+  },
+];
+
+export const TOTAL_STEPS = ONBOARDING_STEPS.length;
