@@ -69,6 +69,13 @@ export const Events = {
   ONBOARDING_STEP: 'onboarding_step',
   SIGNUP_COMPLETED: 'signup_completed',
   ONBOARDING_COMPLETED: 'onboarding_completed',
+  /**
+   * The first real meal analysis of a new account, fired once, only from the
+   * onboarding path and only after a result actually exists. Never fired for
+   * normal analyses, retries, cancellation or "Skip for now". No payload — the
+   * event carries no meal text, image data, health values or identifiers.
+   */
+  FIRST_ANALYSIS_COMPLETED: 'first_analysis_completed',
   CHECKIN_LOGGED: 'checkin_logged',
   MEAL_LOGGED: 'meal_logged',
   SYMPTOM_LOGGED: 'symptom_logged',

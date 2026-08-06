@@ -15,6 +15,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTranslation } from '../../lib/i18n';
+import { persistStage } from '../../lib/onboarding-stage';
+import { supabase } from '../../lib/supabase';
 import { Input } from '../../components/ui/Input';
 import { Button } from '../../components/ui/Button';
 import { Toast } from '../../components/ui/Toast';
@@ -57,9 +59,21 @@ export default function SignupScreen() {
     } else {
       track(Events.SIGNUP_COMPLETED);
       setToast({ visible: true, message: t.signup.welcomeToast, type: 'success' });
-      // Auto-confirm is on, so a session exists now — finish onboarding
-      // (notification opt-in + profile save) before entering the app.
-      setTimeout(() => router.replace('/(onboarding)/notifications'), 600);
+      // Auto-confirm is on, so a session exists now. The next step is the first
+      // real meal analysis — not notifications, which now come after a result
+      // exists and so have something concrete to offer a reminder about.
+      //
+      // The stage is written before navigating so that killing the app here
+      // resumes at the camera rather than replaying the questionnaire. The
+      // write is best-effort by design: persistStage never throws and never
+      // returns a rejected promise, so a failed local or server write cannot
+      // cost the user the session they just created. Worst case the server
+      // copy is missing and resolveStage falls back to the local one; if both
+      // are missing, indexDecision routes to the questionnaire — the old
+      // behaviour, which is safe rather than broken.
+      const { data } = await supabase.auth.getUser();
+      await persistStage('analysis', data.user?.id ?? null);
+      setTimeout(() => router.replace('/photo-analysis?onboarding=1'), 600);
     }
   };
 

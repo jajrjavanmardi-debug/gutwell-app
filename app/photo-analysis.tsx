@@ -33,6 +33,7 @@ import {
 import { enqueue } from '../lib/offline-queue';
 import { canUseNativeSpeechToText } from '../lib/runtime-environment';
 import { analyzeMealPhoto, reviseMealAnalysis } from '../lib/RecommendationEngine';
+import { completeOnboarding, persistStage } from '../lib/onboarding-stage';
 import {
   extractMealName,
   extractMealTitle,
@@ -250,7 +251,34 @@ function isDifferentFoodCorrection(correction: string): boolean {
 
 export default function PhotoAnalysisScreen() {
   const t = useTranslation();
-  const params = useLocalSearchParams<{ historyId?: string }>();
+  const params = useLocalSearchParams<{ historyId?: string; onboarding?: string }>();
+  /**
+   * ── ONBOARDING MODE ──────────────────────────────────────────────────────
+   * Reached only via /photo-analysis?onboarding=1, which the signup screen
+   * navigates to. Everything mode-specific in this file keys off this one
+   * boolean and is confined to four places, all marked "ONBOARDING":
+   *   1. the Describe gate (empty description allowed)
+   *   2. the success path (first_analysis_completed + Continue CTA)
+   *   3. the failure path (counter → "Skip for now")
+   *   4. the onboarding exit (replace → notifications)
+   * When false this screen behaves exactly as it did before Phase 4.
+   */
+  const isOnboarding = params.onboarding === '1';
+  /**
+   * Genuine analysis failures only — network/backend/analysis errors thrown by
+   * runPhotoAnalysis. Cancelling the picker or leaving the screen never
+   * increments it.
+   *
+   * SESSION-SCOPED ON PURPOSE: it lives in component state, so it resets when
+   * the screen unmounts or the app restarts. A user who fails twice, quits, and
+   * comes back on a working connection should get the normal retry path, not a
+   * pre-offered escape hatch. Persisting it would make a transient outage
+   * permanently change the UI for that account, which is worse and harder to
+   * reason about. The trade-off is that a determined offline user sees the
+   * escape hatch only after two failures per launch — acceptable, because the
+   * stage keeps them resuming at the camera either way.
+   */
+  const [onboardingFailures, setOnboardingFailures] = useState(0);
   const [photoUri, setPhotoUri] = useState<string | null>(null);
   const [lastImageBase64, setLastImageBase64] = useState('');
   const [analysis, setAnalysis] = useState('');
@@ -381,6 +409,13 @@ export default function PhotoAnalysisScreen() {
   const wizardSubtitle =
     wizardStep === 1 ? t.photoAnalysis.wizardStep1Subtitle : wizardStep === 2 ? t.photoAnalysis.wizardStep2Subtitle : t.photoAnalysis.wizardStep3Subtitle;
   const canRecordFeelings = wizardStep === 2 && Boolean(photoUri && lastImageBase64);
+  /**
+   * The Describe requirement, derived once. Normal mode keeps it; the
+   * onboarding run may analyse a photo alone. Both the button's disabled state
+   * and handleGenerateAnalysis read this, so they cannot drift apart.
+   */
+  const analyzeDisabled =
+    isAnalyzing || !lastImageBase64.trim() || (!isOnboarding && !mealDescription.trim());
 
   useEffect(() => {
     if (!voiceNativeEnabled) {
@@ -631,10 +666,36 @@ export default function PhotoAnalysisScreen() {
     setToast({ visible: true, message: t.photoAnalysis.logMealSuccess, type: 'success' });
   };
 
+  /**
+   * ONBOARDING (4/4): the two ways out of the onboarding run. Both live here so
+   * the mode's navigation and completion rules are in one place rather than
+   * spread through the render tree.
+   */
+  const handleOnboardingContinue = async () => {
+    await persistStage('notifications', user?.id ?? null);
+    router.replace('/(onboarding)/notifications');
+  };
+
+  /**
+   * Escape hatch after two genuine failures. Completes onboarding without a
+   * result: no fake analysis, no invented Gut Score, no history row, no
+   * success event, and notifications are skipped entirely because there is no
+   * result to offer a reminder about. Home already has an empty state and a
+   * first-scan CTA, so the user lands somewhere usable.
+   */
+  const handleOnboardingSkipForNow = async () => {
+    await completeOnboarding(user?.id ?? null);
+    router.replace('/(tabs)');
+  };
+
   const handleGenerateAnalysis = () => {
     if (!lastImageBase64.trim() || !photoUri) return;
     const narrative = mealDescription.trim();
-    if (!narrative) {
+    // ONBOARDING (1/4): the description stays REQUIRED in the normal flow. Only
+    // the onboarding run may proceed without one, so a brand-new user can reach
+    // a real result from a photo alone. Removing this gate globally would be a
+    // separate product decision and is deliberately not made here.
+    if (!narrative && !isOnboarding) {
       Alert.alert(t.photoAnalysis.feelingsRequiredTitle, t.photoAnalysis.feelingsRequiredMessage);
       return;
     }
@@ -673,6 +734,10 @@ export default function PhotoAnalysisScreen() {
       });
       setAnalysis(rawResult);
       track(Events.FOOD_SCANNED);
+      // ONBOARDING (2/4): fired only here — after a real result exists — so it
+      // can never fire on retry failure, cancellation or "Skip for now". No
+      // payload: no meal text, image data, health values or identifiers.
+      if (isOnboarding) track(Events.FIRST_ANALYSIS_COMPLETED);
       setResultsScrollKey((key) => key + 1);
       setWizardStep(3);
       setAccuracyAnswer(null);
@@ -693,6 +758,11 @@ export default function PhotoAnalysisScreen() {
       }
     } catch (error) {
       console.error('Meal photo analysis failed:', error);
+      // ONBOARDING (3/4): only a thrown analysis error counts. Cancelling the
+      // picker or backing out never reaches this catch, so it cannot inflate
+      // the count. The stage deliberately stays 'analysis' — a failure is not
+      // progress, and the user must resume at the camera.
+      if (isOnboarding) setOnboardingFailures((n) => n + 1);
       Alert.alert(
         t.photoAnalysis.photoAnalysisFailedTitle,
         error instanceof Error ? error.message : t.photoAnalysis.photoAnalysisFailedTryAgain,
@@ -1226,12 +1296,14 @@ export default function PhotoAnalysisScreen() {
 
               <Pressable
                 onPress={handleGenerateAnalysis}
-                disabled={!mealDescription.trim() || isAnalyzing || !lastImageBase64.trim()}
+                disabled={analyzeDisabled}
                 accessibilityRole="button"
-                accessibilityLabel={t.photoAnalysis.generateAnalysis}
-                accessibilityState={{
-                  disabled: !mealDescription.trim() || isAnalyzing || !lastImageBase64.trim(),
-                }}
+                accessibilityLabel={
+                  isOnboarding && !mealDescription.trim()
+                    ? t.photoAnalysis.onboardingSkipDescription
+                    : t.photoAnalysis.generateAnalysis
+                }
+                accessibilityState={{ disabled: analyzeDisabled }}
                 style={({ pressed }) => [
                   styles.analyzeCombinedButton,
                   (!mealDescription.trim() || isAnalyzing || !lastImageBase64.trim()) &&
@@ -1244,8 +1316,30 @@ export default function PhotoAnalysisScreen() {
                 ]}
               >
                 <Ionicons name="sparkles" size={20} color="#000000" />
-                <Text style={styles.analyzeCombinedButtonText}>{t.photoAnalysis.generateAnalysis}</Text>
+                <Text style={styles.analyzeCombinedButtonText}>
+                  {isOnboarding && !mealDescription.trim()
+                    ? t.photoAnalysis.onboardingSkipDescription
+                    : t.photoAnalysis.generateAnalysis}
+                </Text>
               </Pressable>
+
+              {/* ONBOARDING: escape hatch, shown only after two genuine analysis
+                  failures so a user cannot be trapped by a persistent outage.
+                  Retry stays available above — this is additive, not a
+                  replacement. */}
+              {isOnboarding && onboardingFailures >= 2 ? (
+                <View style={styles.onboardingSkipBlock}>
+                  <Pressable
+                    onPress={() => void handleOnboardingSkipForNow()}
+                    accessibilityRole="button"
+                    accessibilityLabel={t.photoAnalysis.onboardingSkipForNow}
+                    style={({ pressed }) => [styles.onboardingSkipButton, pressed && styles.pressed]}
+                  >
+                    <Text style={styles.onboardingSkipText}>{t.photoAnalysis.onboardingSkipForNow}</Text>
+                  </Pressable>
+                  <Text style={styles.onboardingSkipHint}>{t.photoAnalysis.onboardingSkipForNowHint}</Text>
+                </View>
+              ) : null}
 
               <Pressable onPress={handleChangePhoto} style={({ pressed }) => [styles.changePhotoLink, pressed && styles.pressed]}>
                 <Text style={[styles.changePhotoLinkText]}>{t.photoAnalysis.changePhoto}</Text>
@@ -1502,6 +1596,21 @@ export default function PhotoAnalysisScreen() {
                       </Text>
                     </View>
 
+                    {/* ONBOARDING: the only exit from a successful first
+                        analysis. The result is fully rendered above — nothing
+                        auto-advances, the user chooses to continue. */}
+                    {isOnboarding ? (
+                      <Pressable
+                        onPress={() => void handleOnboardingContinue()}
+                        accessibilityRole="button"
+                        accessibilityLabel={t.photoAnalysis.onboardingContinue}
+                        style={({ pressed }) => [styles.onboardingContinueButton, pressed && styles.pressed]}
+                      >
+                        <Text style={styles.onboardingContinueText}>{t.photoAnalysis.onboardingContinue}</Text>
+                        <Ionicons name="arrow-forward" size={18} color="#0B1F14" />
+                      </Pressable>
+                    ) : null}
+
                     <View style={styles.resultActionsRow}>
                       <Pressable
                         disabled={isLoggingMeal}
@@ -1681,6 +1790,30 @@ export default function PhotoAnalysisScreen() {
 }
 
 const styles = StyleSheet.create({
+  // ── Onboarding-mode affordances (photo-analysis?onboarding=1) ─────────────
+  onboardingSkipBlock: { marginTop: 14, alignItems: 'center', gap: 6 },
+  onboardingSkipButton: { paddingVertical: 10, paddingHorizontal: 16 },
+  onboardingSkipText: { fontFamily: FontFamily.sansMedium, fontSize: 15, color: 'rgba(255,255,255,0.75)' },
+  onboardingSkipHint: {
+    fontFamily: FontFamily.sansRegular,
+    fontSize: 13,
+    lineHeight: 18,
+    color: 'rgba(255,255,255,0.5)',
+    textAlign: 'center',
+    paddingHorizontal: 16,
+  },
+  onboardingContinueButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: '#52B788',
+    borderRadius: 28,
+    paddingVertical: 16,
+    marginBottom: 12,
+  },
+  onboardingContinueText: { fontFamily: FontFamily.sansSemiBold, fontSize: 17, color: '#0B1F14' },
+
   container: {
     backgroundColor: '#000000',
     flex: 1,

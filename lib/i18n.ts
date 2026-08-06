@@ -832,6 +832,11 @@ const en = {
 
   // ── Photo Analysis ────────────────────────────────────────────────────────
   photoAnalysis: {
+    // ── Onboarding mode only (photo-analysis?onboarding=1) ──────────────────
+    onboardingSkipDescription: 'Skip and analyse the photo',
+    onboardingContinue: 'Continue',
+    onboardingSkipForNow: 'Skip for now',
+    onboardingSkipForNowHint: 'You can analyse a meal any time from the home screen.',
     back: 'Back',
     title: 'Photo Analysis',
     wizardStep1Subtitle: 'Step 1 of 3 — Capture',
@@ -2098,6 +2103,10 @@ const de: Translations = {
     accessRemoveFood: 'Aus dieser Mahlzeit entfernen',
   },
   photoAnalysis: {
+    onboardingSkipDescription: 'Überspringen und Foto analysieren',
+    onboardingContinue: 'Weiter',
+    onboardingSkipForNow: 'Vorerst überspringen',
+    onboardingSkipForNowHint: 'Du kannst jederzeit vom Startbildschirm aus eine Mahlzeit analysieren.',
     back: 'Zurück',
     title: 'Fotoanalyse',
     wizardStep1Subtitle: 'Schritt 1 von 3 — Aufnahme',
