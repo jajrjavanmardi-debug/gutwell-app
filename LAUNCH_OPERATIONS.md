@@ -157,6 +157,47 @@ Launch **free** (current code is configured for it). When ready for paid:
 2. RevenueCat: entitlement **`premium`**, offering **`current`**, packages `$rc_monthly`/`$rc_annual`
 3. Set `EXPO_PUBLIC_REVENUECAT_IOS_KEY` in the EAS build env — that single env var turns on all gates, upsells, and the paywall (with required legal links + price-derived claims already built)
 
+#### Deferred: German paywall hero wraps — **not a v1.0 blocker**
+
+The German hero line `heroLine2` wraps onto an extra line on **every** supported
+iPhone width. Measured against the real EB Garamond 700 Bold metrics at 34pt,
+including the inline 30pt leaf icon, against a content width of screen minus
+24pt padding each side (iPhone SE 327pt · iPhone 15/16 345pt · Pro Max 392pt):
+
+| String | Width | Result |
+|---|---|---|
+| `GutWell kostenlos testest` (before the rename) | 402.5pt | wraps on all widths |
+| `GutWell AI kostenlos testest` (current) | 447.5pt | wraps on all widths |
+| English `GutWell AI for free` (current) | 321.3pt | **fits** on all widths |
+
+**The German wrap pre-dates the GutWell AI rename** — it already wrapped at
+402.5pt. The rename widened an existing wrap; it did not create one. English is
+unaffected and fits on every supported width.
+
+**Why this is not a release blocker:** the paywall is **unreachable in v1.0**.
+`EXPO_PUBLIC_REVENUECAT_IOS_KEY` is unset, so `isMonetizationEnabled()` is false
+and `isPremiumFeature()` returns true for everyone (`lib/subscription.ts:185`).
+The locked states in `weekly-digest.tsx` and `progress.tsx` therefore never
+render, and `profile.tsx` gates its upsell on `isMonetizationEnabled()` directly.
+All four entry points are gated. No user can reach this screen.
+
+**Revisit when RevenueCat and StoreKit are implemented**, alongside step 3 above.
+When you do:
+
+- Final copy must be driven by **actual StoreKit trial eligibility**. The CTA
+  already does this correctly — `app/paywall.tsx:146-153` reads
+  `product.introPrice` and only offers a trial when StoreKit reports one. **Do
+  not hardcode a free-trial claim in the hero**, which renders before any
+  offering loads and would assert a trial that may not exist for that user.
+- Fixing it likely needs **both copy and layout** work, not just a shorter
+  string. German puts the verb last, so `"Wir möchten, dass du / GutWell AI
+  kostenlos testest"` cannot drop `testest` without breaking the sentence.
+  Candidate shorter strings were measured and still wrap: `Teste GutWell AI
+  kostenlos` 433.3pt, `GutWell AI kostenlos` 310.2pt — both over the 288.9pt
+  text budget on iPhone SE.
+- Do not "fix" it by shrinking the font aggressively; the hero is the screen's
+  visual anchor.
+
 ---
 
 ## Build & submit
