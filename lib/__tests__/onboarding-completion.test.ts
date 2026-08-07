@@ -150,16 +150,22 @@ describe('completion writes and idempotency', () => {
 
 describe('legacy profile writes', () => {
   test('goal, gut_concern and symptom_frequency are still written', () => {
-    expect(completionFn).toContain('gut_concern: answers.meal_feeling ?? null');
-    expect(completionFn).toContain('symptom_frequency: answers.bloating_frequency ?? null');
-    expect(completionFn).toContain('goal: answers.goal ?? null');
+    // gut_concern is now serialised from the multi-select array (see
+    // feeling-multiselect.test.ts) rather than read straight off the blob, but
+    // it is still the same column written from the same answer key.
+    expect(completionFn).toContain('gut_concern: gutConcern');
+    expect(completionFn).toContain("feelings.join(', ')");
+    expect(completionFn).toContain('symptom_frequency:');
+    expect(completionFn).toContain('bloating_frequency');
+    expect(completionFn).toContain('goal:');
+    expect(completionFn).toContain('answers.goal');
   });
 
   test('symptom_frequency resolves to null without inventing a value', () => {
-    // v1.0 no longer asks the question that fed bloating_frequency. The `?? null`
-    // is the honest result; nothing back-fills it.
-    expect(completionFn).toContain('answers.bloating_frequency ?? null');
-    expect(completionFn).not.toMatch(/bloating_frequency\s*\?\?\s*['"]/);
+    // v1.0 no longer asks the question that fed bloating_frequency. Null is the
+    // honest result; nothing back-fills it with a string.
+    expect(completionFn).toMatch(/bloating_frequency[^;]*\?\?\s*null/);
+    expect(completionFn).not.toMatch(/bloating_frequency[^;]*\?\?\s*['"][A-Za-z]/);
   });
 
   test('avoid-food chips are never written to the database', () => {

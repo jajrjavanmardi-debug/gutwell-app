@@ -79,12 +79,54 @@ const MONTHS = [
 const CURRENT_YEAR = new Date().getFullYear();
 
 /** Whether the current step has enough input to enable the Continue CTA. */
+/**
+ * Next selection for a multi-select tap, honouring mutually exclusive values.
+ *
+ * Rules, in order:
+ *   - tapping a SELECTED exclusive value does nothing. It is already the whole
+ *     answer, so deselecting it could only produce an empty selection and a
+ *     disabled CTA. An exclusive value is cleared by choosing something else,
+ *     never by unpicking it.
+ *   - tapping an unselected exclusive value replaces the selection with just it
+ *   - tapping any other value drops every exclusive value that was selected
+ *   - tapping a selected non-exclusive value toggles it off as usual
+ *
+ * Pure and exported so the interaction rules are tested directly rather than
+ * through the component.
+ */
+export function nextMultiSelect(
+  current: readonly string[],
+  tapped: string,
+  exclusiveValues: readonly string[] = [],
+): string[] {
+  const isExclusive = exclusiveValues.includes(tapped);
+  if (current.includes(tapped)) {
+    // No-op for an already-selected exclusive value; normal toggle otherwise.
+    return isExclusive ? [...current] : current.filter((v) => v !== tapped);
+  }
+  if (isExclusive) return [tapped];
+  return [...current.filter((v) => !exclusiveValues.includes(v)), tapped];
+}
+
+/**
+ * Legacy blobs stored meal_feeling as a single string. Coerce so an existing
+ * partially-completed onboarding hydrates into the multi-select without
+ * crashing, and so a resumed user keeps the answer they already gave.
+ */
+export function asSelectionArray(value: AnswerValue | undefined): string[] {
+  if (Array.isArray(value)) return value.filter((v): v is string => typeof v === 'string');
+  if (typeof value === 'string' && value.length > 0) return [value];
+  return [];
+}
+
 function canAdvance(step: OnboardingStep, value: AnswerValue | undefined): boolean {
   switch (step.type) {
     case 'single-select':
       return typeof value === 'string' && value.length > 0;
     case 'multi-select':
-      return step.optional || (Array.isArray(value) && value.length > 0);
+      // asSelectionArray so a legacy scalar counts as one answer rather than
+      // stranding a resuming user on a CTA that will not enable.
+      return step.optional || asSelectionArray(value).length > 0;
     case 'wheel':
     case 'ruler':
       return value !== undefined; // pickers always hold a value
@@ -408,25 +450,35 @@ function ScrollableStep({ step, value, onSetField, answers }: StepContentProps) 
       {step.type === 'multi-select' ? (
         <View style={styles.options}>
           {step.options.map((opt) => {
-            const list = Array.isArray(value) ? value : [];
+            const list = asSelectionArray(value);
             const selected = list.includes(opt.value);
+            const oc = optionCopy(copy, opt);
             const icon = opt.icon ? (
               <Ionicons name={opt.icon} size={22} color={selected ? '#52B788' : '#FFFFFF'} />
             ) : undefined;
-            return (
-              <OptionRow
+            const onPress = () =>
+              onSetField(step.field, nextMultiSelect(list, opt.value, step.exclusiveValues));
+            // Honours `variant` exactly as single-select does, so a step can be
+            // multi-select without losing the card design it was approved with.
+            return step.variant === 'card' ? (
+              <OptionCard
                 key={opt.value}
-                label={opt.label}
-                description={opt.description}
+                title={oc.label}
+                subtitle={oc.description}
                 icon={icon}
                 multiSelect
                 selected={selected}
-                onPress={() => {
-                  const next = selected
-                    ? list.filter((v) => v !== opt.value)
-                    : [...list, opt.value];
-                  onSetField(step.field, next);
-                }}
+                onPress={onPress}
+              />
+            ) : (
+              <OptionRow
+                key={opt.value}
+                label={oc.label}
+                description={oc.description}
+                icon={icon}
+                multiSelect
+                selected={selected}
+                onPress={onPress}
               />
             );
           })}

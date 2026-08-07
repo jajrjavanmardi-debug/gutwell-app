@@ -337,7 +337,14 @@ export default function PhotoAnalysisScreen() {
     (async () => {
       const conditions = new Set<string>();
       if (profile?.gut_concern?.trim()) {
-        conditions.add(profile.gut_concern.trim().replace(/_/g, ' '));
+        // gut_concern holds one feeling ("Bloated") or several, comma-separated
+        // ("Bloated, Heavy"). Split so each reaches the model as its own
+        // condition rather than one run-together phrase. A legacy scalar has no
+        // comma and so splits to itself — unchanged behaviour for existing rows.
+        for (const part of profile.gut_concern.split(',')) {
+          const condition = part.trim().replace(/_/g, ' ');
+          if (condition) conditions.add(condition);
+        }
       }
       try {
         const { data } = await supabase

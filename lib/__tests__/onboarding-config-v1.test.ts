@@ -32,8 +32,11 @@ describe('active flow shape', () => {
   });
 
   test('every active step is an answerable question — no interstitials', () => {
+    // Goal stays single-select; the feeling step became multi-select so
+    // co-occurring post-meal experiences are not discarded. Neither is an
+    // interstitial — both require an answer.
     for (const step of ONBOARDING_STEPS) {
-      expect(step.type).toBe('single-select');
+      expect(['single-select', 'multi-select']).toContain(step.type);
       expect('field' in step && step.field).toBeTruthy();
     }
   });
