@@ -26,6 +26,7 @@ import { OptionCard } from '../../components/ui/OptionCard';
 import { WheelPicker, type WheelPickerOption } from '../../components/ui/WheelPicker';
 import { RulerSlider } from '../../components/ui/RulerSlider';
 import { useTranslation } from '../../lib/i18n';
+import LanguageSwitcher from '../../components/LanguageSwitcher';
 import { saveLocalStage } from '../../lib/onboarding-stage';
 import {
   ONBOARDING_STEPS,
@@ -237,6 +238,10 @@ export default function QuestionsScreen() {
                 fillColor="#52B788"
               />
             </View>
+            {/* Covers BOTH question steps — this screen is the stepper, so the
+                switcher is reachable on the goal step and the feeling step.
+                Outside the ScrollView, so it stays put as content scrolls. */}
+            <LanguageSwitcher />
           </View>
         </SafeAreaView>
 
@@ -724,6 +729,9 @@ const styles = StyleSheet.create({
   },
   progressWrap: {
     flex: 1,
+    // Yields width to the language chip when accessibility text sizes grow it,
+    // so the header never pushes the switcher out of reach.
+    flexShrink: 1,
   },
   body: {
     flex: 1,

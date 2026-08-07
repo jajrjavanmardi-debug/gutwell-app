@@ -27,6 +27,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { FontFamily } from '../../constants/theme';
 import { useTranslation } from '../../lib/i18n';
 import { saveLocalStage } from '../../lib/onboarding-stage';
+import LanguageSwitcher from '../../components/LanguageSwitcher';
 
 export default function ExampleScreen() {
   const t = useTranslation();
@@ -71,6 +72,12 @@ export default function ExampleScreen() {
       <LinearGradient colors={['#0B1F14', '#1B4332']} style={StyleSheet.absoluteFill} />
 
       <SafeAreaView edges={['top']} style={styles.flex}>
+        {/* Language stays changeable right up until the account is created.
+            Sits above the ScrollView so it remains reachable while reading. */}
+        <View style={styles.topBar}>
+          <LanguageSwitcher />
+        </View>
+
         {/* Scrolls rather than shrinks: four sections plus the disclaimer do not
             fit an iPhone SE at larger Dynamic Type sizes, and clipping safety
             copy would be worse than a scroll. */}
@@ -153,6 +160,7 @@ export default function ExampleScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#0B1F14' },
   flex: { flex: 1 },
+  topBar: { flexDirection: 'row', justifyContent: 'flex-end', paddingHorizontal: 24, paddingTop: 8 },
   scrollContent: { paddingHorizontal: 24, paddingTop: 16, paddingBottom: 24 },
 
   labelPill: {

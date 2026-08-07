@@ -1,8 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import {
   Animated,
-  Modal,
-  Pressable,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -16,11 +14,10 @@ import { StatusBar } from 'expo-status-bar';
 import { useAuth } from '../../contexts/AuthContext';
 import { FontFamily } from '../../constants/theme';
 import StarFieldBackground from '../../components/StarFieldBackground';
+import LanguageSwitcher from '../../components/LanguageSwitcher';
 import { track, Events } from '../../lib/analytics';
 import { useTranslation } from '../../lib/i18n';
-import { useLanguage } from '../../lib/LanguageContext';
 import { saveLocalStage } from '../../lib/onboarding-stage';
-import { LANGUAGE_LABELS, SUPPORTED_LANGUAGES, type AppLanguage } from '../../lib/language';
 
 // Taglines come from i18n (t.welcome.taglines) and cycle in the authored order.
 // Display + both fades land each message at ~2.8s, inside the 2.5–3s target.
@@ -34,19 +31,6 @@ export default function WelcomeScreen() {
   // away from here — the user must explicitly choose Create Account or Sign In.
   useAuth();
   const t = useTranslation();
-
-  // Reuses the app-wide LanguageContext — the same source Settings writes to.
-  // No second language-management implementation is introduced here.
-  const { language, setLanguage } = useLanguage();
-  const [languageMenuOpen, setLanguageMenuOpen] = useState(false);
-
-  const handleSelectLanguage = async (next: AppLanguage) => {
-    setLanguageMenuOpen(false);
-    if (next === language) return;
-    // setLanguage persists via saveLanguage() and re-renders the whole tree,
-    // so this screen updates immediately and the choice survives a restart.
-    await setLanguage(next);
-  };
 
   const [taglineIndex, setTaglineIndex] = useState(0);
   const taglineOpacity = useRef(new Animated.Value(1)).current;
@@ -102,68 +86,9 @@ export default function WelcomeScreen() {
           the brand mark or the hero message below. */}
       <SafeAreaView edges={['top']} style={styles.topSafe}>
         <View style={styles.topBar}>
-          <TouchableOpacity
-            style={styles.languageChip}
-            onPress={() => setLanguageMenuOpen(true)}
-            activeOpacity={0.75}
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-            accessibilityRole="button"
-            accessibilityLabel={`${t.welcome.languageLabel}: ${LANGUAGE_LABELS[language]}`}
-            accessibilityHint={t.welcome.accessLanguageHint}
-          >
-            <Ionicons name="globe-outline" size={15} color="rgba(255,255,255,0.75)" />
-            <Text style={styles.languageChipText}>{language.toUpperCase()}</Text>
-          </TouchableOpacity>
+          <LanguageSwitcher />
         </View>
       </SafeAreaView>
-
-      {/* Language menu */}
-      <Modal
-        visible={languageMenuOpen}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setLanguageMenuOpen(false)}
-      >
-        <Pressable
-          style={styles.menuBackdrop}
-          onPress={() => setLanguageMenuOpen(false)}
-          accessibilityRole="button"
-          accessibilityLabel={t.common.close}
-        >
-          {/* Stops a tap inside the card from dismissing the menu. */}
-          <Pressable
-            style={styles.menuCard}
-            onPress={() => {}}
-            // Keeps VoiceOver focus inside the card so the options are reached
-            // before the backdrop's dismiss action.
-            accessibilityViewIsModal
-          >
-            <Text style={styles.menuTitle}>{t.welcome.languageModalTitle}</Text>
-            {SUPPORTED_LANGUAGES.map((lang, idx) => {
-              const selected = lang === language;
-              return (
-                <TouchableOpacity
-                  key={lang}
-                  style={[styles.menuOption, idx > 0 && styles.menuOptionBorder]}
-                  onPress={() => handleSelectLanguage(lang)}
-                  activeOpacity={0.7}
-                  accessibilityRole="button"
-                  accessibilityState={{ selected }}
-                  accessibilityLabel={LANGUAGE_LABELS[lang]}
-                  accessibilityHint={t.welcome.accessLanguageOptionHint}
-                >
-                  <Text style={[styles.menuOptionText, selected && styles.menuOptionTextSelected]}>
-                    {LANGUAGE_LABELS[lang]}
-                  </Text>
-                  {selected && (
-                    <Ionicons name="checkmark" size={18} color="#52B788" />
-                  )}
-                </TouchableOpacity>
-              );
-            })}
-          </Pressable>
-        </Pressable>
-      </Modal>
 
       {/* Center content */}
       <View style={styles.centerContent}>
@@ -277,71 +202,6 @@ const styles = StyleSheet.create({
     // Island / notch rather than from the physical top edge.
     paddingTop: 14,
     paddingBottom: 4,
-  },
-  languageChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    // 44pt minimum touch target (Apple HIG) without a bulky visual footprint.
-    minHeight: 44,
-    minWidth: 44,
-    paddingHorizontal: 12,
-    borderRadius: 18,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.22)',
-    backgroundColor: 'rgba(255,255,255,0.08)',
-  },
-  languageChipText: {
-    fontFamily: FontFamily.sansSemiBold,
-    fontSize: 13,
-    color: 'rgba(255,255,255,0.85)',
-    letterSpacing: 0.5,
-  },
-  menuBackdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.55)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 32,
-  },
-  menuCard: {
-    width: '100%',
-    maxWidth: 320,
-    borderRadius: 20,
-    backgroundColor: '#12301F',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.14)',
-    paddingVertical: 8,
-  },
-  menuTitle: {
-    fontFamily: FontFamily.sansSemiBold,
-    fontSize: 13,
-    color: 'rgba(255,255,255,0.5)',
-    letterSpacing: 0.4,
-    paddingHorizontal: 20,
-    paddingTop: 12,
-    paddingBottom: 8,
-  },
-  menuOption: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    minHeight: 52,
-    paddingHorizontal: 20,
-  },
-  menuOptionBorder: {
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(255,255,255,0.08)',
-  },
-  menuOptionText: {
-    fontFamily: FontFamily.sansMedium,
-    fontSize: 16,
-    color: 'rgba(255,255,255,0.85)',
-  },
-  menuOptionTextSelected: {
-    fontFamily: FontFamily.sansSemiBold,
-    color: '#FFFFFF',
   },
   centerContent: {
     flex: 1,
