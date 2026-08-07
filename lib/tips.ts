@@ -180,6 +180,76 @@ function getDayOfYear(): number {
   );
 }
 
+/* ──────────────────────────────────────────────────────────────────────────
+ * Canonical value resolution
+ *
+ * The two maps above were written for an older onboarding whose stored values
+ * were snake_case clinical terms ("bloating", "ibs", "reduce_bloating"). The
+ * v1.0 flow stores Title Case option identifiers instead ("Bloated",
+ * "Reduce bloating"), so an exact lookup matched NOTHING: every user fell
+ * through to the generic tip and personalisation was silently dead.
+ *
+ * Two separate mismatches had to be fixed, not one:
+ *   format     — snake_case keys vs "Title Case with spaces"
+ *   vocabulary — the maps describe CONDITIONS (ibs, acid_reflux) while the
+ *                feeling step records EXPERIENCES (Bloated, Heavy)
+ *
+ * Normalising alone recovers only the two goals that happen to land on an
+ * existing key, so the canonical map below carries the shipped vocabulary and
+ * is consulted first. The legacy maps remain the fallback, so any older row
+ * keeps working untouched — this is a read-time fix with no migration, no
+ * backfill and no change to persisted data.
+ * ────────────────────────────────────────────────────────────────────────── */
+
+/** Trim, lowercase, spaces to underscores. Safe on any string. */
+export function canonicalKey(value: string): string {
+  return value.trim().toLowerCase().replace(/\s+/g, '_');
+}
+
+/**
+ * The values v1.0 onboarding actually stores, mapped to tip tags.
+ *
+ * Keys are the stable option identifiers, never the translated labels — 'Heavy'
+ * renders as "Heavy or sluggish" in English and "Schwer oder träge" in German,
+ * but the stored value is the same either way. Personalisation is therefore
+ * identical in both languages.
+ */
+const CANONICAL_TAG_MAP: Record<string, TipTag[]> = {
+  // Goal step
+  reduce_bloating: ['bloating', 'digestion'],
+  improve_digestion: ['digestion', 'general'],
+  find_food_triggers: ['digestion', 'bloating'],
+  improve_everyday_wellbeing: ['general', 'digestion'],
+  // After-meal feeling step
+  bloated: ['bloating', 'digestion'],
+  heavy: ['digestion', 'general'],
+  comfortable: ['general'],
+  it_varies: ['general'],
+};
+
+/**
+ * Resolve one stored field to tip tags.
+ *
+ * gut_concern may hold several comma-separated feelings since the feeling step
+ * became multi-select ("Bloated, Heavy"), so each part is resolved
+ * independently — the same treatment photo-analysis.tsx already gives it.
+ * Unknown parts contribute nothing rather than guessing.
+ */
+export function resolveTags(
+  raw: string | null | undefined,
+  legacyMap: Record<string, TipTag[]>,
+): TipTag[] {
+  if (!raw) return [];
+  const resolved: TipTag[] = [];
+  for (const part of raw.split(',')) {
+    const key = canonicalKey(part);
+    if (!key) continue;
+    const tags = CANONICAL_TAG_MAP[key] ?? legacyMap[key];
+    if (tags) resolved.push(...tags);
+  }
+  return resolved;
+}
+
 export function getTodaysTip(): WellnessTip {
   const dayOfYear = getDayOfYear();
   return TIPS[dayOfYear % TIPS.length];
@@ -192,15 +262,11 @@ export function getPersonalizedTip(
   // Build set of relevant tags from profile data
   const relevantTags = new Set<TipTag>();
 
-  if (gutConcern) {
-    const tags = GUT_CONCERN_TAG_MAP[gutConcern.toLowerCase()];
-    tags?.forEach(t => relevantTags.add(t));
-  }
-
-  if (goal) {
-    const tags = GOAL_TAG_MAP[goal.toLowerCase()];
-    tags?.forEach(t => relevantTags.add(t));
-  }
+  // The Set deduplicates: a user whose goal is "Reduce bloating" and whose
+  // feeling is "Bloated" resolves the same tags twice, which must not skew
+  // which tips are eligible.
+  resolveTags(gutConcern, GUT_CONCERN_TAG_MAP).forEach(t => relevantTags.add(t));
+  resolveTags(goal, GOAL_TAG_MAP).forEach(t => relevantTags.add(t));
 
   // No profile data or no matching mappings — fall back
   if (relevantTags.size === 0) {
