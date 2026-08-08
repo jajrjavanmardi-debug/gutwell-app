@@ -186,13 +186,9 @@ const en = {
     photoAlt: 'The meal you photographed',
     disclaimer: 'General wellness information, not a diagnosis.',
   },
+
   welcome: {
-    // Three concrete mechanism lines. They replace the cycling marketing
-    // taglines: stating how the product works earns more trust on first run
-    // than a benefit claim, and it makes no health promise.
-    valuePoints: ['Scan meals', 'AI analyses them', 'Discover possible patterns'],
     appName: 'GutWell AI',
-    headline: 'Welcome to GutWell AI',
     createAccount: 'Create Account',
     signIn: 'Sign In',
     // Split into segments so Terms and Privacy render as tappable links.
@@ -212,15 +208,44 @@ const en = {
     accessLanguageHint: 'Opens a menu to choose the app language',
     languageModalTitle: 'Choose language',
     accessLanguageOptionHint: 'Sets the app language',
-    taglines: [
-      'Track your gut health.',
-      'Understand your gut.',
-      'Notice possible patterns.',
-      'Find your triggers.',
-      'Build healthier habits.',
-      'Feel your best.',
-      'Enjoy your meals.',
-    ],
+    // ── Story Experience ────────────────────────────────────────────────────
+    // Four manually-swiped frames, replacing the cycling taglines and the
+    // three value points. The arc is uncertainty → understanding → learning →
+    // confidence, and each frame's copy sits below its image, never over it.
+    //
+    // `alt` is the VoiceOver scene description. It says what is pictured and
+    // never what the app does: GutWell records meals, notes and check-ins, and
+    // does not track driving, work, study, exercise or walking. Describing
+    // those as anything but the person's own considerations would claim
+    // functionality that does not exist.
+    story: {
+      a11yCarouselLabel: 'Introduction story',
+      a11yCarouselHint: 'Swipe up or down to move between frames',
+      // {current} and {total} are substituted at render.
+      positionFormat: '{current} of {total}',
+      frames: [
+        {
+          title: 'Which foods work for you?',
+          body: 'Every body reacts differently.',
+          alt: 'A woman in a sunlit kitchen looking at several everyday meals in front of her, thinking about what the rest of her day involves.',
+        },
+        {
+          title: 'AI explains your meals',
+          body: 'Scan. Understand. Learn.',
+          alt: 'The same woman photographing an ordinary meal with her phone to have it explained.',
+        },
+        {
+          title: 'Understand. Choose better.',
+          body: 'Possible triggers. Better swaps.',
+          alt: 'The same woman choosing between two everyday meals, at ease, her phone set aside.',
+        },
+        {
+          title: 'See your patterns over time',
+          body: 'Track what may affect you.',
+          alt: 'The same woman sitting calmly, looking back over the meals she has recorded.',
+        },
+      ],
+    },
   },
 
   // ── Onboarding — Features ─────────────────────────────────────────────────
@@ -1515,10 +1540,9 @@ const de: Translations = {
     photoAlt: 'Die Mahlzeit, die du fotografiert hast',
     disclaimer: 'Allgemeine Informationen zum Wohlbefinden, keine Diagnose.',
   },
+
   welcome: {
-    valuePoints: ['Mahlzeiten scannen', 'Die KI analysiert sie', 'Mögliche Muster entdecken'],
     appName: 'GutWell AI',
-    headline: 'Willkommen bei GutWell AI',
     createAccount: 'Konto erstellen',
     signIn: 'Anmelden',
     legalPrefix: 'Mit der Nutzung stimmst du unseren',
@@ -1534,19 +1558,34 @@ const de: Translations = {
     accessLanguageHint: 'Öffnet ein Menü zur Auswahl der App-Sprache',
     languageModalTitle: 'Sprache wählen',
     accessLanguageOptionHint: 'Legt die App-Sprache fest',
-    // Shortened for the 327pt of tagline width available on a 375pt iPhone.
-    // The longest of these measures 81.5% of that; the previous set had one
-    // outright overflow (104%) and three above 92%. Order and meaning match
-    // the English sequence; "mögliche" is kept for cautious wording.
-    taglines: [
-      'Behalte deinen Darm im Blick.',
-      'Verstehe deinen Darm.',
-      'Erkenne mögliche Muster.',
-      'Finde deine Auslöser.',
-      'Entwickle gesündere Routinen.',
-      'Fühl dich rundum wohl.',
-      'Genieße deine Mahlzeiten.',
-    ],
+    // See the English block for why `alt` never describes tracking.
+    story: {
+      a11yCarouselLabel: 'Einführungsgeschichte',
+      a11yCarouselHint: 'Wische nach oben oder unten, um zwischen den Bildern zu wechseln',
+      positionFormat: '{current} von {total}',
+      frames: [
+        {
+          title: 'Welche Lebensmittel passen zu dir?',
+          body: 'Jeder Körper reagiert anders.',
+          alt: 'Eine Frau in einer sonnigen Küche betrachtet mehrere alltägliche Mahlzeiten vor sich und überlegt, was der restliche Tag noch bringt.',
+        },
+        {
+          title: 'Die KI erklärt deine Mahlzeiten',
+          body: 'Scannen. Verstehen. Lernen.',
+          alt: 'Dieselbe Frau fotografiert eine ganz normale Mahlzeit mit ihrem Handy, um sie erklärt zu bekommen.',
+        },
+        {
+          title: 'Verstehen. Besser wählen.',
+          body: 'Mögliche Auslöser. Bessere Alternativen.',
+          alt: 'Dieselbe Frau wählt gelassen zwischen zwei alltäglichen Mahlzeiten, ihr Handy liegt zur Seite gelegt.',
+        },
+        {
+          title: 'Erkenne deine Muster mit der Zeit',
+          body: 'Verfolge, was dich beeinflussen kann.',
+          alt: 'Dieselbe Frau sitzt entspannt da und schaut sich die Mahlzeiten an, die sie festgehalten hat.',
+        },
+      ],
+    },
   },
   features: {
     continue: 'Weiter',
