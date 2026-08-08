@@ -83,8 +83,43 @@ describe('extractMealName (R2)', () => {
 });
 
 describe('extractMealTitle', () => {
-  it('strips "You had" preamble', () => {
-    expect(extractMealTitle('You had fried fish with a dip and a Coca-Cola.')).toBe('Fried fish with a dip and a Coca-Cola');
+  it('strips "You had" preamble and keeps only the dish', () => {
+    // Was "Fried fish with a dip and a Coca-Cola" — a sentence, not a title.
+    expect(extractMealTitle('You had fried fish with a dip and a Coca-Cola.')).toBe('Fried fish');
+  });
+
+  it('is only ever the meal, never an explanation', () => {
+    const cases: [string, string][] = [
+      ['You had some pizza with cheese and tomato, which is quite rich.', 'Pizza'],
+      ['This is a Mediterranean bowl with hummus, falafel and pickles.', 'Mediterranean bowl'],
+      ['It looks like you enjoyed a chicken salad.', 'Chicken salad'],
+      ['The meal shows grilled salmon, served with new potatoes.', 'Grilled salmon'],
+      // A composite meal keeps its components when they fit — still a name,
+      // not an explanation. The em-dash aside is what gets dropped.
+      ['You ate a croissant and a latte — a light breakfast.', 'Croissant and a latte'],
+      ['This appears to be pizza that is topped with pepperoni.', 'Pizza'],
+    ];
+    for (const [input, expected] of cases) {
+      expect(`${input} -> ${extractMealTitle(input)}`).toBe(`${input} -> ${expected}`);
+    }
+  });
+
+  it('never ends on a dangling article or conjunction', () => {
+    for (const input of [
+      'You had fried fish with a dip and a Coca-Cola.',
+      'A very long meal description that exceeds the limit and then some',
+      'You had bread and',
+    ]) {
+      expect(extractMealTitle(input)).not.toMatch(/\b(a|an|the|and|or|with|of|plus)$/i);
+    }
+  });
+
+  it('never carries symptom or explanation text into the title', () => {
+    const title = extractMealTitle(
+      'You had a cheese pizza, which may cause bloating and discomfort for you.',
+    );
+    expect(title).toBe('Cheese pizza');
+    expect(title).not.toMatch(/bloating|discomfort|may cause/i);
   });
 
   it('strips "This looks like a meal of" preamble', () => {

@@ -173,7 +173,10 @@ describe('photo-analysis onboarding mode', () => {
   });
 
   test('the success event fires only in onboarding mode and only after a result', () => {
-    expect(PHOTO).toContain('if (isOnboarding) track(Events.FIRST_ANALYSIS_COMPLETED);');
+    // Now inside a block that also mints the stable auto-log key, but still
+    // guarded by isOnboarding and still after the result exists.
+    expect(PHOTO).toContain('track(Events.FIRST_ANALYSIS_COMPLETED);');
+    expect(PHOTO).toContain('if (isOnboarding) {');
     const resultAt = PHOTO.indexOf('setAnalysis(rawResult);');
     const eventAt = PHOTO.indexOf('FIRST_ANALYSIS_COMPLETED');
     expect(resultAt).toBeGreaterThan(-1);
@@ -188,7 +191,22 @@ describe('photo-analysis onboarding mode', () => {
 
   test('failures are counted only from the analysis catch block', () => {
     expect(PHOTO).toContain('if (isOnboarding) setOnboardingFailures((n) => n + 1);');
-    expect(PHOTO.match(/setOnboardingFailures/g)).toHaveLength(2); // declaration + one increment
+    // declaration + one increment + the reset below
+    expect(PHOTO.match(/setOnboardingFailures/g)).toHaveLength(3);
+  });
+
+  test('a successful analysis clears the failure count, retiring the escape hatch', () => {
+    // The counter used to only ever grow, so once the "Having trouble?" block
+    // appeared it stayed for the session — visible beneath a result that had
+    // just succeeded, which reads as an error the app never cleared.
+    expect(PHOTO).toContain('setOnboardingFailures(0);');
+    const resetAt = PHOTO.indexOf('setOnboardingFailures(0);');
+    const resultAt = PHOTO.indexOf('setAnalysis(rawResult);');
+    expect(resultAt).toBeGreaterThan(-1);
+    // Reset sits on the success path, after a real result exists.
+    expect(resetAt).toBeGreaterThan(resultAt);
+    // …and never inside the catch block that counts failures.
+    expect(PHOTO.indexOf('setOnboardingFailures((n) => n + 1)')).toBeGreaterThan(resetAt);
   });
 
   test('the escape hatch appears only after two genuine failures', () => {
@@ -258,7 +276,9 @@ describe('normal photo-analysis path is unchanged', () => {
   test('onboarding UI is gated on the flag in every render branch', () => {
     for (const marker of [
       'isOnboarding && onboardingFailures >= 2',
-      '{isOnboarding ? (',
+      // The Continue button moved into the concise onboarding branch when the
+      // first-result presentation was split from the normal one.
+      'wizardStep === 3 && isOnboarding',
       'isOnboarding && !mealDescription.trim()',
     ]) {
       expect(PHOTO).toContain(marker);

@@ -18,21 +18,33 @@ export function Toast({ message, type = 'success', visible, onDismiss, duration 
   const opacity = useRef(new Animated.Value(0)).current;
   const translateY = useRef(new Animated.Value(-20)).current;
 
+  // Held in a ref so the effect below can depend on what the toast SAYS
+  // without also re-running every time the parent re-renders and hands us a
+  // fresh inline arrow.
+  const dismissRef = useRef(onDismiss);
+  dismissRef.current = onDismiss;
+
   useEffect(() => {
-    if (visible) {
+    if (!visible) return;
+    // `message` and `type` are dependencies on purpose. A second toast raised
+    // while the first is still on screen leaves `visible` true throughout, so
+    // keying only on `visible` meant the new message inherited the old timer —
+    // and if the first had already faded out, it never reappeared at all. The
+    // values are reset here so every toast gets a full show-and-dismiss cycle.
+    opacity.setValue(0);
+    translateY.setValue(-20);
+    Animated.parallel([
+      Animated.timing(opacity, { toValue: 1, duration: 300, useNativeDriver: true }),
+      Animated.timing(translateY, { toValue: 0, duration: 300, useNativeDriver: true }),
+    ]).start();
+    const timer = setTimeout(() => {
       Animated.parallel([
-        Animated.timing(opacity, { toValue: 1, duration: 300, useNativeDriver: true }),
-        Animated.timing(translateY, { toValue: 0, duration: 300, useNativeDriver: true }),
-      ]).start();
-      const timer = setTimeout(() => {
-        Animated.parallel([
-          Animated.timing(opacity, { toValue: 0, duration: 300, useNativeDriver: true }),
-          Animated.timing(translateY, { toValue: -20, duration: 300, useNativeDriver: true }),
-        ]).start(onDismiss);
-      }, duration);
-      return () => clearTimeout(timer);
-    }
-  }, [visible]);
+        Animated.timing(opacity, { toValue: 0, duration: 300, useNativeDriver: true }),
+        Animated.timing(translateY, { toValue: -20, duration: 300, useNativeDriver: true }),
+      ]).start(() => dismissRef.current());
+    }, duration);
+    return () => clearTimeout(timer);
+  }, [visible, message, type, duration, opacity, translateY]);
 
   if (!visible) return null;
 

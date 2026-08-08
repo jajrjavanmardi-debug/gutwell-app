@@ -30,10 +30,13 @@ import {
   teardownExpoSpeechRecognition,
   tryStartExpoSpeechRecognition,
 } from '../lib/meal-voice-session';
-import { enqueue } from '../lib/offline-queue';
 import { canUseNativeSpeechToText } from '../lib/runtime-environment';
 import { analyzeMealPhoto, reviseMealAnalysis } from '../lib/RecommendationEngine';
 import { completeOnboarding, persistStage } from '../lib/onboarding-stage';
+import * as Sentry from '@sentry/react-native';
+import { saveMealLog } from '../lib/meal-log';
+import { parseAnalysisSections } from '../lib/analysis-sections';
+import AnalysisResult from '../components/AnalysisResult';
 import {
   extractMealName,
   extractMealTitle,
@@ -279,6 +282,14 @@ export default function PhotoAnalysisScreen() {
    * stage keeps them resuming at the camera either way.
    */
   const [onboardingFailures, setOnboardingFailures] = useState(0);
+  /**
+   * Stable per successful analysis, so the onboarding auto-log upserts on the
+   * existing (user_id, client_uuid) unique index. Minted once when the result
+   * arrives — generating it per tap would defeat the constraint.
+   */
+  const onboardingLogKeyRef = useRef<string | null>(null);
+  /** Prevents a double tap firing two writes, as notifications.tsx does. */
+  const continuingRef = useRef(false);
   const [photoUri, setPhotoUri] = useState<string | null>(null);
   const [lastImageBase64, setLastImageBase64] = useState('');
   const [analysis, setAnalysis] = useState('');
@@ -640,36 +651,27 @@ export default function PhotoAnalysisScreen() {
       return;
     }
 
-    const mealName = extractMealName(analysis).trim().slice(0, 200) || t.photoAnalysis.photoMealDefault;
-
-    const payload = {
-      user_id: user.id,
-      meal_name: mealName,
-      meal_type: getMealTypeForClock(),
-      foods: null as string[] | null,
-      note: `${sanitizeMealScoring(analysis).slice(0, 600)}`,
-      logged_at: new Date().toISOString(),
-    };
-
     setIsLoggingMeal(true);
-    const { error } = await supabase.from('food_logs').insert(payload);
+    // Shared write (lib/meal-log.ts) so the payload shape exists once. No
+    // clientUuid here on purpose: a user who taps Log meal twice is expressing
+    // intent twice, and omitting it preserves the pre-existing insert
+    // behaviour exactly. Only the silent onboarding auto-log dedupes.
+    const result = await saveMealLog({
+      userId: user.id,
+      mealName: extractMealName(analysis) || t.photoAnalysis.photoMealDefault,
+      mealType: getMealTypeForClock(),
+      note: sanitizeMealScoring(analysis),
+    });
     setIsLoggingMeal(false);
 
-    if (error) {
-      if (
-        error.message?.includes('network') ||
-        error.message?.includes('Network') ||
-        error.code === 'PGRST301' ||
-        !error.code
-      ) {
-        await enqueue('food_logs', payload);
-        setToast({ visible: true, message: t.photoAnalysis.logMealOffline, type: 'info' });
-      } else {
-        setToast({ visible: true, message: t.photoAnalysis.logMealFailed, type: 'error' });
-      }
+    if (result.status === 'queued') {
+      setToast({ visible: true, message: t.photoAnalysis.logMealOffline, type: 'info' });
       return;
     }
-
+    if (result.status === 'failed') {
+      setToast({ visible: true, message: t.photoAnalysis.logMealFailed, type: 'error' });
+      return;
+    }
     setToast({ visible: true, message: t.photoAnalysis.logMealSuccess, type: 'success' });
   };
 
@@ -679,6 +681,28 @@ export default function PhotoAnalysisScreen() {
    * spread through the render tree.
    */
   const handleOnboardingContinue = async () => {
+    if (continuingRef.current) return;
+    continuingRef.current = true;
+
+    // The Log meal button is hidden in onboarding, so the meal is persisted
+    // here instead — otherwise a user would finish onboarding having seen a
+    // real analysis and land on an empty Home. Silent by design: no toast, no
+    // spinner, nothing that flashes while the screen is being replaced.
+    if (user && analysis) {
+      const result = await saveMealLog({
+        userId: user.id,
+        mealName: extractMealName(analysis) || t.photoAnalysis.photoMealDefault,
+        mealType: getMealTypeForClock(),
+        note: sanitizeMealScoring(analysis),
+        clientUuid: onboardingLogKeyRef.current ?? undefined,
+      });
+      if (result.status === 'failed') {
+        // Reported, then ignored for navigation. A missing meal row is a far
+        // better outcome than stranding the user at the end of onboarding.
+        Sentry.captureException(result.error, { tags: { context: 'onboarding_meal_autolog' } });
+      }
+    }
+
     await persistStage('notifications', user?.id ?? null);
     router.replace('/(onboarding)/notifications');
   };
@@ -740,11 +764,21 @@ export default function PhotoAnalysisScreen() {
         } : undefined,
       });
       setAnalysis(rawResult);
+      // A success clears the failure history. Without this the counter only
+      // ever grew, so the "Having trouble?" escape hatch stayed on screen for
+      // the rest of the session — including underneath a result that had just
+      // succeeded, which reads as the app still reporting an error.
+      setOnboardingFailures(0);
       track(Events.FOOD_SCANNED);
       // ONBOARDING (2/4): fired only here — after a real result exists — so it
       // can never fire on retry failure, cancellation or "Skip for now". No
       // payload: no meal text, image data, health values or identifiers.
-      if (isOnboarding) track(Events.FIRST_ANALYSIS_COMPLETED);
+      if (isOnboarding) {
+        track(Events.FIRST_ANALYSIS_COMPLETED);
+        // One key per result: a retry that produces a NEW analysis gets a new
+        // key and is legitimately a different meal.
+        onboardingLogKeyRef.current = `onboarding-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+      }
       setResultsScrollKey((key) => key + 1);
       setWizardStep(3);
       setAccuracyAnswer(null);
@@ -1110,6 +1144,90 @@ export default function PhotoAnalysisScreen() {
 
   const insets = useSafeAreaInsets();
 
+  /*
+   * ── Onboarding first-result derivations ───────────────────────────────────
+   * Only meaningful in onboarding mode; the normal result below reads none of
+   * them and is byte-for-byte unchanged.
+   */
+  const onboardingSections = parseAnalysisSections(isOnboarding ? analysis : '');
+
+  /**
+   * Profile context as one line, or '' when the profile carries nothing.
+   *
+   * Deliberately computed separately from the normal result's own inline
+   * version rather than refactoring that one to share it: the normal surface
+   * is out of scope for this change, and it needs an "empty" fallback string
+   * that onboarding must not show. Here, no context simply means no row.
+   */
+  const onboardingProfileLine = (() => {
+    const parts: string[] = [];
+    if (gutProfileContext.gutScore != null) {
+      parts.push(`${t.photoAnalysis.profileContextScore} ${gutProfileContext.gutScore}/10`);
+    }
+    if (gutProfileContext.conditions.length > 0) {
+      parts.push(gutProfileContext.conditions.join(', '));
+    }
+    return parts.length > 0
+      ? `${t.photoAnalysis.profileContextPrefix}${parts.join(' · ')}`
+      : '';
+  })();
+
+  const onboardingPlanB = planBMessage ? sanitizeAnalysisForDisplay(planBMessage) : '';
+
+  /**
+   * "More detail" for the first result — strictly what the concise surface does
+   * not already show.
+   *
+   * This previously re-rendered the entire raw reply, which made the disclosure
+   * a duplicate of the three sections directly above it. Now it carries only
+   * profile context, any preamble the model emitted before its first heading,
+   * and Plan B.
+   *
+   * `undefined` when none of those exist, so the affordance disappears instead
+   * of opening onto nothing. In practice that is the common case today.
+   */
+  const onboardingMoreContent =
+    onboardingProfileLine || onboardingSections.preamble || onboardingPlanB ? (
+      <>
+        {onboardingProfileLine ? (
+          <View style={styles.profileCard}>
+            <Ionicons name="person-circle-outline" size={18} color={Colors.primary} />
+            <Text style={styles.profileText}>{onboardingProfileLine}</Text>
+          </View>
+        ) : null}
+        {onboardingSections.preamble ? (
+          <Text style={styles.resultText}>{onboardingSections.preamble}</Text>
+        ) : null}
+        {onboardingPlanB ? (
+          <View style={styles.planBCard}>
+            <View style={styles.planBHeader}>
+              <Ionicons name="shield-checkmark" size={18} color={Colors.secondary} />
+              <Text style={styles.planBTitle}>{t.photoAnalysis.planBTitle}</Text>
+            </View>
+            <Text style={styles.planBText}>{onboardingPlanB}</Text>
+          </View>
+        ) : null}
+      </>
+    ) : undefined;
+
+  /**
+   * Instant relief guidance, when the profile or the user's own description
+   * mentions pain.
+   *
+   * Audited as safety-critical and therefore NOT eligible for "More": a user
+   * who has just reported pain must not have to open a disclosure to reach it.
+   * The normal result shows the identical card unconditionally in its own flow.
+   */
+  const onboardingSafetyNotice = hasPainSymptom ? (
+    <View style={styles.instantReliefCard}>
+      <View style={styles.instantReliefHeader}>
+        <Ionicons name="medkit" size={18} color="#F59E0B" />
+        <Text style={styles.instantReliefTitle}>{t.photoAnalysis.instantReliefTitle}</Text>
+      </View>
+      <Text style={styles.instantReliefText}>{t.photoAnalysis.instantReliefText}</Text>
+    </View>
+  ) : undefined;
+
   if (showTutorial === null) {
     return <View style={styles.container} />;
   }
@@ -1372,6 +1490,10 @@ export default function PhotoAnalysisScreen() {
             contentContainerStyle={[
               styles.content,
               wizardStep === 3 && analysis ? styles.analysisResultsContent : undefined,
+              // Last wins: the 96pt tail above was sized for an in-flow
+              // Continue. With the onboarding footer pinned, that much padding
+              // is just dead space under the disclaimer. Normal mode keeps it.
+              wizardStep === 3 && isOnboarding ? styles.onboardingResultsContent : undefined,
             ]}
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
@@ -1450,7 +1572,27 @@ export default function PhotoAnalysisScreen() {
               </>
             ) : null}
 
-            {wizardStep === 3 ? (
+            {wizardStep === 3 && isOnboarding ? (
+              /* ONBOARDING: concise first-result surface. The normal result
+                 below is untouched — this is an additional branch, not a
+                 rewrite of it. Actions (Log meal, Share, Copy, accuracy, New
+                 Scan) are omitted here; the meal is persisted by Continue. */
+              <AnalysisResult
+                photoUri={photoUri}
+                // extractMealTitle, not extractMealName: the latter returns the
+                // MEAL section's prose ("You had some pizza with cheese and…"),
+                // which is an explanation, not a headline.
+                mealName={extractMealTitle(analysis)}
+                score={mealImpactScore}
+                scoreReason={extractScoreReason(analysis)}
+                sections={onboardingSections}
+                raw={sanitizeAnalysisForDisplay(analysis)}
+                safetyNotice={onboardingSafetyNotice}
+                moreContent={onboardingMoreContent}
+              />
+            ) : null}
+
+            {wizardStep === 3 && !isOnboarding ? (
               <>
                 <View style={[
                   styles.profileCard,
@@ -1602,21 +1744,6 @@ export default function PhotoAnalysisScreen() {
                         {t.photoAnalysis.medicalDisclaimer}
                       </Text>
                     </View>
-
-                    {/* ONBOARDING: the only exit from a successful first
-                        analysis. The result is fully rendered above — nothing
-                        auto-advances, the user chooses to continue. */}
-                    {isOnboarding ? (
-                      <Pressable
-                        onPress={() => void handleOnboardingContinue()}
-                        accessibilityRole="button"
-                        accessibilityLabel={t.photoAnalysis.onboardingContinue}
-                        style={({ pressed }) => [styles.onboardingContinueButton, pressed && styles.pressed]}
-                      >
-                        <Text style={styles.onboardingContinueText}>{t.photoAnalysis.onboardingContinue}</Text>
-                        <Ionicons name="arrow-forward" size={18} color="#0B1F14" />
-                      </Pressable>
-                    ) : null}
 
                     <View style={styles.resultActionsRow}>
                       <Pressable
@@ -1785,6 +1912,25 @@ export default function PhotoAnalysisScreen() {
             ) : null}
           </ScrollView>
         )}
+
+        {wizardStep === 3 && isOnboarding ? (
+          /* PINNED — a sibling of the ScrollView, not a child of it.
+             Continue is the only exit from the first result, so it must stay
+             reachable however long the analysis runs; inside the scroll it
+             could sit below the fold on a 375pt screen. Onboarding only: the
+             normal result keeps its own in-flow footer row. */
+          <View style={[styles.onboardingFooter, { paddingBottom: Spacing.md + insets.bottom }]}>
+            <Pressable
+              onPress={() => void handleOnboardingContinue()}
+              accessibilityRole="button"
+              accessibilityLabel={t.photoAnalysis.onboardingContinue}
+              style={({ pressed }) => [styles.onboardingContinueButton, pressed && styles.pressed]}
+            >
+              <Text style={styles.onboardingContinueText}>{t.photoAnalysis.onboardingContinue}</Text>
+              <Ionicons name="arrow-forward" size={18} color="#0B1F14" />
+            </Pressable>
+          </View>
+        ) : null}
       </View>
       <Toast
         message={toast.message}
@@ -1817,9 +1963,20 @@ const styles = StyleSheet.create({
     backgroundColor: '#52B788',
     borderRadius: 28,
     paddingVertical: 16,
-    marginBottom: 12,
   },
   onboardingContinueText: { fontFamily: FontFamily.sansSemiBold, fontSize: 17, color: '#0B1F14' },
+  /* The pinned bar itself. Opaque, with a hairline so long results scrolling
+     underneath read as passing behind it rather than colliding with it. */
+  onboardingResultsContent: {
+    paddingBottom: Spacing.lg,
+  },
+  onboardingFooter: {
+    backgroundColor: Colors.background,
+    borderTopColor: 'rgba(255,255,255,0.08)',
+    borderTopWidth: 1,
+    paddingHorizontal: Spacing.lg,
+    paddingTop: Spacing.md,
+  },
 
   container: {
     backgroundColor: '#000000',

@@ -177,6 +177,15 @@ const en = {
     accessSignIn: 'Sign in to an existing account',
   },
 
+  // ── Concise first-result presentation (onboarding photo analysis) ────────
+  analysisResult: {
+    sensitivity: 'Possible sensitivity',
+    betterOption: 'Better option',
+    nextStep: 'Next step',
+    moreDetail: 'More detail',
+    photoAlt: 'The meal you photographed',
+    disclaimer: 'General wellness information, not a diagnosis.',
+  },
   welcome: {
     // Three concrete mechanism lines. They replace the cycling marketing
     // taglines: stating how the product works earns more trust on first run
@@ -1497,6 +1506,14 @@ const de: Translations = {
     accessSignIn: 'Bei einem bestehenden Konto anmelden',
   },
 
+  analysisResult: {
+    sensitivity: 'Mögliche Empfindlichkeit',
+    betterOption: 'Bessere Option',
+    nextStep: 'Nächster Schritt',
+    moreDetail: 'Mehr Details',
+    photoAlt: 'Die Mahlzeit, die du fotografiert hast',
+    disclaimer: 'Allgemeine Informationen zum Wohlbefinden, keine Diagnose.',
+  },
   welcome: {
     valuePoints: ['Mahlzeiten scannen', 'Die KI analysiert sie', 'Mögliche Muster entdecken'],
     appName: 'GutWell AI',
