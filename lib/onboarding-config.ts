@@ -546,6 +546,10 @@ export const ONBOARDING_STEPS: OnboardingStep[] = [
       { value: 'Comfortable', label: 'Comfortable', description: 'Usually settled', icon: 'happy-outline' },
       { value: 'Bloated', label: 'Bloated', description: 'Full or swollen', icon: 'ellipse-outline' },
       { value: 'Heavy', label: 'Heavy or sluggish', description: 'Low energy after eating', icon: 'battery-dead-outline' },
+      // Stored as the bare word "Pain", language-independent like every other
+      // value here. Sits between Heavy and "It varies" so the three real
+      // symptoms are adjacent and the two meta answers bracket them.
+      { value: 'Pain', label: 'Pain or cramping', description: 'Stomach pain or cramps', icon: 'flash-outline' },
       { value: 'It varies', label: 'It varies', description: 'Depends on the meal', icon: 'shuffle-outline' },
     ],
     // Optional, local-only. No database write, no AI payload — see StepChips.

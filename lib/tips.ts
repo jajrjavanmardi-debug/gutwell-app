@@ -223,6 +223,12 @@ const CANONICAL_TAG_MAP: Record<string, TipTag[]> = {
   // After-meal feeling step
   bloated: ['bloating', 'digestion'],
   heavy: ['digestion', 'general'],
+  // Existing non-diagnostic tags only. Deliberately NOT mapped to anything
+  // that would read as treating pain — the tip library is general wellness
+  // content, and a pain-specific tag would imply advice this product does not
+  // give. Without this entry resolveTags would silently skip "Pain" and the
+  // user would get the untargeted fallback tip.
+  pain: ['digestion', 'general'],
   comfortable: ['general'],
   it_varies: ['general'],
 };

@@ -36,6 +36,12 @@ import { completeOnboarding, persistStage } from '../lib/onboarding-stage';
 import * as Sentry from '@sentry/react-native';
 import { saveMealLog } from '../lib/meal-log';
 import { parseAnalysisSections } from '../lib/analysis-sections';
+import {
+  FEELING_FINE,
+  nextSymptomSelection,
+  serializeCurrentState,
+  symptomsForRequest,
+} from '../lib/symptom-selection';
 import AnalysisResult from '../components/AnalysisResult';
 import {
   extractMealName,
@@ -230,6 +236,12 @@ function ensurePainApology(analysis: string, apology: string, hasPainSymptom: bo
 }
 
 function hasPainText(value: string): boolean {
+  // The onboarding feeling step stores the bare word "Pain" as a stable,
+  // language-independent identifier, so it carries none of the phrases below.
+  // Matched exactly rather than by adding `\bpain\b` to the pattern: a loose
+  // word match would also fire on "no pain" and "pain free" in the free-text
+  // description, turning an explicit denial into a pain report.
+  if (/^\s*(pain|schmerzen)\s*$/i.test(value)) return true;
   return /stomach ache|stomach pain|abdominal pain|belly pain|cramp|bloating pain|bauchschmerz|bauchschmerzen|krampf/i.test(value);
 }
 
@@ -309,7 +321,9 @@ export default function PhotoAnalysisScreen() {
   const [accuracyAnswer, setAccuracyAnswer] = useState<'yes' | 'no' | null>(null);
   const [correctionDraft, setCorrectionDraft] = useState('');
   const [mealDescription, setMealDescription] = useState('');
-  const [currentStateContext, setCurrentStateContext] = useState<string | null>(null);
+  // Multi-select: current-state symptoms co-occur. Was a `string | null`
+  // toggled like a radio, which silently discarded the previous choice.
+  const [currentStateKeys, setCurrentStateKeys] = useState<string[]>([]);
   const [afterMealActivity, setAfterMealActivity] = useState<string | null>(null);
   const [contextExpanded, setContextExpanded] = useState(true);
   /** Corrections the user submitted this session (typed or sent after voice); fed to revise prompts as prior context. */
@@ -415,9 +429,17 @@ export default function PhotoAnalysisScreen() {
       .split(/[,\n]+/)
       .map((symptom) => symptom.trim())
       .filter(Boolean);
+  // The chips are symptoms the user is reporting right now, so they belong
+  // here alongside the profile conditions and anything typed in the box. They
+  // were previously absent, which is why selecting "Stomach pain" never
+  // reached the pain-aware path.
+  const selectedStateSymptoms = symptomsForRequest(
+    currentStateKeys.filter((k) => k !== FEELING_FINE),
+  );
   const currentSymptoms = [
     ...gutProfileContext.conditions,
     ...userEnteredSymptoms,
+    ...selectedStateSymptoms,
   ];
   const hasPainSymptom = currentSymptoms.some((symptom) =>
     hasPainText(symptom)
@@ -758,8 +780,11 @@ export default function PhotoAnalysisScreen() {
         userFeelingsNarrative: gutProfileContext.dietType
           ? `(My diet is ${gutProfileContext.dietType}.) ${feelingsNarrative}`
           : feelingsNarrative,
-        mealContext: (currentStateContext || afterMealActivity) ? {
-          currentState: currentStateContext ?? undefined,
+        // currentState is a single string in the Edge Function contract, so
+        // several symptoms are joined rather than restructured — every one
+        // still reaches the prompt, and no function change is needed.
+        mealContext: (currentStateKeys.length > 0 || afterMealActivity) ? {
+          currentState: serializeCurrentState(currentStateKeys),
           afterMealActivity: afterMealActivity ?? undefined,
         } : undefined,
       });
@@ -1094,7 +1119,7 @@ export default function PhotoAnalysisScreen() {
     setAnalysis('');
     setPlanBMessage('');
     setMealDescription('');
-    setCurrentStateContext(null);
+    setCurrentStateKeys([]);
     setAfterMealActivity(null);
     setContextExpanded(false);
     setUserFeedback([]);
@@ -1385,14 +1410,16 @@ export default function PhotoAnalysisScreen() {
                     {(Object.entries(t.photoAnalysis.stateOptions) as [string, string][]).map(([key, label]) => (
                       <Pressable
                         key={key}
-                        onPress={() => setCurrentStateContext(currentStateContext === key ? null : key)}
-                        style={[styles.contextChip, currentStateContext === key && styles.contextChipSelected]}
-                        accessibilityRole="button"
+                        onPress={() => setCurrentStateKeys((prev) => nextSymptomSelection(prev, key))}
+                        style={[styles.contextChip, currentStateKeys.includes(key) && styles.contextChipSelected]}
+                        // checkbox, not button: several symptoms can be on at
+                        // once, and VoiceOver must not imply otherwise.
+                        accessibilityRole="checkbox"
                         accessibilityLabel={label}
-                        accessibilityState={{ selected: currentStateContext === key }}
+                        accessibilityState={{ checked: currentStateKeys.includes(key) }}
                         hitSlop={4}
                       >
-                        <Text style={[styles.contextChipText, currentStateContext === key && styles.contextChipTextSelected]}>
+                        <Text style={[styles.contextChipText, currentStateKeys.includes(key) && styles.contextChipTextSelected]}>
                           {label}
                         </Text>
                       </Pressable>
