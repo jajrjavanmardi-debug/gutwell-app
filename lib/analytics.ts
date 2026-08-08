@@ -76,6 +76,16 @@ export const Events = {
    * event carries no meal text, image data, health values or identifiers.
    */
   FIRST_ANALYSIS_COMPLETED: 'first_analysis_completed',
+  /**
+   * A Story Experience frame came into view on the Welcome screen. Fired at
+   * most once per frame per screen visit, so it measures how far a new user
+   * reads before deciding — the only question the story needs answered.
+   *
+   * Payload is `{ index: 1..4 }` and nothing else. The story is shown before
+   * sign-up, so there is no account to attach it to, and it must never carry
+   * health answers, meal content or identifiers.
+   */
+  ONBOARDING_STORY_VIEWED: 'onboarding_story_viewed',
   CHECKIN_LOGGED: 'checkin_logged',
   MEAL_LOGGED: 'meal_logged',
   SYMPTOM_LOGGED: 'symptom_logged',

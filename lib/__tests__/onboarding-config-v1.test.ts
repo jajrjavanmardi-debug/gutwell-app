@@ -32,8 +32,11 @@ describe('active flow shape', () => {
   });
 
   test('every active step is an answerable question — no interstitials', () => {
+    // Goal stays single-select; the feeling step became multi-select so
+    // co-occurring post-meal experiences are not discarded. Neither is an
+    // interstitial — both require an answer.
     for (const step of ONBOARDING_STEPS) {
-      expect(step.type).toBe('single-select');
+      expect(['single-select', 'multi-select']).toContain(step.type);
       expect('field' in step && step.field).toBeTruthy();
     }
   });
@@ -183,9 +186,10 @@ describe('localization', () => {
     expect(deG.options['Reduce bloating']).not.toBe(enG.options['Reduce bloating']);
   });
 
-  test('welcome exposes three value points in both languages', () => {
-    expect(en.welcome.valuePoints).toHaveLength(3);
-    expect(de.welcome.valuePoints).toHaveLength(3);
-    expect(de.welcome.valuePoints[0]).not.toBe(en.welcome.valuePoints[0]);
+  test('welcome carries four translated story frames in both languages', () => {
+    // Replaces the three value points, which the Story Experience absorbed.
+    expect(en.welcome.story.frames).toHaveLength(4);
+    expect(de.welcome.story.frames).toHaveLength(4);
+    expect(de.welcome.story.frames[0].title).not.toBe(en.welcome.story.frames[0].title);
   });
 });

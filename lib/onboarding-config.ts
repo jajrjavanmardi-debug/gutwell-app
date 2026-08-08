@@ -76,6 +76,19 @@ export type MultiSelectStep = BaseStep & {
   options: SelectOption[];
   /** Allow advancing with zero selections (e.g. "none of these"). */
   optional?: boolean;
+  /** Larger goal-style cards vs. compact rows. Matches SingleSelectStep. */
+  variant?: 'row' | 'card';
+  /**
+   * Values that cannot coexist with any other selection.
+   *
+   * Picking one clears everything else; picking anything else clears it. Used
+   * for answers that contradict the rest of the list — "Comfortable" denies the
+   * symptoms, and "It varies" is a meta-answer, so pairing either with a
+   * symptom would be incoherent and would poison the AI conditions list.
+   */
+  exclusiveValues?: string[];
+  /** Optional secondary chip row on the same screen. Never required. */
+  chips?: StepChips;
 };
 
 export type WheelStep = BaseStep & {
@@ -520,15 +533,23 @@ export const ONBOARDING_STEPS: OnboardingStep[] = [
   },
   {
     id: 'after_meal_feeling',
-    type: 'single-select',
+    // Multi-select: several post-meal experiences genuinely co-occur, and
+    // forcing one answer discarded information the analysis could use.
+    // Not `optional`, so canAdvance() still requires at least one answer.
+    type: 'multi-select',
     field: 'meal_feeling',
     variant: 'card',
+    exclusiveValues: ['Comfortable', 'It varies'],
     title: 'How do you usually feel after meals?',
     subtitle: 'Whatever is most typical for you.',
     options: [
       { value: 'Comfortable', label: 'Comfortable', description: 'Usually settled', icon: 'happy-outline' },
       { value: 'Bloated', label: 'Bloated', description: 'Full or swollen', icon: 'ellipse-outline' },
       { value: 'Heavy', label: 'Heavy or sluggish', description: 'Low energy after eating', icon: 'battery-dead-outline' },
+      // Stored as the bare word "Pain", language-independent like every other
+      // value here. Sits between Heavy and "It varies" so the three real
+      // symptoms are adjacent and the two meta answers bracket them.
+      { value: 'Pain', label: 'Pain or cramping', description: 'Stomach pain or cramps', icon: 'flash-outline' },
       { value: 'It varies', label: 'It varies', description: 'Depends on the meal', icon: 'shuffle-outline' },
     ],
     // Optional, local-only. No database write, no AI payload — see StepChips.

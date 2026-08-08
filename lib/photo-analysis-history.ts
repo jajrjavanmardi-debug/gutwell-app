@@ -3,6 +3,7 @@
  * EN/DE meal-score and section-label patterns produced by the analyze-food edge function.
  */
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { toShortSentence } from './analysis-sections';
 
 export type PhotoAnalysisHistoryItem = {
   id: string;
@@ -73,29 +74,70 @@ export function extractMealName(aiText: string): string {
   return rawMealName.slice(0, 80) || 'Meal photo';
 }
 
+/** Sentence openers the model uses before naming the dish. */
+const TITLE_PREAMBLE =
+  /^(it looks like you (enjoyed|had|ate)|you (had|ate|enjoyed)( some| a| an)?|this (looks like|appears to be|is)( a| an)?( meal of| plate of| bowl of)?|looks like( a| an)?( meal of| lovely)?|i can see( a| an)?|the (meal|dish|photo) (shows|is)( a| an)?|here (is|we have)( a| an)?)\s*/i;
+
 /**
- * Extracts a short meal title (max 40 chars) from the MEAL section for use as a headline.
- * Strips common preamble phrases like "You had", "You ate", "This looks like".
- * Falls back to "Meal analysis" for non-food responses or when extraction fails.
+ * Always cut here — past this point the model has stopped identifying the dish
+ * and started explaining it.
+ */
+const TITLE_TAIL_HARD =
+  /\s*(,|;|:|—|–| - | \(| which | that | but | topped | served | alongside | accompanied | on the side ).*/i;
+
+/**
+ * Cut here only when the title is still over budget. "Grilled chicken and
+ * rice" is a legitimate name for a composite meal and fits; "fried fish with a
+ * dip and a Coca-Cola" does not, and the first component identifies it well
+ * enough.
+ */
+const TITLE_TAIL_SOFT = /\s*( with | and | plus ).*/i;
+
+/**
+ * A cut can still land on a word that cannot end a title. "Fried fish and a"
+ * is worse than "Fried fish", so trailing articles and conjunctions come off.
+ */
+const TITLE_DANGLING = /[\s,]+(a|an|the|and|or|with|of|in|on|for|plus)$/i;
+
+/**
+ * The meal title: the dish, and nothing else.
+ *
+ * The MEAL section is prose — "You had some pizza with cheese and a side
+ * salad, which is quite rich" — and a headline needs the noun phrase out of
+ * the front of it. Four cuts, in order: the opener, the hard clause boundary,
+ * the soft one if still over budget, then a word-boundary cap.
+ *
+ * Explanation is never lost, only relocated: the full MEAL text stays in the
+ * analysis body, which is what the reader sees under the score.
  */
 export function extractMealTitle(aiText: string): string {
   const fullName = extractMealName(aiText);
   if (!fullName || fullName === 'Meal photo') return 'Meal analysis';
   if (/^i cannot identify/i.test(fullName)) return 'Meal analysis';
-  // Strip sentence-style preamble phrases
-  let stripped = fullName
-    .replace(/^(it looks like you enjoyed|you had|you ate|you enjoyed|this looks like a meal of|this looks like|this is|this appears to be|looks like a (meal of|lovely )?)/i, '')
-    .trim();
-  // Remove trailing period
-  stripped = stripped.replace(/\.$/, '').trim();
-  const result = stripped || fullName;
-  // Capitalize first letter
+
+  // A title is a glance, not a read. 24 chars is the shape of the approved
+  // examples — "Cheese Pizza", "Chicken Salad", "Mediterranean Bowl" — and is
+  // the threshold above which the soft cut drops trailing components. At 32 a
+  // string like "Pizza with cheese and tomato" slipped through intact.
+  const MAX = 24;
+
+  let stripped = fullName.replace(TITLE_PREAMBLE, '').trim();
+  // Applied after the preamble so "This is a bowl of…" is not itself treated
+  // as the clause boundary.
+  stripped = stripped.replace(TITLE_TAIL_HARD, '').trim();
+  stripped = stripped.replace(/[.!?]+$/, '').replace(/^(a|an|the)\s+/i, '').trim();
+  if (stripped.length > MAX) stripped = stripped.replace(TITLE_TAIL_SOFT, '').trim();
+
+  const result = (stripped || fullName).replace(TITLE_DANGLING, '');
   const titled = result.charAt(0).toUpperCase() + result.slice(1);
-  // Trim at word boundary around 40 chars
-  if (titled.length <= 40) return titled;
-  const cut = titled.slice(0, 40);
+
+  if (titled.length <= MAX) return titled;
+  // Still long: a single very long dish name. Cut at a word boundary.
+  const cut = titled.slice(0, MAX);
   const lastSpace = cut.lastIndexOf(' ');
-  return lastSpace > 20 ? cut.slice(0, lastSpace) : cut;
+  return (lastSpace > 12 ? cut.slice(0, lastSpace) : cut)
+    .replace(/[,\s]+$/, '')
+    .replace(TITLE_DANGLING, '');
 }
 
 /**
@@ -112,10 +154,14 @@ export function extractScoreReason(aiText: string): string {
   // Remove leading emoji or symbols
   reason = reason.replace(/^[^\w\u00C0-\u017E\u0600-\u06FF]+/, '').trim();
   if (reason.length < 5) return '';
-  // Trim to first sentence or 80 chars
-  const firstSentence = reason.match(/^[^.!?]+[.!?]/);
-  const candidate = firstSentence ? firstSentence[0] : reason.slice(0, 80);
-  return candidate.trim();
+  // One short sentence, and only one. The number already carries the message;
+  // this line exists to say why at a glance. The detailed reasoning stays in
+  // the analysis body and, in the concise onboarding view, inside "More".
+  const candidate = toShortSentence(reason, 90);
+  if (!candidate) return '';
+  // Stripping the leading "5/10 — " leaves the remainder mid-sentence, so it
+  // needs its capital back before it can stand on its own line.
+  return candidate.charAt(0).toUpperCase() + candidate.slice(1);
 }
 
 export async function getPhotoAnalysisHistory(): Promise<PhotoAnalysisHistoryItem[]> {

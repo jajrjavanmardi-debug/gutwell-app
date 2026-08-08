@@ -80,38 +80,18 @@ describe('key parity', () => {
 });
 
 describe('welcome hero sequence', () => {
-  const EXPECTED_EN = [
-    'Track your gut health.',
-    'Understand your gut.',
-    'Notice possible patterns.',
-    'Find your triggers.',
-    'Build healthier habits.',
-    'Feel your best.',
-    'Enjoy your meals.',
-  ];
+  // The cycling taglines and the three value points were removed when the
+  // Story Experience took the centre of Welcome. The tests that pinned their
+  // exact strings went with them — they asserted copy that no longer ships.
+  // What replaces them is asserted in story-carousel.test.ts.
 
-  const EXPECTED_DE = [
-    'Behalte deinen Darm im Blick.',
-    'Verstehe deinen Darm.',
-    'Erkenne mögliche Muster.',
-    'Finde deine Auslöser.',
-    'Entwickle gesündere Routinen.',
-    'Fühl dich rundum wohl.',
-    'Genieße deine Mahlzeiten.',
-  ];
-
-  test('English taglines match the approved sequence, in order', () => {
-    expect(translations.en.welcome.taglines).toEqual(EXPECTED_EN);
-  });
-
-  test('German taglines match the approved sequence, in order', () => {
-    expect(translations.de.welcome.taglines).toEqual(EXPECTED_DE);
-  });
-
-  test('both languages have the same number of taglines', () => {
-    expect(translations.de.welcome.taglines.length).toBe(
-      translations.en.welcome.taglines.length
-    );
+  test('the retired welcome copy is gone from both languages, not merely unused', () => {
+    for (const lang of ['en', 'de'] as const) {
+      const welcome = translations[lang].welcome as Record<string, unknown>;
+      expect(welcome.taglines).toBeUndefined();
+      expect(welcome.valuePoints).toBeUndefined();
+      expect(welcome.headline).toBeUndefined();
+    }
   });
 });
 
