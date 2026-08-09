@@ -20,7 +20,10 @@
 set -uo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-MIGRATION="$ROOT/supabase/migrations/20260808120000_ai_cost_control.sql"
+MIGRATIONS=(
+  "$ROOT/supabase/migrations/20260808120000_ai_cost_control.sql"
+  "$ROOT/supabase/migrations/20260809100000_ai_quota_lock_down_refunds.sql"
+)
 DB="gutwell_quota_verify_$$"
 PSQL=(psql -v ON_ERROR_STOP=1 -qtA)
 
@@ -43,14 +46,24 @@ create table auth.users (id uuid primary key);
 create or replace function auth.uid() returns uuid language sql stable as $$
   select nullif(current_setting('test.uid', true), '')::uuid
 $$;
-do $$ begin
-  if not exists (select 1 from pg_roles where rolname = 'authenticated') then
-    create role authenticated;
-  end if;
+do $$
+declare r text;
+begin
+  foreach r in array array['anon','authenticated','service_role'] loop
+    if not exists (select 1 from pg_roles where rolname = r) then
+      execute format('create role %I', r);
+    end if;
+  end loop;
 end $$;
+-- Reproduce the Supabase default that silently grants EXECUTE on every new
+-- function to anon and authenticated. Without this the verification would not
+-- see the privilege problem that reached production.
+alter default privileges in schema public grant execute on functions to anon, authenticated;
 SQL
 
-"${Q[@]}" -f "$MIGRATION" >/dev/null || { echo "MIGRATION FAILED TO APPLY"; exit 1; }
+for m in "${MIGRATIONS[@]}"; do
+  "${Q[@]}" -f "$m" >/dev/null || { echo "MIGRATION FAILED: $m"; exit 1; }
+done
 echo "migration applied cleanly to real PostgreSQL $("${Q[@]}" -c 'show server_version;')"
 echo
 
@@ -144,15 +157,29 @@ echo
 echo "=== 5. security posture ==="
 check "no INSERT/UPDATE/DELETE policy on any ai_ table" \
   "$("${Q[@]}" -c "select count(*) from pg_policies where schemaname='public' and tablename like 'ai\\_%' and cmd <> 'SELECT';")" "0"
-check "authenticated cannot execute the kind-taking reserve" \
-  "$("${Q[@]}" -c "select has_function_privilege('authenticated','public._ai_reserve_quota(uuid,text)','execute');")" "f"
-check "authenticated cannot execute the kind-taking release" \
-  "$("${Q[@]}" -c "select has_function_privilege('authenticated','public._ai_release_quota(uuid,text)','execute');")" "f"
-check "authenticated CAN execute the narrow text wrapper" \
+# Refunds must be server-only. A user-callable refund lets anyone spend a slot
+# on a real analysis and hand it straight back, bypassing the ceiling.
+for role in anon authenticated; do
+  check "$role cannot execute the kind-taking reserve" \
+    "$("${Q[@]}" -c "select has_function_privilege('$role','public._ai_reserve_quota(uuid,text)','execute');")" "f"
+  check "$role cannot REFUND a photo slot" \
+    "$("${Q[@]}" -c "select has_function_privilege('$role','public.release_ai_photo_quota(uuid,uuid)','execute');")" "f"
+  check "$role cannot REFUND a text slot" \
+    "$("${Q[@]}" -c "select has_function_privilege('$role','public.release_ai_text_quota(uuid,uuid)','execute');")" "f"
+  check "$role cannot write telemetry" \
+    "$("${Q[@]}" -c "select has_function_privilege('$role','public.record_ai_usage(uuid,uuid,text,text,boolean,text,integer,integer,integer,integer,integer)','execute');")" "f"
+done
+check "anon cannot even reserve" \
+  "$("${Q[@]}" -c "select has_function_privilege('anon','public.reserve_ai_photo_quota(uuid)','execute');")" "f"
+check "authenticated CAN execute the narrow text wrapper (self-limiting)" \
   "$("${Q[@]}" -c "select has_function_privilege('authenticated','public.reserve_ai_text_quota(uuid)','execute');")" "t"
+check "service_role CAN refund" \
+  "$("${Q[@]}" -c "select has_function_privilege('service_role','public.release_ai_photo_quota(uuid,uuid)','execute');")" "t"
+check "no user-callable 1-arg release signature survives" \
+  "$("${Q[@]}" -c "select count(*) from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and p.proname like 'release_ai%' and p.pronargs=1;")" "0"
 check "telemetry has no content-bearing column" \
   "$("${Q[@]}" -c "select count(*) from information_schema.columns where table_name='ai_usage_events' and column_name ~ 'prompt_text|image|response|meal|symptom|description';")" "0"
-"${Q[@]}" -c "set test.uid='$A'; select public.record_ai_usage('$(rid 9000)','meal_text_only','gemini-2.5-flash',true,'Gemini said: your pizza failed',10,20,5,0,35);" >/dev/null
+"${Q[@]}" -c "select public.record_ai_usage('$A','$(rid 9000)','meal_text_only','gemini-2.5-flash',true,'Gemini said: your pizza failed',10,20,5,0,35);" >/dev/null
 check "arbitrary failure text is discarded, not stored" \
   "$("${Q[@]}" -c "select coalesce(failure_kind,'NULL') from public.ai_usage_events order by id desc limit 1;")" "NULL"
 check "token counts are stored" \

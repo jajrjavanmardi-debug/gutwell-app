@@ -16,6 +16,11 @@ const GEMINI_URL =
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
+// Auto-provided by the Supabase edge runtime. Used ONLY for refunds and cost
+// telemetry, which must not be callable by a user: a user-callable refund would
+// let anyone spend a slot on a real analysis and then hand it straight back,
+// bypassing the daily ceiling entirely.
+const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
 
 // --- Burst limiting (in-memory, IP-based, 10 req/min) ---
 //
@@ -309,6 +314,21 @@ async function callGemini(
 
 type SupabaseClient = ReturnType<typeof createClient>;
 
+/**
+ * Client authenticated as the service role.
+ *
+ * Only refunds and telemetry use it. Everything else runs as the caller so the
+ * database sees a real auth.uid() and no user id has to be trusted from input.
+ */
+let cachedServiceClient: SupabaseClient | null = null;
+function serviceClient(): SupabaseClient | null {
+  if (!SUPABASE_SERVICE_ROLE_KEY) return null;
+  cachedServiceClient ??= createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+  return cachedServiceClient;
+}
+
 type QuotaResult = {
   allowed: boolean;
   duplicate: boolean;
@@ -407,12 +427,18 @@ async function reserveDailyQuota(
 }
 
 /** Refund — ONLY valid when no provider call was attempted. */
-async function releaseDailyQuota(
-  supabase: SupabaseClient,
-  requestId: string,
-  kind: QuotaKind,
-) {
-  const { error } = await supabase.rpc(QUOTA_RPC[kind].release, { p_request_id: requestId });
+async function releaseDailyQuota(userId: string, requestId: string, kind: QuotaKind) {
+  const admin = serviceClient();
+  // No service key means no refund. That is the SAFE direction: the slot stays
+  // consumed. Refunding through the user's own JWT is what created the bypass.
+  if (!admin) {
+    console.error("Quota release skipped: service role key unavailable");
+    return;
+  }
+  const { error } = await admin.rpc(QUOTA_RPC[kind].release, {
+    p_user_id: userId,
+    p_request_id: requestId,
+  });
   if (error) console.error("Quota release failed", { detail: error.message });
 }
 
@@ -421,7 +447,7 @@ async function releaseDailyQuota(
  * a telemetry row is much cheaper than losing a user's analysis.
  */
 async function recordUsage(
-  supabase: SupabaseClient,
+  userId: string,
   args: {
     requestId: string | null;
     mode: string;
@@ -431,8 +457,14 @@ async function recordUsage(
   },
 ) {
   try {
+    const admin = serviceClient();
+    if (!admin) {
+      console.error("Usage telemetry skipped: service role key unavailable");
+      return;
+    }
     const u = args.usage ?? EMPTY_USAGE;
-    const { error } = await supabase.rpc("record_ai_usage", {
+    const { error } = await admin.rpc("record_ai_usage", {
+      p_user_id: userId,
       p_request_id: args.requestId,
       p_mode: args.mode,
       p_model: GEMINI_MODEL,
@@ -966,7 +998,7 @@ Deno.serve(async (req: Request) => {
             ],
             { temperature: 0.25, maxOutputTokens: 4096 },
           );
-          await recordUsage(supabase, {
+          await recordUsage(user.id, {
             requestId: requestId as string,
             mode,
             succeeded: true,
@@ -975,7 +1007,7 @@ Deno.serve(async (req: Request) => {
           return jsonResponse({ analysis: result.text });
         } catch (error) {
           const err = error as ProviderError & { usage?: GeminiUsage };
-          await recordUsage(supabase, {
+          await recordUsage(user.id, {
             requestId: requestId as string,
             mode,
             succeeded: false,
@@ -984,7 +1016,7 @@ Deno.serve(async (req: Request) => {
           });
           // Refund ONLY if nothing reached the provider.
           if (!err.providerAttempted) {
-            await releaseDailyQuota(supabase, requestId as string, "photo_analysis");
+            await releaseDailyQuota(user.id, requestId as string, "photo_analysis");
           }
           throw error;
         }
@@ -1036,7 +1068,7 @@ Deno.serve(async (req: Request) => {
             temperature: 0.25,
             maxOutputTokens: 4096,
           });
-          await recordUsage(supabase, {
+          await recordUsage(user.id, {
             requestId: requestId as string,
             mode,
             succeeded: true,
@@ -1045,7 +1077,7 @@ Deno.serve(async (req: Request) => {
           return jsonResponse({ analysis: result.text });
         } catch (error) {
           const err = error as ProviderError & { usage?: GeminiUsage };
-          await recordUsage(supabase, {
+          await recordUsage(user.id, {
             requestId: requestId as string,
             mode,
             succeeded: false,
@@ -1053,7 +1085,7 @@ Deno.serve(async (req: Request) => {
             usage: err.usage,
           });
           if (!err.providerAttempted) {
-            await releaseDailyQuota(supabase, requestId as string, "text_analysis");
+            await releaseDailyQuota(user.id, requestId as string, "text_analysis");
           }
           throw error;
         }
@@ -1100,7 +1132,7 @@ Deno.serve(async (req: Request) => {
             temperature: 0.25,
             maxOutputTokens: 4096,
           });
-          await recordUsage(supabase, {
+          await recordUsage(user.id, {
             requestId: requestId as string,
             mode,
             succeeded: true,
@@ -1109,7 +1141,7 @@ Deno.serve(async (req: Request) => {
           return jsonResponse({ analysis: result.text });
         } catch (error) {
           const err = error as ProviderError & { usage?: GeminiUsage };
-          await recordUsage(supabase, {
+          await recordUsage(user.id, {
             requestId: requestId as string,
             mode,
             succeeded: false,
@@ -1117,7 +1149,7 @@ Deno.serve(async (req: Request) => {
             usage: err.usage,
           });
           if (!err.providerAttempted) {
-            await releaseDailyQuota(supabase, requestId as string, "meal_revision");
+            await releaseDailyQuota(user.id, requestId as string, "meal_revision");
           }
           throw error;
         }

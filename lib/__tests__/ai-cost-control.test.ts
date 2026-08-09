@@ -28,6 +28,7 @@ const read = (...p: string[]) => readFileSync(join(root, ...p), 'utf8');
 const EDGE = read('supabase', 'functions', 'analyze-food', 'index.ts');
 const MIGRATION = read('supabase', 'migrations', '20260808120000_ai_cost_control.sql');
 const QUOTA = read('lib', 'ai-quota.ts');
+const LOCKDOWN = read('supabase', 'migrations', '20260809100000_ai_quota_lock_down_refunds.sql');
 const ENGINE = read('lib', 'RecommendationEngine.ts');
 const SCREEN = read('app', 'photo-analysis.tsx');
 /** The request handler only. Helper DEFINITIONS live above it, so ordering
@@ -140,7 +141,7 @@ describe('the edge function reserves before it spends', () => {
     };
     for (const [mode, [from, to]] of Object.entries(blocks)) {
       const block = EDGE.slice(from, to);
-      const kinds = [...block.matchAll(/DailyQuota\(supabase, requestId as string, "(\w+)"\)/g)]
+      const kinds = [...block.matchAll(/DailyQuota\((?:supabase|user\.id), requestId as string, "(\w+)"\)/g)]
         .map((m) => m[1]);
       expect(`${mode}: ${[...new Set(kinds)].join(',')}`).toBe(`${mode}: ${expected[mode as keyof typeof expected]}`);
       // Reserve and release must target the same counter.
@@ -343,7 +344,8 @@ describe('telemetry is cost data, never content', () => {
     const sent = [...call.matchAll(/\b(p_[a-z_]+):/g)].map((m) => m[1]).sort();
     expect(sent).toEqual([
       'p_cached_tokens', 'p_failure_kind', 'p_mode', 'p_model', 'p_output_tokens',
-      'p_prompt_tokens', 'p_request_id', 'p_succeeded', 'p_thoughts_tokens', 'p_total_tokens',
+      'p_prompt_tokens', 'p_request_id', 'p_succeeded', 'p_thoughts_tokens',
+      'p_total_tokens', 'p_user_id',
     ]);
     // Nothing derived from the request body reaches this function.
     expect(call).not.toMatch(/\bbody\b/);
@@ -704,5 +706,69 @@ describe('the edge function actually parses', () => {
       const c = stripped.split(close).length - 1;
       expect(`${open}${close} ${o}/${c}`).toBe(`${open}${close} ${o}/${o}`);
     }
+  });
+});
+
+describe('refunds and telemetry are server-only', () => {
+  // Found by probing the deployed project, not by a local test: Supabase grants
+  // EXECUTE on new functions to anon/authenticated by DEFAULT PRIVILEGES, so a
+  // `revoke ... from public` is inert. That left release_ai_*_quota callable by
+  // any authenticated user, who could spend a slot on a real analysis and then
+  // refund it — bypassing the ceiling completely.
+  test('every sensitive function is revoked from anon AND authenticated by name', () => {
+    expect(LOCKDOWN).toContain('revoke all on function %s from public, anon, authenticated');
+    for (const fn of [
+      'public._ai_release_quota(uuid, uuid, text)',
+      'public.release_ai_photo_quota(uuid, uuid)',
+      'public.release_ai_text_quota(uuid, uuid)',
+      'public.release_ai_revision_quota(uuid, uuid)',
+      'public._ai_reserve_quota(uuid, text)',
+    ]) {
+      expect(LOCKDOWN).toContain(fn);
+    }
+  });
+
+  test('refunds are granted to service_role only', () => {
+    expect(LOCKDOWN).toContain('grant execute on function %s to service_role');
+    // …and never to a role a user can reach.
+    expect(LOCKDOWN).not.toMatch(/grant execute on function public\.release_[^;]*to (anon|authenticated)/);
+    expect(LOCKDOWN).not.toMatch(/grant execute on function public\.record_ai_usage[^;]*to (anon|authenticated)/);
+  });
+
+  test('the old user-callable signatures are dropped, not merely revoked', () => {
+    for (const fn of [
+      'drop function if exists public.release_ai_photo_quota(uuid);',
+      'drop function if exists public.release_ai_text_quota(uuid);',
+      'drop function if exists public.release_ai_revision_quota(uuid);',
+      'drop function if exists public._ai_release_quota(uuid, text);',
+    ]) {
+      expect(LOCKDOWN).toContain(fn);
+    }
+  });
+
+  test('reserving stays on the caller JWT, so no user id is trusted from input', () => {
+    expect(LOCKDOWN).toMatch(/grant execute on function public\.reserve_ai_photo_quota\(uuid\) to authenticated/);
+    expect(MIGRATION).toContain('v_user     uuid := auth.uid()');
+    // Reserve takes no user parameter.
+    expect(LOCKDOWN).not.toMatch(/reserve_ai_\w+_quota\(p_user_id/);
+  });
+
+  test('the edge function uses the service role for refunds and telemetry only', () => {
+    expect(EDGE).toContain('SUPABASE_SERVICE_ROLE_KEY');
+    const release = EDGE.slice(EDGE.indexOf('async function releaseDailyQuota'), EDGE.indexOf('async function recordUsage'));
+    expect(release).toContain('serviceClient()');
+    expect(release).toContain('p_user_id: userId');
+    // Missing key must NOT fall back to the user's JWT — the slot stays spent.
+    expect(release).toContain('Quota release skipped');
+    // Reservation still runs as the caller.
+    const reserve = EDGE.slice(EDGE.indexOf('async function reserveDailyQuota'), EDGE.indexOf('async function releaseDailyQuota'));
+    expect(reserve).toContain('supabase.rpc(rpc.reserve');
+    expect(reserve).not.toContain('serviceClient()');
+  });
+
+  test('the follow-up migration is forward-only and sorts after the first', () => {
+    expect('20260809100000' > '20260808120000').toBe(true);
+    // The applied migration must not have been edited to fix this.
+    expect(MIGRATION).toContain("when 'photo_analysis' then 5");
   });
 });
