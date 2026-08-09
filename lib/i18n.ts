@@ -887,6 +887,21 @@ const en = {
     wizardStep4Hint: 'Final check',
     wizardNext: 'Next',
     changePhoto: 'Change photo',
+    // Permanent text-only entry point. Always visible: it is the only analysis
+    // a Free user will have once photo is Premium-gated, and the fallback the
+    // moment the daily photo ceiling is reached.
+    describeMealCta: 'Describe your meal instead',
+    describeMealHint: 'Tell us what you ate, ingredients, and how you feel.',
+    describeMealPlaceholder:
+      "Example: Chicken burger with fries and soda. It had cheese, onions and sauce. I'm feeling bloated and need to drive afterwards.",
+    describeRequiredMessage: 'Tell us what you ate so we can look at it.',
+    notNow: 'Not now',
+    // Shown when the photo ceiling is reached. States the limit plainly and
+    // points at what still works — never an error, never a backend reason.
+    dailyLimitFallbackMessage:
+      "You've used today's 5 photo analyses. You can still describe your meal.",
+    textLimitTitle: 'Daily limit reached',
+    textLimitMessage: "You've described 5 meals today, which is the daily maximum.",
     step2Prompt: 'What is this food? How do you feel?',
     generateAnalysis: 'Generate Analysis',
     isThisAccurate: 'Is this accurate?',
@@ -943,6 +958,14 @@ const en = {
     voiceInputA11yHint: 'Hold to record; release to finish.',
     correcting: 'Updating with your correction...',
     recording: 'Recording…',
+    // Daily meal-analysis ceiling. Written as a normal limit, not as an error
+    // and not as a security measure: the user has done nothing wrong, and the
+    // reason it exists is not their concern.
+    dailyLimitTitle: 'Daily limit reached',
+    dailyLimitMessage: "You've analysed 5 meals today, which is the daily maximum.",
+    dailyLimitResetsAt: 'You can analyse more from {time}.',
+    revisionLimitTitle: 'Daily correction limit reached',
+    revisionLimitMessage: "You've made 20 corrections today, which is the daily maximum.",
     photoAnalysisFailedTitle: 'Photo analysis failed',
     photoAnalysisFailedTryAgain: 'Please try again.',
     photoUnavailableTitle: 'Photo unavailable',
@@ -2180,6 +2203,16 @@ const de: Translations = {
     wizardStep4Hint: 'Abschluss',
     wizardNext: 'Weiter',
     changePhoto: 'Foto ändern',
+    describeMealCta: 'Mahlzeit stattdessen beschreiben',
+    describeMealHint: 'Beschreibe, was du gegessen hast, die Zutaten und wie du dich fühlst.',
+    describeMealPlaceholder:
+      'Beispiel: Chickenburger mit Pommes und Cola. Mit Käse, Zwiebeln und Soße. Ich fühle mich aufgebläht und muss danach Auto fahren.',
+    describeRequiredMessage: 'Beschreibe kurz, was du gegessen hast, damit wir es ansehen können.',
+    notNow: 'Jetzt nicht',
+    dailyLimitFallbackMessage:
+      'Du hast heute deine 5 Fotoanalysen genutzt. Du kannst deine Mahlzeit weiterhin beschreiben.',
+    textLimitTitle: 'Tageslimit erreicht',
+    textLimitMessage: 'Du hast heute 5 Mahlzeiten beschrieben — das ist das Tagesmaximum.',
     step2Prompt: 'Was ist das für Essen? Wie fühlst du dich?',
     generateAnalysis: 'Analyse erstellen',
     isThisAccurate: 'Stimmt das so?',
@@ -2236,6 +2269,11 @@ const de: Translations = {
     voiceInputA11yHint: 'Halten zum Aufnehmen; loslassen zum Beenden.',
     correcting: 'Analyse wird mit deiner Korrektur aktualisiert...',
     recording: 'Aufnahme…',
+    dailyLimitTitle: 'Tageslimit erreicht',
+    dailyLimitMessage: 'Du hast heute 5 Mahlzeiten analysiert — das ist das Tagesmaximum.',
+    dailyLimitResetsAt: 'Ab {time} kannst du weitere analysieren.',
+    revisionLimitTitle: 'Tageslimit für Korrekturen erreicht',
+    revisionLimitMessage: 'Du hast heute 20 Korrekturen gemacht — das ist das Tagesmaximum.',
     photoAnalysisFailedTitle: 'Fotoanalyse fehlgeschlagen',
     photoAnalysisFailedTryAgain: 'Bitte versuche es erneut.',
     photoUnavailableTitle: 'Foto nicht verfügbar',

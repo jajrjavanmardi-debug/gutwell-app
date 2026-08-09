@@ -9,6 +9,13 @@
  * User-supplied symptoms/corrections are opaque text passed through.
  */
 import { supabase } from './supabase';
+import {
+  AnalysisError,
+  DAILY_PHOTO_LIMIT_REACHED,
+  DAILY_REVISION_LIMIT_REACHED,
+  DAILY_TEXT_LIMIT_REACHED,
+  type QuotaMeta,
+} from './ai-quota';
 
 // USDA nutrition shapes used by the home screen recommendation UI. The data is
 // produced server-side now; these types describe the JSON the edge function
@@ -86,10 +93,32 @@ const REQUEST_TIMEOUT_MS = 55000;
  * Maps the edge function's structured error codes to a user-facing message.
  * Mirrors the messages used by app/scan-food.tsx so behavior is consistent.
  */
+/** Pulls only the safe quota fields off an error body. Never the whole body. */
+function readQuotaMeta(body: unknown): QuotaMeta {
+  const b = body as Record<string, unknown>;
+  const num = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? v : undefined);
+  return {
+    limit: num(b?.limit),
+    used: num(b?.used),
+    remaining: num(b?.remaining),
+    resetAt: typeof b?.resetAt === 'string' ? b.resetAt : undefined,
+  };
+}
+
 function messageForErrorCode(code: string | undefined, fallback: string): string {
   switch (code) {
     case 'UNAUTHORIZED':
       return 'Your session expired. Please sign in again.';
+    case DAILY_PHOTO_LIMIT_REACHED:
+      // Screens translate this via the error code; this English line is only a
+      // last-resort fallback for callers that do not.
+      return "You've reached today's meal analysis limit.";
+    case DAILY_REVISION_LIMIT_REACHED:
+      return "You've reached today's correction limit.";
+    case DAILY_TEXT_LIMIT_REACHED:
+      return "You've reached today's meal description limit.";
+    case 'QUOTA_UNAVAILABLE':
+      return 'Analysis is temporarily unavailable. Please try again shortly.';
     case 'RATE_LIMITED':
       return 'Too many requests right now. Please wait a minute and try again.';
     case 'IMAGE_TOO_LARGE':
@@ -138,6 +167,7 @@ async function invokeAnalyzeFood<T>(
     // so specific messages (rate-limited, image-too-large, expired session) are
     // surfaced instead of always collapsing to the generic fallback.
     let code: string | undefined;
+    let meta: QuotaMeta = {};
     const ctx = (error as { context?: unknown }).context;
     if (ctx && typeof (ctx as Response).json === 'function') {
       try {
@@ -148,19 +178,20 @@ async function invokeAnalyzeFood<T>(
           typeof (errorBody as { code?: unknown }).code === 'string'
         ) {
           code = (errorBody as { code: string }).code;
+          meta = readQuotaMeta(errorBody);
         }
       } catch {
         // Body wasn't JSON or was already consumed — fall back to the generic message.
       }
     }
-    throw new Error(messageForErrorCode(code, fallbackMessage));
+    throw new AnalysisError(messageForErrorCode(code, fallbackMessage), code, meta);
   }
 
   // Edge function returns { code, message } on handled errors with a 2xx-less
   // status, but also defensively guard against a code field in a 200 body.
   if (data && typeof data === 'object' && 'code' in data && typeof (data as { code: unknown }).code === 'string') {
     const code = (data as { code: string }).code;
-    throw new Error(messageForErrorCode(code, fallbackMessage));
+    throw new AnalysisError(messageForErrorCode(code, fallbackMessage), code, readQuotaMeta(data));
   }
 
   return data as T;
@@ -205,6 +236,14 @@ export async function analyzeMealPhoto(
   imageBase64: string,
   mimeType = 'image/jpeg',
   analysisContext: MealPhotoAnalysisContext = {},
+  /**
+   * Idempotency key for the server's daily quota. The SAME id must be sent for
+   * every retry of one logical analysis, and a NEW id for a new photo — that is
+   * what makes a retry free and a new scan cost a slot. Required: the edge
+   * function rejects an image request without a valid UUID before calling the
+   * provider.
+   */
+  requestId?: string,
 ): Promise<string> {
   if (!imageBase64.trim()) {
     throw new Error('Image data is required to analyze a meal photo.');
@@ -213,6 +252,7 @@ export async function analyzeMealPhoto(
   const response = await invokeAnalyzeFood<{ analysis?: string }>(
     {
       mode: 'meal_text',
+      requestId,
       image: imageBase64,
       mimeType,
       preferredLanguage: analysisContext.preferredLanguage ?? 'en',
@@ -235,8 +275,60 @@ export async function analyzeMealPhoto(
   return response.analysis;
 }
 
+/**
+ * Text-only meal analysis — the permanent fallback when there is no photo.
+ *
+ * Shares everything downstream with the photo path: same five-section contract,
+ * same parser, same Result Screen, same meal save. The only difference is that
+ * no image is sent, and the server rejects one if it is.
+ */
+export async function analyzeMealText(
+  mealDescription: string,
+  analysisContext: MealPhotoAnalysisContext = {},
+  requestId?: string,
+): Promise<string> {
+  if (!mealDescription.trim()) {
+    throw new Error('Describe what you ate to get an analysis.');
+  }
+
+  const response = await invokeAnalyzeFood<{ analysis?: string }>(
+    {
+      mode: 'meal_text_only',
+      requestId,
+      // Deliberately no `image` / `mimeType` key at all: the edge function
+      // rejects the request outright if either is present, so an image can
+      // never be routed onto the cheaper text counter.
+      mealDescription: mealDescription.trim(),
+      preferredLanguage: analysisContext.preferredLanguage ?? 'en',
+      gutScore: analysisContext.gutScore,
+      conditions: analysisContext.conditions ?? [],
+      symptoms: analysisContext.symptoms ?? [],
+      userEnteredSymptoms: analysisContext.userEnteredSymptoms ?? [],
+      supplementsTakenToday: analysisContext.supplementsTakenToday ?? [],
+      locationContext: analysisContext.locationContext,
+      retailLocationHint: analysisContext.retailLocationHint ?? '',
+      userFeelingsNarrative: analysisContext.userFeelingsNarrative ?? '',
+      mealContext: analysisContext.mealContext,
+    },
+    'Could not analyze the meal. Please try again.',
+  );
+
+  if (typeof response?.analysis !== 'string' || !response.analysis.trim()) {
+    throw new Error('Could not analyze the meal. Please try again.');
+  }
+  return response.analysis;
+}
+
 export async function reviseMealAnalysis(
   correctionContext: MealCorrectionContext,
+  /**
+   * Idempotency key for the revision quota. One per correction SUBMISSION —
+   * a retry of the same correction reuses it and is free, a genuinely new
+   * correction gets a new one. Never the photo's request id: that would make
+   * the first correction dedupe against the scan and every later one against
+   * each other.
+   */
+  requestId?: string,
 ): Promise<string> {
   if (!correctionContext.correction.trim()) {
     throw new Error('Correction text is required to revise the meal analysis.');
@@ -245,6 +337,7 @@ export async function reviseMealAnalysis(
   const response = await invokeAnalyzeFood<{ analysis?: string }>(
     {
       mode: 'meal_revise',
+      requestId,
       preferredLanguage: correctionContext.preferredLanguage ?? 'en',
       previousAnalysis: correctionContext.previousAnalysis,
       correction: correctionContext.correction,

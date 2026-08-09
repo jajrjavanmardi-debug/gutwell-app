@@ -31,7 +31,16 @@ import {
   tryStartExpoSpeechRecognition,
 } from '../lib/meal-voice-session';
 import { canUseNativeSpeechToText } from '../lib/runtime-environment';
-import { analyzeMealPhoto, reviseMealAnalysis } from '../lib/RecommendationEngine';
+import { analyzeMealPhoto, analyzeMealText, reviseMealAnalysis } from '../lib/RecommendationEngine';
+import {
+  formatQuotaResetTime,
+  isDailyPhotoLimitError,
+  isDailyRevisionLimitError,
+  isDailyTextLimitError,
+  MAX_CORRECTION_LENGTH,
+  MAX_MEAL_DESCRIPTION_LENGTH,
+  newAnalysisRequestId,
+} from '../lib/ai-quota';
 import { completeOnboarding, persistStage } from '../lib/onboarding-stage';
 import * as Sentry from '@sentry/react-native';
 import { saveMealLog } from '../lib/meal-log';
@@ -300,10 +309,37 @@ export default function PhotoAnalysisScreen() {
    * arrives — generating it per tap would defeat the constraint.
    */
   const onboardingLogKeyRef = useRef<string | null>(null);
+  /**
+   * Idempotency key for the server's daily photo quota.
+   *
+   * Deliberately NOT the food-log client_uuid above: that one is minted when a
+   * result arrives and identifies a saved meal row, whereas this identifies an
+   * ATTEMPT and must exist before the request is sent and survive every retry
+   * of it. Reusing the log key would mean a failed analysis had no key at all,
+   * so each retry would look like a new scan and be billed as one.
+   */
+  const analysisRequestIdRef = useRef<string | null>(null);
+  /**
+   * Idempotency key for the revision quota, paired with the correction text it
+   * belongs to. Retrying the same correction reuses the id and is free; typing
+   * a different correction mints a new one and costs a slot.
+   */
+  const revisionRequestRef = useRef<{ correction: string; id: string } | null>(null);
   /** Prevents a double tap firing two writes, as notifications.tsx does. */
   const continuingRef = useRef(false);
   const [photoUri, setPhotoUri] = useState<string | null>(null);
   const [lastImageBase64, setLastImageBase64] = useState('');
+  /**
+   * True when the user chose to describe the meal instead of photographing it.
+   *
+   * A mode flag rather than a separate screen: step 2 (description, symptoms,
+   * after-meal context) and step 3 (the result) are already photo-independent,
+   * so the text path reuses them wholesale. Only the evidence sent to the
+   * server differs.
+   */
+  const [textOnlyMode, setTextOnlyMode] = useState(false);
+  /** Set once the server reports the photo ceiling, so step 1 can promote the text path. */
+  const [photoQuotaExhausted, setPhotoQuotaExhausted] = useState(false);
   const [analysis, setAnalysis] = useState('');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [isCorrecting, setIsCorrecting] = useState(false);
@@ -448,14 +484,17 @@ export default function PhotoAnalysisScreen() {
   const mealImpactScore = extractMealImpactScore(analysis);
   const wizardSubtitle =
     wizardStep === 1 ? t.photoAnalysis.wizardStep1Subtitle : wizardStep === 2 ? t.photoAnalysis.wizardStep2Subtitle : t.photoAnalysis.wizardStep3Subtitle;
-  const canRecordFeelings = wizardStep === 2 && Boolean(photoUri && lastImageBase64);
+  const canRecordFeelings = wizardStep === 2 && (textOnlyMode || Boolean(photoUri && lastImageBase64));
   /**
    * The Describe requirement, derived once. Normal mode keeps it; the
    * onboarding run may analyse a photo alone. Both the button's disabled state
    * and handleGenerateAnalysis read this, so they cannot drift apart.
    */
   const analyzeDisabled =
-    isAnalyzing || !lastImageBase64.trim() || (!isOnboarding && !mealDescription.trim());
+    isAnalyzing ||
+    // The text path needs a description and no image; the photo path the reverse.
+    (textOnlyMode ? !mealDescription.trim() : !lastImageBase64.trim()) ||
+    (!isOnboarding && !mealDescription.trim());
 
   useEffect(() => {
     if (!voiceNativeEnabled) {
@@ -742,8 +781,18 @@ export default function PhotoAnalysisScreen() {
   };
 
   const handleGenerateAnalysis = () => {
-    if (!lastImageBase64.trim() || !photoUri) return;
     const narrative = mealDescription.trim();
+    if (textOnlyMode) {
+      // Words are the only evidence here, so a description is required in every
+      // mode — including onboarding, which may skip it when a photo exists.
+      if (!narrative) {
+        Alert.alert(t.photoAnalysis.feelingsRequiredTitle, t.photoAnalysis.describeRequiredMessage);
+        return;
+      }
+      void runTextAnalysis(narrative);
+      return;
+    }
+    if (!lastImageBase64.trim() || !photoUri) return;
     // ONBOARDING (1/4): the description stays REQUIRED in the normal flow. Only
     // the onboarding run may proceed without one, so a brand-new user can reach
     // a real result from a photo alone. Removing this gate globally would be a
@@ -753,6 +802,67 @@ export default function PhotoAnalysisScreen() {
       return;
     }
     void runPhotoAnalysis(lastImageBase64, photoUri, narrative);
+  };
+
+  /**
+   * Text-only analysis.
+   *
+   * Everything after the request is identical to the photo path — same parser,
+   * same Result Screen, same meal save — so this deliberately sets the same
+   * state and does NOT introduce a second result surface.
+   */
+  const runTextAnalysis = async (description: string) => {
+    setIsAnalyzing(true);
+    setPlanBMessage('');
+    setUserFeedback([]);
+
+    try {
+      if (!analysisRequestIdRef.current) analysisRequestIdRef.current = newAnalysisRequestId();
+      const rawResult = await analyzeMealText(
+        description,
+        {
+          preferredLanguage: language,
+          gutScore: gutProfileContext.gutScore ?? undefined,
+          conditions: gutProfileContext.conditions,
+          symptoms: currentSymptoms,
+          userEnteredSymptoms,
+          supplementsTakenToday: todaysSupplements.map((item) => `${item.name} (${item.dosage}, ${item.time})`),
+          locationContext,
+          retailLocationHint,
+          userFeelingsNarrative: gutProfileContext.dietType
+            ? `(My diet is ${gutProfileContext.dietType}.) ${description}`
+            : description,
+          mealContext: (currentStateKeys.length > 0 || afterMealActivity) ? {
+            currentState: serializeCurrentState(currentStateKeys),
+            afterMealActivity: afterMealActivity ?? undefined,
+          } : undefined,
+        },
+        analysisRequestIdRef.current,
+      );
+      setAnalysis(rawResult);
+      setOnboardingFailures(0);
+      track(Events.FOOD_SCANNED);
+      setWizardStep(3);
+    } catch (error) {
+      console.error('Meal text analysis failed:', error);
+      if (isDailyTextLimitError(error)) {
+        const at = formatQuotaResetTime(error.meta.resetAt, language);
+        Alert.alert(
+          t.photoAnalysis.textLimitTitle,
+          at
+            ? `${t.photoAnalysis.textLimitMessage} ${t.photoAnalysis.dailyLimitResetsAt.replace('{time}', at)}`
+            : t.photoAnalysis.textLimitMessage,
+        );
+        return;
+      }
+      if (isOnboarding) setOnboardingFailures((n) => n + 1);
+      Alert.alert(
+        t.photoAnalysis.photoAnalysisFailedTitle,
+        error instanceof Error ? error.message : t.photoAnalysis.photoAnalysisFailedTryAgain,
+      );
+    } finally {
+      setIsAnalyzing(false);
+    }
   };
 
   const runPhotoAnalysis = async (
@@ -767,6 +877,9 @@ export default function PhotoAnalysisScreen() {
     setUserFeedback([]);
 
     try {
+      // Fallback mint covers a restored/resumed session where the ref was lost;
+      // without it the request would be rejected for a missing requestId.
+      if (!analysisRequestIdRef.current) analysisRequestIdRef.current = newAnalysisRequestId();
       const rawResult = await analyzeMealPhoto(imageBase64, 'image/jpeg', {
         preferredLanguage: language,
         gutScore: gutProfileContext.gutScore ?? undefined,
@@ -787,7 +900,7 @@ export default function PhotoAnalysisScreen() {
           currentState: serializeCurrentState(currentStateKeys),
           afterMealActivity: afterMealActivity ?? undefined,
         } : undefined,
-      });
+      }, analysisRequestIdRef.current);
       setAnalysis(rawResult);
       // A success clears the failure history. Without this the counter only
       // ever grew, so the "Having trouble?" escape hatch stayed on screen for
@@ -824,6 +937,23 @@ export default function PhotoAnalysisScreen() {
       }
     } catch (error) {
       console.error('Meal photo analysis failed:', error);
+      // The daily ceiling is not a failure of the app and must not read like
+      // one: no "try again", no technical code, and it does not count toward
+      // the onboarding escape hatch, which exists for genuine breakage.
+      if (isDailyPhotoLimitError(error)) {
+        // Never a dead end: the text path is still available today, so it is
+        // offered as the primary action rather than left for the user to find.
+        setPhotoQuotaExhausted(true);
+        Alert.alert(
+          t.photoAnalysis.dailyLimitTitle,
+          t.photoAnalysis.dailyLimitFallbackMessage,
+          [
+            { text: t.photoAnalysis.describeMealCta, onPress: startTextOnlyFlow },
+            { text: t.photoAnalysis.notNow, style: 'cancel' },
+          ],
+        );
+        return;
+      }
       // ONBOARDING (3/4): only a thrown analysis error counts. Cancelling the
       // picker or backing out never reaches this catch, so it cannot inflate
       // the count. The stage deliberately stays 'analysis' — a failure is not
@@ -846,6 +976,10 @@ export default function PhotoAnalysisScreen() {
     // Listen-before-analyze: no Groq call here—only after Step 2 voice/text and Generate Analysis.
     setPhotoUri(asset.uri);
     setLastImageBase64(asset.base64);
+    // A new photograph is a new logical analysis, so it gets a new id and will
+    // cost a daily slot. Minted here rather than at request time so that every
+    // retry of THIS photo reuses it and is free — see lib/ai-quota.ts.
+    analysisRequestIdRef.current = newAnalysisRequestId();
     setAnalysis('');
     setPlanBMessage('');
     setUserFeedback([]);
@@ -903,10 +1037,37 @@ export default function PhotoAnalysisScreen() {
     }
   };
 
+  /**
+   * Enter the describe-your-meal flow.
+   *
+   * Jumps straight to step 2, which already asks what you ate and how you feel.
+   * Any photo taken earlier is cleared so a stale image cannot be sent with a
+   * typed description.
+   */
+  const startTextOnlyFlow = () => {
+    if (isAnalyzing) return;
+    setTextOnlyMode(true);
+    setPhotoUri(null);
+    setLastImageBase64('');
+    setAnalysis('');
+    setPlanBMessage('');
+    setUserFeedback([]);
+    analysisRequestIdRef.current = newAnalysisRequestId();
+    setWizardStep(2);
+  };
+
   const submitChatCorrection = async (rawCorrection: string) => {
     const correction = rawCorrection.trim();
     if (!correction || !analysis || isCorrecting) return;
     const correctionIsDifferentFood = isDifferentFoodCorrection(correction);
+
+    // One id per correction SUBMISSION. Distinct corrections are distinct
+    // logical work and each costs a slot; only a retry of the same submission
+    // reuses the id. Keyed by the correction text so a retry of the identical
+    // text after a failure is recognised as the same request.
+    if (revisionRequestRef.current?.correction !== correction) {
+      revisionRequestRef.current = { correction, id: newAnalysisRequestId() };
+    }
 
     setIsCorrecting(true);
 
@@ -927,7 +1088,7 @@ export default function PhotoAnalysisScreen() {
         locationContext,
         retailLocationHint,
         priorUserCorrections: userFeedback,
-      });
+      }, revisionRequestRef.current?.id);
       const correctedAnalysis = ensurePainApology(
         revisedAnalysis,
         t.photoAnalysis.painApology,
@@ -949,8 +1110,23 @@ export default function PhotoAnalysisScreen() {
         setTriggerMemories(triggers);
       }
       setCorrectionDraft('');
+      // Consumed successfully — the next correction is new work.
+      revisionRequestRef.current = null;
     } catch (error) {
       console.error('Meal correction failed:', error);
+      // A reached limit is not breakage: no retry prompt, because nothing the
+      // user does before reset can succeed. The draft is left in the box so
+      // their words are not thrown away.
+      if (isDailyRevisionLimitError(error)) {
+        const at = formatQuotaResetTime(error.meta.resetAt, language);
+        Alert.alert(
+          t.photoAnalysis.revisionLimitTitle,
+          at
+            ? `${t.photoAnalysis.revisionLimitMessage} ${t.photoAnalysis.dailyLimitResetsAt.replace('{time}', at)}`
+            : t.photoAnalysis.revisionLimitMessage,
+        );
+        return;
+      }
       Alert.alert(
         t.photoAnalysis.correctionFailedTitle,
         error instanceof Error ? error.message : t.photoAnalysis.correctionFailedTryAgain,
@@ -1318,7 +1494,9 @@ export default function PhotoAnalysisScreen() {
                 <Image source={{ uri: photoUri }} style={styles.wizardThumbnail} />
               ) : null}
 
-              <Text style={[styles.step2PromptText]}>{t.photoAnalysis.step2Prompt}</Text>
+              <Text style={[styles.step2PromptText]}>
+                {textOnlyMode ? t.photoAnalysis.describeMealHint : t.photoAnalysis.step2Prompt}
+              </Text>
 
               {!voiceNativeEnabled ? (
                 <View style={[styles.expoGoHintCard]}>
@@ -1382,8 +1560,15 @@ export default function PhotoAnalysisScreen() {
               <TextInput
                 value={mealDescription}
                 onChangeText={setMealDescription}
-                placeholder={t.photoAnalysis.howYouFeelPlaceholder}
+                // In the text path the words ARE the meal, so the placeholder
+                // teaches what to include instead of only asking how you feel.
+                placeholder={
+                  textOnlyMode
+                    ? t.photoAnalysis.describeMealPlaceholder
+                    : t.photoAnalysis.howYouFeelPlaceholder
+                }
                 placeholderTextColor={Colors.textTertiary}
+                maxLength={MAX_MEAL_DESCRIPTION_LENGTH}
                 multiline
                 textAlignVertical="top"
                 style={[
@@ -1579,6 +1764,35 @@ export default function PhotoAnalysisScreen() {
                     <Text style={[styles.photoActionText]}>{t.photoAnalysis.chooseGalleryText}</Text>
                   </Pressable>
                 </View>
+
+                {/* Permanent second entry point. Deliberately NOT conditional:
+                    it is the only analysis a Free user will have once photo is
+                    Premium-gated, and the fallback the moment the daily photo
+                    ceiling is reached — so it must never be something the user
+                    has to discover. */}
+                <Pressable
+                  onPress={startTextOnlyFlow}
+                  disabled={isAnalyzing}
+                  accessibilityRole="button"
+                  accessibilityLabel={t.photoAnalysis.describeMealCta}
+                  accessibilityHint={t.photoAnalysis.describeMealHint}
+                  style={({ pressed }) => [
+                    styles.describeMealButton,
+                    photoQuotaExhausted && styles.describeMealButtonPromoted,
+                    isAnalyzing && styles.disabledButton,
+                    pressed && !isAnalyzing && styles.pressed,
+                  ]}
+                >
+                  <Ionicons name="create-outline" size={22} color={Colors.textInverse} />
+                  <View style={styles.describeMealTextGroup}>
+                    <Text style={styles.describeMealTitle}>{t.photoAnalysis.describeMealCta}</Text>
+                    <Text style={styles.describeMealSubtitle}>
+                      {photoQuotaExhausted
+                        ? t.photoAnalysis.dailyLimitFallbackMessage
+                        : t.photoAnalysis.describeMealHint}
+                    </Text>
+                  </View>
+                </Pressable>
 
                 {photoUri && lastImageBase64 ? (
                   <Pressable
@@ -1855,6 +2069,11 @@ export default function PhotoAnalysisScreen() {
                           <TextInput
                             value={correctionDraft}
                             onChangeText={setCorrectionDraft}
+                            // Matches the server's correction cap, so a long
+                            // correction stops visibly at the keyboard rather
+                            // than being silently truncated server-side and
+                            // answered as if all of it had been read.
+                            maxLength={MAX_CORRECTION_LENGTH}
                             placeholder={t.photoAnalysis.correctionPlaceholder}
                             placeholderTextColor={Colors.textTertiary}
                             multiline
@@ -2231,6 +2450,36 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     padding: Spacing.lg,
     ...Shadows.md,
+  },
+  describeMealButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderRadius: BorderRadius.lg,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.18)',
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    marginTop: 12,
+  },
+  /* When the photo ceiling is reached this stops being the alternative and
+     becomes the way forward, so it gains the emphasis. */
+  describeMealButtonPromoted: {
+    borderColor: Colors.secondary,
+    backgroundColor: 'rgba(255,255,255,0.12)',
+  },
+  describeMealTextGroup: { flex: 1, gap: 2 },
+  describeMealTitle: {
+    fontFamily: FontFamily.sansSemiBold,
+    fontSize: 16,
+    color: Colors.textInverse,
+  },
+  describeMealSubtitle: {
+    fontFamily: FontFamily.sansRegular,
+    fontSize: 13,
+    lineHeight: 18,
+    color: 'rgba(255,255,255,0.7)',
   },
   takePhotoButton: {
     backgroundColor: '#073D2B',

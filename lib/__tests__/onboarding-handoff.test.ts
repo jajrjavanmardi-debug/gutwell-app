@@ -191,8 +191,9 @@ describe('photo-analysis onboarding mode', () => {
 
   test('failures are counted only from the analysis catch block', () => {
     expect(PHOTO).toContain('if (isOnboarding) setOnboardingFailures((n) => n + 1);');
-    // declaration + one increment + the reset below
-    expect(PHOTO.match(/setOnboardingFailures/g)).toHaveLength(3);
+    // declaration, plus a reset and an increment in EACH of the two analysis
+    // paths (photo and text-only).
+    expect(PHOTO.match(/setOnboardingFailures/g)).toHaveLength(5);
   });
 
   test('a successful analysis clears the failure count, retiring the escape hatch', () => {
