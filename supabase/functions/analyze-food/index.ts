@@ -235,6 +235,7 @@ async function callGemini(
 ): Promise<{ text: string; usage: GeminiUsage }> {
   let response: Response;
   try {
+    response = await fetch(GEMINI_URL, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",

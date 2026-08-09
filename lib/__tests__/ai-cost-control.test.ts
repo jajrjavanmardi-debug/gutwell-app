@@ -668,3 +668,41 @@ describe('text-only meal analysis — the permanent fallback', () => {
     }
   });
 });
+
+describe('the edge function actually parses', () => {
+  // The app's tsconfig EXCLUDES supabase/functions (they are Deno, not RN), so
+  // `tsc --noEmit` never looks at this file. Every other test here reads it as
+  // TEXT, which means a syntax error can pass the entire suite and only fail at
+  // `supabase functions deploy` — which is exactly what happened: a dropped
+  // `fetch(` line shipped green and was caught by the deploy bundler.
+  test('it is syntactically valid TypeScript', () => {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const ts = require('typescript');
+    const out = ts.transpileModule(EDGE, {
+      compilerOptions: { target: ts.ScriptTarget.ESNext, module: ts.ModuleKind.ESNext },
+      reportDiagnostics: true,
+      fileName: 'index.ts',
+    });
+    const errors = (out.diagnostics ?? []).map((d: { messageText: unknown; start?: number }) => {
+      const line = d.start != null ? EDGE.slice(0, d.start).split('\n').length : '?';
+      return `${line}: ${ts.flattenDiagnosticMessageText(d.messageText, ' ')}`;
+    });
+    expect(errors).toEqual([]);
+  });
+
+  test('every brace and paren balances', () => {
+    // Cheap structural backstop that does not depend on the compiler being
+    // present, and catches the specific shape of the bug above.
+    const stripped = EDGE
+      .replace(/\/\*[\s\S]*?\*\//g, '')
+      .replace(/(^|[^:])\/\/.*$/gm, '$1')
+      .replace(/`(?:\\.|[^`\\])*`/g, '``')
+      .replace(/"(?:\\.|[^"\\])*"/g, '""')
+      .replace(/'(?:\\.|[^'\\])*'/g, "''");
+    for (const [open, close] of [['{', '}'], ['(', ')'], ['[', ']']]) {
+      const o = stripped.split(open).length - 1;
+      const c = stripped.split(close).length - 1;
+      expect(`${open}${close} ${o}/${c}`).toBe(`${open}${close} ${o}/${o}`);
+    }
+  });
+});
