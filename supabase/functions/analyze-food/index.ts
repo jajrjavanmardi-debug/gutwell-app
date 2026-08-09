@@ -365,6 +365,125 @@ function isUuid(value: unknown): value is string {
  * than let an unmetered inference through. An outage costing users a scan is
  * recoverable; an outage that disables the only spend ceiling is not.
  */
+// ---------------------------------------------------------------------------
+// Premium entitlement — server-side, never from the client
+//
+// Photo analysis is the paid feature. Gating it in the app only decorates the
+// button: any authenticated user can POST mode:"meal_text" here directly. The
+// answer therefore comes from public.user_entitlements, which only the
+// RevenueCat webhook and the REST fallback below can write.
+//
+// Nothing in the request body is consulted. There is deliberately no
+// `isPremium` field, no entitlement object and no header that could grant
+// access.
+// ---------------------------------------------------------------------------
+
+const REVENUECAT_SECRET_KEY = Deno.env.get("REVENUECAT_SECRET_KEY");
+
+type PremiumState = {
+  active: boolean;
+  known: boolean;
+  needs_refresh: boolean;
+  expires_at: string | null;
+  last_synced_at: string | null;
+};
+
+/**
+ * One RevenueCat REST lookup, used only when local state cannot answer.
+ *
+ * This is NOT on the normal path. Webhooks keep the table current, so the
+ * common case is a single indexed read. This fires for the gaps webhooks
+ * legitimately leave — chiefly a purchase whose webhook is still in flight,
+ * which is exactly the moment a new subscriber would otherwise be told they
+ * are not Premium.
+ */
+async function fetchEntitlementFromRevenueCat(
+  userId: string,
+): Promise<{ active: boolean; expiresAt: string | null } | null> {
+  if (!REVENUECAT_SECRET_KEY) return null;
+  try {
+    const res = await fetch(
+      `https://api.revenuecat.com/v1/subscribers/${encodeURIComponent(userId)}`,
+      { headers: { Authorization: `Bearer ${REVENUECAT_SECRET_KEY}` } },
+    );
+    if (!res.ok) {
+      // Status only. The body echoes subscriber data.
+      console.error("RevenueCat lookup failed", { status: res.status });
+      return null;
+    }
+    const body = await res.json();
+    const ent = body?.subscriber?.entitlements?.premium;
+    if (!ent) return { active: false, expiresAt: null };
+    const expires = typeof ent.expires_date === "string" ? ent.expires_date : null;
+    // A null expiry is a lifetime/non-renewing grant, which is still active.
+    const active = expires === null || new Date(expires).getTime() > Date.now();
+    return { active, expiresAt: expires };
+  } catch (e) {
+    console.error("RevenueCat lookup threw", { detail: String(e) });
+    return null;
+  }
+}
+
+/**
+ * Trusted Premium decision for one user.
+ *
+ * Outage policy, stated explicitly because it is a security decision:
+ *
+ *   no trustworthy evidence  -> FAIL CLOSED. An unknown account plus an
+ *                               unreachable provider is not a paying customer.
+ *   recently verified, still
+ *   inside its known period  -> honour the stored entitlement. Someone who paid
+ *                               should not lose access because RevenueCat is
+ *                               having a bad afternoon.
+ */
+async function hasActivePremium(
+  supabase: SupabaseClient,
+  userId: string,
+): Promise<{ active: boolean; reason: string }> {
+  const { data, error } = await supabase.rpc("get_premium_state", { p_user_id: userId });
+  if (error || !data) {
+    console.error("Entitlement lookup failed", { detail: error?.message ?? "no data" });
+    return { active: false, reason: "lookup_failed" };
+  }
+
+  const state = data as PremiumState;
+  if (!state.needs_refresh) {
+    return { active: state.active, reason: state.active ? "local_active" : "local_inactive" };
+  }
+
+  // Local state is missing or stale: spend one lookup.
+  const admin = serviceClient();
+  const fresh = await fetchEntitlementFromRevenueCat(userId);
+
+  if (fresh && admin) {
+    // Hydrate so the next request is answered locally. `p_event_at` is left
+    // null so this can never win against a real webhook event.
+    await admin.rpc("apply_entitlement_event", {
+      p_user_id: userId,
+      p_is_active: fresh.active,
+      p_expires_at: fresh.expiresAt,
+      p_product_id: null,
+      p_store: null,
+      p_event_id: null,
+      p_event_at: null,
+    });
+    return { active: fresh.active, reason: "revenuecat_verified" };
+  }
+
+  // The lookup did not answer. Fall back to stored state only when it is
+  // genuinely still within a period we previously verified.
+  const stillWithinKnownPeriod =
+    state.known &&
+    state.active &&
+    state.expires_at !== null &&
+    new Date(state.expires_at).getTime() > Date.now();
+
+  if (stillWithinKnownPeriod) {
+    return { active: true, reason: "grace_known_period" };
+  }
+  return { active: false, reason: state.known ? "stale_unverified" : "unknown_user" };
+}
+
 type QuotaKind = "photo_analysis" | "text_analysis" | "meal_revision";
 
 /** Each kind has its own RPC pair. There is no kind-taking public primitive. */
@@ -996,6 +1115,26 @@ Deno.serve(async (req: Request) => {
             413,
           );
         }
+        // PREMIUM GATE — before the quota, and long before Gemini.
+        //
+        // A Free user must be rejected without consuming a slot, so this sits
+        // after cheap validation and before the reservation. Note the two
+        // outcomes are deliberately different errors: PREMIUM_REQUIRED means
+        // "buy this", DAILY_PHOTO_LIMIT_REACHED means "you already have it and
+        // have used today's". Collapsing them would show a paywall to someone
+        // who is already paying.
+        const premium = await hasActivePremium(supabase, user.id);
+        if (!premium.active) {
+          return jsonResponse(
+            {
+              code: "PREMIUM_REQUIRED",
+              message: "Photo analysis is a Premium feature.",
+              retryable: false,
+            },
+            403,
+          );
+        }
+
         // Built before reserving so a prompt-construction failure cannot strand
         // a consumed slot.
         const prompt = buildMealTextPrompt(body as MealTextBody);

@@ -693,13 +693,23 @@ describe('text-only meal analysis — the permanent fallback', () => {
     }
   });
 
-  test('entitlement has ONE source of truth, and it is not the client', () => {
-    // When RevenueCat lands, the Free/Premium split belongs in this SQL
-    // function. Nothing in the app may decide an allowance.
+  test('allowances have ONE source of truth, and it is not the client', () => {
+    // The Free/Premium ALLOWANCE split belongs in this SQL function.
     expect(MIGRATION).toContain('SINGLE SOURCE OF TRUTH');
-    for (const src of [SCREEN, ENGINE, QUOTA]) {
-      expect(src).not.toMatch(/isPremium|entitlement|hasSubscription/i);
+
+    // The client may consult entitlement to decide what to SHOW — that is the
+    // paywall gate, and it is UX. What it must never do is decide how much a
+    // user is allowed, or send anything the server would treat as proof.
+    for (const [name, src] of [['screen', SCREEN], ['engine', ENGINE], ['quota', QUOTA]] as const) {
+      // No client-side limit arithmetic.
+      expect(`${name}: ${/(limit|quota|remaining)\s*[=<>]=?\s*\d/.test(src)}`).toBe(`${name}: false`);
+      // Nothing claiming premium is ever put on the wire.
+      expect(`${name}: ${/isPremium\s*:/.test(src)}`).toBe(`${name}: false`);
+      expect(`${name}: ${/entitlement\s*:/.test(src)}`).toBe(`${name}: false`);
     }
+
+    // And the server never reads such a field even if one were sent.
+    expect(EDGE).not.toMatch(/body\.(isPremium|premium|entitlement|subscription)/);
   });
 });
 

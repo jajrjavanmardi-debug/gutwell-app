@@ -14,6 +14,14 @@
 export const DAILY_PHOTO_LIMIT_REACHED = 'DAILY_PHOTO_LIMIT_REACHED';
 export const DAILY_REVISION_LIMIT_REACHED = 'DAILY_REVISION_LIMIT_REACHED';
 export const DAILY_TEXT_LIMIT_REACHED = 'DAILY_TEXT_LIMIT_REACHED';
+/**
+ * The server refused a photo analysis because the account is not Premium.
+ *
+ * Distinct from DAILY_PHOTO_LIMIT_REACHED on purpose: one means "buy this",
+ * the other means "you already pay for this and have used today's". Collapsing
+ * them would show a paywall to a paying subscriber.
+ */
+export const PREMIUM_REQUIRED = 'PREMIUM_REQUIRED';
 
 /**
  * Longest correction the server will accept without truncating.
@@ -56,6 +64,10 @@ export function isDailyPhotoLimitError(error: unknown): error is AnalysisError {
 
 export function isDailyRevisionLimitError(error: unknown): error is AnalysisError {
   return error instanceof AnalysisError && error.code === DAILY_REVISION_LIMIT_REACHED;
+}
+
+export function isPremiumRequiredError(error: unknown): error is AnalysisError {
+  return error instanceof AnalysisError && error.code === PREMIUM_REQUIRED;
 }
 
 export function isDailyTextLimitError(error: unknown): error is AnalysisError {

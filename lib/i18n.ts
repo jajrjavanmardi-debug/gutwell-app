@@ -461,7 +461,15 @@ const en = {
     bestValue: 'BEST VALUE',
     billedMonthly: 'Billed monthly',
     billedAnnually: 'Billed annually',
-    annualSaving: 'Billed annually — save 52%',
+    // Shown when StoreKit has not returned a price. Deliberately not a number:
+    // a guessed price is false advertising, and the old 'save 52%' here was
+    // wrong the moment prices moved. Real savings are computed from live
+    // package prices in app/paywall.tsx.
+    priceUnavailable: '—',
+    premiumRequiredTitle: 'Photo analysis is Premium',
+    premiumRequiredMessage:
+      'Upgrade to analyse meal photos. You can describe your meal in words on any plan.',
+    seePlans: 'See plans',
     noPaymentDue: 'No Payment Due Now',
     continueButton: 'Continue',
     restoreButton: 'Restore Purchases',
@@ -1804,7 +1812,11 @@ const de: Translations = {
     bestValue: 'BESTES ANGEBOT',
     billedMonthly: 'Monatliche Abrechnung',
     billedAnnually: 'Jährliche Abrechnung',
-    annualSaving: 'Jährlich abgerechnet — spare 52 %',
+    priceUnavailable: '—',
+    premiumRequiredTitle: 'Fotoanalyse ist Premium',
+    premiumRequiredMessage:
+      'Mit einem Upgrade kannst du Fotos von Mahlzeiten analysieren. Deine Mahlzeit beschreiben kannst du in jedem Tarif.',
+    seePlans: 'Tarife ansehen',
     noPaymentDue: 'Jetzt keine Zahlung fällig',
     continueButton: 'Weiter',
     restoreButton: 'Käufe wiederherstellen',

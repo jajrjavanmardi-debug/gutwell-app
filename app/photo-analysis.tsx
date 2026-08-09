@@ -32,10 +32,12 @@ import {
 } from '../lib/meal-voice-session';
 import { canUseNativeSpeechToText } from '../lib/runtime-environment';
 import { analyzeMealPhoto, analyzeMealText, reviseMealAnalysis } from '../lib/RecommendationEngine';
+import { isPremiumFeature } from '../lib/subscription';
 import {
   formatQuotaResetTime,
   isDailyPhotoLimitError,
   isDailyRevisionLimitError,
+  isPremiumRequiredError,
   isDailyTextLimitError,
   MAX_CORRECTION_LENGTH,
   MAX_MEAL_DESCRIPTION_LENGTH,
@@ -940,6 +942,20 @@ export default function PhotoAnalysisScreen() {
       // The daily ceiling is not a failure of the app and must not read like
       // one: no "try again", no technical code, and it does not count toward
       // the onboarding escape hatch, which exists for genuine breakage.
+      // The server reached the same conclusion the client gate did — normally
+      // because entitlement lapsed mid-session. Same message, no error framing.
+      if (isPremiumRequiredError(error)) {
+        Alert.alert(
+          t.paywall.premiumRequiredTitle,
+          t.paywall.premiumRequiredMessage,
+          [
+            { text: t.paywall.seePlans, onPress: () => router.push({ pathname: '/paywall', params: { source: 'photo_analysis' } }) },
+            { text: t.photoAnalysis.describeMealCta, onPress: startTextOnlyFlow },
+            { text: t.photoAnalysis.notNow, style: 'cancel' },
+          ],
+        );
+        return;
+      }
       if (isDailyPhotoLimitError(error)) {
         // Never a dead end: the text path is still available today, so it is
         // offered as the primary action rather than left for the user to find.
@@ -989,7 +1005,35 @@ export default function PhotoAnalysisScreen() {
     setMealDescription('');
   };
 
+  /**
+   * Premium gate for the photo paths.
+   *
+   * Returns false and opens the paywall when the user is not entitled. Called
+   * BEFORE the camera or picker opens, so a Free user never selects an image,
+   * nothing is uploaded, no Gemini call happens and no quota is consumed.
+   *
+   * This is UX only — it is not the security boundary. The edge function makes
+   * the same decision from server-owned entitlement state and returns
+   * PREMIUM_REQUIRED, because a client check protects nothing on a
+   * cost-bearing endpoint.
+   */
+  const ensurePhotoEntitlement = (): boolean => {
+    if (isPremiumFeature('photo_analysis')) return true;
+    Alert.alert(
+      t.paywall.premiumRequiredTitle,
+      t.paywall.premiumRequiredMessage,
+      [
+        { text: t.paywall.seePlans, onPress: () => router.push({ pathname: '/paywall', params: { source: 'photo_analysis' } }) },
+        // Never a dead end: describing the meal works on every plan.
+        { text: t.photoAnalysis.describeMealCta, onPress: startTextOnlyFlow },
+        { text: t.photoAnalysis.notNow, style: 'cancel' },
+      ],
+    );
+    return false;
+  };
+
   const takePhoto = async () => {
+    if (!ensurePhotoEntitlement()) return;
     if (isAnalyzing) return;
 
     const permission = await ImagePicker.requestCameraPermissionsAsync();
@@ -1019,6 +1063,7 @@ export default function PhotoAnalysisScreen() {
 
   const pickImage = async () => {
     if (isAnalyzing) return;
+    if (!ensurePhotoEntitlement()) return;
 
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!permission.granted) {

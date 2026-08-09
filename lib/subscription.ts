@@ -21,12 +21,15 @@ import Purchases, {
  * available in Expo Go).
  */
 
+export type SubscriptionPlan = 'monthly' | 'annual';
+
 export type PremiumFeature =
+  | 'photo_analysis'
   | 'correlations'
   | 'weekly_digest'
   | 'advanced_insights'
   | 'export'
-  | 'unlimited_achievements';
+  | 'all_achievements';
 
 type PlanKey = 'monthly' | 'annual';
 
@@ -206,10 +209,11 @@ export async function getPaywallOffering(): Promise<PurchasesOffering | null> {
  * RevenueCat well-known accessors (annual/monthly), then falls back to scanning
  * availablePackages by packageType / subscription period.
  */
-function selectPackage(
-  offering: PurchasesOffering,
+export function selectPackage(
+  offering: PurchasesOffering | null,
   plan: PlanKey,
 ): PurchasesPackage | null {
+  if (!offering) return null;
   if (plan === 'annual') {
     if (offering.annual) return offering.annual;
     return (

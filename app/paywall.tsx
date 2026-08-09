@@ -13,7 +13,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import type { PurchasesOffering, PurchasesPackage } from 'react-native-purchases';
+import type { PurchasesOffering } from 'react-native-purchases';
 import { useAuth } from '../contexts/AuthContext';
 import { Colors, FontFamily, FontSize, Spacing, BorderRadius } from '../constants/theme';
 import { track, Events } from '../lib/analytics';
@@ -23,6 +23,7 @@ import {
   initSubscription,
   isMonetizationEnabled,
   purchasePlan,
+  selectPackage,
   restorePurchases,
 } from '../lib/subscription';
 
@@ -37,29 +38,7 @@ const FEATURE_ICONS = [
   'trending-up-outline',
 ] as const;
 
-/** Pick the package matching a plan from an offering, mirroring lib/subscription. */
-function packageForPlan(
-  offering: PurchasesOffering | null,
-  plan: 'monthly' | 'annual',
-): PurchasesPackage | null {
-  if (!offering) return null;
-  if (plan === 'annual') {
-    return (
-      offering.annual ??
-      offering.availablePackages.find(
-        (p) => p.packageType === 'ANNUAL' || p.product.subscriptionPeriod === 'P1Y',
-      ) ??
-      null
-    );
-  }
-  return (
-    offering.monthly ??
-    offering.availablePackages.find(
-      (p) => p.packageType === 'MONTHLY' || p.product.subscriptionPeriod === 'P1M',
-    ) ??
-    null
-  );
-}
+
 
 export default function PaywallScreen() {
   const t = useTranslation();
@@ -104,12 +83,17 @@ export default function PaywallScreen() {
     };
   }, [user?.id]);
 
-  // Real store prices when RevenueCat is configured; fall back to the static
-  // marketing prices below when there is no offering (unconfigured / Expo Go).
-  const monthlyPkg = packageForPlan(offering, 'monthly');
-  const annualPkg = packageForPlan(offering, 'annual');
-  const monthlyPrice = monthlyPkg?.product.priceString ?? '$6.99';
-  const annualPrice = annualPkg?.product.priceString ?? '$39.99';
+  // Prices come from StoreKit via RevenueCat and NOWHERE else.
+  //
+  // These used to fall back to '$6.99' / '$39.99' when no offering had loaded.
+  // Those were both invented AND stale — the real targets are higher — so the
+  // screen advertised a price the store would never charge. There is no honest
+  // fallback for a price we do not have, so when the offering is missing the
+  // screen says so instead of guessing.
+  const monthlyPkg = selectPackage(offering, 'monthly');
+  const annualPkg = selectPackage(offering, 'annual');
+  const monthlyPrice = monthlyPkg?.product.priceString ?? null;
+  const annualPrice = annualPkg?.product.priceString ?? null;
   const canPurchase = offering != null;
 
   // Derive per-month and savings claims from the REAL store prices so they
@@ -118,7 +102,8 @@ export default function PaywallScreen() {
   const annualProduct = annualPkg?.product;
   const monthlyProduct = monthlyPkg?.product;
   const perMonthLabel = (() => {
-    if (!annualProduct || typeof annualProduct.price !== 'number') return 'Just $3.33/mo';
+    // No live price means no per-month claim. '$3.33/mo' was invented.
+    if (!annualProduct || typeof annualProduct.price !== 'number') return null;
     try {
       const perMonth = new Intl.NumberFormat(undefined, {
         style: 'currency',
@@ -135,7 +120,9 @@ export default function PaywallScreen() {
       typeof annualProduct.price !== 'number' || typeof monthlyProduct.price !== 'number' ||
       monthlyProduct.price <= 0
     ) {
-      return t.paywall.billedAnnuallySave.replace('{pct}', '52');
+      // A discount we cannot compute is a discount we must not claim. The
+      // hardcoded '52' was false the moment prices changed.
+      return t.paywall.billedAnnually;
     }
     const pct = Math.round((1 - annualProduct.price / (monthlyProduct.price * 12)) * 100);
     return pct > 0 ? t.paywall.billedAnnuallySave.replace('{pct}', String(pct)) : t.paywall.billedAnnually;
@@ -291,7 +278,8 @@ export default function PaywallScreen() {
               onPress={() => setSelectedPlan('monthly')}
               activeOpacity={0.8}
             >
-              <Text style={styles.pricingAmount}>{monthlyPrice}</Text>
+              {/* Neutral placeholder, never an invented figure. */}
+              <Text style={styles.pricingAmount}>{monthlyPrice ?? t.paywall.priceUnavailable}</Text>
               <Text style={styles.pricingPeriod}>/mo</Text>
               <Text style={styles.pricingBilled}>{t.paywall.billedMonthly}</Text>
             </TouchableOpacity>
@@ -308,7 +296,7 @@ export default function PaywallScreen() {
               <View style={styles.bestValueBadge}>
                 <Text style={styles.bestValueText}>{t.paywall.bestValue}</Text>
               </View>
-              <Text style={styles.pricingAmount}>{annualPrice}</Text>
+              <Text style={styles.pricingAmount}>{annualPrice ?? t.paywall.priceUnavailable}</Text>
               <Text style={styles.pricingPeriod}>/yr</Text>
               {perMonthLabel ? <Text style={styles.pricingSubPrice}>{perMonthLabel}</Text> : null}
               <Text style={styles.pricingBilled}>{savingsLabel}</Text>

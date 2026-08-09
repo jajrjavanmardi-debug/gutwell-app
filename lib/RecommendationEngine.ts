@@ -14,6 +14,7 @@ import {
   DAILY_PHOTO_LIMIT_REACHED,
   DAILY_REVISION_LIMIT_REACHED,
   DAILY_TEXT_LIMIT_REACHED,
+  PREMIUM_REQUIRED,
   type QuotaMeta,
 } from './ai-quota';
 
@@ -115,6 +116,8 @@ function messageForErrorCode(code: string | undefined, fallback: string): string
       return "You've reached today's meal analysis limit.";
     case DAILY_REVISION_LIMIT_REACHED:
       return "You've reached today's correction limit.";
+    case PREMIUM_REQUIRED:
+      return 'Photo analysis is a Premium feature.';
     case DAILY_TEXT_LIMIT_REACHED:
       return "You've reached today's meal description limit.";
     case 'QUOTA_UNAVAILABLE':
