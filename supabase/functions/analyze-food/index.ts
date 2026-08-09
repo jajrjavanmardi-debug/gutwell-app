@@ -270,11 +270,24 @@ async function callGemini(
   }
 
   if (!response.ok) {
-    const errorText = await response.text();
+    // The provider's error body is NOT logged. Gemini echoes parts of the
+    // rejected request in some failures — a blocked prompt, a bad inline image —
+    // so logging it verbatim would put meal descriptions, symptoms and image
+    // data into the function logs, which is exactly what the telemetry design
+    // takes care to avoid. Only the provider's own machine-readable status and
+    // reason code are kept, which is enough to diagnose without content.
+    let reason = "unknown";
+    try {
+      const parsed = await response.json();
+      const status = parsed?.error?.status;
+      if (typeof status === "string") reason = status.slice(0, 40);
+    } catch {
+      // Non-JSON error body: deliberately discarded rather than logged.
+    }
     console.error("Gemini API error", {
       status: response.status,
       provider: "gemini",
-      detail: errorText,
+      reason,
     });
     const err = new Error("Failed to get analysis from AI provider") as ProviderError;
     err.upstream = true;
@@ -362,6 +375,11 @@ const QUOTA_RPC = {
     code: "DAILY_PHOTO_LIMIT_REACHED",
     message: "Daily photo analysis limit reached.",
   },
+  // NOTE: 5/day is a temporary SAFETY DEFAULT, not the permanent Free-plan
+  // entitlement. When RevenueCat lands, Free gets a deliberately limited
+  // trial/text allowance rather than 5/day forever, and Premium a higher one.
+  // That split belongs in ai_quota_limit() in SQL — the single source of truth —
+  // and must not be reintroduced as a client-side check.
   text_analysis: {
     reserve: "reserve_ai_text_quota",
     release: "release_ai_text_quota",

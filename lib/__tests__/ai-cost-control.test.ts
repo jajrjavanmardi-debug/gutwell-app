@@ -333,6 +333,30 @@ describe('telemetry is cost data, never content', () => {
     expect(MIGRATION).toContain("case when p_failure_kind in ('upstream', 'empty', 'error')");
   });
 
+  test('the provider error BODY is never logged', () => {
+    // Gemini echoes parts of a rejected request in some failures (blocked
+    // prompt, bad inline image), so logging the body verbatim would put meal
+    // descriptions, symptoms and image data into the function logs — defeating
+    // the whole point of keeping content out of telemetry.
+    const block = EDGE.slice(EDGE.indexOf('if (!response.ok)'), EDGE.indexOf('const data = await response.json()'));
+    expect(block).not.toMatch(/detail:\s*errorText/);
+    expect(block).not.toContain('await response.text()');
+    // Only the provider's machine-readable status/reason survives.
+    expect(block).toContain('reason');
+    expect(block).toContain('parsed?.error?.status');
+    expect(block).toContain('.slice(0, 40)');
+  });
+
+  test('no logging path anywhere emits request content', () => {
+    const logs = [...EDGE.matchAll(/console\.(?:log|error|warn)\([\s\S]{0,220}?\);/g)].map((m) => m[0]);
+    expect(logs.length).toBeGreaterThan(0);
+    for (const call of logs) {
+      for (const banned of ['body', 'prompt', 'image', 'description', 'correction', 'analysis', 'errorText', 'result.text']) {
+        expect(`${banned} in log: ${new RegExp(`\\b${banned}\\b`).test(call)}`).toBe(`${banned} in log: false`);
+      }
+    }
+  });
+
   test('the edge function never sends anything but counts', () => {
     const call = EDGE.slice(
       EDGE.indexOf('async function recordUsage'),
@@ -649,6 +673,14 @@ describe('text-only meal analysis — the permanent fallback', () => {
     expect(block).toContain('mode,');
     // mode is what lets photo / text / revision costs be compared later.
     expect(block).not.toMatch(/p_(prompt_text|meal|description)/);
+  });
+
+  test('the text limit is documented as a temporary safety default', () => {
+    // 5/day is NOT the permanent Free-plan entitlement; the trial/text split
+    // arrives with RevenueCat and belongs in ai_quota_limit(), not the client.
+    const block = EDGE.slice(EDGE.indexOf('const QUOTA_RPC'), EDGE.indexOf('} as const;', EDGE.indexOf('const QUOTA_RPC')));
+    expect(block).toContain('SAFETY DEFAULT');
+    expect(block).toContain('ai_quota_limit()');
   });
 
   test('all three quota kinds exist with the approved v1 limits', () => {

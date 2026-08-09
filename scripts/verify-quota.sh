@@ -134,6 +134,45 @@ check "counter landed exactly on the limit" \
   "$("${Q[@]}" -c "select used from public.ai_daily_usage where user_id='$B' and kind='photo_analysis';")" "5"
 
 echo
+echo "=== 3b. CONCURRENT DUPLICATE IDs: same request id, 30 connections at once ==="
+# A retry storm sends the SAME id many times simultaneously. Every one must
+# collapse onto a single reservation — otherwise a burst of retries would be
+# billed as a burst of new scans.
+"${Q[@]}" -c "delete from public.ai_daily_usage; delete from public.ai_quota_reservations;" >/dev/null
+DUP=$(rid 4242)
+OUT=$(mktemp -d)
+for i in $(seq 1 30); do
+  ( "${Q[@]}" -c "set test.uid='$B'; select public.reserve_ai_photo_quota('$DUP')::text;" \
+      > "$OUT/$i.json" 2>/dev/null ) &
+done
+wait
+dupAllowed=$(cat "$OUT"/*.json 2>/dev/null | python3 -c "
+import sys,json
+n=0
+for l in sys.stdin:
+    l=l.strip()
+    if l:
+        try: n += 1 if json.loads(l)['allowed'] else 0
+        except Exception: pass
+print(n)")
+maxUsed=$(cat "$OUT"/*.json 2>/dev/null | python3 -c "
+import sys,json
+m=0
+for l in sys.stdin:
+    l=l.strip()
+    if l:
+        try: m=max(m, json.loads(l)['used'])
+        except Exception: pass
+print(m)")
+rm -rf "$OUT"
+check "all 30 duplicate-id calls are allowed" "$dupAllowed" "30"
+check "but the counter only ever reaches 1" "$maxUsed" "1"
+check "exactly one slot consumed for 30 identical retries" \
+  "$("${Q[@]}" -c "select used from public.ai_daily_usage where user_id='$B' and kind='photo_analysis';")" "1"
+check "exactly one reservation row exists" \
+  "$("${Q[@]}" -c "select count(*) from public.ai_quota_reservations where user_id='$B';")" "1"
+
+echo
 echo "=== 4. idempotency, cross-kind isolation, day reset ==="
 "${Q[@]}" -c "delete from public.ai_daily_usage; delete from public.ai_quota_reservations;" >/dev/null
 S=$(rid 3000)
