@@ -2,6 +2,7 @@
   "expo": {
     "name": "GutWell AI",
     "slug": "gutwell",
+    "owner": "rusban1970",
     "version": "1.0.0",
     "sdkVersion": "54.0.0",
     "platforms": ["android", "ios", "web"],
@@ -88,14 +89,6 @@
         }
       ],
       "@sentry/react-native",
-      [
-        "react-native-widget-extension",
-        {
-          "widgetsFolder": "widgets",
-          "groupIdentifier": "group.com.parallellabs.gutwell",
-          "deploymentTarget": "17.0"
-        }
-      ],
       "expo-web-browser",
       [
         "expo-location",
@@ -121,6 +114,11 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "extra": {
+      "eas": {
+        "projectId": "536f8d1d-0e1f-440f-a8d0-05dec34ace47"
+      }
     }
   }
 }
