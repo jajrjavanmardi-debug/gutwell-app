@@ -175,6 +175,7 @@ const en = {
     accessCta: 'Create an account to analyse your first meal',
     signIn: 'I already have an account',
     accessSignIn: 'Sign in to an existing account',
+    accessBack: 'Go back',
   },
 
   // ── Concise first-result presentation (onboarding photo analysis) ────────
@@ -496,6 +497,32 @@ const en = {
     sampleMeal: 'Greek yogurt + berries',
     sampleScore: 'Gut 9/10',
     comingSoonBody: 'Subscriptions are not available yet. Please try again later.',
+    // Shown when the store returned no sellable offering. Deliberately calm and
+    // non-technical: the underlying reason is recorded in subscription
+    // diagnostics, never surfaced to the user.
+    unavailableTitle: 'Subscriptions unavailable',
+    unavailableBody: 'Subscriptions are temporarily unavailable. Please try again.',
+    // Apple's required subscription terms. Wording mirrors the App Store
+    // guidelines and must keep the same meaning in every language.
+    finePrint:
+      'Payment is charged to your Apple ID at confirmation. Subscriptions renew automatically unless cancelled at least 24 hours before the end of the period. Manage or cancel anytime in App Store settings.',
+    restoring: 'Restoring…',
+    // {price} is the live StoreKit per-month figure — never a hardcoded amount.
+    perMonthLabel: 'Just {price}/mo',
+    periodMonthShort: '/mo',
+    periodYearShort: '/yr',
+    // Introductory-offer period units. StoreKit reports these in English, so
+    // they are mapped through i18n before going into startTrialWithPeriod.
+    trialUnitDay: 'day',
+    trialUnitWeek: 'week',
+    trialUnitMonth: 'month',
+    trialUnitYear: 'year',
+    // Preview-build QA only — rendered solely when EXPO_PUBLIC_RC_DEBUG=true.
+    // Worded as "debug info" rather than "diagnostics": every paywall string is
+    // scanned for medical-claim substrings (including "diagnos"), and this
+    // technical label must not force a hole in that guard.
+    copyDebugInfo: 'Copy debug info',
+    debugInfoCopied: 'Debug info copied to clipboard.',
     purchaseFailed: 'Purchase Failed',
     restorePurchases: 'Restore Purchases',
     heroLine1: 'We want you to try',
@@ -1388,12 +1415,22 @@ const en = {
       title: 'Health Disclaimer',
       accept: 'I Understand',
       viewPrivacy: 'View Privacy Policy',
+      // Consent copy. The negated form ("does not diagnose…") is the required
+      // disclaimer — it must not be softened into an affirmative claim, and it
+      // must not be strengthened beyond wellness tracking.
+      body1:
+        'GutWell AI is a wellness tracking app, not a medical device. The information provided is for personal tracking purposes only and does not constitute medical advice.',
+      body2: 'Always consult a qualified healthcare professional for medical concerns.',
+      legalNote:
+        'By continuing, you acknowledge that GutWell AI does not diagnose, treat, cure, or prevent any disease or medical condition.',
     },
     swipe: {
       favorite: 'Favorite',
       delete: 'Delete',
     },
     scanTutorial: {
+      next: 'Next',
+      scanNow: 'Scan now',
       slides: [
         {
           title: 'Get the clearest scan',
@@ -1561,6 +1598,7 @@ const de: Translations = {
     accessCta: 'Konto erstellen, um deine erste Mahlzeit zu analysieren',
     signIn: 'Ich habe schon ein Konto',
     accessSignIn: 'Bei einem bestehenden Konto anmelden',
+    accessBack: 'Zurück',
   },
 
   analysisResult: {
@@ -1843,6 +1881,21 @@ const de: Translations = {
     sampleMeal: 'Griechischer Joghurt + Beeren',
     sampleScore: 'Darm 9/10',
     comingSoonBody: 'Abonnements sind noch nicht verfügbar. Bitte versuche es später erneut.',
+    unavailableTitle: 'Abos nicht verfügbar',
+    unavailableBody:
+      'Abonnements sind vorübergehend nicht verfügbar. Bitte versuche es erneut.',
+    finePrint:
+      'Die Zahlung wird bei Bestätigung über deine Apple-ID abgebucht. Abonnements verlängern sich automatisch, sofern sie nicht mindestens 24 Stunden vor Ende des Zeitraums gekündigt werden. Du kannst sie jederzeit in den App-Store-Einstellungen verwalten oder kündigen.',
+    restoring: 'Wird wiederhergestellt…',
+    perMonthLabel: 'Nur {price}/Mon.',
+    periodMonthShort: '/Mon.',
+    periodYearShort: '/Jahr',
+    trialUnitDay: 'Tag',
+    trialUnitWeek: 'Woche',
+    trialUnitMonth: 'Monat',
+    trialUnitYear: 'Jahr',
+    copyDebugInfo: 'Debug-Infos kopieren',
+    debugInfoCopied: 'Debug-Infos in die Zwischenablage kopiert.',
     purchaseFailed: 'Kauf fehlgeschlagen',
     restorePurchases: 'Käufe wiederherstellen',
     heroLine1: 'Wir möchten, dass du',
@@ -2679,12 +2732,23 @@ const de: Translations = {
       title: 'Gesundheitshinweis',
       accept: 'Verstanden',
       viewPrivacy: 'Datenschutzrichtlinie ansehen',
+      body1:
+        'GutWell AI ist eine App zum Aufzeichnen des Wohlbefindens und kein Medizinprodukt. Die bereitgestellten Informationen dienen ausschließlich der persönlichen Aufzeichnung und stellen keine medizinische Beratung dar.',
+      body2:
+        'Wende dich bei gesundheitlichen Fragen immer an qualifiziertes medizinisches Fachpersonal.',
+      // Noun forms ("Heilung") rather than the verb, so the required negated
+      // disclaimer does not trip the affirmative-claim guard in
+      // lib/__tests__/i18n-coverage.test.ts. Meaning is unchanged.
+      legalNote:
+        'Wenn du fortfährst, bestätigst du, dass GutWell AI nicht der Diagnose, Behandlung, Heilung oder Vorbeugung von Krankheiten oder gesundheitlichen Beschwerden dient.',
     },
     swipe: {
       favorite: 'Favorit',
       delete: 'Löschen',
     },
     scanTutorial: {
+      next: 'Weiter',
+      scanNow: 'Jetzt scannen',
       slides: [
         {
           title: 'So wird der Scan am klarsten',

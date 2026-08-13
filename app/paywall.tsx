@@ -9,6 +9,7 @@ import {
   StatusBar,
   ActivityIndicator,
 } from 'react-native';
+import * as Clipboard from 'expo-clipboard';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
@@ -19,9 +20,11 @@ import { Colors, FontFamily, FontSize, Spacing, BorderRadius } from '../constant
 import { track, Events } from '../lib/analytics';
 import { useTranslation } from '../lib/i18n';
 import {
-  getPaywallOffering,
+  formatSubscriptionDiagnostics,
   initSubscription,
   isMonetizationEnabled,
+  isSubscriptionDebugEnabled,
+  loadPaywallOffering,
   purchasePlan,
   selectPackage,
   restorePurchases,
@@ -70,10 +73,18 @@ export default function PaywallScreen() {
     (async () => {
       try {
         await initSubscription(user?.id);
-        const current = await getPaywallOffering();
-        if (active) setOffering(current);
+        const result = await loadPaywallOffering();
+        if (!active) return;
+        // Only a sellable offering unlocks the CTA. The specific reason it is
+        // not sellable (not configured / fetch failed / no current offering /
+        // no usable packages / no price) is retained by lib/subscription.ts and
+        // readable via getSubscriptionDiagnostics(); the user never sees it.
+        setOffering(result.ok ? result.offering : null);
+        if (!result.ok && __DEV__) {
+          console.warn('[paywall] offering unavailable:', result.reason);
+        }
       } catch (error) {
-        console.warn('Failed to load offerings:', error);
+        if (__DEV__) console.warn('[paywall] offering load threw:', error);
       } finally {
         if (active) setLoadingOffering(false);
       }
@@ -109,7 +120,7 @@ export default function PaywallScreen() {
         style: 'currency',
         currency: annualProduct.currencyCode || 'USD',
       }).format(annualProduct.price / 12);
-      return `Just ${perMonth}/mo`;
+      return t.paywall.perMonthLabel.replace('{price}', perMonth);
     } catch {
       return null;
     }
@@ -136,14 +147,36 @@ export default function PaywallScreen() {
     const unit = selectedIntro.periodUnit?.toLowerCase() ?? 'day';
     const n = selectedIntro.periodNumberOfUnits ?? 0;
     if (!n) return t.paywall.startFreeTrial;
-    const unitLabel = unit.charAt(0).toUpperCase() + unit.slice(1);
+    // StoreKit reports the period unit in English. Capitalising it inline put
+    // "Day"/"Week"/"Month" straight into the German sentence, so it is mapped
+    // through i18n instead.
+    const unitLabel =
+      unit === 'week'
+        ? t.paywall.trialUnitWeek
+        : unit === 'month'
+          ? t.paywall.trialUnitMonth
+          : unit === 'year'
+            ? t.paywall.trialUnitYear
+            : t.paywall.trialUnitDay;
     return t.paywall.startTrialWithPeriod.replace('{n}', String(n)).replace('{unit}', unitLabel);
   })();
+
+  // Preview/QA only. isSubscriptionDebugEnabled() is EXPO_PUBLIC_RC_DEBUG==='true',
+  // which no production build sets, so this affordance never renders for a real
+  // user. It is additionally limited to the case where there is nothing to sell.
+  const showDiagnostics = isSubscriptionDebugEnabled() && !loadingOffering && !canPurchase;
+
+  const handleCopyDiagnostics = async () => {
+    await Clipboard.setStringAsync(formatSubscriptionDiagnostics());
+    Alert.alert(t.paywall.debugInfoCopied);
+  };
 
   const handleCTA = async () => {
     if (purchasing) return;
     if (!canPurchase) {
-      Alert.alert(t.paywall.comingSoon, t.paywall.comingSoonBody);
+      // One calm, non-technical message for every underlying cause. "Coming
+      // soon" was misleading once products exist but have not hydrated.
+      Alert.alert(t.paywall.unavailableTitle, t.paywall.unavailableBody);
       return;
     }
     setPurchasing(true);
@@ -280,7 +313,7 @@ export default function PaywallScreen() {
             >
               {/* Neutral placeholder, never an invented figure. */}
               <Text style={styles.pricingAmount}>{monthlyPrice ?? t.paywall.priceUnavailable}</Text>
-              <Text style={styles.pricingPeriod}>/mo</Text>
+              <Text style={styles.pricingPeriod}>{t.paywall.periodMonthShort}</Text>
               <Text style={styles.pricingBilled}>{t.paywall.billedMonthly}</Text>
             </TouchableOpacity>
 
@@ -297,7 +330,7 @@ export default function PaywallScreen() {
                 <Text style={styles.bestValueText}>{t.paywall.bestValue}</Text>
               </View>
               <Text style={styles.pricingAmount}>{annualPrice ?? t.paywall.priceUnavailable}</Text>
-              <Text style={styles.pricingPeriod}>/yr</Text>
+              <Text style={styles.pricingPeriod}>{t.paywall.periodYearShort}</Text>
               {perMonthLabel ? <Text style={styles.pricingSubPrice}>{perMonthLabel}</Text> : null}
               <Text style={styles.pricingBilled}>{savingsLabel}</Text>
             </TouchableOpacity>
@@ -325,11 +358,7 @@ export default function PaywallScreen() {
           </TouchableOpacity>
 
           {/* Fine Print */}
-          <Text style={styles.finePrint}>
-            Payment is charged to your Apple ID at confirmation. Subscriptions renew
-            automatically unless cancelled at least 24 hours before the end of the
-            period. Manage or cancel anytime in App Store settings.
-          </Text>
+          <Text style={styles.finePrint}>{t.paywall.finePrint}</Text>
 
           {/* Legal links — required on subscription paywalls (Guideline 3.1.2) */}
           <View style={styles.legalRow}>
@@ -344,8 +373,23 @@ export default function PaywallScreen() {
 
           {/* Restore Purchases */}
           <TouchableOpacity onPress={handleRestore} activeOpacity={0.7} disabled={restoring || purchasing}>
-            <Text style={styles.restoreText}>{restoring ? 'Restoring...' : 'Restore Purchases'}</Text>
+            <Text style={styles.restoreText}>
+              {restoring ? t.paywall.restoring : t.paywall.restoreButton}
+            </Text>
           </TouchableOpacity>
+
+          {/* Preview-build QA affordance. Never rendered in production: the flag
+              that gates it is not set in any release environment. */}
+          {showDiagnostics ? (
+            <TouchableOpacity
+              onPress={handleCopyDiagnostics}
+              activeOpacity={0.7}
+              accessibilityRole="button"
+              accessibilityLabel={t.paywall.copyDebugInfo}
+            >
+              <Text style={styles.diagnosticsText}>{t.paywall.copyDebugInfo}</Text>
+            </TouchableOpacity>
+          ) : null}
         </ScrollView>
       </SafeAreaView>
     </LinearGradient>
@@ -614,6 +658,15 @@ const styles = StyleSheet.create({
     color: 'rgba(255,255,255,0.5)',
     textDecorationLine: 'underline',
     textAlign: 'center',
+  },
+  // Deliberately quieter than restoreText — it is a QA affordance, not a
+  // feature, and only ever visible in a preview build.
+  diagnosticsText: {
+    fontFamily: FontFamily.sansRegular,
+    fontSize: FontSize.xs,
+    color: 'rgba(255,255,255,0.3)',
+    textAlign: 'center',
+    marginTop: Spacing.md,
   },
   legalRow: {
     flexDirection: 'row',

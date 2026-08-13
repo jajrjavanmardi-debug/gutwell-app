@@ -1515,11 +1515,13 @@ export default function PhotoAnalysisScreen() {
             hitSlop={10}
             style={styles.historyButton}
             accessibilityRole="button"
-            accessibilityLabel={t.photoAnalysis.back}
+            accessibilityLabel={t.foodHistory.headerTitle}
             accessibilityHint={t.photoAnalysis.accessHistoryHint}
           >
+            {/* Icon-only: the 40x40 control also carried the screen title, which
+                wrapped to "Fotoa / nalyse" in German. The name now lives in the
+                accessibility label, where it is not width-constrained. */}
             <Ionicons name="time-outline" size={18} color="#FFFFFF" />
-            <Text style={styles.historyButtonLabel}>{t.photoAnalysis.title}</Text>
           </Pressable>
         </View>
 
@@ -2319,13 +2321,6 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontFamily: FontFamily.sansBold,
     fontSize: FontSize.sm,
-  },
-  historyButtonLabel: {
-    color: "#FFFFFF",
-    fontSize: 11,
-    fontFamily: "Inter_500Medium",
-    marginTop: 2,
-    textAlign: "center",
   },
   historyButton: {
     alignItems: 'center',

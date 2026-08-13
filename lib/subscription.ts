@@ -45,6 +45,13 @@ const ENTITLEMENT_ID = 'premium';
 /** iOS RevenueCat public API key. Empty string => monetization disabled. */
 const RC_IOS_KEY = (process.env.EXPO_PUBLIC_REVENUECAT_IOS_KEY ?? '').trim();
 
+/**
+ * Opt-in RevenueCat WARN logging for preview/TestFlight builds. Off unless the
+ * flag is explicitly set, so production stays quiet. Never enables verbose or
+ * debug levels — those print request bodies.
+ */
+const RC_DEBUG = (process.env.EXPO_PUBLIC_RC_DEBUG ?? '').trim() === 'true';
+
 /** True only once Purchases.configure has successfully run. */
 let configured = false;
 
@@ -53,6 +60,100 @@ let cachedCustomerInfo: CustomerInfo | null = null;
 
 /** Guard so initSubscription only configures the SDK once. */
 let initPromise: Promise<void> | null = null;
+
+/**
+ * Why the paywall could not present a purchasable offering.
+ *
+ * These used to be one undifferentiated `null`, which meant a wrong API key and
+ * an App-Store product that has not propagated yet were indistinguishable both
+ * on device and in this module. The UI still shows one calm message; the
+ * distinction exists so a failure can actually be diagnosed.
+ */
+export type OfferingFailureReason =
+  /** A — Purchases.configure never succeeded (missing key, or configure threw). */
+  | 'not_configured'
+  /** B — getOfferings() threw. */
+  | 'fetch_failed'
+  /** C — the fetch worked but RevenueCat has no current offering. */
+  | 'no_current_offering'
+  /** D — a current offering exists but carries no package we can sell. */
+  | 'no_usable_packages'
+  /** E — packages exist but StoreKit returned no localized price for them. */
+  | 'price_missing';
+
+export type OfferingLoadResult =
+  | { ok: true; offering: PurchasesOffering }
+  | { ok: false; reason: OfferingFailureReason; offering: PurchasesOffering | null };
+
+/**
+ * Snapshot of the last offering load, for support and preview QA.
+ *
+ * Deliberately carries NO secrets, NO receipts, NO purchase tokens and NO user
+ * identifiers. Product and package identifiers are public catalogue names that
+ * already ship inside the App Store listing, so they are safe to surface.
+ */
+export type SubscriptionDiagnostics = {
+  hasKey: boolean;
+  configured: boolean;
+  /** null until an offerings fetch has been attempted. */
+  offeringsFetched: boolean | null;
+  offeringsCount: number | null;
+  currentOfferingId: string | null;
+  hasCurrentOffering: boolean;
+  packageIdentifiers: string[];
+  hasMonthlyPackage: boolean;
+  hasAnnualPackage: boolean;
+  productIdentifiers: string[];
+  monthlyPriceStringPresent: boolean;
+  annualPriceStringPresent: boolean;
+  lastFailureReason: OfferingFailureReason | null;
+  lastErrorCode: string | null;
+  lastErrorMessage: string | null;
+  lastCheckedAt: string | null;
+};
+
+const EMPTY_DIAGNOSTICS: SubscriptionDiagnostics = {
+  hasKey: false,
+  configured: false,
+  offeringsFetched: null,
+  offeringsCount: null,
+  currentOfferingId: null,
+  hasCurrentOffering: false,
+  packageIdentifiers: [],
+  hasMonthlyPackage: false,
+  hasAnnualPackage: false,
+  productIdentifiers: [],
+  monthlyPriceStringPresent: false,
+  annualPriceStringPresent: false,
+  lastFailureReason: null,
+  lastErrorCode: null,
+  lastErrorMessage: null,
+  lastCheckedAt: null,
+};
+
+let diagnostics: SubscriptionDiagnostics = { ...EMPTY_DIAGNOSTICS };
+
+/**
+ * Reduce an unknown SDK rejection to a short, safe code + message.
+ *
+ * Truncated, stripped of anything token-shaped, and scrubbed of the API key, so
+ * a diagnostics dump can never become a credential leak.
+ */
+function sanitizeError(err: unknown): { code: string | null; message: string | null } {
+  if (err == null) return { code: null, message: null };
+  const source = err as { code?: unknown; message?: unknown };
+  const code =
+    typeof source.code === 'string' || typeof source.code === 'number'
+      ? String(source.code)
+      : null;
+  let message = typeof source.message === 'string' ? source.message : null;
+  if (message) {
+    if (RC_IOS_KEY) message = message.split(RC_IOS_KEY).join('[redacted]');
+    // Anything long and opaque is a token/receipt shape, not a human message.
+    message = message.replace(/[A-Za-z0-9_\-+/=]{32,}/g, '[redacted]').slice(0, 200);
+  }
+  return { code, message };
+}
 
 /** True when the SDK key is present AND configure() has run. */
 function isReady(): boolean {
@@ -98,7 +199,7 @@ export async function initSubscription(userId?: string): Promise<void> {
 
   initPromise = (async () => {
     try {
-      if (__DEV__) {
+      if (__DEV__ || RC_DEBUG) {
         await Purchases.setLogLevel(LOG_LEVEL.WARN);
       }
       Purchases.configure({
@@ -119,13 +220,25 @@ export async function initSubscription(userId?: string): Promise<void> {
       } catch {
         cachedCustomerInfo = null;
       }
-    } catch {
+    } catch (err) {
       // Never let payment setup break app startup.
       configured = false;
+      const { code, message } = sanitizeError(err);
+      diagnostics.lastFailureReason = 'not_configured';
+      diagnostics.lastErrorCode = code;
+      diagnostics.lastErrorMessage = message;
     }
   })();
 
   await initPromise;
+
+  // A failed configure must not poison the whole session. Leaving the guard set
+  // would make every later call short-circuit on a promise that already settled
+  // as "not configured", so one transient error would disable monetization
+  // until the app is killed. Clearing it lets the next screen retry.
+  if (!configured) {
+    initPromise = null;
+  }
 
   // If a userId arrived and configure used a different (or anonymous) id,
   // reconcile by identifying now.
@@ -195,13 +308,142 @@ export function isPremiumFeature(_feature: PremiumFeature): boolean {
  * Returns null when unconfigured, when there is no current offering, or on error.
  */
 export async function getPaywallOffering(): Promise<PurchasesOffering | null> {
-  if (!isReady()) return null;
-  try {
-    const offerings = await Purchases.getOfferings();
-    return offerings.current ?? null;
-  } catch {
-    return null;
+  const result = await loadPaywallOffering();
+  // Only a sellable offering is handed back, so existing callers keep their
+  // "null means do not attempt a purchase" contract unchanged.
+  return result.ok ? result.offering : null;
+}
+
+/**
+ * Load the current offering and say precisely why it is not sellable.
+ *
+ * The paywall shows one calm message whatever happens here; the reason exists
+ * so "the key is wrong" and "StoreKit has not returned the products yet" stop
+ * looking identical. Every branch also records a diagnostics snapshot.
+ */
+export async function loadPaywallOffering(): Promise<OfferingLoadResult> {
+  const stamp = new Date().toISOString();
+
+  if (!isReady()) {
+    diagnostics = {
+      ...diagnostics,
+      offeringsFetched: null,
+      lastFailureReason: 'not_configured',
+      lastCheckedAt: stamp,
+    };
+    return { ok: false, reason: 'not_configured', offering: null };
   }
+
+  let offerings;
+  try {
+    offerings = await Purchases.getOfferings();
+  } catch (err) {
+    const { code, message } = sanitizeError(err);
+    diagnostics = {
+      ...diagnostics,
+      offeringsFetched: false,
+      lastFailureReason: 'fetch_failed',
+      lastErrorCode: code,
+      lastErrorMessage: message,
+      lastCheckedAt: stamp,
+    };
+    return { ok: false, reason: 'fetch_failed', offering: null };
+  }
+
+  const current = offerings.current ?? null;
+  const offeringsCount = Object.keys(offerings.all ?? {}).length;
+  const packages = current?.availablePackages ?? [];
+  const monthly = selectPackage(current, 'monthly');
+  const annual = selectPackage(current, 'annual');
+
+  diagnostics = {
+    ...diagnostics,
+    offeringsFetched: true,
+    offeringsCount,
+    currentOfferingId: current?.identifier ?? null,
+    hasCurrentOffering: current != null,
+    packageIdentifiers: packages.map((p) => p.identifier),
+    hasMonthlyPackage: monthly != null,
+    hasAnnualPackage: annual != null,
+    productIdentifiers: packages.map((p) => p.product.identifier),
+    monthlyPriceStringPresent: Boolean(monthly?.product.priceString),
+    annualPriceStringPresent: Boolean(annual?.product.priceString),
+    lastErrorCode: null,
+    lastErrorMessage: null,
+    lastCheckedAt: stamp,
+  };
+
+  if (!current) {
+    diagnostics = { ...diagnostics, lastFailureReason: 'no_current_offering' };
+    return { ok: false, reason: 'no_current_offering', offering: null };
+  }
+
+  // An offering whose packages never hydrated from StoreKit is not sellable:
+  // purchasePackage would have nothing to buy and the price would render blank.
+  if (!monthly && !annual) {
+    diagnostics = { ...diagnostics, lastFailureReason: 'no_usable_packages' };
+    return { ok: false, reason: 'no_usable_packages', offering: current };
+  }
+
+  if (!monthly?.product.priceString && !annual?.product.priceString) {
+    diagnostics = { ...diagnostics, lastFailureReason: 'price_missing' };
+    return { ok: false, reason: 'price_missing', offering: current };
+  }
+
+  diagnostics = { ...diagnostics, lastFailureReason: null };
+  return { ok: true, offering: current };
+}
+
+/**
+ * Safe snapshot of the last offering load, for support and preview QA.
+ * Contains no key, no receipt, no purchase token and no user identifier.
+ */
+export function getSubscriptionDiagnostics(): SubscriptionDiagnostics {
+  return {
+    ...diagnostics,
+    hasKey: Boolean(RC_IOS_KEY),
+    configured,
+  };
+}
+
+/**
+ * Whether the preview-only diagnostics affordance may be offered.
+ *
+ * Driven solely by EXPO_PUBLIC_RC_DEBUG=true. Production builds never set it,
+ * so the UI that calls formatSubscriptionDiagnostics() is unreachable there.
+ */
+export function isSubscriptionDebugEnabled(): boolean {
+  return RC_DEBUG;
+}
+
+/**
+ * Copy-pasteable summary for preview QA on a physical device.
+ *
+ * Built from an EXPLICIT allow-list rather than by serialising the diagnostics
+ * object, so a field added here later cannot silently start leaking. It carries
+ * no App User ID, Supabase UUID, API key, receipt, transaction id, purchase
+ * token or email — none of those are ever recorded in the first place.
+ */
+export function formatSubscriptionDiagnostics(): string {
+  const d = getSubscriptionDiagnostics();
+  const lines = [
+    `configured=${d.configured}`,
+    `offeringsFetched=${d.offeringsFetched}`,
+    `offeringsCount=${d.offeringsCount}`,
+    `currentOfferingId=${d.currentOfferingId ?? '-'}`,
+    `hasCurrentOffering=${d.hasCurrentOffering}`,
+    `packageIdentifiers=[${d.packageIdentifiers.join(', ')}]`,
+    `hasMonthlyPackage=${d.hasMonthlyPackage}`,
+    `hasAnnualPackage=${d.hasAnnualPackage}`,
+    `productIdentifiers=[${d.productIdentifiers.join(', ')}]`,
+    `monthlyPriceStringPresent=${d.monthlyPriceStringPresent}`,
+    `annualPriceStringPresent=${d.annualPriceStringPresent}`,
+    `lastFailureReason=${d.lastFailureReason ?? '-'}`,
+    `lastErrorCode=${d.lastErrorCode ?? '-'}`,
+    `lastErrorMessage=${d.lastErrorMessage ?? '-'}`,
+    `lastCheckedAt=${d.lastCheckedAt ?? '-'}`,
+  ];
+  return `GutWell subscription diagnostics\n${lines.join('\n')}`;
 }
 
 /**

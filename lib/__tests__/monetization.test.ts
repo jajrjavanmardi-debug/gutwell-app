@@ -360,3 +360,163 @@ describe('the AI cost controls are untouched', () => {
     expect(block).toContain('reserveDailyQuota');
   });
 });
+
+describe('offering failure states are distinguishable', () => {
+  test('every failure mode has its own reason rather than one shared null', () => {
+    for (const reason of [
+      'not_configured',
+      'fetch_failed',
+      'no_current_offering',
+      'no_usable_packages',
+      'price_missing',
+    ]) {
+      expect(`${reason}: ${SUBSCRIPTION.includes(`'${reason}'`)}`).toBe(`${reason}: true`);
+    }
+  });
+
+  test('a failed configure does not poison the session', () => {
+    // initPromise used to stay set after a throw, so every later call
+    // short-circuited on a promise that had already settled as "not configured"
+    // and monetization stayed dead until the app was killed.
+    expect(SUBSCRIPTION).toContain('initPromise = null');
+  });
+
+  test('diagnostics carry no key, receipt, token or user id', () => {
+    const diag = SUBSCRIPTION.slice(
+      SUBSCRIPTION.indexOf('export type SubscriptionDiagnostics'),
+      SUBSCRIPTION.indexOf('const EMPTY_DIAGNOSTICS'),
+    );
+    expect(diag).not.toMatch(/apiKey|appUserID|receipt|token/i);
+    expect(SUBSCRIPTION).toContain('export function getSubscriptionDiagnostics');
+    // The raw SDK message is scrubbed before it can be surfaced anywhere.
+    expect(SUBSCRIPTION).toContain('[redacted]');
+  });
+
+  test('verbose RevenueCat logging never ships on by default', () => {
+    expect(SUBSCRIPTION).toContain('__DEV__ || RC_DEBUG');
+    expect(SUBSCRIPTION).toContain('LOG_LEVEL.WARN');
+    expect(SUBSCRIPTION).not.toContain('LOG_LEVEL.VERBOSE');
+    expect(SUBSCRIPTION).not.toContain('LOG_LEVEL.DEBUG');
+  });
+
+  test('the user-facing message stays non-technical', () => {
+    expect(PAYWALL).toContain('t.paywall.unavailableTitle');
+    expect(PAYWALL).toContain('t.paywall.unavailableBody');
+    // No reason code, SDK error or product id is ever put in front of a user.
+    expect(PAYWALL).not.toMatch(/Alert\.alert\([^)]*result\.reason/);
+  });
+});
+
+describe('no English leaks into the German paywall or tutorial', () => {
+  const TUTORIAL = read('components', 'ScanTutorial.tsx');
+  const DISCLAIMER = read('components', 'HealthDisclaimerModal.tsx');
+
+  test('paywall renders no hardcoded English copy', () => {
+    for (const literal of [
+      "'Restore Purchases'",
+      "'Restoring",
+      'Payment is charged',
+      "'/mo'",
+      "'/yr'",
+      'Just ${',
+    ]) {
+      expect(`${literal}: ${PAYWALL.includes(literal)}`).toBe(`${literal}: false`);
+    }
+  });
+
+  test('the tutorial CTA comes from i18n in both states', () => {
+    expect(TUTORIAL).not.toContain("'Next'");
+    expect(TUTORIAL).not.toContain("'Scan now'");
+    expect(TUTORIAL).toContain('t.components.scanTutorial.next');
+    expect(TUTORIAL).toContain('t.components.scanTutorial.scanNow');
+  });
+
+  test('the disclaimer body is translated, not hardcoded', () => {
+    expect(DISCLAIMER).not.toContain('wellness tracking app');
+    expect(DISCLAIMER).not.toContain('does not diagnose');
+    expect(DISCLAIMER).toContain('t.components.healthDisclaimer.body1');
+    expect(DISCLAIMER).toContain('t.components.healthDisclaimer.legalNote');
+  });
+
+  test('German defines real copy for every string this batch added', () => {
+    const { de, en } = translations;
+    const pairs: [string, string][] = [
+      [en.paywall.finePrint, de.paywall.finePrint],
+      [en.paywall.restoring, de.paywall.restoring],
+      [en.paywall.unavailableBody, de.paywall.unavailableBody],
+      [en.paywall.periodMonthShort, de.paywall.periodMonthShort],
+      [en.components.scanTutorial.next, de.components.scanTutorial.next],
+      [en.components.healthDisclaimer.body1, de.components.healthDisclaimer.body1],
+      [en.components.healthDisclaimer.legalNote, de.components.healthDisclaimer.legalNote],
+    ];
+    for (const [english, german] of pairs) {
+      expect(german.length).toBeGreaterThan(0);
+      expect(german).not.toBe(english);
+    }
+  });
+
+  test('the German disclaimer keeps the negated, non-device meaning', () => {
+    const note = translations.de.components.healthDisclaimer.legalNote;
+    expect(note).toContain('nicht');
+    expect(translations.de.components.healthDisclaimer.body1).toContain('kein Medizinprodukt');
+  });
+});
+
+describe('preview-only diagnostics affordance', () => {
+  test('the copy action is gated on the debug flag, not on __DEV__ or a build type', () => {
+    expect(SUBSCRIPTION).toContain('export function isSubscriptionDebugEnabled');
+    expect(SUBSCRIPTION).toMatch(/EXPO_PUBLIC_RC_DEBUG[^\n]*\)\.trim\(\) === 'true'/);
+    expect(PAYWALL).toContain('isSubscriptionDebugEnabled()');
+    // The affordance must be behind the flag AND behind "nothing to sell".
+    expect(PAYWALL).toMatch(/isSubscriptionDebugEnabled\(\)\s*&&\s*!loadingOffering\s*&&\s*!canPurchase/);
+    expect(PAYWALL).toContain('{showDiagnostics ?');
+  });
+
+  test('the summary is an explicit allow-list, not a serialised object', () => {
+    const fmt = SUBSCRIPTION.slice(SUBSCRIPTION.indexOf('export function formatSubscriptionDiagnostics'));
+    // Serialising would leak any field added later; each line is named instead.
+    expect(fmt).not.toContain('JSON.stringify');
+    for (const field of [
+      'configured=',
+      'offeringsFetched=',
+      'offeringsCount=',
+      'currentOfferingId=',
+      'hasCurrentOffering=',
+      'packageIdentifiers=',
+      'hasMonthlyPackage=',
+      'hasAnnualPackage=',
+      'productIdentifiers=',
+      'monthlyPriceStringPresent=',
+      'annualPriceStringPresent=',
+      'lastFailureReason=',
+      'lastErrorCode=',
+      'lastErrorMessage=',
+      'lastCheckedAt=',
+    ]) {
+      expect(`${field}: ${fmt.includes(field)}`).toBe(`${field}: true`);
+    }
+  });
+
+  test('no identifier, credential or receipt can reach the clipboard', () => {
+    const fmt = SUBSCRIPTION.slice(SUBSCRIPTION.indexOf('export function formatSubscriptionDiagnostics'));
+    for (const banned of ['appUserID', 'userId', 'apiKey', 'RC_IOS_KEY', 'receipt', 'transaction', 'email']) {
+      expect(`${banned}: ${new RegExp(`\\b${banned}\\b`, 'i').test(fmt)}`).toBe(`${banned}: false`);
+    }
+    // hasKey is a boolean about the key's presence and is deliberately left out
+    // of the copied summary entirely.
+    expect(fmt).not.toContain('hasKey');
+  });
+
+  test('both languages label the QA affordance', () => {
+    const { en, de } = translations;
+    expect(en.paywall.copyDebugInfo.length).toBeGreaterThan(0);
+    expect(de.paywall.copyDebugInfo.length).toBeGreaterThan(0);
+    expect(de.paywall.copyDebugInfo).not.toBe(en.paywall.copyDebugInfo);
+  });
+
+  test('clipboard comes from the already-installed expo-clipboard', () => {
+    const pkg = JSON.parse(read('package.json'));
+    expect(pkg.dependencies['expo-clipboard']).toBeDefined();
+    expect(PAYWALL).toContain("from 'expo-clipboard'");
+  });
+});
