@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Only pages that are complete and meant to be indexed belong here.
+  /privacy and /terms are intentionally absent: they are route scaffolds until
+  the approved legal documents are published. Add them at that point.
+
+  URLs use the www host because the apex 308-redirects to it; a sitemap should
+  list the address that actually serves each page.
+-->
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url>
+    <loc>https://www.getgutwell.app/</loc>
+    <changefreq>weekly</changefreq>
+    <priority>1.0</priority>
+  </url>
+  <url>
+    <loc>https://www.getgutwell.app/support</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+  </url>
+</urlset>
