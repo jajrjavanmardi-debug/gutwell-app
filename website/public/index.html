@@ -10,8 +10,11 @@
 <link rel="apple-touch-icon" href="icon.png">
 <meta property="og:title" content="GutWell AI — Your Personal Gut Health Coach">
 <meta property="og:description" content="Track daily gut symptoms, review personal patterns, and make more confident food choices.">
-<meta property="og:image" content="https://gutwell-app-6jwr.vercel.app/icon.png">
-<meta property="og:url" content="https://gutwell-app-6jwr.vercel.app/">
+<meta property="og:image" content="https://www.getgutwell.app/icon.png">
+<meta property="og:url" content="https://www.getgutwell.app/">
+<!-- www, not the apex: getgutwell.app 308-redirects to www.getgutwell.app, and
+     a canonical URL should be the address that actually serves the page. -->
+<link rel="canonical" href="https://www.getgutwell.app/">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="GutWell AI — Your Personal Gut Health Coach">
 <meta name="twitter:description" content="Track daily gut symptoms, review personal patterns, and make more confident food choices. Coming soon to iOS.">
@@ -44,7 +47,10 @@ button{cursor:pointer;border:none;font-family:inherit}
   --accent:#D4A373;
   --text:#fff;
   --text-secondary:rgba(255,255,255,0.65);
-  --text-tertiary:rgba(255,255,255,0.4);
+  /* 0.4 gave 3.79:1 on --green-900, below the 4.5:1 WCAG AA body minimum.
+     0.55 measures 5.95:1 and still sits below --text-secondary (0.65), so the
+     three-step type hierarchy is unchanged. */
+  --text-tertiary:rgba(255,255,255,0.55);
   --card-bg:rgba(255,255,255,0.05);
   --card-border:rgba(255,255,255,0.09);
   --radius-sm:8px;
@@ -214,7 +220,7 @@ footer{position:relative;z-index:1;border-top:1px solid var(--card-border);paddi
 <!-- Nav -->
 <nav>
   <div class="container nav-inner">
-    <a class="nav-logo" href="#">
+    <a class="nav-logo" href="/">
       <img src="icon.png" alt="GutWell AI app icon">
       <span class="nav-logo-text">GutWell AI</span>
     </a>
@@ -542,6 +548,7 @@ footer{position:relative;z-index:1;border-top:1px solid var(--card-border);paddi
       <span class="footer-logo-text">GutWell AI</span>
     </div>
     <div class="footer-links">
+      <a href="/support">Support</a>
       <a href="https://jajrjavanmardi-debug.github.io/gutwell-app/legal/privacy.html" target="_blank" rel="noopener">Privacy Policy</a>
       <a href="https://jajrjavanmardi-debug.github.io/gutwell-app/legal/terms.html" target="_blank" rel="noopener">Terms of Service</a>
       <a href="https://jajrjavanmardi-debug.github.io/gutwell-app/legal/impressum.html" target="_blank" rel="noopener">Legal Notice</a>
