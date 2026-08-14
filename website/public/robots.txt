@@ -1,0 +1,10 @@
+User-agent: *
+Allow: /
+
+# /privacy and /terms are route scaffolds until the approved legal documents are
+# published. They also carry a noindex meta tag; this is the belt to that
+# braces. Remove both when the real documents go live.
+Disallow: /privacy
+Disallow: /terms
+
+Sitemap: https://www.getgutwell.app/sitemap.xml
