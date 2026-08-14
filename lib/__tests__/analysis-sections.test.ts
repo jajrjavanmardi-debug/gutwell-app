@@ -473,3 +473,39 @@ describe('concise result presentation', () => {
     }
   });
 });
+
+describe('the Generate Analysis button paints the state it is actually in', () => {
+  // The disabled prop and the disabled style used to be two copies of one
+  // condition, and the style copy always required an image. On the text-only
+  // path — the permanent free-tier route — the button was tappable but drawn
+  // with the disabled colour at 0.55 opacity, so it read as dead.
+  const BUTTON = PHOTO.slice(
+    PHOTO.indexOf('onPress={handleGenerateAnalysis}'),
+    PHOTO.indexOf('onPress={handleGenerateAnalysis}') + 1200,
+  );
+
+  test('the disabled style is driven by analyzeDisabled, not a restatement', () => {
+    expect(BUTTON).toContain('analyzeDisabled && styles.analyzeCombinedButtonDisabled');
+    expect(BUTTON).toContain('pressed && !analyzeDisabled && styles.pressed');
+  });
+
+  test('no copy of the enablement condition survives in the style prop', () => {
+    const styleProp = BUTTON.slice(BUTTON.indexOf('style={({ pressed })'), BUTTON.indexOf(']}'));
+    for (const fragment of ['mealDescription.trim()', 'lastImageBase64.trim()', 'isAnalyzing']) {
+      expect(`${fragment} in style: ${styleProp.includes(fragment)}`).toBe(
+        `${fragment} in style: false`,
+      );
+    }
+  });
+
+  test('the disabled prop and accessibility state still read the same source', () => {
+    expect(BUTTON).toContain('disabled={analyzeDisabled}');
+    expect(BUTTON).toContain('accessibilityState={{ disabled: analyzeDisabled }}');
+  });
+
+  test('enabled and disabled remain visually distinct', () => {
+    // A fix that made the two states identical would also "pass" the above.
+    expect(PHOTO).toMatch(/analyzeCombinedButtonDisabled:\s*\{[^}]*backgroundColor/);
+    expect(PHOTO).toMatch(/analyzeCombinedButtonDisabled:\s*\{[^}]*opacity/);
+  });
+});

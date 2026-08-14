@@ -1688,15 +1688,16 @@ export default function PhotoAnalysisScreen() {
                     : t.photoAnalysis.generateAnalysis
                 }
                 accessibilityState={{ disabled: analyzeDisabled }}
+                // Styling reads analyzeDisabled rather than restating it. The
+                // copy that used to live here always required an image, so on
+                // the text-only path the button was enabled but painted with
+                // the disabled colour and 0.55 opacity — it looked dead while
+                // working. One source of truth is what the comment above
+                // analyzeDisabled already promised.
                 style={({ pressed }) => [
                   styles.analyzeCombinedButton,
-                  (!mealDescription.trim() || isAnalyzing || !lastImageBase64.trim()) &&
-                    styles.analyzeCombinedButtonDisabled,
-                  pressed &&
-                    mealDescription.trim() &&
-                    !isAnalyzing &&
-                    lastImageBase64.trim() &&
-                    styles.pressed,
+                  analyzeDisabled && styles.analyzeCombinedButtonDisabled,
+                  pressed && !analyzeDisabled && styles.pressed,
                 ]}
               >
                 <Ionicons name="sparkles" size={20} color="#000000" />
