@@ -814,3 +814,94 @@ describe('refunds and telemetry are server-only', () => {
     expect(MIGRATION).toContain("when 'photo_analysis' then 5");
   });
 });
+
+describe('a photo always analyses as a photo', () => {
+  /**
+   * textOnlyMode used to be a one-way latch. startTextOnlyFlow() set it and
+   * cleared the image; storeCapturedPhoto() set the image but left the flag, so
+   * a user routed into the describe path by the Premium gate and returning with
+   * a photo still analysed as mode "meal_text_only". The image was never sent,
+   * and because the typed text described how they felt rather than what they
+   * ate, the text-only scope guard refused with "I can only look at meals and
+   * drinks you've described". The correction flow then worked, because it is a
+   * different mode with a different prompt.
+   */
+  const STORE = SCREEN.slice(
+    SCREEN.indexOf('const storeCapturedPhoto'),
+    SCREEN.indexOf('const ensurePhotoEntitlement'),
+  );
+  const FLOW = SCREEN.slice(
+    SCREEN.indexOf('const startTextOnlyFlow'),
+    SCREEN.indexOf('const startTextOnlyFlow') + 900,
+  );
+
+  test('storing a photo leaves text-only mode', () => {
+    expect(STORE).toContain('setTextOnlyMode(false)');
+  });
+
+  test('the flag has both transitions, so it cannot latch again', () => {
+    expect(SCREEN).toContain('setTextOnlyMode(true)');
+    expect(SCREEN).toContain('setTextOnlyMode(false)');
+  });
+
+  test('entering and leaving the text path are mirror images', () => {
+    // Entering clears the image; storing an image clears the flag. Either half
+    // alone leaves the screen able to disagree with itself about its own mode.
+    expect(FLOW).toContain('setTextOnlyMode(true)');
+    expect(FLOW).toContain("setLastImageBase64('')");
+    expect(STORE).toContain('setLastImageBase64(asset.base64)');
+    expect(STORE).toContain('setTextOnlyMode(false)');
+  });
+
+  test('the generate handler routes on the flag, and the flag now tracks reality', () => {
+    const handler = SCREEN.slice(
+      SCREEN.indexOf('const handleGenerateAnalysis'),
+      SCREEN.indexOf('const runTextAnalysis'),
+    );
+    expect(handler).toContain('if (textOnlyMode)');
+    expect(handler).toContain('void runTextAnalysis(');
+    expect(handler).toContain('void runPhotoAnalysis(lastImageBase64, photoUri, narrative)');
+  });
+
+  test('the photo path sends the image AND the narrative under mode meal_text', () => {
+    const fn = SCREEN.slice(SCREEN.indexOf('const runPhotoAnalysis'), SCREEN.length);
+    expect(fn).toContain("analyzeMealPhoto(imageBase64, 'image/jpeg'");
+    expect(fn).toContain('userFeelingsNarrative:');
+    const engine = ENGINE.slice(ENGINE.indexOf('export async function analyzeMealPhoto'));
+    expect(engine).toContain("mode: 'meal_text'");
+    expect(engine).toContain('image: imageBase64');
+  });
+
+  test('the text path still sends no image at all', () => {
+    const engine = ENGINE.slice(
+      ENGINE.indexOf('export async function analyzeMealText'),
+      ENGINE.indexOf('export async function reviseMealAnalysis'),
+    );
+    expect(engine).toContain("mode: 'meal_text_only'");
+    // Comments are stripped: the function documents that it deliberately omits
+    // these keys, and that explanation should not read as the keys being sent.
+    const code = engine.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
+    expect(code).not.toMatch(/\bimage:/);
+    expect(code).not.toMatch(/\bmimeType\b/);
+  });
+
+  test('correction stays its own mode and is unaffected by either path', () => {
+    const engine = ENGINE.slice(ENGINE.indexOf('export async function reviseMealAnalysis'));
+    expect(engine).toContain("mode: 'meal_revise'");
+  });
+
+  test('the refusal wording lives only in the text-only prompt', () => {
+    // If this string ever appears in the photo prompt, a photo analysis could
+    // refuse for the same reason and this whole guard would prove nothing.
+    const textOnly = EDGE.slice(
+      EDGE.indexOf('function buildMealTextOnlyPrompt'),
+      EDGE.indexOf('function buildMealTextPrompt'),
+    );
+    const photo = EDGE.slice(
+      EDGE.indexOf('function buildMealTextPrompt'),
+      EDGE.indexOf('function buildMealRevisePrompt'),
+    );
+    expect(textOnly).toContain('you can only look at meals and drinks');
+    expect(photo).not.toContain('you can only look at meals and drinks');
+  });
+});

@@ -992,6 +992,14 @@ export default function PhotoAnalysisScreen() {
     // Listen-before-analyze: no Groq call here—only after Step 2 voice/text and Generate Analysis.
     setPhotoUri(asset.uri);
     setLastImageBase64(asset.base64);
+    // A photograph means this is a photo analysis, whatever the screen was doing
+    // before. startTextOnlyFlow() clears the image when it sets this flag; this
+    // is the other half of that swap, and without it the flag was a one-way
+    // latch: a user routed into the describe path by the Premium gate, and then
+    // returning with a photo, still analysed as mode "meal_text_only". The
+    // image was never sent, and a description of how they felt rather than what
+    // they ate tripped the text-only scope guard.
+    setTextOnlyMode(false);
     // A new photograph is a new logical analysis, so it gets a new id and will
     // cost a daily slot. Minted here rather than at request time so that every
     // retry of THIS photo reuses it and is free — see lib/ai-quota.ts.
