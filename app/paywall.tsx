@@ -25,6 +25,7 @@ import {
   isMonetizationEnabled,
   isSubscriptionDebugEnabled,
   loadPaywallOffering,
+  normalizedPriceString,
   purchasePlan,
   selectPackage,
   restorePurchases,
@@ -107,37 +108,18 @@ export default function PaywallScreen() {
   const annualPrice = annualPkg?.product.priceString ?? null;
   const canPurchase = offering != null;
 
-  // Derive per-month and savings claims from the REAL store prices so they
-  // stay correct across currencies and price changes (hardcoded '$3.33' and
-  // '52%' would be false advertising the moment prices differ).
-  const annualProduct = annualPkg?.product;
-  const monthlyProduct = monthlyPkg?.product;
-  const perMonthLabel = (() => {
-    // No live price means no per-month claim. '$3.33/mo' was invented.
-    if (!annualProduct || typeof annualProduct.price !== 'number') return null;
-    try {
-      const perMonth = new Intl.NumberFormat(undefined, {
-        style: 'currency',
-        currency: annualProduct.currencyCode || 'USD',
-      }).format(annualProduct.price / 12);
-      return t.paywall.perMonthLabel.replace('{price}', perMonth);
-    } catch {
-      return null;
-    }
-  })();
-  const savingsLabel = (() => {
-    if (
-      !annualProduct || !monthlyProduct ||
-      typeof annualProduct.price !== 'number' || typeof monthlyProduct.price !== 'number' ||
-      monthlyProduct.price <= 0
-    ) {
-      // A discount we cannot compute is a discount we must not claim. The
-      // hardcoded '52' was false the moment prices changed.
-      return t.paywall.billedAnnually;
-    }
-    const pct = Math.round((1 - annualProduct.price / (monthlyProduct.price * 12)) * 100);
-    return pct > 0 ? t.paywall.billedAnnuallySave.replace('{pct}', String(pct)) : t.paywall.billedAnnually;
-  })();
+  // Two plans billed on different intervals are hard to compare, so each card
+  // leads with the price restated on a common cadence and states the real
+  // charge underneath. Null whenever it cannot be derived honestly, in which
+  // case the card falls back to showing the actual price as its headline —
+  // never a blank, a zero, or a fabricated figure.
+  const monthlyPerWeek = normalizedPriceString(monthlyPkg, 'week');
+  const annualPerMonth = normalizedPriceString(annualPkg, 'month');
+
+  // The separate per-month sub-line and the savings percentage that used to sit
+  // on the Annual card are both gone: the per-month figure IS the headline now,
+  // and a discount claim is out of scope for this screen. Their i18n keys stay
+  // defined so restoring either is a render change, not a translation pass.
 
   // Trial copy must reflect the SELECTED plan's actual introductory offer.
   const selectedPkg = selectedPlan === 'annual' ? annualPkg : monthlyPkg;
@@ -312,9 +294,18 @@ export default function PaywallScreen() {
               activeOpacity={0.8}
             >
               {/* Neutral placeholder, never an invented figure. */}
-              <Text style={styles.pricingAmount}>{monthlyPrice ?? t.paywall.priceUnavailable}</Text>
-              <Text style={styles.pricingPeriod}>{t.paywall.periodMonthShort}</Text>
-              <Text style={styles.pricingBilled}>{t.paywall.billedMonthly}</Text>
+              <Text style={styles.pricingAmount}>
+                {monthlyPerWeek ?? monthlyPrice ?? t.paywall.priceUnavailable}
+              </Text>
+              <Text style={styles.pricingPeriod}>
+                {monthlyPerWeek ? t.paywall.periodWeekShort : t.paywall.periodMonthShort}
+              </Text>
+              {/* What Apple actually charges, and when. Never omitted. */}
+              <Text style={styles.pricingBilled}>
+                {monthlyPrice
+                  ? t.paywall.billedMonthlyAt.replace('{price}', monthlyPrice)
+                  : t.paywall.billedMonthly}
+              </Text>
             </TouchableOpacity>
 
             {/* Annual */}
@@ -329,10 +320,18 @@ export default function PaywallScreen() {
               <View style={styles.bestValueBadge}>
                 <Text style={styles.bestValueText}>{t.paywall.bestValue}</Text>
               </View>
-              <Text style={styles.pricingAmount}>{annualPrice ?? t.paywall.priceUnavailable}</Text>
-              <Text style={styles.pricingPeriod}>{t.paywall.periodYearShort}</Text>
-              {perMonthLabel ? <Text style={styles.pricingSubPrice}>{perMonthLabel}</Text> : null}
-              <Text style={styles.pricingBilled}>{savingsLabel}</Text>
+              <Text style={styles.pricingAmount}>
+                {annualPerMonth ?? annualPrice ?? t.paywall.priceUnavailable}
+              </Text>
+              <Text style={styles.pricingPeriod}>
+                {annualPerMonth ? t.paywall.periodMonthShort : t.paywall.periodYearShort}
+              </Text>
+              {/* What Apple actually charges, and when. Never omitted. */}
+              <Text style={styles.pricingBilled}>
+                {annualPrice
+                  ? t.paywall.billedAnnuallyAt.replace('{price}', annualPrice)
+                  : t.paywall.billedAnnually}
+              </Text>
             </TouchableOpacity>
           </View>
 

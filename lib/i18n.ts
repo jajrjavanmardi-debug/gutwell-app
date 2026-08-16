@@ -511,6 +511,12 @@ const en = {
     perMonthLabel: 'Just {price}/mo',
     periodMonthShort: '/mo',
     periodYearShort: '/yr',
+    periodWeekShort: '/week',
+    // The normalized figure above these is a comparison aid; these state what
+    // Apple actually charges and when. {price} is always the live StoreKit
+    // price for the plan's real billing period.
+    billedMonthlyAt: 'Billed monthly at {price}',
+    billedAnnuallyAt: 'Billed annually at {price}',
     // Introductory-offer period units. StoreKit reports these in English, so
     // they are mapped through i18n before going into startTrialWithPeriod.
     trialUnitDay: 'day',
@@ -1890,6 +1896,9 @@ const de: Translations = {
     perMonthLabel: 'Nur {price}/Mon.',
     periodMonthShort: '/Mon.',
     periodYearShort: '/Jahr',
+    periodWeekShort: '/Woche',
+    billedMonthlyAt: 'Monatliche Abrechnung: {price}',
+    billedAnnuallyAt: 'Jährliche Abrechnung: {price}',
     trialUnitDay: 'Tag',
     trialUnitWeek: 'Woche',
     trialUnitMonth: 'Monat',

@@ -71,16 +71,16 @@ describe('paywall shows real prices or none at all', () => {
     expect(translations.de.paywall.priceUnavailable).toBe('—');
   });
 
-  test('savings and per-month are derived from live package prices', () => {
-    expect(PAYWALL).toContain('annualProduct.price / 12');
-    expect(PAYWALL).toContain('1 - annualProduct.price / (monthlyProduct.price * 12)');
-    expect(PAYWALL).toContain('currencyCode');
-  });
-
-  test('no discount is claimed when it cannot be computed', () => {
-    const block = PAYWALL.slice(PAYWALL.indexOf('const savingsLabel'), PAYWALL.indexOf('const selectedPkg'));
-    expect(block).toContain('t.paywall.billedAnnually');
-    expect(block).not.toMatch(/'\d+'\)/);
+  // The per-month sub-line and the savings percentage that used to sit on the
+  // Annual card were removed when each card gained a normalized headline price:
+  // the per-month figure IS the headline now, and no discount is claimed on
+  // this screen at all. See the 'normalized price comparison' block below for
+  // the arithmetic, which is unit-tested rather than asserted from source.
+  test('comparison prices are derived in the subscription layer, not the screen', () => {
+    expect(PAYWALL).toContain("normalizedPriceString(monthlyPkg, 'week')");
+    expect(PAYWALL).toContain("normalizedPriceString(annualPkg, 'month')");
+    // The screen does no currency arithmetic of its own any more.
+    expect(PAYWALL).not.toContain('Intl.NumberFormat');
   });
 
   test('the intro offer comes from StoreKit, never from JavaScript', () => {
@@ -518,5 +518,162 @@ describe('preview-only diagnostics affordance', () => {
     const pkg = JSON.parse(read('package.json'));
     expect(pkg.dependencies['expo-clipboard']).toBeDefined();
     expect(PAYWALL).toContain("from 'expo-clipboard'");
+  });
+});
+
+describe('normalized price comparison', () => {
+  // The function is pure, so the arithmetic is tested directly rather than
+  // asserted from source text. lib/subscription.ts imports the RevenueCat
+  // native module at its top level, which Jest cannot transform, so the SDK is
+  // stubbed — nothing under test touches it.
+  jest.mock('react-native-purchases', () => ({
+    __esModule: true,
+    default: {},
+    LOG_LEVEL: { WARN: 'WARN' },
+  }));
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { normalizedPriceString } = require('../subscription');
+
+  const pkg = (price: unknown, currencyCode: unknown = 'EUR') =>
+    ({ product: { price, currencyCode } }) as never;
+
+  /** Strip formatting so assertions do not depend on the CI locale. */
+  const digits = (s: string | null) => (s ?? '').replace(/[^0-9.,]/g, '').replace(',', '.');
+
+  test('a monthly price is restated per week as price * 12 / 52', () => {
+    // 9.99 * 12 / 52 = 2.3053…  — NOT 9.99 / 4 = 2.4975, which is what
+    // RevenueCat's own pricePerWeek would give. A month is ~4.35 weeks.
+    expect(digits(normalizedPriceString(pkg(9.99), 'week'))).toBe('2.31');
+    expect(digits(normalizedPriceString(pkg(9.99), 'week'))).not.toBe('2.50');
+    expect(digits(normalizedPriceString(pkg(12), 'week'))).toBe('2.77');
+  });
+
+  test('an annual price is restated per month as price / 12', () => {
+    expect(digits(normalizedPriceString(pkg(49.99), 'month'))).toBe('4.17');
+    expect(digits(normalizedPriceString(pkg(120), 'month'))).toBe('10.00');
+  });
+
+  test('the currency comes from the product, never from a default', () => {
+    const usd = normalizedPriceString(pkg(9.99, 'USD'), 'week');
+    const jpy = normalizedPriceString(pkg(1200, 'JPY'), 'month');
+    expect(usd).not.toBeNull();
+    expect(jpy).not.toBeNull();
+    // Different currencies must not format identically.
+    expect(normalizedPriceString(pkg(9.99, 'USD'), 'week')).not.toBe(
+      normalizedPriceString(pkg(9.99, 'EUR'), 'week'),
+    );
+  });
+
+  test('nothing is fabricated when the figure cannot be derived', () => {
+    for (const bad of [
+      null,
+      pkg(undefined),
+      pkg(0),
+      pkg(-5),
+      pkg(Number.NaN),
+      pkg(Number.POSITIVE_INFINITY),
+      pkg('9.99'),
+      pkg(9.99, ''),
+      { product: { price: 9.99 } },
+      pkg(9.99, 'NOT_A_CURRENCY'),
+    ]) {
+      expect(normalizedPriceString(bad as never, 'week')).toBeNull();
+      expect(normalizedPriceString(bad as never, 'month')).toBeNull();
+    }
+  });
+
+  test('the derivation never parses the localized priceString', () => {
+    const fn = SUBSCRIPTION.slice(SUBSCRIPTION.indexOf('export function normalizedPriceString'));
+    const body = fn.slice(0, fn.indexOf('\n}\n') + 1);
+    expect(body).not.toContain('priceString');
+    expect(body).not.toContain('parseFloat');
+    expect(body).not.toContain('parseInt');
+    expect(body).toContain('product.price');
+    expect(body).toContain('currencyCode');
+  });
+
+  test("RevenueCat's divide-by-4 weekly field is deliberately unused", () => {
+    for (const field of ['pricePerWeek', 'pricePerWeekString', 'pricePerMonthString']) {
+      expect(`${field} used: ${PAYWALL.includes(field) || SUBSCRIPTION.includes(`.${field}`)}`).toBe(
+        `${field} used: false`,
+      );
+    }
+  });
+});
+
+describe('the real charge stays visible next to the comparison figure', () => {
+  test('each card renders the live StoreKit price for its own billing period', () => {
+    expect(PAYWALL).toContain("t.paywall.billedMonthlyAt.replace('{price}', monthlyPrice)");
+    expect(PAYWALL).toContain("t.paywall.billedAnnuallyAt.replace('{price}', annualPrice)");
+  });
+
+  test('the normalized figure falls back to the real price, never to a blank', () => {
+    expect(PAYWALL).toContain('monthlyPerWeek ?? monthlyPrice ?? t.paywall.priceUnavailable');
+    expect(PAYWALL).toContain('annualPerMonth ?? annualPrice ?? t.paywall.priceUnavailable');
+  });
+
+  test('the period label follows whichever figure is actually shown', () => {
+    expect(PAYWALL).toContain(
+      'monthlyPerWeek ? t.paywall.periodWeekShort : t.paywall.periodMonthShort',
+    );
+    expect(PAYWALL).toContain(
+      'annualPerMonth ? t.paywall.periodMonthShort : t.paywall.periodYearShort',
+    );
+  });
+
+  test('billing cadence wording is not swapped between the two plans', () => {
+    const { en, de } = translations;
+    expect(en.paywall.billedMonthlyAt.toLowerCase()).toContain('monthly');
+    expect(en.paywall.billedAnnuallyAt.toLowerCase()).toContain('annually');
+    expect(de.paywall.billedMonthlyAt.toLowerCase()).toContain('monatlich');
+    expect(de.paywall.billedAnnuallyAt.toLowerCase()).toContain('jährlich');
+  });
+
+  test('no savings percentage is displayed by this screen', () => {
+    expect(PAYWALL).not.toContain('savingsLabel');
+    expect(PAYWALL).not.toContain('billedAnnuallySave');
+  });
+
+  test('both languages define every new pricing string, with the {price} slot', () => {
+    for (const lang of ['en', 'de'] as const) {
+      const p = translations[lang].paywall;
+      expect(`${lang} periodWeekShort`).toBe(`${lang} ${p.periodWeekShort ? 'periodWeekShort' : 'MISSING'}`);
+      expect(p.billedMonthlyAt).toContain('{price}');
+      expect(p.billedAnnuallyAt).toContain('{price}');
+    }
+  });
+
+  test('no monetary amount is hardcoded by the new presentation', () => {
+    // Comments are stripped first: paywall.tsx documents the invented prices it
+    // used to show, and that history is worth keeping.
+    const code = (s: string) =>
+      s.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
+    for (const src of [PAYWALL, SUBSCRIPTION]) {
+      expect(code(src)).not.toMatch(/[€$£¥]\s?\d/);
+      expect(code(src)).not.toMatch(/\b2\.49\b|\b5\.99\b/);
+    }
+  });
+});
+
+describe('purchase, restore and plan selection are untouched by the pricing change', () => {
+  test('Annual remains the default selection', () => {
+    expect(PAYWALL).toContain("useState<'monthly' | 'annual'>('annual')");
+  });
+
+  test('the CTA still gates on canPurchase and the offering', () => {
+    expect(PAYWALL).toContain('const canPurchase = offering != null');
+    expect(PAYWALL).toContain('if (!canPurchase)');
+    expect(PAYWALL).toContain('purchasePlan(selectedPlan)');
+  });
+
+  test('restore still routes through the subscription layer', () => {
+    expect(PAYWALL).toContain('restorePurchases()');
+  });
+
+  test('the normalized figure is display-only and never reaches a purchase call', () => {
+    const cta = PAYWALL.slice(PAYWALL.indexOf('const handleCTA'), PAYWALL.indexOf('const handleRestore'));
+    for (const v of ['monthlyPerWeek', 'annualPerMonth', 'normalizedPriceString']) {
+      expect(`${v} in handleCTA: ${cta.includes(v)}`).toBe(`${v} in handleCTA: false`);
+    }
   });
 });

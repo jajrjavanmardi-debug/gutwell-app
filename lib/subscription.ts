@@ -476,6 +476,51 @@ export function selectPackage(
   );
 }
 
+/** The cadence a price is restated in, purely to make two plans comparable. */
+export type PriceCadence = 'week' | 'month';
+
+/**
+ * Restate a package's price per week or per month, formatted for the store's
+ * currency. Comparison aid only — the real charge and its real interval are
+ * shown alongside it, because this figure is not what Apple bills.
+ *
+ * Derived from the numeric `price` and `currencyCode`, never by parsing
+ * `priceString`: that string is already localized (grouping marks, symbol
+ * position, decimal separator) and parsing it back into a number breaks the
+ * moment a storefront formats differently.
+ *
+ * Deliberately NOT RevenueCat's own `pricePerWeek`/`pricePerWeekString`. Those
+ * divide a monthly price by 4, which overstates the weekly figure by ~8% — a
+ * month averages 52/12 ≈ 4.35 weeks, not 4.
+ *
+ * Returns null — never a guess, an empty string or NaN — whenever the figure
+ * cannot be produced honestly, so callers fall back to the real price.
+ */
+export function normalizedPriceString(
+  pkg: PurchasesPackage | null,
+  cadence: PriceCadence,
+): string | null {
+  const product = pkg?.product;
+  if (!product) return null;
+
+  const price = product.price;
+  if (typeof price !== 'number' || !Number.isFinite(price) || price <= 0) return null;
+
+  const currency = product.currencyCode;
+  if (typeof currency !== 'string' || currency.length === 0) return null;
+
+  // A monthly plan spans 12 months across 52 weeks; an annual plan, 12 months.
+  const amount = cadence === 'week' ? (price * 12) / 52 : price / 12;
+  if (!Number.isFinite(amount) || amount <= 0) return null;
+
+  try {
+    return new Intl.NumberFormat(undefined, { style: 'currency', currency }).format(amount);
+  } catch {
+    // An unknown currency code makes Intl throw. Better no figure than a wrong one.
+    return null;
+  }
+}
+
 /**
  * Purchase the package for the requested plan. Distinguishes a user-cancelled
  * flow (cancelled: true, no error UI) from a real failure (message set).
