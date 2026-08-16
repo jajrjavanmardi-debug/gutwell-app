@@ -196,3 +196,27 @@ describe('retired analytics declarations stay retired', () => {
     );
   });
 });
+
+describe('the iOS bundle identifier matches the App Store Connect record', () => {
+  /**
+   * App Store Connect app 6796702004 (SKU gutwell-ios-001) is registered to
+   * this identifier, and Apple rejects any binary whose bundle id differs —
+   * ITMS-90055. Build 4 was built as `com.parallellabs.gutwell` and was thrown
+   * away for exactly that reason: the id is compiled in and signed, so a
+   * mismatched artifact cannot be repaired or re-uploaded.
+   *
+   * The drift was silent. `app.json` had been changed away from the original
+   * identifier while App Store Connect kept it, and nothing failed until the
+   * upload. Hence this guard.
+   */
+  const APP_STORE_BUNDLE_ID = 'app.getgutwell.gutwell';
+  const REJECTED_BUNDLE_ID = 'com.parallellabs.gutwell';
+
+  test('app.json declares the identifier App Store Connect expects', () => {
+    expect(appJson.expo?.ios?.bundleIdentifier).toBe(APP_STORE_BUNDLE_ID);
+  });
+
+  test('the identifier Apple rejected cannot come back', () => {
+    expect(appJson.expo?.ios?.bundleIdentifier).not.toBe(REJECTED_BUNDLE_ID);
+  });
+});
