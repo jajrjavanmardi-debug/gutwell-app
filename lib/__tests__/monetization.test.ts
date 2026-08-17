@@ -23,6 +23,8 @@ const SCREEN = read('app', 'photo-analysis.tsx');
 const EDGE = read('supabase', 'functions', 'analyze-food', 'index.ts');
 const WEBHOOK = read('supabase', 'functions', 'revenuecat-webhook', 'index.ts');
 const ENT_MIGRATION = read('supabase', 'migrations', '20260809140000_user_entitlements.sql');
+/** The migration that currently defines apply_entitlement_event. */
+const ENT_ORDERING = read('supabase', 'migrations', '20260816210000_entitlement_event_ordering.sql');
 
 describe('one monetization source of truth', () => {
   test('no screen calls the RevenueCat SDK directly', () => {
@@ -342,6 +344,78 @@ describe('webhook receiver', () => {
   test('a write failure returns 500 so RevenueCat retries an idempotent write', () => {
     expect(WEBHOOK).toContain('WRITE_FAILED');
     expect(WEBHOOK).toContain('apply_entitlement_event');
+  });
+});
+
+describe('only a real event may order events', () => {
+  /**
+   * Guards the 2026-08-16 production failure. The behavioural proof is section
+   * 11 of scripts/verify-entitlements.sh, which runs the real SQL on a real
+   * PostgreSQL and fails 12 assertions without the fix. CI cannot run that —
+   * it has no database — so these pin the three lines the fix turns on.
+   *
+   * The failure: the REST fallback passes p_event_at => null, and the function
+   * turned that into now() and stored it as last_event_at. The genuine
+   * INITIAL_PURCHASE webhook that followed carried the REAL purchase time,
+   * which is necessarily earlier, so it was refused as stale_event and the row
+   * kept null product_id, store and last_event_id — no provenance, and no
+   * event id to deduplicate a redelivery against.
+   */
+  const fn = ENT_ORDERING.slice(ENT_ORDERING.indexOf('create or replace function'));
+
+  test('a caller without an event timestamp is not given one', () => {
+    // The whole bug in one line.
+    expect(fn).not.toContain('coalesce(p_event_at, now())');
+    expect(fn).toContain('v_event_at timestamptz := p_event_at;');
+  });
+
+  test('the stale guard only compares two real events', () => {
+    const guard = fn.slice(fn.indexOf('-- Strictly older event'), fn.indexOf('insert into public.user_entitlements'));
+    expect(guard).toContain('v_event_at is not null');
+    expect(guard).toContain('existing.last_event_at is not null');
+    expect(guard).toContain('v_event_at < existing.last_event_at');
+  });
+
+  test('last_event_at is preserved, like every other provenance field', () => {
+    const upsert = fn.slice(fn.indexOf('on conflict (user_id) do update'));
+    for (const col of ['product_id', 'store', 'last_event_id', 'last_event_at']) {
+      expect(`${col}: ${upsert.includes(`coalesce(excluded.${col}, ue.${col})`)}`).toBe(`${col}: true`);
+    }
+    // State the fallback genuinely verified must still overwrite.
+    expect(upsert).toContain('is_active     = excluded.is_active');
+    expect(upsert).toContain('expires_at    = excluded.expires_at');
+  });
+
+  test('idempotency by event id is untouched', () => {
+    expect(fn).toContain("existing.last_event_id = p_event_id");
+    expect(fn).toContain("'reason', 'duplicate_event'");
+  });
+
+  test('the write path stays service_role only', () => {
+    expect(ENT_ORDERING).toContain('from public, anon, authenticated');
+    expect(ENT_ORDERING).toContain('grant execute on function public.apply_entitlement_event');
+    expect(ENT_ORDERING).toContain('to service_role');
+  });
+
+  test('the original migration was not edited — migrations are forward-only', () => {
+    // The applied migration still contains the old behaviour; the fix is a new
+    // `create or replace`. Rewriting history here would diverge every
+    // environment that already ran it.
+    expect(ENT_MIGRATION).toContain('coalesce(p_event_at, now())');
+  });
+
+  test('neither edge function had to change', () => {
+    // The call sites were already correct; the SQL was not honouring them.
+    expect(EDGE).toContain('p_event_at: null');
+    expect(WEBHOOK).toContain('p_event_at: eventAtMs ? new Date(eventAtMs).toISOString() : null');
+  });
+
+  test('the behavioural suite covers the regression', () => {
+    const script = read('scripts', 'verify-entitlements.sh');
+    expect(script).toContain('20260816210000_entitlement_event_ordering.sql');
+    expect(script).toContain('fallback leaves last_event_at NULL');
+    expect(script).toContain('a real purchase after a fallback is APPLIED, not stale');
+    expect(script).toContain('ordering still refuses an older real event');
   });
 });
 

@@ -15,7 +15,13 @@
 set -uo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-MIGRATION="$ROOT/supabase/migrations/20260809140000_user_entitlements.sql"
+# Applied in order, exactly as a fresh environment would. The second migration
+# corrects how a writer without a real event timestamp participates in event
+# ordering; section 11 is what holds it in place.
+MIGRATIONS=(
+  "$ROOT/supabase/migrations/20260809140000_user_entitlements.sql"
+  "$ROOT/supabase/migrations/20260816210000_entitlement_event_ordering.sql"
+)
 DB="gutwell_ent_verify_$$"
 PSQL=(psql -v ON_ERROR_STOP=1 -qtA)
 
@@ -41,8 +47,10 @@ do $$ declare r text; begin
 alter default privileges in schema public grant execute on functions to anon, authenticated;
 SQL
 
-"${Q[@]}" -f "$MIGRATION" >/dev/null || { echo "MIGRATION FAILED"; exit 1; }
-echo "migration applied to real PostgreSQL $("${Q[@]}" -c 'show server_version;')"
+for m in "${MIGRATIONS[@]}"; do
+  "${Q[@]}" -f "$m" >/dev/null || { echo "MIGRATION FAILED: $(basename "$m")"; exit 1; }
+done
+echo "${#MIGRATIONS[@]} migrations applied to real PostgreSQL $("${Q[@]}" -c 'show server_version;')"
 echo
 
 U=11111111-1111-1111-1111-111111111111
@@ -128,6 +136,79 @@ echo
 echo "=== 10. no payment data is stored ==="
 check "no card/payment/price column" \
   "$("${Q[@]}" -c "select count(*) from information_schema.columns where table_name='user_entitlements' and column_name ~ 'card|payment|price|token|receipt|email';")" "0"
+
+echo
+echo "=== 11. the REST fallback must not order events ==="
+#
+# The bug this section exists for, observed in production on 2026-08-16.
+#
+# analyze-food hydrates a missing row from RevenueCat's REST API and passes
+# p_event_at => null, saying at the call site that this is so it "can never win
+# against a real webhook event". apply_entitlement_event used to turn that null
+# into now() and store it as last_event_at, so the row claimed to have seen an
+# event at hydration time. The genuine INITIAL_PURCHASE webhook that followed
+# carried the REAL purchase time — necessarily EARLIER — and was refused as
+# stale_event. The account stayed Premium, but product_id, store and
+# last_event_id were never written, so the purchase had no provenance and no
+# event id to deduplicate a redelivery against.
+#
+# It would have repeated for every first-time subscriber whose purchase webhook
+# lands after their first photo analysis — precisely the race the fallback is
+# there to cover.
+#
+# A separate account: the checks above have deliberately left U with history.
+V=22222222-2222-2222-2222-222222222222
+"${Q[@]}" -c "insert into auth.users values ('$V');" >/dev/null
+# Fuller than apply(): these cases turn on product/store, which the fallback
+# leaves null and a real webhook fills in.
+fapply() { "${Q[@]}" -c "select public.apply_entitlement_event('$V',$1,$2,$3,$4,$5,$6)::text;"; }
+jkey() { python3 -c "import sys,json;print(json.loads(sys.stdin.read()).get('$1'))"; }
+vcol() { "${Q[@]}" -c "select coalesce($1::text,'<null>') from public.user_entitlements where user_id='$V';"; }
+
+# A fallback hydrating a row nobody has ever seen.
+R=$(fapply true "now() + interval '19 hours'" null null null null)
+check "fallback applies" "$(echo "$R" | jkey applied)" "True"
+check "fallback activates the account" "$(vcol is_active)" "true"
+check "fallback records a sync time" "$([ "$(vcol last_synced_at)" = "<null>" ] && echo missing || echo present)" "present"
+check "fallback leaves last_event_at NULL" "$(vcol last_event_at)" "<null>"
+check "fallback claims no provenance" "$(vcol product_id)$(vcol store)$(vcol last_event_id)" "<null><null><null>"
+
+# The real purchase webhook, arriving later but describing an EARLIER moment.
+R=$(fapply true "now() + interval '19 hours'" "'gutwell_premium_annual'" "'APP_STORE'" "'evt_initial_purchase'" "now() - interval '5 hours'")
+check "a real purchase after a fallback is APPLIED, not stale" "$(echo "$R" | jkey applied)" "True"
+check "…and fills product_id" "$(vcol product_id)" "gutwell_premium_annual"
+check "…and fills store" "$(vcol store)" "APP_STORE"
+check "…and fills last_event_id" "$(vcol last_event_id)" "evt_initial_purchase"
+check "…and stores the REAL purchase time, not the hydration time" \
+  "$("${Q[@]}" -c "select last_event_at < now() - interval '4 hours' from public.user_entitlements where user_id='$V';")" "t"
+
+# A later fallback may refresh what it verified, and nothing else.
+EVT_AT=$(vcol last_event_at)
+R=$(fapply true "now() + interval '40 days'" null null null null)
+check "a later fallback still applies" "$(echo "$R" | jkey applied)" "True"
+check "…without erasing product_id" "$(vcol product_id)" "gutwell_premium_annual"
+check "…without erasing store" "$(vcol store)" "APP_STORE"
+check "…without erasing last_event_id" "$(vcol last_event_id)" "evt_initial_purchase"
+check "…and without advancing last_event_at" "$(vcol last_event_at)" "$EVT_AT"
+check "…while refreshing the period it verified" \
+  "$("${Q[@]}" -c "select expires_at > now() + interval '39 days' from public.user_entitlements where user_id='$V';")" "t"
+
+# The position a real event established must still order later events, so the
+# fix cannot have bought provenance at the cost of the out-of-order guard.
+R=$(fapply false "now()" null null "'evt_older_than_purchase'" "now() - interval '9 hours'")
+check "ordering still refuses an older real event" "$(echo "$R" | jkey reason)" "stale_event"
+check "…and the account is untouched by it" "$(vcol is_active)" "true"
+
+# Repeated fallbacks must never accumulate into a phantom ordering position.
+W=33333333-3333-3333-3333-333333333333
+"${Q[@]}" -c "insert into auth.users values ('$W');" >/dev/null
+for _ in 1 2 3; do
+  "${Q[@]}" -c "select public.apply_entitlement_event('$W',true,now() + interval '1 day',null,null,null,null);" >/dev/null
+done
+check "repeated fallbacks leave no event timestamp" \
+  "$("${Q[@]}" -c "select coalesce(last_event_at::text,'<null>') from public.user_entitlements where user_id='$W';")" "<null>"
+R=$("${Q[@]}" -c "select public.apply_entitlement_event('$W',true,now() + interval '1 day','gutwell_premium_annual','APP_STORE','evt_very_late',now() - interval '30 days')::text;")
+check "…so even a much older real purchase still lands" "$(echo "$R" | jkey applied)" "True"
 
 echo
 echo "$pass passed, $fail failed"
