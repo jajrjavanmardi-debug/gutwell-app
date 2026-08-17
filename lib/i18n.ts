@@ -502,6 +502,14 @@ const en = {
     // diagnostics, never surfaced to the user.
     unavailableTitle: 'Subscriptions unavailable',
     unavailableBody: 'Subscriptions are temporarily unavailable. Please try again.',
+    // Shown when the App Store region changed between the prices being loaded
+    // and Continue being tapped, so the amounts on screen were no longer the
+    // ones Apple would bill. Deliberately states no price and names no
+    // currency: the refreshed figures are on the cards behind this alert, and
+    // the user taps Continue again once they have seen them.
+    pricingRefreshedTitle: 'Prices updated',
+    pricingRefreshedBody:
+      'Your App Store region changed, so we refreshed the prices for that region. Please check them and continue.',
     // Apple's required subscription terms. Wording mirrors the App Store
     // guidelines and must keep the same meaning in every language.
     finePrint:
@@ -1890,6 +1898,9 @@ const de: Translations = {
     unavailableTitle: 'Abos nicht verfügbar',
     unavailableBody:
       'Abonnements sind vorübergehend nicht verfügbar. Bitte versuche es erneut.',
+    pricingRefreshedTitle: 'Preise aktualisiert',
+    pricingRefreshedBody:
+      'Deine App-Store-Region hat sich geändert, daher haben wir die Preise für diese Region aktualisiert. Bitte prüfe sie und fahre dann fort.',
     finePrint:
       'Die Zahlung wird bei Bestätigung über deine Apple-ID abgebucht. Abonnements verlängern sich automatisch, sofern sie nicht mindestens 24 Stunden vor Ende des Zeitraums gekündigt werden. Du kannst sie jederzeit in den App-Store-Einstellungen verwalten oder kündigen.',
     restoring: 'Wird wiederhergestellt…',

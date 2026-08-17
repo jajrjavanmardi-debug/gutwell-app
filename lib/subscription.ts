@@ -81,9 +81,22 @@ export type OfferingFailureReason =
   /** E — packages exist but StoreKit returned no localized price for them. */
   | 'price_missing';
 
+/**
+ * The result of an offering load, plus the storefront the prices came from.
+ *
+ * `storefrontCountry` is the App Store country whose catalogue produced these
+ * prices, captured at load time so the paywall can tell later whether the
+ * prices on screen still belong to the store Apple will actually bill against.
+ * Null means "unknown", never "changed" — see purchaseSelectedPackage.
+ */
 export type OfferingLoadResult =
-  | { ok: true; offering: PurchasesOffering }
-  | { ok: false; reason: OfferingFailureReason; offering: PurchasesOffering | null };
+  | { ok: true; offering: PurchasesOffering; storefrontCountry: string | null }
+  | {
+      ok: false;
+      reason: OfferingFailureReason;
+      offering: PurchasesOffering | null;
+      storefrontCountry: string | null;
+    };
 
 /**
  * Snapshot of the last offering load, for support and preview QA.
@@ -331,8 +344,13 @@ export async function loadPaywallOffering(): Promise<OfferingLoadResult> {
       lastFailureReason: 'not_configured',
       lastCheckedAt: stamp,
     };
-    return { ok: false, reason: 'not_configured', offering: null };
+    return { ok: false, reason: 'not_configured', offering: null, storefrontCountry: null };
   }
+
+  // Captured before the fetch so it describes the store the catalogue is being
+  // read from. Best-effort throughout: an unavailable storefront must never
+  // turn a perfectly good offering into a failure.
+  const storefrontCountry = await getStorefrontCountry();
 
   let offerings;
   try {
@@ -347,7 +365,7 @@ export async function loadPaywallOffering(): Promise<OfferingLoadResult> {
       lastErrorMessage: message,
       lastCheckedAt: stamp,
     };
-    return { ok: false, reason: 'fetch_failed', offering: null };
+    return { ok: false, reason: 'fetch_failed', offering: null, storefrontCountry };
   }
 
   const current = offerings.current ?? null;
@@ -375,23 +393,46 @@ export async function loadPaywallOffering(): Promise<OfferingLoadResult> {
 
   if (!current) {
     diagnostics = { ...diagnostics, lastFailureReason: 'no_current_offering' };
-    return { ok: false, reason: 'no_current_offering', offering: null };
+    return { ok: false, reason: 'no_current_offering', offering: null, storefrontCountry };
   }
 
   // An offering whose packages never hydrated from StoreKit is not sellable:
   // purchasePackage would have nothing to buy and the price would render blank.
   if (!monthly && !annual) {
     diagnostics = { ...diagnostics, lastFailureReason: 'no_usable_packages' };
-    return { ok: false, reason: 'no_usable_packages', offering: current };
+    return { ok: false, reason: 'no_usable_packages', offering: current, storefrontCountry };
   }
 
   if (!monthly?.product.priceString && !annual?.product.priceString) {
     diagnostics = { ...diagnostics, lastFailureReason: 'price_missing' };
-    return { ok: false, reason: 'price_missing', offering: current };
+    return { ok: false, reason: 'price_missing', offering: current, storefrontCountry };
   }
 
   diagnostics = { ...diagnostics, lastFailureReason: null };
-  return { ok: true, offering: current };
+  return { ok: true, offering: current, storefrontCountry };
+}
+
+/**
+ * The App Store country currently in effect, or null when it cannot be read.
+ *
+ * `Purchases.getStorefront()` returns the storefront of the signed-in App Store
+ * account, which is what decides the currency and amount Apple actually bills —
+ * independently of device locale, device region, or the account signed into the
+ * app. It is the only field the SDK exposes for this (`countryCode`).
+ *
+ * Never throws and never rejects: every failure is reported as null, so a
+ * storefront that cannot be read leaves the purchase path exactly as it was
+ * rather than blocking a paying customer.
+ */
+export async function getStorefrontCountry(): Promise<string | null> {
+  if (!isReady()) return null;
+  try {
+    const storefront = await Purchases.getStorefront();
+    const code = storefront?.countryCode;
+    return typeof code === 'string' && code.length > 0 ? code : null;
+  } catch {
+    return null;
+  }
 }
 
 /**
@@ -526,22 +567,27 @@ export function normalizedPriceString(
  * flow (cancelled: true, no error UI) from a real failure (message set).
  * Returns a non-success no-op result when monetization is unconfigured.
  */
-export async function purchasePlan(selectedPlan: PlanKey): Promise<PurchaseResult> {
+export async function purchaseSelectedPackage(
+  pkg: PurchasesPackage | null,
+): Promise<PurchaseResult> {
   if (!isReady()) {
     return { success: false, message: 'Purchases are not available right now.' };
   }
+  if (!pkg) {
+    return { success: false, message: 'That plan is not available right now.' };
+  }
 
   try {
-    const offering = await getPaywallOffering();
-    if (!offering) {
-      return { success: false, message: 'No subscription options are available.' };
-    }
-
-    const pkg = selectPackage(offering, selectedPlan);
-    if (!pkg) {
-      return { success: false, message: 'That plan is not available right now.' };
-    }
-
+    // Deliberately NO getOfferings() here. The package handed in is the object
+    // whose price the user just read, and re-deriving it from a fresh fetch is
+    // how the screen and the charge can drift apart: RevenueCat caches
+    // offerings for five minutes, so a re-fetch at this exact moment can return
+    // different StoreProduct metadata than the paywall rendered.
+    //
+    // This does not, and cannot, make the displayed price authoritative —
+    // Apple prices at transaction time from the live storefront regardless of
+    // which product object is passed. It removes one way for the two to
+    // diverge; the storefront re-check at the call site covers the other.
     const { customerInfo } = await Purchases.purchasePackage(pkg);
     cachedCustomerInfo = customerInfo;
 
@@ -562,6 +608,27 @@ export async function purchasePlan(selectedPlan: PlanKey): Promise<PurchaseResul
     }
     return { success: false, message: 'Purchase failed. Please try again.' };
   }
+}
+
+/**
+ * Purchase by plan key, resolving the package itself.
+ *
+ * Retained for callers that hold no package. The paywall does hold one and uses
+ * purchaseSelectedPackage instead, because the object it renders and the object
+ * it buys must be the same one. Every result, error and cancellation path is
+ * shared with that function rather than duplicated.
+ */
+export async function purchasePlan(selectedPlan: PlanKey): Promise<PurchaseResult> {
+  if (!isReady()) {
+    return { success: false, message: 'Purchases are not available right now.' };
+  }
+
+  const offering = await getPaywallOffering();
+  if (!offering) {
+    return { success: false, message: 'No subscription options are available.' };
+  }
+
+  return purchaseSelectedPackage(selectPackage(offering, selectedPlan));
 }
 
 /**

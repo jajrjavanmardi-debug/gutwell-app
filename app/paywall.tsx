@@ -21,12 +21,13 @@ import { track, Events } from '../lib/analytics';
 import { useTranslation } from '../lib/i18n';
 import {
   formatSubscriptionDiagnostics,
+  getStorefrontCountry,
   initSubscription,
   isMonetizationEnabled,
   isSubscriptionDebugEnabled,
   loadPaywallOffering,
   normalizedPriceString,
-  purchasePlan,
+  purchaseSelectedPackage,
   selectPackage,
   restorePurchases,
 } from '../lib/subscription';
@@ -67,6 +68,10 @@ export default function PaywallScreen() {
   const [restoring, setRestoring] = useState(false);
   const [offering, setOffering] = useState<PurchasesOffering | null>(null);
   const [loadingOffering, setLoadingOffering] = useState(true);
+  // The App Store country the prices on screen were loaded from. Null means
+  // "could not be read", which is treated as "no evidence of a change" — never
+  // as a mismatch, so an unreadable storefront cannot block a purchase.
+  const [offeringStorefront, setOfferingStorefront] = useState<string | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -81,6 +86,7 @@ export default function PaywallScreen() {
         // no usable packages / no price) is retained by lib/subscription.ts and
         // readable via getSubscriptionDiagnostics(); the user never sees it.
         setOffering(result.ok ? result.offering : null);
+        setOfferingStorefront(result.storefrontCountry);
         if (!result.ok && __DEV__) {
           console.warn('[paywall] offering unavailable:', result.reason);
         }
@@ -161,8 +167,34 @@ export default function PaywallScreen() {
       Alert.alert(t.paywall.unavailableTitle, t.paywall.unavailableBody);
       return;
     }
+    // Set before the storefront round-trip, not just around the purchase, so
+    // the CTA is disabled for the whole operation and a second tap cannot
+    // start a parallel purchase.
     setPurchasing(true);
-    const result = await purchasePlan(selectedPlan);
+
+    // Did the store move under us between loading these prices and this tap?
+    //
+    // Only a change BETWEEN two known countries counts. If either reading is
+    // null the storefront could not be read, which is not evidence of a
+    // change, and blocking on it would deny a purchase over a missing
+    // diagnostic.
+    const currentStorefront = await getStorefrontCountry();
+    if (offeringStorefront && currentStorefront && currentStorefront !== offeringStorefront) {
+      // Reload rather than buy: the amounts on screen belong to the previous
+      // region and are not what Apple would charge. The user stays here, sees
+      // the refreshed prices, and taps Continue again — a purchase is never
+      // completed silently on a price they have not seen.
+      const refreshed = await loadPaywallOffering();
+      setOffering(refreshed.ok ? refreshed.offering : null);
+      setOfferingStorefront(refreshed.storefrontCountry);
+      setPurchasing(false);
+      Alert.alert(t.paywall.pricingRefreshedTitle, t.paywall.pricingRefreshedBody);
+      return;
+    }
+
+    // Unchanged storefront: buy the exact package object whose price is on
+    // screen, rather than re-deriving one from a fresh offerings fetch.
+    const result = await purchaseSelectedPackage(selectedPkg);
     setPurchasing(false);
 
     if (result.success) {

@@ -190,9 +190,13 @@ describe('client photo gate', () => {
 
 describe('entitlement lifecycle in the client layer', () => {
   test('purchase and restore both refresh CustomerInfo before deciding', () => {
-    const purchase = SUBSCRIPTION.slice(SUBSCRIPTION.indexOf('export async function purchasePlan'), SUBSCRIPTION.indexOf('export async function restorePurchases'));
+    // The purchase body now lives in purchaseSelectedPackage; purchasePlan
+    // delegates to it rather than keeping a second copy of this logic.
+    const purchase = SUBSCRIPTION.slice(SUBSCRIPTION.indexOf('export async function purchaseSelectedPackage'), SUBSCRIPTION.indexOf('export async function purchasePlan'));
     expect(purchase).toContain('cachedCustomerInfo = customerInfo');
     expect(purchase).toContain('entitlementActive(customerInfo)');
+    const byPlan = SUBSCRIPTION.slice(SUBSCRIPTION.indexOf('export async function purchasePlan'), SUBSCRIPTION.indexOf('export async function restorePurchases'));
+    expect(byPlan).toContain('return purchaseSelectedPackage(selectPackage(offering, selectedPlan));');
     const restore = SUBSCRIPTION.slice(SUBSCRIPTION.indexOf('export async function restorePurchases'));
     expect(restore).toContain('Purchases.restorePurchases()');
     expect(restore).toContain('entitlementActive(cachedCustomerInfo)');
@@ -344,6 +348,159 @@ describe('webhook receiver', () => {
   test('a write failure returns 500 so RevenueCat retries an idempotent write', () => {
     expect(WEBHOOK).toContain('WRITE_FAILED');
     expect(WEBHOOK).toContain('apply_entitlement_event');
+  });
+});
+
+describe('the price shown is the price bought', () => {
+  /**
+   * Guards the storefront/currency divergence found in TestFlight on
+   * 2026-08-17: the paywall displayed US$44.99 for the annual plan while
+   * Apple's sheet charged €49.99, and RevenueCat's INITIAL_PURCHASE confirmed
+   * DE/EUR/49.99.
+   *
+   * Two separate holes, fixed together:
+   *
+   *  1. purchasePlan() re-fetched offerings and re-derived a package at tap
+   *     time, so the object rendered and the object bought were never the same
+   *     one. RevenueCat caches offerings for five minutes, so that second fetch
+   *     can legitimately return different StoreProduct metadata.
+   *  2. Nothing noticed when the App Store region changed underneath the
+   *     displayed prices.
+   *
+   * Neither fix can make the displayed price authoritative — Apple prices at
+   * purchase time from the live storefront whatever object is passed — so these
+   * tests pin consistency and refusal-to-guess, not price equality.
+   */
+  const purchaseFn = SUBSCRIPTION.slice(
+    SUBSCRIPTION.indexOf('export async function purchaseSelectedPackage'),
+    SUBSCRIPTION.indexOf('export async function purchasePlan'),
+  );
+  const cta = PAYWALL.slice(PAYWALL.indexOf('const handleCTA'), PAYWALL.indexOf('const handleRestore'));
+
+  test('the paywall buys the exact package it displayed', () => {
+    // selectedPkg is what the price, the normalized figure and the trial copy
+    // are all rendered from, so it must also be what is purchased.
+    expect(PAYWALL).toContain('const selectedPkg = selectedPlan === \'annual\' ? annualPkg : monthlyPkg;');
+    expect(cta).toContain('purchaseSelectedPackage(selectedPkg)');
+  });
+
+  test('the package purchase path never re-fetches offerings', () => {
+    // Comments stripped first: this function's doc block names the very calls
+    // it must not make, and matching that prose would prove nothing.
+    const code = purchaseFn.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
+    for (const banned of ['getOfferings', 'getPaywallOffering', 'loadPaywallOffering', 'selectPackage']) {
+      expect(`${banned}: ${code.includes(banned)}`).toBe(`${banned}: false`);
+    }
+    expect(code).toContain('Purchases.purchasePackage(pkg)');
+  });
+
+  test('an unchanged storefront purchases without reloading', () => {
+    // The reload is inside the mismatch branch, so the ordinary path falls
+    // straight through to the purchase.
+    const branch = cta.slice(cta.indexOf('const currentStorefront'), cta.indexOf('purchaseSelectedPackage'));
+    expect(branch).toContain('loadPaywallOffering()');
+    expect(cta.indexOf('loadPaywallOffering()')).toBeLessThan(cta.indexOf('purchaseSelectedPackage'));
+    expect(cta).toContain('return;');
+  });
+
+  test('a changed storefront does not purchase', () => {
+    const branch = cta.slice(cta.indexOf('if (offeringStorefront &&'), cta.indexOf('// Unchanged storefront'));
+    expect(branch).not.toContain('purchaseSelectedPackage');
+    // Ends the tap; the purchase below is unreachable for this branch.
+    expect(branch.trimEnd().endsWith('}')).toBe(true);
+    expect(branch).toContain('return;');
+  });
+
+  test('a changed storefront reloads the offering and its storefront', () => {
+    expect(cta).toContain('const refreshed = await loadPaywallOffering();');
+    expect(cta).toContain('setOffering(refreshed.ok ? refreshed.offering : null);');
+    expect(cta).toContain('setOfferingStorefront(refreshed.storefrontCountry);');
+  });
+
+  test('the user must tap Continue again after a refresh', () => {
+    // No auto-retry: the alert is terminal for this tap, and the CTA is
+    // re-enabled so the refreshed price can be read before committing.
+    expect(cta).toContain('t.paywall.pricingRefreshedTitle');
+    const branch = cta.slice(cta.indexOf('const refreshed'), cta.indexOf('// Unchanged storefront'));
+    expect(branch).toContain('setPurchasing(false);');
+    expect(branch).not.toMatch(/handleCTA\(|purchaseSelectedPackage/);
+  });
+
+  test('an unreadable storefront never blocks a purchase', () => {
+    // Both sides must be known before a mismatch is declared; null is "no
+    // evidence", not "changed".
+    expect(cta).toContain('if (offeringStorefront && currentStorefront && currentStorefront !== offeringStorefront)');
+    const fn = SUBSCRIPTION.slice(
+      SUBSCRIPTION.indexOf('export async function getStorefrontCountry'),
+      SUBSCRIPTION.indexOf('export function getSubscriptionDiagnostics'),
+    );
+    // Every failure mode resolves to null rather than throwing.
+    expect(fn).toContain('if (!isReady()) return null;');
+    expect(fn).toContain('return null;');
+    expect(fn).toContain("typeof code === 'string' && code.length > 0 ? code : null");
+  });
+
+  test('the CTA is disabled for the whole operation, so no double purchase', () => {
+    // setPurchasing(true) precedes the storefront round-trip, not just the
+    // purchase, and the guard above it rejects a re-entrant tap.
+    expect(cta.indexOf('if (purchasing) return;')).toBeLessThan(cta.indexOf('setPurchasing(true)'));
+    expect(cta.indexOf('setPurchasing(true)')).toBeLessThan(cta.indexOf('await getStorefrontCountry()'));
+  });
+
+  test('the storefront travels with the offering it priced', () => {
+    const load = SUBSCRIPTION.slice(
+      SUBSCRIPTION.indexOf('export async function loadPaywallOffering'),
+      SUBSCRIPTION.indexOf('export async function getStorefrontCountry'),
+    );
+    // Captured before the catalogue is read, and returned on every branch —
+    // including the failures, so a retry can still compare against it.
+    expect(load.indexOf('await getStorefrontCountry()')).toBeLessThan(load.indexOf('Purchases.getOfferings()'));
+    const returns = [...load.matchAll(/return \{[^}]*\}/g)].map((m) => m[0]);
+    expect(returns.length).toBeGreaterThanOrEqual(6);
+    for (const r of returns) {
+      expect(`${r.slice(0, 40)}… carries storefront: ${r.includes('storefrontCountry')}`)
+        .toBe(`${r.slice(0, 40)}… carries storefront: true`);
+    }
+  });
+
+  test('normalized pricing still reads the displayed package', () => {
+    expect(PAYWALL).toContain("normalizedPriceString(monthlyPkg, 'week')");
+    expect(PAYWALL).toContain("normalizedPriceString(annualPkg, 'month')");
+    // The formulas are untouched by this change.
+    expect(SUBSCRIPTION).toContain('const amount = cadence === \'week\' ? (price * 12) / 52 : price / 12;');
+    expect(SUBSCRIPTION).toContain("new Intl.NumberFormat(undefined, { style: 'currency', currency })");
+  });
+
+  test('no currency or amount was hardcoded by this change', () => {
+    const strip = (s: string) => s.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
+    for (const [name, src] of [['paywall', PAYWALL], ['subscription', SUBSCRIPTION]] as const) {
+      const code = strip(src);
+      expect(`${name}: ${/[$€£¥]\s?\d/.test(code)}`).toBe(`${name}: false`);
+      expect(`${name}: ${/\b(USD|EUR|GBP)\b/.test(code)}`).toBe(`${name}: false`);
+    }
+  });
+
+  test('both languages carry the refresh message, and it names no price', () => {
+    for (const [lang, p] of Object.entries(translations).map(([l, r]) => [l, r.paywall] as const)) {
+      expect(`${lang} title`).toBe(`${lang} title`);
+      expect(p.pricingRefreshedTitle.length).toBeGreaterThan(0);
+      expect(p.pricingRefreshedBody.length).toBeGreaterThan(0);
+      // A message about prices must not itself quote one.
+      expect(`${lang}: ${/[$€£¥]|\d+[.,]\d{2}/.test(`${p.pricingRefreshedTitle} ${p.pricingRefreshedBody}`)}`)
+        .toBe(`${lang}: false`);
+    }
+    expect(translations.de.paywall.pricingRefreshedTitle)
+      .not.toBe(translations.en.paywall.pricingRefreshedTitle);
+    expect(translations.de.paywall.pricingRefreshedBody)
+      .not.toBe(translations.en.paywall.pricingRefreshedBody);
+  });
+
+  test('restore and plan selection are untouched', () => {
+    expect(PAYWALL).toContain('restorePurchases()');
+    expect(PAYWALL).toContain("useState<'monthly' | 'annual'>('annual')");
+    // Restore does not consult the storefront: it re-reads entitlements, not prices.
+    const restore = PAYWALL.slice(PAYWALL.indexOf('const handleRestore'));
+    expect(restore).not.toContain('getStorefrontCountry');
   });
 });
 
@@ -572,7 +729,15 @@ describe('preview-only diagnostics affordance', () => {
   });
 
   test('no identifier, credential or receipt can reach the clipboard', () => {
-    const fmt = SUBSCRIPTION.slice(SUBSCRIPTION.indexOf('export function formatSubscriptionDiagnostics'));
+    // Bounded to the function itself. This used to run to end-of-file, so any
+    // later function's prose could trip it — which says nothing about what the
+    // clipboard actually receives. The subject of this guard is the string
+    // formatSubscriptionDiagnostics builds, and now that is what it reads.
+    const fmt = SUBSCRIPTION.slice(
+      SUBSCRIPTION.indexOf('export function formatSubscriptionDiagnostics'),
+      SUBSCRIPTION.indexOf('export function selectPackage'),
+    );
+    expect(fmt).toContain('const lines = [');
     for (const banned of ['appUserID', 'userId', 'apiKey', 'RC_IOS_KEY', 'receipt', 'transaction', 'email']) {
       expect(`${banned}: ${new RegExp(`\\b${banned}\\b`, 'i').test(fmt)}`).toBe(`${banned}: false`);
     }
@@ -737,7 +902,8 @@ describe('purchase, restore and plan selection are untouched by the pricing chan
   test('the CTA still gates on canPurchase and the offering', () => {
     expect(PAYWALL).toContain('const canPurchase = offering != null');
     expect(PAYWALL).toContain('if (!canPurchase)');
-    expect(PAYWALL).toContain('purchasePlan(selectedPlan)');
+    // Buys the package it rendered, not one re-derived at tap time.
+    expect(PAYWALL).toContain('purchaseSelectedPackage(selectedPkg)');
   });
 
   test('restore still routes through the subscription layer', () => {
