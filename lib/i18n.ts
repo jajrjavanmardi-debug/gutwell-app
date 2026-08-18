@@ -1035,6 +1035,23 @@ const en = {
     pendingScore: 'Pending',
     photoMealDefault: 'Photo meal',
     insightsHeading: 'Gut insights',
+    // Single entry point into the existing revision flow. Replaced a
+    // FontSize.sm "+ Add more" text link that first-time users did not read as
+    // interactive, so the app's ability to be corrected went unnoticed.
+    // "Refine", not "Fix": the result is not broken, and correcting the meal
+    // is only one of the three things this does.
+    refineAnalysis: 'Refine analysis',
+    refineAnalysisHint: 'Correct the meal, add details, or ask a follow-up',
+    // Its own state on the Generate button. isAnalyzing also disables the
+    // button, so without this a working request looked like an unavailable one.
+    analysing: 'Analysing…',
+    // Shown only while Generate is disabled for a missing description. The
+    // button is otherwise silently inert on a screen where nothing says a
+    // description is required.
+    generateNeedsDescription: 'Add a short description to continue',
+    // Headline fallback when the model returns no usable meal name, or only
+    // conversational scaffolding. Never a guess about the food.
+    mealTitleFallback: 'Meal analysis',
     addMore: 'Add more',
     fixResults: 'Fix Results',
     done: 'Done',
@@ -2379,6 +2396,11 @@ const de: Translations = {
     pendingScore: 'Ausstehend',
     photoMealDefault: 'Mahlzeit (Foto)',
     insightsHeading: 'Darm-Auswertung',
+    refineAnalysis: 'Analyse verfeinern',
+    refineAnalysisHint: 'Mahlzeit korrigieren, Details ergänzen oder nachfragen',
+    analysing: 'Analyse läuft…',
+    generateNeedsDescription: 'Füge eine kurze Beschreibung hinzu, um fortzufahren',
+    mealTitleFallback: 'Analyse der Mahlzeit',
     addMore: 'Mehr hinzufügen',
     fixResults: 'Korrigieren',
     done: 'Fertig',

@@ -721,7 +721,7 @@ export default function PhotoAnalysisScreen() {
     // behaviour exactly. Only the silent onboarding auto-log dedupes.
     const result = await saveMealLog({
       userId: user.id,
-      mealName: extractMealName(analysis) || t.photoAnalysis.photoMealDefault,
+      mealName: extractMealName(analysis, t.photoAnalysis.photoMealDefault),
       mealType: getMealTypeForClock(),
       note: sanitizeMealScoring(analysis),
     });
@@ -754,7 +754,7 @@ export default function PhotoAnalysisScreen() {
     if (user && analysis) {
       const result = await saveMealLog({
         userId: user.id,
-        mealName: extractMealName(analysis) || t.photoAnalysis.photoMealDefault,
+        mealName: extractMealName(analysis, t.photoAnalysis.photoMealDefault),
         mealType: getMealTypeForClock(),
         note: sanitizeMealScoring(analysis),
         clientUuid: onboardingLogKeyRef.current ?? undefined,
@@ -931,7 +931,7 @@ export default function PhotoAnalysisScreen() {
       });
       if (hasPainSymptom) {
         const triggers = await recordTriggerFeedback({
-          mealName: extractMealName(rawResult),
+          mealName: extractMealName(rawResult, t.photoAnalysis.photoMealDefault),
           adviceSummary: rawResult.slice(0, 240),
           symptoms: currentSymptoms,
         });
@@ -1156,7 +1156,7 @@ export default function PhotoAnalysisScreen() {
       }
       if (hasPainSymptom || hasPainText(correction)) {
         const triggers = await recordTriggerFeedback({
-          mealName: extractMealName(correctedAnalysis),
+          mealName: extractMealName(correctedAnalysis, t.photoAnalysis.photoMealDefault),
           adviceSummary: correctedAnalysis.slice(0, 240),
           symptoms: [...currentSymptoms, correction],
         });
@@ -1708,13 +1708,34 @@ export default function PhotoAnalysisScreen() {
                   pressed && !analyzeDisabled && styles.pressed,
                 ]}
               >
-                <Ionicons name="sparkles" size={20} color="#000000" />
-                <Text style={styles.analyzeCombinedButtonText}>
-                  {isOnboarding && !mealDescription.trim()
-                    ? t.photoAnalysis.onboardingSkipDescription
-                    : t.photoAnalysis.generateAnalysis}
-                </Text>
+                {/* Working and unavailable are different things and must not
+                    look alike. isAnalyzing feeds analyzeDisabled, so without a
+                    branch here a running analysis rendered as a dead button. */}
+                {isAnalyzing ? (
+                  <>
+                    <ActivityIndicator size="small" color="#000000" />
+                    <Text style={styles.analyzeCombinedButtonText}>
+                      {t.photoAnalysis.analysing}
+                    </Text>
+                  </>
+                ) : (
+                  <>
+                    <Ionicons name="sparkles" size={20} color="#000000" />
+                    <Text style={styles.analyzeCombinedButtonText}>
+                      {isOnboarding && !mealDescription.trim()
+                        ? t.photoAnalysis.onboardingSkipDescription
+                        : t.photoAnalysis.generateAnalysis}
+                    </Text>
+                  </>
+                )}
               </Pressable>
+
+              {/* Says why the button is inert. Only for the missing-description
+                  case — the other reasons (no photo yet, already analysing) are
+                  already obvious from the screen. */}
+              {analyzeDisabled && !isAnalyzing && !isOnboarding && !mealDescription.trim() ? (
+                <Text style={styles.analyzeHint}>{t.photoAnalysis.generateNeedsDescription}</Text>
+              ) : null}
 
               {/* ONBOARDING: escape hatch, shown only after two genuine analysis
                   failures so a user cannot be trapped by a persistent outage.
@@ -1879,7 +1900,7 @@ export default function PhotoAnalysisScreen() {
                 // extractMealTitle, not extractMealName: the latter returns the
                 // MEAL section's prose ("You had some pizza with cheese and…"),
                 // which is an explanation, not a headline.
-                mealName={extractMealTitle(analysis)}
+                mealName={extractMealTitle(analysis, t.photoAnalysis.mealTitleFallback)}
                 score={mealImpactScore}
                 scoreReason={extractScoreReason(analysis)}
                 sections={onboardingSections}
@@ -1955,7 +1976,7 @@ export default function PhotoAnalysisScreen() {
                         <Ionicons name="nutrition" size={20} color={Colors.secondary} />
                         <View style={styles.resultTitleTextBlock}>
                           <Text style={[styles.resultMealName]} numberOfLines={1}>
-                            {extractMealTitle(analysis)}
+                            {extractMealTitle(analysis, t.photoAnalysis.mealTitleFallback)}
                           </Text>
                           <Text style={[styles.resultTitle]}>{t.photoAnalysis.resultTitle}</Text>
                         </View>
@@ -1991,7 +2012,7 @@ export default function PhotoAnalysisScreen() {
                         <Ionicons name="restaurant" size={14} color={Colors.secondaryLight} />
                         <Text style={styles.infoChipLabel}>{t.photoAnalysis.chipMealType}</Text>
                         <Text style={styles.infoChipValue} numberOfLines={1}>
-                          {extractMealName(analysis)}
+                          {extractMealName(analysis, t.photoAnalysis.photoMealDefault)}
                         </Text>
                       </View>
                     </View>
@@ -2001,19 +2022,45 @@ export default function PhotoAnalysisScreen() {
                       <Text style={[styles.insightsHeading]}>
                         {t.photoAnalysis.insightsHeading}
                       </Text>
-                      <Pressable
-                        onPress={() => setAccuracyAnswer('no')}
-                        hitSlop={8}
-                        accessibilityRole="button"
-                        accessibilityLabel={t.photoAnalysis.addMore}
-                        style={({ pressed }) => [styles.addMoreLink, pressed && styles.pressed]}
-                      >
-                        <Ionicons name="add" size={16} color={Colors.secondary} />
-                        <Text style={styles.addMoreLinkText}>{t.photoAnalysis.addMore}</Text>
-                      </Pressable>
                     </View>
 
                     <Text style={[styles.resultText]}>{sanitizeAnalysisForDisplay(analysis)}</Text>
+
+                    {/* The single entry point into revision, replacing the
+                        "+ Add more" text link that sat in the header above and
+                        read as a label. Same handler, same flow — only the
+                        affordance changed. Placed under the body because that
+                        is where a reader forms the opinion that something is
+                        wrong or missing.
+
+                        Secondary by design: outlined, not filled, so it cannot
+                        compete with the result itself. It stays mounted after a
+                        revision (submitChatCorrection resets accuracyAnswer to
+                        null, not to a terminal state), so a second and third
+                        correction are reachable the same way as the first. */}
+                    <Pressable
+                      onPress={() => setAccuracyAnswer((prev) => (prev === 'no' ? null : 'no'))}
+                      accessibilityRole="button"
+                      accessibilityLabel={t.photoAnalysis.refineAnalysis}
+                      accessibilityHint={t.photoAnalysis.refineAnalysisHint}
+                      accessibilityState={{ expanded: accuracyAnswer === 'no' }}
+                      style={({ pressed }) => [
+                        styles.refineButton,
+                        accuracyAnswer === 'no' && styles.refineButtonActive,
+                        pressed && styles.pressed,
+                      ]}
+                    >
+                      <Ionicons name="create-outline" size={20} color={Colors.secondary} />
+                      <View style={styles.refineTextBlock}>
+                        <Text style={styles.refineTitle}>{t.photoAnalysis.refineAnalysis}</Text>
+                        <Text style={styles.refineHint}>{t.photoAnalysis.refineAnalysisHint}</Text>
+                      </View>
+                      <Ionicons
+                        name={accuracyAnswer === 'no' ? 'chevron-up' : 'chevron-forward'}
+                        size={18}
+                        color={Colors.textSecondary}
+                      />
+                    </Pressable>
                     {hasPainSymptom ? (
                       <View style={styles.instantReliefCard}>
                         <View style={[styles.instantReliefHeader]}>
@@ -2465,8 +2512,18 @@ const styles = StyleSheet.create({
     ...Shadows.sm,
   },
   analyzeCombinedButtonDisabled: {
-    backgroundColor: '#2a3d34',
-    opacity: 0.55,
+    // Was #2a3d34 at 0.55 — an untokenised near-black that, on this screen's
+    // black background, read as broken rather than unavailable. This is the
+    // state a first-time user meets first, before they have typed anything.
+    backgroundColor: Colors.disabled,
+    opacity: 0.7,
+  },
+  analyzeHint: {
+    color: Colors.textSecondary,
+    fontFamily: FontFamily.sansRegular,
+    fontSize: FontSize.sm,
+    marginTop: Spacing.xs,
+    textAlign: 'center',
   },
   analyzeCombinedButtonText: {
     color: '#000000',
@@ -3144,15 +3201,35 @@ const styles = StyleSheet.create({
     fontFamily: FontFamily.sansBold,
     fontSize: FontSize.md,
   },
-  addMoreLink: {
+  refineButton: {
     alignItems: 'center',
+    backgroundColor: 'rgba(82,183,136,0.10)',
+    borderColor: Colors.secondary,
+    borderRadius: BorderRadius.lg,
+    borderWidth: 1,
     flexDirection: 'row',
-    gap: 2,
+    gap: Spacing.sm,
+    marginTop: Spacing.md,
+    minHeight: 56,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
   },
-  addMoreLinkText: {
+  refineButtonActive: {
+    backgroundColor: 'rgba(82,183,136,0.18)',
+  },
+  refineTextBlock: {
+    flex: 1,
+  },
+  refineTitle: {
     color: Colors.secondary,
     fontFamily: FontFamily.sansSemiBold,
+    fontSize: FontSize.md,
+  },
+  refineHint: {
+    color: Colors.textSecondary,
+    fontFamily: FontFamily.sansRegular,
     fontSize: FontSize.sm,
+    marginTop: 2,
   },
   fixResultsRow: {
     flexDirection: 'row',

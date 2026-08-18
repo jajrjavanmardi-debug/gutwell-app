@@ -25,7 +25,7 @@ const TIPS: WellnessTip[] = [
   },
   {
     title: 'Fiber diversity',
-    body: 'Eating 30 different plant foods per week dramatically increases gut microbiome diversity.',
+    body: 'Eating a wide variety of plant foods across the week — around 30 different ones — is associated with greater gut microbiome diversity.',
     category: 'nutrition',
     icon: 'nutrition',
     tags: ['digestion', 'general'],
@@ -95,7 +95,7 @@ const TIPS: WellnessTip[] = [
   },
   {
     title: 'Exercise helps',
-    body: 'Regular moderate exercise increases gut microbiome diversity even more than diet alone.',
+    body: 'Regular moderate exercise is also linked to greater gut microbiome diversity.',
     category: 'lifestyle',
     icon: 'fitness',
     tags: ['energy', 'digestion', 'general'],

@@ -52,7 +52,7 @@ function stripLeadingDecoration(line: string): string {
   return line.replace(/^[^A-Za-z0-9À-ÿ]+/, '').trim();
 }
 
-export function extractMealName(aiText: string): string {
+export function extractMealName(aiText: string, fallback = 'Meal photo'): string {
   const cleanedLines = aiText
     .split('\n')
     .map(stripLeadingDecoration)
@@ -70,13 +70,73 @@ export function extractMealName(aiText: string): string {
     rawMealName = inline || cleanedLines[labelIndex + 1];
   }
 
-  rawMealName = (rawMealName ?? cleanedLines[0] ?? 'Meal photo').trim();
-  return rawMealName.slice(0, 80) || 'Meal photo';
+  rawMealName = (rawMealName ?? cleanedLines[0] ?? fallback).trim();
+  return rawMealName.slice(0, 80) || fallback;
 }
 
-/** Sentence openers the model uses before naming the dish. */
-const TITLE_PREAMBLE =
-  /^(it looks like you (enjoyed|had|ate)|you (had|ate|enjoyed)( some| a| an)?|this (looks like|appears to be|is)( a| an)?( meal of| plate of| bowl of)?|looks like( a| an)?( meal of| lovely)?|i can see( a| an)?|the (meal|dish|photo) (shows|is)( a| an)?|here (is|we have)( a| an)?)\s*/i;
+/**
+ * Sentence openers the model uses before naming the dish.
+ *
+ * Built from an alternation list rather than one hand-written line: the flat
+ * version silently missed the `you're` contraction, and the failure was
+ * invisible because the truncation below still produced *something*. On device
+ * that something was the headline "It looks like you're".
+ *
+ * Whatever this misses, TITLE_NOT_A_NAME below is the backstop — this regex is
+ * how a title gets recovered, not how scaffolding is kept out.
+ */
+const TITLE_PREAMBLE = new RegExp(
+  '^(?:' +
+    [
+      // "It looks like you're having…", "It seems you had…", "This appears to be…"
+      "(?:it|this|that)\\s+(?:looks?|seems?|appears?|is)\\s*(?:like)?\\s*(?:to\\s+be)?\\s*" +
+        "(?:you(?:'re|’re|\\s+are|\\s+were)?\\s*)?" +
+        "(?:enjoying|having|drinking|eating|enjoyed|had|ate|got)?",
+      // "You're having…", "You had…"
+      "you(?:'re|’re|\\s+are|\\s+were)?\\s*(?:enjoying|having|drinking|eating|enjoyed|had|ate)",
+      // "Based on the image, this is…"
+      "based\\s+on\\s+(?:the\\s+)?(?:image|photo|picture)s?\\s*,?\\s*" +
+        "(?:this\\s+(?:is|looks\\s+like|appears\\s+to\\s+be))?",
+      // "I think this is…", "I can see…"
+      "i\\s+(?:think|believe|can\\s+see|see)\\s*(?:that\\s+)?" +
+        "(?:this\\s+(?:is|looks\\s+like))?",
+      "here\\s+(?:is|we\\s+have)",
+      "the\\s+(?:meal|dish|photo|image)\\s+(?:shows|is|contains)",
+      "looks\\s+like",
+      // German — a DE analysis opens the same way, and the title is rendered
+      // from the same extractor.
+      "es\\s+sieht\\s+(?:so\\s+)?aus,?\\s*als\\s+(?:ob\\s+)?(?:du|sie)?",
+      "das\\s+(?:sieht\\s+aus\\s+wie|ist|scheint|w(?:a|ä)re)",
+      "hier\\s+(?:ist|haben\\s+wir)",
+      "auf\\s+dem\\s+(?:bild|foto)\\s*(?:ist|sehe\\s+ich)?",
+      "ich\\s+(?:denke|glaube|sehe)",
+    ].join('|') +
+    ')' +
+    // Articles and partitives the opener leaves behind.
+    "(?:\\s*(?:a|an|the|some|your|einen|eine|ein|der|die|das)\\b)*" +
+    "(?:\\s*(?:meal|plate|bowl|cup)\\s+of)?" +
+    "\\s*",
+  'i',
+);
+
+/**
+ * "a warming cup of Yogi Tea" is the vessel, not the drink. Dropped so the
+ * name itself fits the budget instead of being truncated mid-phrase.
+ */
+const TITLE_VESSEL =
+  /^(?:(?:a|an|the|some|your)\s+)?(?:(?:warm|warming|hot|cold|iced|fresh|delicious|lovely|nice|tasty|healthy|light|large|small)\s+)*(?:cup|mug|glass|bowl|plate|serving|portion|slice|piece)\s+of\s+/i;
+
+/**
+ * A title that still starts with one of these is scaffolding, not a dish — no
+ * food name begins "It", "You" or "Based". This is a post-condition, checked
+ * after every cut, because truncation is itself capable of manufacturing a
+ * fragment: "It looks like you're having…" cut to 24 characters and trimmed to
+ * a word boundary is exactly the "It looks like you're" seen on device.
+ *
+ * Word-bounded so real names survive — "Iced tea" is not "I".
+ */
+const TITLE_NOT_A_NAME =
+  /^(?:it|this|that|these|those|here|there|i|you|we|they|based|looks|seems|appears|maybe|perhaps|probably|likely|es|das|hier|ich|du|sie|auf|wahrscheinlich|vermutlich)\b/i;
 
 /**
  * Always cut here — past this point the model has stopped identifying the dish
@@ -100,6 +160,14 @@ const TITLE_TAIL_SOFT = /\s*( with | and | plus ).*/i;
 const TITLE_DANGLING = /[\s,]+(a|an|the|and|or|with|of|in|on|for|plus)$/i;
 
 /**
+ * German puts the verb last, so stripping the opener leaves it stranded:
+ * "…als ob du einen Kräutertee trinkst" reduces to "Kräutertee trinkst".
+ * A name does not end in a verb.
+ */
+const TITLE_DE_TRAILING_VERB =
+  /\s+(?:trinkst|trinken|isst|essen|gegessen|getrunken|hast|hattest|genie(?:ß|ss)t|zu\s+dir\s+nimmst)\.?$/i;
+
+/**
  * The meal title: the dish, and nothing else.
  *
  * The MEAL section is prose — "You had some pizza with cheese and a side
@@ -110,10 +178,10 @@ const TITLE_DANGLING = /[\s,]+(a|an|the|and|or|with|of|in|on|for|plus)$/i;
  * Explanation is never lost, only relocated: the full MEAL text stays in the
  * analysis body, which is what the reader sees under the score.
  */
-export function extractMealTitle(aiText: string): string {
-  const fullName = extractMealName(aiText);
-  if (!fullName || fullName === 'Meal photo') return 'Meal analysis';
-  if (/^i cannot identify/i.test(fullName)) return 'Meal analysis';
+export function extractMealTitle(aiText: string, fallback = 'Meal analysis'): string {
+  const fullName = extractMealName(aiText, fallback);
+  if (!fullName || fullName === fallback) return fallback;
+  if (/^i cannot identify|^ich kann .* nicht erkennen/i.test(fullName)) return fallback;
 
   // A title is a glance, not a read. 24 chars is the shape of the approved
   // examples — "Cheese Pizza", "Chicken Salad", "Mediterranean Bowl" — and is
@@ -122,22 +190,44 @@ export function extractMealTitle(aiText: string): string {
   const MAX = 24;
 
   let stripped = fullName.replace(TITLE_PREAMBLE, '').trim();
+  // After the opener, before the budget is measured: the vessel is not the
+  // dish, and keeping it is what pushed real names past the cut.
+  stripped = stripped.replace(TITLE_VESSEL, '').trim();
   // Applied after the preamble so "This is a bowl of…" is not itself treated
   // as the clause boundary.
   stripped = stripped.replace(TITLE_TAIL_HARD, '').trim();
   stripped = stripped.replace(/[.!?]+$/, '').replace(/^(a|an|the)\s+/i, '').trim();
   if (stripped.length > MAX) stripped = stripped.replace(TITLE_TAIL_SOFT, '').trim();
 
-  const result = (stripped || fullName).replace(TITLE_DANGLING, '');
+  const result = (stripped || fullName)
+    .replace(TITLE_DE_TRAILING_VERB, '')
+    .replace(TITLE_DANGLING, '');
   const titled = result.charAt(0).toUpperCase() + result.slice(1);
 
-  if (titled.length <= MAX) return titled;
+  if (titled.length <= MAX) return safeTitle(titled, fallback);
   // Still long: a single very long dish name. Cut at a word boundary.
   const cut = titled.slice(0, MAX);
   const lastSpace = cut.lastIndexOf(' ');
-  return (lastSpace > 12 ? cut.slice(0, lastSpace) : cut)
+  const trimmed = (lastSpace > 12 ? cut.slice(0, lastSpace) : cut)
     .replace(/[,\s]+$/, '')
     .replace(TITLE_DANGLING, '');
+  return safeTitle(trimmed, fallback);
+}
+
+/**
+ * The post-condition every return from extractMealTitle passes through.
+ *
+ * A headline is a claim about what the food IS, so anything that is not a name
+ * — leftover scaffolding, or a stub too short to identify anything — becomes
+ * the neutral fallback instead. Uncertainty belongs in the analysis body,
+ * which still carries the model's full wording; it must not appear as a
+ * truncated sentence in the largest text on the screen.
+ */
+function safeTitle(candidate: string, fallback: string): string {
+  const value = candidate.trim();
+  if (value.length < 3) return fallback;
+  if (TITLE_NOT_A_NAME.test(value)) return fallback;
+  return value;
 }
 
 /**

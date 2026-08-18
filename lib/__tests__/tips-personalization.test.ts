@@ -228,3 +228,38 @@ describe('language independence', () => {
     );
   });
 });
+
+describe('static wellness claims stay cautious', () => {
+  // The App Store review surface for this app is health-adjacent, and these
+  // are our own assertions — not the model's — so they must not overstate what
+  // the evidence supports. Scope is deliberately narrow: two claims flagged in
+  // pre-submission screenshots, not a rewrite of the library.
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const SOURCE = require('fs').readFileSync(
+    require('path').join(__dirname, '..', 'tips.ts'), 'utf8',
+  );
+
+  test('the causal microbiome claims were softened to association', () => {
+    expect(SOURCE).not.toContain('dramatically increases gut microbiome diversity');
+    expect(SOURCE).not.toContain('even more than diet alone');
+    expect(SOURCE).toContain('is associated with greater gut microbiome diversity');
+    expect(SOURCE).toContain('is also linked to greater gut microbiome diversity');
+  });
+
+  test('no tip promises a cure, a guarantee or a treatment', () => {
+    const bodies = [...SOURCE.matchAll(/body: '([^']+)'/g)].map((m) => m[1]);
+    expect(bodies.length).toBeGreaterThan(10);
+    for (const body of bodies) {
+      expect(`${body.slice(0, 48)}…`).toBe(`${body.slice(0, 48)}…`);
+      expect(body).not.toMatch(/\b(cures?|guarantee[sd]?|eliminates?|treats?|diagnos\w*|proven to)\b/i);
+    }
+  });
+
+  test('no tip claims to dramatically or definitively change a health outcome', () => {
+    const bodies = [...SOURCE.matchAll(/body: '([^']+)'/g)].map((m) => m[1]);
+    for (const body of bodies) {
+      expect(`${body.slice(0, 48)}… : ${/\bdramatically\b/i.test(body)}`)
+        .toBe(`${body.slice(0, 48)}… : false`);
+    }
+  });
+});
