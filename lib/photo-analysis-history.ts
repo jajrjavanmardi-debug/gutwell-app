@@ -139,11 +139,22 @@ const TITLE_NOT_A_NAME =
   /^(?:it|this|that|these|those|here|there|i|you|we|they|based|looks|seems|appears|maybe|perhaps|probably|likely|es|das|hier|ich|du|sie|auf|wahrscheinlich|vermutlich)\b/i;
 
 /**
+ * An action, not a food: "Focusing on meal timing", "Working with walnuts".
+ *
+ * A revision that adds timing or symptoms makes the model's MEAL section
+ * describe what it is doing rather than what was eaten, and the result reads
+ * as a headline because it starts with an ordinary word. Matched narrowly — a
+ * gerund followed by a preposition — so participle food names are untouched:
+ * "Grilled chicken" has no -ing, and "Baking soda" has no preposition.
+ */
+const TITLE_ACTION_PHRASE = /^\w+ing\s+(?:on|about|with|for|to|at)\b/i;
+
+/**
  * Always cut here — past this point the model has stopped identifying the dish
  * and started explaining it.
  */
 const TITLE_TAIL_HARD =
-  /\s*(,|;|:|—|–| - | \(| which | that | but | topped | served | alongside | accompanied | on the side ).*/i;
+  /\s*(,|;|:|—|–| - | \(| which | that | but | topped | served | alongside | accompanied | on the side | eaten | consumed | gegessen | getrunken ).*/i;
 
 /**
  * Cut here only when the title is still over budget. "Grilled chicken and
@@ -158,6 +169,17 @@ const TITLE_TAIL_SOFT = /\s*( with | and | plus ).*/i;
  * is worse than "Fried fish", so trailing articles and conjunctions come off.
  */
 const TITLE_DANGLING = /[\s,]+(a|an|the|and|or|with|of|in|on|for|plus)$/i;
+
+/**
+ * A title is a glance, not a read. 24 chars is the shape of the approved
+ * examples — "Cheese Pizza", "Chicken Salad", "Mediterranean Bowl" — and is
+ * the threshold above which the soft cut drops trailing components. At 32 a
+ * string like "Pizza with cheese and tomato" slipped through intact.
+ *
+ * Shared by both identity paths so the model's name and the user's own words
+ * are held to the same budget.
+ */
+const MEAL_TITLE_MAX = 24;
 
 /**
  * German puts the verb last, so stripping the opener leaves it stranded:
@@ -183,11 +205,7 @@ export function extractMealTitle(aiText: string, fallback = 'Meal analysis'): st
   if (!fullName || fullName === fallback) return fallback;
   if (/^i cannot identify|^ich kann .* nicht erkennen/i.test(fullName)) return fallback;
 
-  // A title is a glance, not a read. 24 chars is the shape of the approved
-  // examples — "Cheese Pizza", "Chicken Salad", "Mediterranean Bowl" — and is
-  // the threshold above which the soft cut drops trailing components. At 32 a
-  // string like "Pizza with cheese and tomato" slipped through intact.
-  const MAX = 24;
+  const MAX = MEAL_TITLE_MAX;
 
   let stripped = fullName.replace(TITLE_PREAMBLE, '').trim();
   // After the opener, before the budget is measured: the vessel is not the
@@ -195,6 +213,10 @@ export function extractMealTitle(aiText: string, fallback = 'Meal analysis'): st
   stripped = stripped.replace(TITLE_VESSEL, '').trim();
   // Applied after the preamble so "This is a bowl of…" is not itself treated
   // as the clause boundary.
+  // Before the cuts: TITLE_TAIL_SOFT removes the preposition that makes an
+  // action phrase recognisable, so "working with walnuts" would survive as
+  // "Working". Judged here, while it is still a whole phrase.
+  if (TITLE_ACTION_PHRASE.test(stripped)) return fallback;
   stripped = stripped.replace(TITLE_TAIL_HARD, '').trim();
   stripped = stripped.replace(/[.!?]+$/, '').replace(/^(a|an|the)\s+/i, '').trim();
   if (stripped.length > MAX) stripped = stripped.replace(TITLE_TAIL_SOFT, '').trim();
@@ -215,6 +237,56 @@ export function extractMealTitle(aiText: string, fallback = 'Meal analysis'): st
 }
 
 /**
+ * A concise food label from the user's OWN words.
+ *
+ * Used only when the model's MEAL section yields no usable name — which is the
+ * common case, because the prompt asks for a sentence ("State the meal the
+ * person describes…"), not a label. Walnuts came back as "Looks like you're
+ * working with walnuts…", and after a timing correction the section was about
+ * timing rather than food at all.
+ *
+ * Deliberately NOT noun extraction from AI prose. The input here is what the
+ * person typed or spoke, so the first clause is already the thing they named:
+ * "walnuts, feeling bloated" -> "Walnuts". Everything after the first clause
+ * boundary is context, not identity.
+ *
+ * Returns null rather than a guess whenever what is left cannot be a name, so
+ * the caller falls back to its localized default.
+ */
+export function conciseFoodIdentity(userText: string): string | null {
+  if (typeof userText !== 'string') return null;
+  const firstLine = userText.trim().split('\n')[0] ?? '';
+  if (!firstLine) return null;
+
+  const opened = firstLine.replace(TITLE_PREAMBLE, '').replace(TITLE_VESSEL, '').trim();
+  if (TITLE_ACTION_PHRASE.test(opened)) return null;
+
+  let value = opened
+    .replace(TITLE_TAIL_HARD, '')
+    .replace(/[.!?]+$/, '')
+    .replace(/^(a|an|the|some|ein|eine|einen)\s+/i, '')
+    .trim();
+
+  if (value.length > MEAL_TITLE_MAX) {
+    value = value.replace(TITLE_TAIL_SOFT, '').trim();
+  }
+  if (value.length > MEAL_TITLE_MAX) {
+    const cut = value.slice(0, MEAL_TITLE_MAX);
+    const lastSpace = cut.lastIndexOf(' ');
+    value = (lastSpace > 12 ? cut.slice(0, lastSpace) : cut).replace(/[,\s]+$/, '');
+  }
+  value = value.replace(TITLE_DE_TRAILING_VERB, '').replace(TITLE_DANGLING, '').trim();
+  if (!value) return null;
+
+  const titled = value.charAt(0).toUpperCase() + value.slice(1);
+  // Same post-condition as the model path: a description of how someone feels
+  // is not a food name.
+  if (titled.length < 3 || TITLE_NOT_A_NAME.test(titled)) return null;
+  if (TITLE_ACTION_PHRASE.test(titled)) return null;
+  return titled;
+}
+
+/**
  * The post-condition every return from extractMealTitle passes through.
  *
  * A headline is a claim about what the food IS, so anything that is not a name
@@ -227,6 +299,7 @@ function safeTitle(candidate: string, fallback: string): string {
   const value = candidate.trim();
   if (value.length < 3) return fallback;
   if (TITLE_NOT_A_NAME.test(value)) return fallback;
+  if (TITLE_ACTION_PHRASE.test(value)) return fallback;
   return value;
 }
 

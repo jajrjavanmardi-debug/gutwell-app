@@ -55,6 +55,7 @@ import {
 } from '../lib/symptom-selection';
 import AnalysisResult from '../components/AnalysisResult';
 import {
+  conciseFoodIdentity,
   extractMealName,
   extractMealTitle,
   extractScoreReason,
@@ -357,6 +358,20 @@ export default function PhotoAnalysisScreen() {
   /** Pre-analyze field: what the meal is + how the user feels (voice or text). */
   const [wizardStep, setWizardStep] = useState<WizardStep>(1);
   const [accuracyAnswer, setAccuracyAnswer] = useState<'yes' | 'no' | null>(null);
+  /**
+   * The concise food label shown as the headline and in the Meal chip.
+   *
+   * Held in state rather than re-derived from the analysis on every render,
+   * because the analysis TEXT changes on every refinement while the food
+   * usually does not. Re-deriving is what produced "Focusing on meal timing"
+   * as the headline after a timing correction, and "Walnuts eaten about 3"
+   * after another — the MEAL section had stopped being about the food.
+   */
+  const [mealIdentity, setMealIdentity] = useState('');
+  /** The results ScrollView, so expanding the correction form can reveal it. */
+  const resultsScrollRef = useRef<ScrollView>(null);
+  /** y of the correction card inside that ScrollView, captured on layout. */
+  const correctionSectionYRef = useRef(0);
   const [correctionDraft, setCorrectionDraft] = useState('');
   const [mealDescription, setMealDescription] = useState('');
   // Multi-select: current-state symptoms co-occur. Was a `string | null`
@@ -494,6 +509,13 @@ export default function PhotoAnalysisScreen() {
    */
   const analyzeDisabled =
     isAnalyzing ||
+    // Voice is press-and-hold, but any path that leaves isListening true — a
+    // drag off the mic, an engine error, finishVoiceHold still in flight —
+    // left Generate tappable. finishVoiceHold applies the transcript at the
+    // END, so analysing mid-recording submits a stale or empty description.
+    // Blocking is preferred over auto-finalising: stopping the engine is async
+    // and racing it against a submission is how the transcript gets lost.
+    isListening ||
     // The text path needs a description and no image; the photo path the reverse.
     (textOnlyMode ? !mealDescription.trim() : !lastImageBase64.trim()) ||
     (!isOnboarding && !mealDescription.trim());
@@ -782,6 +804,22 @@ export default function PhotoAnalysisScreen() {
     router.replace('/(tabs)');
   };
 
+  /**
+   * The food identity for a NEW analysis.
+   *
+   * The model's MEAL section first — when it yields a real name it is the best
+   * answer, and extractMealTitle already refuses scaffolding. When it does not
+   * (walnuts came back as "Looks like you're working with walnuts…"), the
+   * user's own words are the fallback, because they named the food themselves.
+   * Only then the localized default.
+   */
+  const resolveMealIdentity = (analysisText: string, userText: string): string => {
+    const fallback = t.photoAnalysis.mealTitleFallback;
+    const fromAnalysis = extractMealTitle(analysisText, fallback);
+    if (fromAnalysis !== fallback) return fromAnalysis;
+    return conciseFoodIdentity(userText) ?? fallback;
+  };
+
   const handleGenerateAnalysis = () => {
     const narrative = mealDescription.trim();
     if (textOnlyMode) {
@@ -842,6 +880,7 @@ export default function PhotoAnalysisScreen() {
         analysisRequestIdRef.current,
       );
       setAnalysis(rawResult);
+      setMealIdentity(resolveMealIdentity(rawResult, description));
       setOnboardingFailures(0);
       track(Events.FOOD_SCANNED);
       setWizardStep(3);
@@ -904,6 +943,7 @@ export default function PhotoAnalysisScreen() {
         } : undefined,
       }, analysisRequestIdRef.current);
       setAnalysis(rawResult);
+      setMealIdentity(resolveMealIdentity(rawResult, mealDescription));
       // A success clears the failure history. Without this the counter only
       // ever grew, so the "Having trouble?" escape hatch stayed on screen for
       // the rest of the session — including underneath a result that had just
@@ -1005,6 +1045,7 @@ export default function PhotoAnalysisScreen() {
     // retry of THIS photo reuses it and is free — see lib/ai-quota.ts.
     analysisRequestIdRef.current = newAnalysisRequestId();
     setAnalysis('');
+    setMealIdentity('');
     setPlanBMessage('');
     setUserFeedback([]);
     setWizardStep(1);
@@ -1148,6 +1189,14 @@ export default function PhotoAnalysisScreen() {
         hasPainSymptom || hasPainText(correction)
       );
       setAnalysis(correctedAnalysis);
+      // The food identity survives a refinement that only adds timing,
+      // symptoms or context — which is most of them. Re-deriving it from the
+      // revised text is what turned the headline into "Focusing on meal
+      // timing". It updates only when the correction names a different food,
+      // which is the same signal that clears the meal context for the model.
+      if (correctionIsDifferentFood) {
+        setMealIdentity(resolveMealIdentity(correctedAnalysis, correction));
+      }
       setResultsScrollKey((key) => key + 1);
       setUserFeedback((prior) => [...prior, correction]);
       setAccuracyAnswer(null);
@@ -1385,6 +1434,32 @@ export default function PhotoAnalysisScreen() {
       // Step 1 → exit modal
       router.back();
     }
+  };
+
+  /**
+   * Expand or collapse the correction form, revealing it when it opens.
+   *
+   * The form sits below a full analysis, so on a phone the expansion happened
+   * entirely off-screen: the chevron flipped and nothing else appeared to
+   * happen. The scroll is deferred to the frame after the state change so the
+   * card has been laid out and correctionSectionYRef is current — scrolling in
+   * the same tick lands on the pre-expansion offset.
+   *
+   * Only ever scrolls on open. Collapsing leaves the viewport alone, which is
+   * what makes repeated open/close stable rather than jumpy.
+   */
+  const toggleCorrectionForm = () => {
+    const willOpen = accuracyAnswer !== 'no';
+    setAccuracyAnswer(willOpen ? 'no' : null);
+    if (!willOpen) return;
+    requestAnimationFrame(() => {
+      resultsScrollRef.current?.scrollTo({
+        // A little headroom above the card, so it reads as revealed rather
+        // than jammed against the top of the viewport.
+        y: Math.max(0, correctionSectionYRef.current - 24),
+        animated: true,
+      });
+    });
   };
 
   const handleApplyCorrection = async () => {
@@ -1704,7 +1779,10 @@ export default function PhotoAnalysisScreen() {
                 // analyzeDisabled already promised.
                 style={({ pressed }) => [
                   styles.analyzeCombinedButton,
-                  analyzeDisabled && styles.analyzeCombinedButtonDisabled,
+                  // Loading is NOT disabled-looking. isAnalyzing feeds
+                  // analyzeDisabled, so without excluding it here the running
+                  // state inherited the grey treatment and read as dead.
+                  analyzeDisabled && !isAnalyzing && styles.analyzeCombinedButtonDisabled,
                   pressed && !analyzeDisabled && styles.pressed,
                 ]}
               >
@@ -1720,8 +1798,21 @@ export default function PhotoAnalysisScreen() {
                   </>
                 ) : (
                   <>
-                    <Ionicons name="sparkles" size={20} color="#000000" />
-                    <Text style={styles.analyzeCombinedButtonText}>
+                    {/* The foreground was hardcoded to the ENABLED state's
+                        black, which on the disabled grey is ~1.1:1 — the
+                        reported "dead control". Disabled needs its own
+                        foreground, not just its own background. */}
+                    <Ionicons
+                      name="sparkles"
+                      size={20}
+                      color={analyzeDisabled ? Colors.textSecondary : '#000000'}
+                    />
+                    <Text
+                      style={[
+                        styles.analyzeCombinedButtonText,
+                        analyzeDisabled && styles.analyzeCombinedButtonTextDisabled,
+                      ]}
+                    >
                       {isOnboarding && !mealDescription.trim()
                         ? t.photoAnalysis.onboardingSkipDescription
                         : t.photoAnalysis.generateAnalysis}
@@ -1733,7 +1824,9 @@ export default function PhotoAnalysisScreen() {
               {/* Says why the button is inert. Only for the missing-description
                   case — the other reasons (no photo yet, already analysing) are
                   already obvious from the screen. */}
-              {analyzeDisabled && !isAnalyzing && !isOnboarding && !mealDescription.trim() ? (
+              {isListening ? (
+                <Text style={styles.analyzeHint}>{t.photoAnalysis.generateNeedsRecordingStopped}</Text>
+              ) : analyzeDisabled && !isAnalyzing && !isOnboarding && !mealDescription.trim() ? (
                 <Text style={styles.analyzeHint}>{t.photoAnalysis.generateNeedsDescription}</Text>
               ) : null}
 
@@ -1769,7 +1862,22 @@ export default function PhotoAnalysisScreen() {
             </ScrollView>
           </KeyboardAvoidingView>
         ) : (
+          /* The correction form lives inside this ScrollView, near the bottom
+              of a long result, and this pane had no keyboard avoidance at all —
+              Step 2 has had a KeyboardAvoidingView all along, Step 3 never did.
+              Focusing "Tell us what to fix…" put the keyboard straight over the
+              textarea. Same behaviour and offset as the Step 2 wrapper that was
+              already verified on device, rather than a second approach.
+
+              flex:1 on the wrapper, padding on iOS only: `height` on Android
+              fights the adjustResize the manifest already requests. */
+          <KeyboardAvoidingView
+            style={styles.scrollFlex}
+            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+            keyboardVerticalOffset={90}
+          >
           <ScrollView
+            ref={resultsScrollRef}
             key={
               wizardStep === 3 && analysis
                 ? `analysis-${resultsScrollKey}`
@@ -1897,10 +2005,11 @@ export default function PhotoAnalysisScreen() {
                  Scan) are omitted here; the meal is persisted by Continue. */
               <AnalysisResult
                 photoUri={photoUri}
-                // extractMealTitle, not extractMealName: the latter returns the
-                // MEAL section's prose ("You had some pizza with cheese and…"),
-                // which is an explanation, not a headline.
-                mealName={extractMealTitle(analysis, t.photoAnalysis.mealTitleFallback)}
+                // The same stable identity as the normal result's headline, so
+                // the onboarding surface cannot drift from it. Re-deriving here
+                // would reintroduce exactly the narrative-in-the-headline
+                // problem this state exists to prevent.
+                mealName={mealIdentity || t.photoAnalysis.mealTitleFallback}
                 score={mealImpactScore}
                 scoreReason={extractScoreReason(analysis)}
                 sections={onboardingSections}
@@ -1976,7 +2085,7 @@ export default function PhotoAnalysisScreen() {
                         <Ionicons name="nutrition" size={20} color={Colors.secondary} />
                         <View style={styles.resultTitleTextBlock}>
                           <Text style={[styles.resultMealName]} numberOfLines={1}>
-                            {extractMealTitle(analysis, t.photoAnalysis.mealTitleFallback)}
+                            {mealIdentity || t.photoAnalysis.mealTitleFallback}
                           </Text>
                           <Text style={[styles.resultTitle]}>{t.photoAnalysis.resultTitle}</Text>
                         </View>
@@ -2012,7 +2121,12 @@ export default function PhotoAnalysisScreen() {
                         <Ionicons name="restaurant" size={14} color={Colors.secondaryLight} />
                         <Text style={styles.infoChipLabel}>{t.photoAnalysis.chipMealType}</Text>
                         <Text style={styles.infoChipValue} numberOfLines={1}>
-                          {extractMealName(analysis, t.photoAnalysis.photoMealDefault)}
+                          {/* The same identity as the headline. This used to
+                              call extractMealName, which has no scaffolding
+                              guard, so the chip showed raw narrative —
+                              "Looks like you're w…" — even when the headline
+                              had correctly refused it. */}
+                          {mealIdentity || t.photoAnalysis.mealTitleFallback}
                         </Text>
                       </View>
                     </View>
@@ -2039,7 +2153,7 @@ export default function PhotoAnalysisScreen() {
                         null, not to a terminal state), so a second and third
                         correction are reachable the same way as the first. */}
                     <Pressable
-                      onPress={() => setAccuracyAnswer((prev) => (prev === 'no' ? null : 'no'))}
+                      onPress={toggleCorrectionForm}
                       accessibilityRole="button"
                       accessibilityLabel={t.photoAnalysis.refineAnalysis}
                       accessibilityHint={t.photoAnalysis.refineAnalysisHint}
@@ -2129,43 +2243,21 @@ export default function PhotoAnalysisScreen() {
                     </View>
                   </View>
 
-                  <View style={styles.accuracySectionCard}>
-                    <Text style={[styles.accuracyQuestion]}>{t.photoAnalysis.isThisAccurate}</Text>
+                  <View
+                    style={styles.accuracySectionCard}
+                    onLayout={(e) => { correctionSectionYRef.current = e.nativeEvent.layout.y; }}
+                  >
+                    {/* The "Is this accurate? / Fix Results / Done" row is gone.
+                        Fix Results called the identical handler as the Refine
+                        Analysis CTA above, so the screen offered two entry
+                        points into one flow; Done only painted a checkmark —
+                        accuracyAnswer is local UI state with no analytics and
+                        no persistence, and the only track() calls on this
+                        screen are FOOD_SCANNED and FIRST_ANALYSIS_COMPLETED in
+                        the analysis handlers. Nothing measurable was lost.
 
-                    {/* Cal AI bottom actions: Fix Results (outline) + Done (filled). */}
-                    <View style={[styles.fixResultsRow]}>
-                      <Pressable
-                        onPress={() => setAccuracyAnswer((prev) => (prev === 'no' ? null : 'no'))}
-                        accessibilityRole="button"
-                        accessibilityLabel={t.photoAnalysis.fixResults}
-                        style={({ pressed }) => [
-                          styles.fixResultsButton,
-                          accuracyAnswer === 'no' && styles.fixResultsButtonActive,
-                          pressed && styles.pressed,
-                        ]}
-                      >
-                        <Ionicons name="create-outline" size={18} color="#FFFFFF" />
-                        <Text style={styles.fixResultsButtonText}>{t.photoAnalysis.fixResults}</Text>
-                      </Pressable>
-                      <Pressable
-                        onPress={() => setAccuracyAnswer('yes')}
-                        accessibilityRole="button"
-                        accessibilityLabel={t.photoAnalysis.done}
-                        style={({ pressed }) => [
-                          styles.doneButton,
-                          accuracyAnswer === 'yes' && styles.doneButtonActive,
-                          pressed && styles.pressed,
-                        ]}
-                      >
-                        <Ionicons
-                          name={accuracyAnswer === 'yes' ? 'checkmark-circle' : 'checkmark'}
-                          size={18}
-                          color="#000000"
-                        />
-                        <Text style={styles.doneButtonText}>{t.photoAnalysis.done}</Text>
-                      </Pressable>
-                    </View>
-
+                        The card itself stays: it hosts the correction form and
+                        is the layout anchor the auto-scroll targets. */}
                     {accuracyAnswer === 'no' ? (
                       <View style={styles.correctionBox}>
                         <View style={[styles.correctionInputRow]}>
@@ -2260,6 +2352,7 @@ export default function PhotoAnalysisScreen() {
               </>
             ) : null}
           </ScrollView>
+          </KeyboardAvoidingView>
         )}
 
         {wizardStep === 3 && isOnboarding ? (
@@ -2512,11 +2605,16 @@ const styles = StyleSheet.create({
     ...Shadows.sm,
   },
   analyzeCombinedButtonDisabled: {
-    // Was #2a3d34 at 0.55 — an untokenised near-black that, on this screen's
-    // black background, read as broken rather than unavailable. This is the
-    // state a first-time user meets first, before they have typed anything.
+    // Was #2a3d34 at 0.55, then Colors.disabled at 0.7 — but the foreground
+    // stayed the enabled state's #000000, so the label and icon sat at ~1.1:1
+    // on the grey and the parent opacity dimmed them further. Dimming is now
+    // carried by the foreground colour instead of alpha, so the icon and text
+    // are legible and nothing is composited away.
     backgroundColor: Colors.disabled,
-    opacity: 0.7,
+  },
+  analyzeCombinedButtonTextDisabled: {
+    // #A7A7A7 on #2A2A2A ≈ 6.9:1 — clearly muted, comfortably readable.
+    color: Colors.textSecondary,
   },
   analyzeHint: {
     color: Colors.textSecondary,
@@ -3231,53 +3329,6 @@ const styles = StyleSheet.create({
     fontSize: FontSize.sm,
     marginTop: 2,
   },
-  fixResultsRow: {
-    flexDirection: 'row',
-    gap: Spacing.sm,
-    marginTop: Spacing.xs,
-  },
-  fixResultsButton: {
-    alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.06)',
-    borderColor: 'rgba(255,255,255,0.22)',
-    borderRadius: BorderRadius.full,
-    borderWidth: 1,
-    flex: 1,
-    flexDirection: 'row',
-    gap: Spacing.sm,
-    justifyContent: 'center',
-    minHeight: 50,
-    paddingHorizontal: Spacing.md,
-  },
-  fixResultsButtonActive: {
-    borderColor: '#F87171',
-    backgroundColor: 'rgba(248,113,113,0.12)',
-  },
-  fixResultsButtonText: {
-    color: '#FFFFFF',
-    fontFamily: FontFamily.sansBold,
-    fontSize: FontSize.sm,
-  },
-  doneButton: {
-    alignItems: 'center',
-    backgroundColor: Colors.secondary,
-    borderRadius: BorderRadius.full,
-    flex: 1,
-    flexDirection: 'row',
-    gap: Spacing.sm,
-    justifyContent: 'center',
-    minHeight: 50,
-    paddingHorizontal: Spacing.md,
-    ...Shadows.sm,
-  },
-  doneButtonActive: {
-    backgroundColor: Colors.secondaryLight,
-  },
-  doneButtonText: {
-    color: '#000000',
-    fontFamily: FontFamily.sansBold,
-    fontSize: FontSize.sm,
-  },
   wizardThumbnail: {
     alignSelf: 'center',
     borderRadius: BorderRadius.lg,
@@ -3381,12 +3432,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'flex-start',
     marginTop: Spacing.md,
-  },
-  accuracyQuestion: {
-    color: '#FFFFFF',
-    fontFamily: FontFamily.sansSemiBold,
-    fontSize: FontSize.sm,
-    marginBottom: Spacing.sm,
   },
   correctionBox: {
     borderColor: 'rgba(255,255,255,0.12)',

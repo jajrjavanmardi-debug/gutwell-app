@@ -1,4 +1,4 @@
-import { extractMealImpactScore, extractMealName, extractMealTitle, extractScoreReason } from '../photo-analysis-history';
+import { conciseFoodIdentity, extractMealImpactScore, extractMealName, extractMealTitle, extractScoreReason } from '../photo-analysis-history';
 
 // Sample of the NEW meal_revise emoji format produced by the analyze-food edge
 // function (5 sections, emoji labels, score stated as X/10).
@@ -265,5 +265,60 @@ describe('a headline is a food name, never conversational scaffolding', () => {
     for (const fallback of [extractMealTitle(''), extractMealTitle('', 'Analyse der Mahlzeit')]) {
       expect(fallback).not.toMatch(/diagnos|treat|cure|prevent|disease|krank|heil/i);
     }
+  });
+});
+
+describe('a concise food identity from the user\'s own words', () => {
+  /**
+   * The fallback when the model's MEAL section yields no usable name — which
+   * is the common case, because the prompt asks for a sentence, not a label.
+   * Walnuts came back as "Looks like you're working with walnuts…", and after
+   * a timing correction the section was about timing rather than food at all.
+   *
+   * The input is what the person typed or spoke, never AI prose: the first
+   * clause is already the thing they named.
+   */
+  it('takes the food and drops the context after it', () => {
+    for (const [input, expected] of [
+      ['walnuts', 'Walnuts'],
+      ['walnuts, feeling bloated', 'Walnuts'],
+      ['walnuts, ate 3 hours ago, feeling bloated', 'Walnuts'],
+      ['a cup of herbal tea', 'Herbal tea'],
+      ['Walnüsse, fühle mich aufgebläht', 'Walnüsse'],
+      ['chicken, rice and broccoli', 'Chicken'],
+    ] as [string, string][]) {
+      expect(`${input} -> ${conciseFoodIdentity(input)}`).toBe(`${input} -> ${expected}`);
+    }
+  });
+
+  it('refuses anything that is not a food name', () => {
+    for (const input of ['', '   ', 'I feel bloated', 'it was about 3 hours ago', 'a']) {
+      expect(`${input} -> ${conciseFoodIdentity(input)}`).toBe(`${input} -> null`);
+    }
+  });
+
+  it('never returns an action phrase', () => {
+    // "Focusing on meal timing" was a real headline on device.
+    for (const input of ['focusing on meal timing', 'working with walnuts today']) {
+      expect(`${input} -> ${conciseFoodIdentity(input)}`).toBe(`${input} -> null`);
+    }
+  });
+});
+
+describe('narrative prose never becomes the meal identity', () => {
+  // The two headlines seen on Build 4, plus the chip's raw narrative.
+  it('rejects an action phrase as a title', () => {
+    expect(extractMealTitle('MEAL: Focusing on meal timing rather than the food')).toBe('Meal analysis');
+  });
+
+  it('keeps the food when the sentence trails into timing', () => {
+    expect(extractMealTitle('MEAL: Walnuts eaten about 3 hours ago on an empty stomach')).toBe('Walnuts');
+  });
+
+  it('a participle food name is not mistaken for an action', () => {
+    // The action guard needs a preposition after the -ing word, so real names
+    // survive: no -ing here at all, and "Baking soda" has no preposition.
+    expect(extractMealTitle('Grilled chicken and rice')).toBe('Grilled chicken and rice');
+    expect(extractMealTitle('Baking soda drink')).toBe('Baking soda drink');
   });
 });

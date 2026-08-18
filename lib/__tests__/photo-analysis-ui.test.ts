@@ -45,14 +45,21 @@ describe('the Generate Analysis CTA reads as the primary action', () => {
   test('the disabled style is tokenised, readable, and clearly distinct', () => {
     const disabled = block('analyzeCombinedButtonDisabled');
     expect(disabled).toContain('backgroundColor: Colors.disabled');
-    // The old values, by name: an untokenised near-black at 0.55.
     expect(disabled).not.toContain('#2a3d34');
-    expect(disabled).not.toContain('opacity: 0.55');
-    const opacity = Number(/opacity:\s*([\d.]+)/.exec(disabled)?.[1]);
-    expect(opacity).toBeGreaterThanOrEqual(0.65);
-    expect(opacity).toBeLessThan(1);
+    // No opacity at all. Parent opacity composites the icon and label too, so
+    // dimming the background that way is what made them unreadable. The muted
+    // look is carried by the foreground colour instead.
+    expect(disabled).not.toMatch(/opacity/);
+    expect(block('analyzeCombinedButtonTextDisabled')).toContain('color: Colors.textSecondary');
     // Distinct from enabled, or the state would be invisible.
     expect(block('analyzeCombinedButton')).not.toContain('Colors.disabled');
+  });
+
+  test('the disabled icon and label are not left at the enabled foreground', () => {
+    // The reported "dead control": #000000 on #2A2A2A is about 1.1:1. Both the
+    // icon and the text must switch, not just the background.
+    expect(code).toContain("color={analyzeDisabled ? Colors.textSecondary : '#000000'}");
+    expect(code).toContain('analyzeDisabled && styles.analyzeCombinedButtonTextDisabled');
   });
 
   test('loading is its own presentation, not the disabled one', () => {
@@ -74,7 +81,26 @@ describe('the Generate Analysis CTA reads as the primary action', () => {
     expect(code).toContain('t.photoAnalysis.generateNeedsDescription');
     // Not shown while working, and not during onboarding, where a photo alone
     // is a legitimate submission.
-    expect(code).toContain('{analyzeDisabled && !isAnalyzing && !isOnboarding && !mealDescription.trim() ?');
+    expect(code).toContain('analyzeDisabled && !isAnalyzing && !isOnboarding && !mealDescription.trim() ?');
+  });
+
+  test('an active recording blocks analysis and says so', () => {
+    // Voice is press-and-hold, but any stuck-listening path left Generate
+    // tappable, and finishVoiceHold only applies the transcript when the hold
+    // ends — so analysing mid-recording submitted the previous text.
+    // The declaration itself, bounded by its own terminating semicolon.
+    // A previous version of this slice used a marker that appears EARLIER in
+    // the file, so it silently read an empty string and passed either way.
+    const start = code.indexOf('const analyzeDisabled =');
+    const gate = code.slice(start, code.indexOf(';', start));
+    expect(gate).toContain('const analyzeDisabled =');
+    expect(gate).toContain('isListening');
+    // The recording hint takes priority over the description hint.
+    expect(code).toContain('{isListening ? (');
+    expect(code).toContain('t.photoAnalysis.generateNeedsRecordingStopped');
+    // Blocking, not auto-finalising: stopping the engine is async and racing
+    // it against a submission is how the transcript gets lost.
+    expect(code).not.toMatch(/handleGenerateAnalysis[\s\S]{0,200}finishVoiceHold/);
   });
 
   test('no new hardcoded colour was introduced by these states', () => {
@@ -106,7 +132,11 @@ describe('refinement is discoverable after a result', () => {
 
   test('it routes into the EXISTING revision flow, not a new one', () => {
     const cta = code.slice(code.indexOf('styles.refineButton') - 900, code.indexOf('styles.refineButton'));
-    expect(cta).toContain("setAccuracyAnswer((prev) => (prev === 'no' ? null : 'no'))");
+    expect(cta).toContain('onPress={toggleCorrectionForm}');
+    // The toggle still drives the SAME accuracyAnswer state the correction
+    // form is gated on — it adds the reveal scroll, it does not replace the flow.
+    const toggle = code.slice(code.indexOf('const toggleCorrectionForm'), code.indexOf('const handleApplyCorrection'));
+    expect(toggle).toContain("setAccuracyAnswer(willOpen ? 'no' : null);");
     // No new screen, route or chat surface.
     expect(cta).not.toMatch(/router\.(push|navigate)/);
   });
@@ -201,5 +231,147 @@ describe('new copy is localized and makes no medical claim', () => {
         );
       }
     }
+  });
+});
+
+describe('the meal identity is stable across refinement', () => {
+  /**
+   * Build 4 showed the headline drifting with the narrative: "Meal analysis"
+   * for walnuts, then "Focusing on meal timing" and "Walnuts eaten about 3"
+   * after refinements, with the chip repeating the same prose. The analysis
+   * TEXT changes on every refinement; the food usually does not.
+   */
+  test('identity is held in state, not re-derived on every render', () => {
+    expect(code).toContain("const [mealIdentity, setMealIdentity] = useState('');");
+    // The headline and the chip both read that one value.
+    expect(code.match(/mealIdentity \|\| t\.photoAnalysis\.mealTitleFallback/g)?.length).toBe(3);
+  });
+
+  test('a new analysis resolves identity from the model, then the user words', () => {
+    const fn = code.slice(code.indexOf('const resolveMealIdentity'), code.indexOf('const handleGenerateAnalysis'));
+    expect(fn).toContain('extractMealTitle(analysisText, fallback)');
+    expect(fn).toContain('if (fromAnalysis !== fallback) return fromAnalysis;');
+    expect(fn).toContain('conciseFoodIdentity(userText) ?? fallback');
+    // Both entry points set it.
+    expect(code).toContain('setMealIdentity(resolveMealIdentity(rawResult, description));');
+    expect(code).toContain('setMealIdentity(resolveMealIdentity(rawResult, mealDescription));');
+  });
+
+  test('a context-only refinement preserves the identity', () => {
+    // The setter is reachable ONLY under the different-food branch.
+    const revise = code.slice(code.indexOf('setAnalysis(correctedAnalysis);'), code.indexOf('setResultsScrollKey((key) => key + 1);', code.indexOf('setAnalysis(correctedAnalysis);')));
+    expect(revise).toContain('if (correctionIsDifferentFood) {');
+    expect(revise).toContain('setMealIdentity(resolveMealIdentity(correctedAnalysis, correction));');
+  });
+
+  test('an actual food correction updates the identity', () => {
+    // Same signal that clears the meal context for the model, so the two
+    // cannot disagree about whether the food changed.
+    expect(code).toContain('const correctionIsDifferentFood = isDifferentFoodCorrection(correction);');
+  });
+
+  test('a new photo clears the previous identity', () => {
+    const store = code.slice(code.indexOf('const storeCapturedPhoto'), code.indexOf('const ensurePhotoEntitlement'));
+    expect(store).toContain("setMealIdentity('');");
+  });
+
+  test('the chip no longer renders raw narrative', () => {
+    // It used to call extractMealName, which has no scaffolding guard, so it
+    // showed "Looks like you're w…" even when the headline refused it.
+    const chip = code.slice(code.indexOf('t.photoAnalysis.chipMealType'), code.indexOf('t.photoAnalysis.chipMealType') + 400);
+    expect(chip).not.toContain('extractMealName(analysis');
+    expect(chip).toContain('mealIdentity');
+  });
+});
+
+describe('one correction entry point, revealed when it opens', () => {
+  test('the duplicate accuracy row is gone', () => {
+    for (const gone of ['t.photoAnalysis.isThisAccurate', 't.photoAnalysis.fixResults', 'fixResultsRow', 'fixResultsButton', 'doneButtonText']) {
+      expect(`${gone}: ${code.includes(gone)}`).toBe(`${gone}: false`);
+    }
+    // Refine remains the single entry.
+    expect(code).toContain('t.photoAnalysis.refineAnalysis');
+  });
+
+  test('nothing measurable was removed with it', () => {
+    // accuracyAnswer never had analytics or persistence; the only track()
+    // calls on this screen are the two analysis events.
+    const events = [...code.matchAll(/track\(([^)]*)\)/g)].map((m) => m[1]);
+    expect(events.every((e) => /FOOD_SCANNED|FIRST_ANALYSIS_COMPLETED/.test(e))).toBe(true);
+    // The state itself survives — it gates the correction form.
+    expect(code).toContain("useState<'yes' | 'no' | null>(null)");
+  });
+
+  test('opening scrolls the form into view, after layout', () => {
+    const fn = code.slice(code.indexOf('const toggleCorrectionForm'), code.indexOf('const handleApplyCorrection'));
+    // Deferred a frame: scrolling in the same tick lands on the pre-expansion
+    // offset, because the card has not been laid out yet.
+    expect(fn).toContain('requestAnimationFrame(');
+    expect(fn).toContain('resultsScrollRef.current?.scrollTo(');
+    expect(fn).toContain('correctionSectionYRef.current');
+    // Only on open — collapsing must not move the viewport.
+    expect(fn).toContain('if (!willOpen) return;');
+    expect(code).toContain('correctionSectionYRef.current = e.nativeEvent.layout.y;');
+  });
+
+  test('the results pane is keyboard-safe', () => {
+    // Step 2 has had a KeyboardAvoidingView all along; Step 3, which hosts the
+    // correction textarea, had none, so the keyboard covered it.
+    const results = code.slice(code.indexOf('ref={resultsScrollRef}') - 600, code.indexOf('ref={resultsScrollRef}'));
+    expect(results).toContain('<KeyboardAvoidingView');
+    expect(results).toContain("behavior={Platform.OS === 'ios' ? 'padding' : undefined}");
+    expect(results).toContain('keyboardVerticalOffset={90}');
+    // Taps still reach the form while the keyboard is open.
+    expect(code).toContain('keyboardShouldPersistTaps="handled"');
+  });
+
+  test('repeated revisions and meal_revise are untouched', () => {
+    expect(code).toContain('reviseMealAnalysis({');
+    expect(code).toContain('priorUserCorrections: userFeedback');
+    expect(code).toContain('setUserFeedback((prior) => [...prior, correction]);');
+    // Cleared after each revision, so the CTA reopens for the next one.
+    expect(code).toContain('setAccuracyAnswer(null);');
+  });
+});
+
+describe('language selection is unchanged apart from the label', () => {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  // Comments stripped: this file's doc block explains that AsyncStorage is
+  // deliberately NOT touched here, and matching that prose would assert the
+  // opposite of what it says.
+  const strip = (src: string) => src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
+  const SWITCHER = strip(require('fs').readFileSync(
+    require('path').join(__dirname, '..', '..', 'components', 'LanguageSwitcher.tsx'), 'utf8',
+  ));
+
+  test('the chip shows the full language name, not a two-letter code', () => {
+    expect(SWITCHER).toContain('{LANGUAGE_LABELS[language]}');
+    expect(SWITCHER).not.toContain('language.toUpperCase()');
+  });
+
+  test('there is still exactly one language state, and it persists', () => {
+    // No local language state, no second setter — the switcher reads context.
+    expect(SWITCHER).toContain('const { language, setLanguage } = useLanguage();');
+    expect(SWITCHER).not.toMatch(/useState<AppLanguage>|AsyncStorage/);
+  });
+
+  test('only English and German, and no RTL', () => {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    // Same reason: lib/language.ts documents that a legacy 'fa' value is
+    // migrated to 'en'. The migration must stay; the language must not.
+    const LANG = strip(require('fs').readFileSync(
+      require('path').join(__dirname, '..', 'language.ts'), 'utf8',
+    ));
+    expect(LANG).toContain("export const SUPPORTED_LANGUAGES: AppLanguage[] = ['en', 'de'];");
+    expect(LANG).not.toMatch(/'fa'\s*[,\]]|forceRTL|allowRTL|isRTL/);
+    expect(SWITCHER).toContain('SUPPORTED_LANGUAGES.map');
+  });
+});
+
+describe('scoring was not touched', () => {
+  test('the score still comes from the model, with no hardcoded fallback', () => {
+    expect(code).toContain('extractMealImpactScore(');
+    expect(code).not.toMatch(/mealImpactScore\s*(\?\?|\|\|)\s*5\b/);
+    expect(code).toContain('shouldShowMealScoreBadge && mealImpactScore');
   });
 });

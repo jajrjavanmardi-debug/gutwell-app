@@ -485,13 +485,19 @@ describe('the Generate Analysis button paints the state it is actually in', () =
   );
 
   test('the disabled style is driven by analyzeDisabled, not a restatement', () => {
-    expect(BUTTON).toContain('analyzeDisabled && styles.analyzeCombinedButtonDisabled');
+    // isAnalyzing is excluded deliberately: it feeds analyzeDisabled, so
+    // without carving it out here a RUNNING analysis inherits the grey
+    // disabled paint and reads as a dead control.
+    expect(BUTTON).toContain('analyzeDisabled && !isAnalyzing && styles.analyzeCombinedButtonDisabled');
     expect(BUTTON).toContain('pressed && !analyzeDisabled && styles.pressed');
   });
 
   test('no copy of the enablement condition survives in the style prop', () => {
     const styleProp = BUTTON.slice(BUTTON.indexOf('style={({ pressed })'), BUTTON.indexOf(']}'));
-    for (const fragment of ['mealDescription.trim()', 'lastImageBase64.trim()', 'isAnalyzing']) {
+    // isAnalyzing is the one permitted reference — it selects between the
+    // loading and disabled treatments. Re-deriving ENABLEMENT here is what
+    // must not come back, so the inputs to analyzeDisabled stay banned.
+    for (const fragment of ['mealDescription.trim()', 'lastImageBase64.trim()', 'textOnlyMode', 'isListening']) {
       expect(`${fragment} in style: ${styleProp.includes(fragment)}`).toBe(
         `${fragment} in style: false`,
       );
@@ -506,6 +512,10 @@ describe('the Generate Analysis button paints the state it is actually in', () =
   test('enabled and disabled remain visually distinct', () => {
     // A fix that made the two states identical would also "pass" the above.
     expect(PHOTO).toMatch(/analyzeCombinedButtonDisabled:\s*\{[^}]*backgroundColor/);
-    expect(PHOTO).toMatch(/analyzeCombinedButtonDisabled:\s*\{[^}]*opacity/);
+    // Distinct by colour, in BOTH layers. The opacity that used to live here
+    // is deliberately gone: it dimmed the icon and label along with the
+    // background, which is how the disabled state became unreadable.
+    expect(PHOTO).not.toMatch(/analyzeCombinedButtonDisabled:\s*\{[^}]*opacity/);
+    expect(PHOTO).toMatch(/analyzeCombinedButtonTextDisabled:\s*\{[^}]*color: Colors\.textSecondary/);
   });
 });

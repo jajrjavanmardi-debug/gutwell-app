@@ -1049,6 +1049,9 @@ const en = {
     // button is otherwise silently inert on a screen where nothing says a
     // description is required.
     generateNeedsDescription: 'Add a short description to continue',
+    // Recording blocks analysis: the transcript is only applied when the hold
+    // ends, so analysing mid-recording would submit what was there before.
+    generateNeedsRecordingStopped: 'Finish recording to continue',
     // Headline fallback when the model returns no usable meal name, or only
     // conversational scaffolding. Never a guess about the food.
     mealTitleFallback: 'Meal analysis',
@@ -2400,6 +2403,7 @@ const de: Translations = {
     refineAnalysisHint: 'Mahlzeit korrigieren, Details ergänzen oder nachfragen',
     analysing: 'Analyse läuft…',
     generateNeedsDescription: 'Füge eine kurze Beschreibung hinzu, um fortzufahren',
+    generateNeedsRecordingStopped: 'Beende die Aufnahme, um fortzufahren',
     mealTitleFallback: 'Analyse der Mahlzeit',
     addMore: 'Mehr hinzufügen',
     fixResults: 'Korrigieren',
