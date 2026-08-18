@@ -375,3 +375,112 @@ describe('scoring was not touched', () => {
     expect(code).toContain('shouldShowMealScoreBadge && mealImpactScore');
   });
 });
+
+describe('the correction input stays visible above the keyboard', () => {
+  /**
+   * Build 5 added a KeyboardAvoidingView to the Step 3 pane and the input was
+   * STILL hidden on device. `behavior="padding"` shrinks the ScrollView's
+   * frame; it never moves contentOffset. That shrink raises maxOffset by the
+   * keyboard height, so the headroom to reveal the input already existed —
+   * nothing was scrolling into it.
+   *
+   * The expansion scroll was not the gap: it uses correctionSectionYRef, a
+   * PRE-keyboard offset captured on layout, and it fires on expand. What was
+   * missing is a second, re-measured scroll once the keyboard is actually up.
+   */
+  const reveal = code.slice(code.indexOf('const revealCorrectionInput'), code.indexOf('const handleApplyCorrection'));
+
+  test('the expansion auto-scroll is untouched', () => {
+    const toggle = code.slice(code.indexOf('const toggleCorrectionForm'), code.indexOf('const revealCorrectionInput'));
+    expect(toggle).toContain('requestAnimationFrame(');
+    expect(toggle).toContain('correctionSectionYRef.current');
+    expect(toggle).toContain('if (!willOpen) return;');
+    expect(code).toContain('correctionSectionYRef.current = e.nativeEvent.layout.y;');
+  });
+
+  test('the correction input has explicit focus handling', () => {
+    expect(code).toContain('ref={correctionInputRef}');
+    expect(code).toContain('onFocus={() => {');
+    expect(code).toContain('correctionFocusedRef.current = true;');
+    expect(code).toContain('correctionFocusedRef.current = false;');
+  });
+
+  test('a keyboard-driven scroll runs AFTER the keyboard is up', () => {
+    // didShow, not willShow: the frame is only final once presentation ends,
+    // and measuring earlier reads the stale layout.
+    expect(code).toContain("Keyboard.addListener('keyboardDidShow'");
+    expect(code).toContain('revealCorrectionInput(event.endCoordinates.screenY)');
+    expect(code).not.toContain('keyboardWillShow');
+  });
+
+  test('the focused input is re-measured, not reused from expansion', () => {
+    // The whole defect: reusing the pre-keyboard offset.
+    expect(reveal).toContain('correctionInputRef.current?.measureInWindow(');
+    expect(reveal).not.toContain('correctionSectionYRef');
+    // Scrolls by the measured overlap only, so the view moves the minimum.
+    expect(reveal).toContain('const overlap = y + height + CORRECTION_KEYBOARD_MARGIN - keyboardTop;');
+    expect(reveal).toContain('if (overlap <= 0) return;');
+    expect(reveal).toContain('resultsScrollOffsetRef.current + overlap');
+  });
+
+  test('the reveal targets the existing results ScrollView', () => {
+    expect(reveal).toContain('resultsScrollRef.current?.scrollTo(');
+    // scrollTo is absolute and RN has no scrollBy, so the live offset is tracked.
+    expect(code).toContain('resultsScrollOffsetRef.current = e.nativeEvent.contentOffset.y;');
+    expect(code).toContain('scrollEventThrottle={16}');
+  });
+
+  test('it is a no-op unless the correction input holds focus', () => {
+    expect(reveal).toContain('if (!correctionFocusedRef.current) return;');
+  });
+
+  test('focusing while a keyboard is already open still reveals', () => {
+    // Moving here from the meal field fires no keyboardDidShow, so the focus
+    // path runs the same reveal once layout settles.
+    const focus = code.slice(code.indexOf('onFocus={() => {'), code.indexOf('onBlur={'));
+    expect(focus).toContain('Keyboard.metrics()?.screenY');
+    expect(focus).toContain('requestAnimationFrame(() => revealCorrectionInput(shown))');
+  });
+
+  test('the listener is cleaned up', () => {
+    const effect = code.slice(code.indexOf("Keyboard.addListener('keyboardDidShow'") - 300, code.indexOf('const handleApplyCorrection'));
+    expect(effect).toContain('return () => sub.remove();');
+  });
+
+  test('manual scrolling and tap-to-dismiss still work', () => {
+    expect(code).toContain('keyboardShouldPersistTaps="handled"');
+    // on-drag would dismiss the keyboard the moment the user scrolls, which
+    // fights the requirement that the pane stay scrollable while it is open.
+    expect(code).not.toContain('keyboardDismissMode="on-drag"');
+    expect(code).not.toContain('scrollEnabled={false}');
+  });
+
+  test('Apply correction stays inside the same scrollable flow', () => {
+    // Not lifted out into a pinned footer — it must be reachable by scrolling.
+    // The results ScrollView is the SECOND one in the file — Step 2 has its
+    // own — so the closing tag has to be found after this one opens, not from
+    // the start of the file, which silently produced an empty slice.
+    const open = code.indexOf('ref={resultsScrollRef}');
+    const scroll = code.slice(open, code.indexOf('</ScrollView>', open));
+    expect(scroll.length).toBeGreaterThan(1000);
+    expect(scroll).toContain('handleApplyCorrection');
+    expect(scroll).toContain('t.photoAnalysis.applyCorrection');
+  });
+
+  test('no fake fix: no giant static bottom spacer, no offset inflation', () => {
+    // The room already exists; the defect was that nothing scrolled into it.
+    expect(code).toContain('keyboardVerticalOffset={90}');
+    expect(block('analysisResultsContent')).toContain('paddingBottom: Spacing.xl * 3');
+    const pads = [...styles.matchAll(/paddingBottom:\s*(\d+)/g)].map((m) => Number(m[1]));
+    for (const p of pads) expect(p).toBeLessThan(200);
+  });
+
+  test('the Step 3 KeyboardAvoidingView is retained', () => {
+    // The padding is what supplies the headroom the reveal scrolls into.
+    const results = code.slice(code.indexOf('ref={resultsScrollRef}') - 600, code.indexOf('ref={resultsScrollRef}'));
+    expect(results).toContain('<KeyboardAvoidingView');
+    expect(results).toContain("behavior={Platform.OS === 'ios' ? 'padding' : undefined}");
+    // Explicitly NOT the alternative that would double-compensate.
+    expect(code).not.toContain('automaticallyAdjustKeyboardInsets');
+  });
+});

@@ -9,6 +9,7 @@ import {
   Animated,
   Image,
   KeyboardAvoidingView,
+  Keyboard,
   Platform,
   Pressable,
   ScrollView,
@@ -272,6 +273,9 @@ function getCorrectionLanguage(correction: string, currentLanguage: AppLanguage)
       : currentLanguage;
 }
 
+/** Breathing room between the correction input and the keyboard. */
+const CORRECTION_KEYBOARD_MARGIN = 12;
+
 function isDifferentFoodCorrection(correction: string): boolean {
   return /\b(it is|it's|this is|actually|not|instead|tea|herbal tea|soup|rice|potato|zucchini|yogurt|banana|das ist|eigentlich|tee|suppe|reis|kartoffel)\b/i.test(correction);
 }
@@ -372,6 +376,12 @@ export default function PhotoAnalysisScreen() {
   const resultsScrollRef = useRef<ScrollView>(null);
   /** y of the correction card inside that ScrollView, captured on layout. */
   const correctionSectionYRef = useRef(0);
+  /** The correction TextInput, measured live when the keyboard appears. */
+  const correctionInputRef = useRef<TextInput>(null);
+  /** True only while the correction input holds focus. */
+  const correctionFocusedRef = useRef(false);
+  /** Latest scroll offset — scrollTo is absolute and RN has no scrollBy. */
+  const resultsScrollOffsetRef = useRef(0);
   const [correctionDraft, setCorrectionDraft] = useState('');
   const [mealDescription, setMealDescription] = useState('');
   // Multi-select: current-state symptoms co-occur. Was a `string | null`
@@ -1462,6 +1472,61 @@ export default function PhotoAnalysisScreen() {
     });
   };
 
+  /**
+   * Bring the focused correction input above the keyboard.
+   *
+   * Measured live, in window coordinates, at the moment it is needed. The
+   * expansion scroll below uses correctionSectionYRef, which is captured on
+   * layout and is correct for what it does — but it is a PRE-keyboard offset,
+   * and reusing it here is exactly why Build 5 still hid the input.
+   *
+   * KeyboardAvoidingView shrinks the ScrollView's frame; it never moves
+   * contentOffset. That shrink RAISES maxOffset by the keyboard height, so the
+   * headroom to reveal the input already exists — nothing was scrolling into
+   * it. This scrolls by the measured overlap and nothing more, so the view
+   * moves the minimum needed and keeps as much of the analysis on screen as
+   * possible.
+   *
+   * Idempotent: with no overlap it does nothing, which is what makes it safe
+   * to call from both the focus and the keyboard paths.
+   */
+  const revealCorrectionInput = (keyboardTop: number) => {
+    if (!correctionFocusedRef.current) return;
+    correctionInputRef.current?.measureInWindow((_x, y, _width, height) => {
+      // A small margin so the input does not sit flush against the keyboard.
+      const overlap = y + height + CORRECTION_KEYBOARD_MARGIN - keyboardTop;
+      if (overlap <= 0) return;
+      resultsScrollRef.current?.scrollTo({
+        y: Math.max(0, resultsScrollOffsetRef.current + overlap),
+        animated: true,
+      });
+    });
+  };
+
+  /**
+   * The keyboard half of the reveal.
+   *
+   * keyboardDidShow, not willShow: the frame is only final once the keyboard
+   * has finished presenting, and measuring before that reads a stale layout —
+   * the same mistake as reusing the pre-keyboard offset.
+   *
+   * Registered once for the life of the screen and removed on unmount. The
+   * handler is a no-op unless the correction input holds focus, so it costs
+   * nothing on the wizard steps that have no text field.
+   */
+  useEffect(() => {
+    if (Platform.OS === 'web') return;
+    const sub = Keyboard.addListener('keyboardDidShow', (event) => {
+      revealCorrectionInput(event.endCoordinates.screenY);
+    });
+    return () => sub.remove();
+    // Empty deps is correct, not a suppression: the handler closes over refs
+    // only (focus flag, input, ScrollView, offset), and a ref object is stable
+    // across renders — so the first render's closure always reads current
+    // values. Re-subscribing on every render would churn the listener for no
+    // behavioural gain.
+  }, []);
+
   const handleApplyCorrection = async () => {
     const trimmed = correctionDraft.trim();
     if (!trimmed) {
@@ -1893,6 +1958,10 @@ export default function PhotoAnalysisScreen() {
               wizardStep === 3 && isOnboarding ? styles.onboardingResultsContent : undefined,
             ]}
             keyboardShouldPersistTaps="handled"
+            // scrollTo is absolute and RN has no scrollBy, so the reveal above
+            // needs the current offset to add its measured overlap to.
+            onScroll={(e) => { resultsScrollOffsetRef.current = e.nativeEvent.contentOffset.y; }}
+            scrollEventThrottle={16}
             showsVerticalScrollIndicator={false}
           >
             {wizardStep === 1 ? (
@@ -2262,8 +2331,22 @@ export default function PhotoAnalysisScreen() {
                       <View style={styles.correctionBox}>
                         <View style={[styles.correctionInputRow]}>
                           <TextInput
+                            ref={correctionInputRef}
                             value={correctionDraft}
                             onChangeText={setCorrectionDraft}
+                            // Both orders are covered. Focusing with no
+                            // keyboard yet arms the flag and keyboardDidShow
+                            // does the work; focusing while a keyboard is
+                            // ALREADY up (moving here from the meal field)
+                            // fires no keyboardDidShow, so the reveal is run
+                            // directly on the next frame once layout settles.
+                            onFocus={() => {
+                              correctionFocusedRef.current = true;
+                              const shown = Keyboard.metrics()?.screenY;
+                              if (shown === undefined) return;
+                              requestAnimationFrame(() => revealCorrectionInput(shown));
+                            }}
+                            onBlur={() => { correctionFocusedRef.current = false; }}
                             // Matches the server's correction cap, so a long
                             // correction stops visibly at the keyboard rather
                             // than being silently truncated server-side and
