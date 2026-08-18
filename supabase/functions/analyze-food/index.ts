@@ -44,6 +44,48 @@ function isRateLimited(ip: string): boolean {
   return entry.count > RATE_LIMIT_MAX;
 }
 
+/**
+ * Deadline for ONE Gemini attempt.
+ *
+ * ── Why a deadline exists ───────────────────────────────────────────────────
+ * Supabase kills an Edge Function worker at the Free-plan wall clock of 150s.
+ * The provider fetch had no deadline, so a degraded Gemini left the worker
+ * pending until the platform terminated it — HTTP 546, with the process gone
+ * before the catch block, so no usage row was written and no error was
+ * classified. Observed 2026-08-18: two requests killed at exec_ms 150182 and
+ * 150233.
+ *
+ * ── Why 42s and not longer ──────────────────────────────────────────────────
+ * The deadlines must fire in this order, innermost first:
+ *
+ *     provider (42s)  <  client (55s)  <  platform (150s)
+ *
+ * The client gives up at REQUEST_TIMEOUT_MS = 55_000 (lib/RecommendationEngine
+ * .ts). A server deadline above that is worthless to the user: the app has
+ * already shown its own timeout, which is why the 112s "success" observed on
+ * 2026-08-18 helped nobody. Failing first is what lets this function classify
+ * the failure, write the usage row and return a structured UPSTREAM_ERROR that
+ * the client can still act on.
+ *
+ * The client's 55s covers the image UPLOAD as well as our execution, and that
+ * leg is not in exec_ms. Worst observed non-Gemini server work is 6262ms (the
+ * 502 path: auth, entitlement, quota reservation, the failed provider call,
+ * recordUsage, response). So:
+ *
+ *     42s + 6.3s ≈ 48.3s server, leaving ≈6.7s of the client budget for the
+ *     upload and the reply.
+ *
+ * At 45s that margin drops to ~3.7s, which a 500KB base64 body on a weak
+ * mobile uplink can exceed on its own. 42s keeps a realistic upload inside the
+ * budget while still allowing more than twice the slowest NORMAL analysis
+ * (successful requests ran 11.2–20.6s end to end), so it only bites on a
+ * genuinely degraded provider.
+ *
+ * ONE attempt. No retry: two sequential attempts share the same budget, so
+ * retrying without more provider-latency data would defeat the ordering above.
+ */
+const GEMINI_TIMEOUT_MS = 42_000;
+
 // Max base64 image size: 10 MB
 const MAX_IMAGE_SIZE = 10 * 1024 * 1024;
 
@@ -238,83 +280,116 @@ async function callGemini(
     maxOutputTokens?: number;
   } = {},
 ): Promise<{ text: string; usage: GeminiUsage }> {
-  let response: Response;
+  // AbortController + clearTimeout rather than AbortSignal.timeout(): the
+  // runtime is Deno 2.x and would support the native form, but its timer
+  // cannot be cancelled once the request settles, and this codebase has
+  // already been bitten by a pending analysis timer keeping the event loop
+  // alive after every SUCCESSFUL call (see REQUEST_TIMEOUT_MS in
+  // lib/RecommendationEngine.ts). The finally below is the same fix.
+  //
+  // The signal covers the body read as well as the headers, so a provider that
+  // answers fast and then streams slowly is still bounded.
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), GEMINI_TIMEOUT_MS);
   try {
-    response = await fetch(GEMINI_URL, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-goog-api-key": GEMINI_API_KEY!,
-      },
-      body: JSON.stringify({
-        contents: [{ parts }],
-        generationConfig: {
-          temperature: options.temperature ?? 0.3,
-          // gemini-2.5-flash is a thinking model: reasoning tokens count toward
-          // this budget, so the long free-form coaching modes need more headroom
-          // than the compact structured photo JSON.
-          maxOutputTokens: options.maxOutputTokens ?? 2048,
-          ...(options.responseMimeType
-            ? { responseMimeType: options.responseMimeType }
-            : {}),
-        },
-      }),
-    });
-  } catch (networkError) {
-    // The request left this process. We cannot know whether the provider
-    // billed it, so it counts as attempted.
-    const err = new Error("Failed to reach AI provider") as ProviderError;
-    err.upstream = true;
-    err.providerAttempted = true;
-    throw err;
-  }
-
-  if (!response.ok) {
-    // The provider's error body is NOT logged. Gemini echoes parts of the
-    // rejected request in some failures — a blocked prompt, a bad inline image —
-    // so logging it verbatim would put meal descriptions, symptoms and image
-    // data into the function logs, which is exactly what the telemetry design
-    // takes care to avoid. Only the provider's own machine-readable status and
-    // reason code are kept, which is enough to diagnose without content.
-    let reason = "unknown";
+    let response: Response;
     try {
-      const parsed = await response.json();
-      const status = parsed?.error?.status;
-      if (typeof status === "string") reason = status.slice(0, 40);
-    } catch {
-      // Non-JSON error body: deliberately discarded rather than logged.
+      response = await fetch(GEMINI_URL, {
+        method: "POST",
+        signal: controller.signal,
+        headers: {
+          "Content-Type": "application/json",
+          "x-goog-api-key": GEMINI_API_KEY!,
+        },
+        body: JSON.stringify({
+          contents: [{ parts }],
+          generationConfig: {
+            temperature: options.temperature ?? 0.3,
+            // gemini-2.5-flash is a thinking model: reasoning tokens count toward
+            // this budget, so the long free-form coaching modes need more headroom
+            // than the compact structured photo JSON.
+            maxOutputTokens: options.maxOutputTokens ?? 2048,
+            ...(options.responseMimeType
+              ? { responseMimeType: options.responseMimeType }
+              : {}),
+          },
+        }),
+      });
+    } catch (networkError) {
+      // The request left this process. We cannot know whether the provider
+      // billed it, so it counts as attempted.
+      const err = new Error("Failed to reach AI provider") as ProviderError;
+      err.upstream = true;
+      err.providerAttempted = true;
+      throw err;
     }
-    console.error("Gemini API error", {
-      status: response.status,
-      provider: "gemini",
-      reason,
-    });
-    const err = new Error("Failed to get analysis from AI provider") as ProviderError;
-    err.upstream = true;
-    err.providerAttempted = true;
-    throw err;
+
+    if (!response.ok) {
+      // The provider's error body is NOT logged. Gemini echoes parts of the
+      // rejected request in some failures — a blocked prompt, a bad inline image —
+      // so logging it verbatim would put meal descriptions, symptoms and image
+      // data into the function logs, which is exactly what the telemetry design
+      // takes care to avoid. Only the provider's own machine-readable status and
+      // reason code are kept, which is enough to diagnose without content.
+      let reason = "unknown";
+      try {
+        const parsed = await response.json();
+        const status = parsed?.error?.status;
+        if (typeof status === "string") reason = status.slice(0, 40);
+      } catch {
+        // Non-JSON error body: deliberately discarded rather than logged.
+      }
+      console.error("Gemini API error", {
+        status: response.status,
+        provider: "gemini",
+        reason,
+      });
+      const err = new Error("Failed to get analysis from AI provider") as ProviderError;
+      err.upstream = true;
+      err.providerAttempted = true;
+      throw err;
+    }
+
+    const data = await response.json();
+    const usage = readUsage(data);
+    const text: string | undefined =
+      data?.candidates?.[0]?.content?.parts
+        ?.map((part: { text?: string }) => part?.text)
+        ?.filter((t: unknown): t is string => typeof t === "string")
+        ?.join("")
+        ?.trim();
+
+    if (!text) {
+      const err = new Error("Empty response from AI provider") as ProviderError;
+      err.empty = true;
+      err.providerAttempted = true;
+      // An empty candidate is still a billed call, so the usage travels with the
+      // error and is recorded like any other spend.
+      (err as ProviderError & { usage?: GeminiUsage }).usage = usage;
+      throw err;
+    }
+
+    return { text, usage };
+  } catch (error) {
+    // An abort that fires during the BODY read surfaces here rather than in
+    // the fetch catch above, and would otherwise reach the outer handler as an
+    // unrecognised AbortError and be reported as INTERNAL_ERROR. It means the
+    // same thing as any other timeout: the provider was attempted and did not
+    // answer in time, so it takes the same upstream path — which is also what
+    // keeps the existing refund rule correct (providerAttempted, no refund).
+    const err = error as ProviderError;
+    if (!err.upstream && !err.empty && controller.signal.aborted) {
+      const timedOut = new Error("AI provider timed out") as ProviderError;
+      timedOut.upstream = true;
+      timedOut.providerAttempted = true;
+      throw timedOut;
+    }
+    throw error;
+  } finally {
+    // Cleared on EVERY path. A settled request must not leave a 120s timer
+    // pending in the worker.
+    clearTimeout(timeoutId);
   }
-
-  const data = await response.json();
-  const usage = readUsage(data);
-  const text: string | undefined =
-    data?.candidates?.[0]?.content?.parts
-      ?.map((part: { text?: string }) => part?.text)
-      ?.filter((t: unknown): t is string => typeof t === "string")
-      ?.join("")
-      ?.trim();
-
-  if (!text) {
-    const err = new Error("Empty response from AI provider") as ProviderError;
-    err.empty = true;
-    err.providerAttempted = true;
-    // An empty candidate is still a billed call, so the usage travels with the
-    // error and is recorded like any other spend.
-    (err as ProviderError & { usage?: GeminiUsage }).usage = usage;
-    throw err;
-  }
-
-  return { text, usage };
 }
 
 // ---------------------------------------------------------------------------

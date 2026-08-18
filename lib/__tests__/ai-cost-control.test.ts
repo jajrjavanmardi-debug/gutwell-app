@@ -26,6 +26,8 @@ import { translations } from '../i18n';
 const root = join(__dirname, '..', '..');
 const read = (...p: string[]) => readFileSync(join(root, ...p), 'utf8');
 const EDGE = read('supabase', 'functions', 'analyze-food', 'index.ts');
+/** The client half of the deadline ordering guarded below. */
+const CLIENT = read('lib', 'RecommendationEngine.ts');
 const MIGRATION = read('supabase', 'migrations', '20260808120000_ai_cost_control.sql');
 const QUOTA = read('lib', 'ai-quota.ts');
 const LOCKDOWN = read('supabase', 'migrations', '20260809100000_ai_quota_lock_down_refunds.sql');
@@ -903,5 +905,141 @@ describe('a photo always analyses as a photo', () => {
     );
     expect(textOnly).toContain('you can only look at meals and drinks');
     expect(photo).not.toContain('you can only look at meals and drinks');
+  });
+});
+
+describe('the provider call has a deadline inside the platform budget', () => {
+  /**
+   * Guards the two HTTP 546 failures of 2026-08-18.
+   *
+   * Supabase kills an Edge Function worker at the Free-plan wall clock of 150s.
+   * callGemini performed a bare fetch with no deadline, so a degraded Gemini
+   * left the worker pending until the platform terminated it — and because the
+   * process was gone before any catch ran, no ai_usage_events row was written
+   * and no error was classified. Measured exec_ms on the two kills: 150182 and
+   * 150233, against a normal 12–21s and one degraded-but-successful 112s.
+   *
+   * Deliberately ONE attempt. Two sequential attempts share the same 150s
+   * budget, so a retry without more latency data would raise 546 risk.
+   */
+  // The three deadlines, innermost first. The server must fail before the
+  // client gives up, or the classification and usage row it produces arrive
+  // after the app has already shown its own timeout — which is what made the
+  // 112s "success" of 2026-08-18 useless to the user.
+  const PLATFORM_WALL_CLOCK_MS = 150_000;
+  const CLIENT_TIMEOUT_MS = 55_000;
+  /** Worst observed non-Gemini server work: the 502 path, 2026-08-18. */
+  const SERVER_OVERHEAD_MS = 6_262;
+  const fn = EDGE.slice(EDGE.indexOf('async function callGemini'), EDGE.indexOf('function buildMealTextPrompt'));
+  const code = fn.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
+
+  test('the Gemini fetch carries an abort signal', () => {
+    // The whole point: a bare fetch is what allowed the worker to be killed.
+    expect(code).toContain('signal: controller.signal');
+    expect(code).toContain('const controller = new AbortController();');
+    expect(code).toMatch(/setTimeout\(\s*\(\)\s*=>\s*controller\.abort\(\)/);
+  });
+
+  const declaredTimeout = () => {
+    const declared = /const GEMINI_TIMEOUT_MS = ([\d_]+);/.exec(EDGE)?.[1];
+    expect(declared).toBeDefined();
+    return Number(declared!.replace(/_/g, ''));
+  };
+
+  test('the server fails BEFORE the client gives up', () => {
+    const ms = declaredTimeout();
+    expect(ms).toBeLessThan(CLIENT_TIMEOUT_MS);
+    // The client's own deadline, pinned so the two cannot drift apart
+    // silently: raising it there without revisiting this ordering would make
+    // this assertion meaningless.
+    expect(CLIENT).toContain(`const REQUEST_TIMEOUT_MS = ${CLIENT_TIMEOUT_MS};`);
+  });
+
+  test('meaningful headroom remains before the client deadline', () => {
+    // The client's budget also covers the image UPLOAD, which is not in the
+    // server's exec_ms — so the margin has to absorb a real mobile upload,
+    // not just our own post-provider work.
+    const ms = declaredTimeout();
+    const slack = CLIENT_TIMEOUT_MS - (ms + SERVER_OVERHEAD_MS);
+    expect(slack).toBeGreaterThanOrEqual(5_000);
+  });
+
+  test('the deadline is far below the platform wall clock', () => {
+    const ms = declaredTimeout();
+    expect(ms).toBeLessThan(PLATFORM_WALL_CLOCK_MS);
+    expect(PLATFORM_WALL_CLOCK_MS - ms).toBeGreaterThanOrEqual(100_000);
+    expect(code).toContain('GEMINI_TIMEOUT_MS');
+  });
+
+  test('the deadline still clears the slowest NORMAL analysis', () => {
+    // Successful requests ran 11.2–20.6s end to end. The deadline must only
+    // bite on a degraded provider, never on an ordinary slow one.
+    const ms = declaredTimeout();
+    expect(ms).toBeGreaterThan(2 * 20_620);
+  });
+
+  test('the timer is cleared on every path', () => {
+    // A settled request must not leave a 120s timer pending in the worker —
+    // the same bite already fixed on the client side.
+    expect(code).toMatch(/finally\s*\{[\s\S]{0,200}clearTimeout\(timeoutId\)/);
+  });
+
+  test('an abort is classified as upstream, not as an internal error', () => {
+    // Aborting the body read lands outside the fetch catch; without this it
+    // would reach the outer handler as an unrecognised AbortError and be
+    // reported as INTERNAL_ERROR instead of UPSTREAM_ERROR.
+    expect(code).toContain('controller.signal.aborted');
+    expect(code).toContain('timedOut.upstream = true;');
+    expect(code).toContain('timedOut.providerAttempted = true;');
+    // The pre-existing network path is untouched and still upstream.
+    expect(code).toContain('err.upstream = true;');
+  });
+
+  test('a timeout reaches usage accounting rather than dying invisibly', () => {
+    // The upstream classification is what routes an abort into the existing
+    // catch that records the failure — that is what a 546 skipped entirely.
+    const photo = EDGE.slice(EDGE.indexOf('case "meal_text": {'), EDGE.indexOf('case "meal_text_only": {'));
+    expect(photo).toContain('succeeded: false');
+    expect(photo).toContain('err.empty ? "empty" : err.upstream ? "upstream" : "error"');
+  });
+
+  test('exactly one provider attempt, and no retry loop', () => {
+    expect((code.match(/await fetch\(GEMINI_URL/g) ?? []).length).toBe(1);
+    for (const banned of ['for (', 'while (', 'attempt', 'retryCount', 'maxRetries', 'backoff']) {
+      expect(`${banned} in callGemini: ${code.includes(banned)}`).toBe(`${banned} in callGemini: false`);
+    }
+  });
+
+  test('the successful path is unchanged', () => {
+    expect(code).toContain('const data = await response.json();');
+    expect(code).toContain('const usage = readUsage(data);');
+    expect(code).toContain('return { text, usage };');
+  });
+
+  test('explicit provider status handling is unchanged', () => {
+    // The 503/429/500 branch that produced the earlier UPSTREAM_ERRORs.
+    expect(code).toContain('if (!response.ok) {');
+    expect(fn).toContain('console.error("Gemini API error"');
+    expect(code).toContain('status: response.status');
+    // Still never logs the provider's error body.
+    expect(code).not.toMatch(/console\.\w+\([^)]*parsed\b/);
+  });
+
+  test('quota ordering, idempotency and refund rules are unchanged', () => {
+    const photo = EDGE.slice(EDGE.indexOf('case "meal_text": {'), EDGE.indexOf('case "meal_text_only": {'));
+    // Reserve BEFORE the provider call.
+    expect(photo.indexOf('reserveDailyQuota(supabase, requestId as string, "photo_analysis")'))
+      .toBeLessThan(photo.indexOf('await callGemini('));
+    // Refund only when nothing reached the provider — a timeout did, so it
+    // correctly does not refund.
+    expect(photo).toContain('if (!err.providerAttempted) {');
+    expect(photo).toContain('releaseDailyQuota(user.id, requestId as string, "photo_analysis")');
+    expect(EDGE).toContain('const requestId = body.requestId;');
+    expect(EDGE).toContain('if (!isUuid(requestId)) {');
+  });
+
+  test('the size ceilings are untouched', () => {
+    expect(EDGE).toContain('const MAX_IMAGE_SIZE = 10 * 1024 * 1024;');
+    expect(EDGE).toContain('const MAX_BODY_BYTES = 12 * 1024 * 1024;');
   });
 });
