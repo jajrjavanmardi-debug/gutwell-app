@@ -1,3 +1,5 @@
+import type { AppLanguage } from './language';
+
 export type TipTag = 'bloating' | 'energy' | 'digestion' | 'general' | 'hydration' | 'inflammation' | 'stress' | 'sleep';
 
 export type WellnessTip = {
@@ -294,4 +296,123 @@ export function getPersonalizedTip(
 
 export function getAllTips(): WellnessTip[] {
   return TIPS;
+}
+
+// ─── Localized copy ──────────────────────────────────────────────────────────
+//
+// TIPS above stays the single structural source of truth: order, category,
+// icon and tags are what selection runs on, and none of it is translated.
+// Only the two user-visible strings are localized, in a sidecar keyed by the
+// SAME index, so a tip's identity never depends on its wording.
+//
+// English is derived from TIPS rather than restated, which makes it impossible
+// for the English a user reads to drift from the English the selection tests
+// assert against.
+
+export type TipCopy = { title: string; body: string };
+
+/** German copy, index-aligned with TIPS. Hedged wording is deliberate: these
+ *  mirror the English hedging and must not be sharpened into causal claims. */
+const TIPS_DE: TipCopy[] = [
+  {
+    title: 'Langsam kauen',
+    body: 'Gründliches Kauen reduziert Blähungen und verbessert die Nährstoffaufnahme. Ziel sind 20–30 Kaubewegungen pro Bissen.',
+  },
+  {
+    title: 'Wasser am Morgen',
+    body: 'Ein Glas warmes Wasser direkt nach dem Aufstehen ist eine sanfte Art, deine Verdauung in Gang zu bringen.',
+  },
+  {
+    title: 'Ballaststoff-Vielfalt',
+    body: 'Eine große Bandbreite pflanzlicher Lebensmittel über die Woche — etwa 30 verschiedene — wird mit einer vielfältigeren Darmflora in Verbindung gebracht.',
+  },
+  {
+    title: 'Stress & dein Darm',
+    body: 'Über die Darm-Hirn-Achse wirkt sich Stress unmittelbar auf die Verdauung aus. Schon 5 Minuten tiefes Atmen helfen.',
+  },
+  {
+    title: 'Fermentierte Lebensmittel',
+    body: 'Joghurt, Kimchi, Sauerkraut und Kefir bringen nützliche Bakterien mit, die deine Darmschleimhaut stärken.',
+  },
+  {
+    title: 'Schlafqualität zählt',
+    body: 'Schlechter Schlaf bringt die Darmflora schon innerhalb von 48 Stunden aus dem Gleichgewicht. Ziel sind 7–9 Stunden regelmäßiger Schlaf.',
+  },
+  {
+    title: 'Nach dem Essen gehen',
+    body: 'Ein Spaziergang von 10–15 Minuten nach dem Essen unterstützt die Verdauung — viele Menschen fühlen sich danach leichter.',
+  },
+  {
+    title: 'Präbiotika',
+    body: 'Knoblauch, Zwiebeln, Bananen und Hafer füttern deine guten Bakterien. Sie sind Treibstoff für eine gesunde Darmflora.',
+  },
+  {
+    title: 'Achtsam essen',
+    body: 'Essen ohne Ablenkung hilft deinem Körper, Sättigung richtig zu signalisieren, und verbessert die Nährstoffaufnahme.',
+  },
+  {
+    title: 'Gesunde Darmbarriere',
+    body: 'Zink, Vitamin D und Glutamin unterstützen deine Darmschleimhaut. Knochenbrühe ist eine natürliche Quelle.',
+  },
+  {
+    title: 'Regelmäßigkeit hilft',
+    body: 'Feste Essenszeiten trainieren deine Verdauung. Versuche, jeden Tag etwa zur gleichen Zeit zu essen.',
+  },
+  {
+    title: 'Verarbeitetes reduzieren',
+    body: 'Süßstoffe und Emulgatoren in stark verarbeiteten Lebensmitteln können deiner Darmflora schaden.',
+  },
+  {
+    title: 'Bewegung hilft',
+    body: 'Regelmäßige moderate Bewegung wird ebenfalls mit einer vielfältigeren Darmflora in Verbindung gebracht.',
+  },
+  {
+    title: 'Ernährungstagebuch wirkt',
+    body: 'Regelmäßiges Eintragen macht Muster deutlich leichter erkennbar — je mehr du erfasst, desto klarer treten deine Auslöser hervor.',
+  },
+  {
+    title: 'Polyphenolreiche Lebensmittel',
+    body: 'Zartbitterschokolade, Beeren, grüner Tee und Olivenöl enthalten Polyphenole, die deine Darmbakterien nähren.',
+  },
+  {
+    title: 'Vorsicht bei Antibiotika',
+    body: 'Antibiotika können deine Darmbakterien beeinflussen. Wenn dir welche verschrieben werden, frage deine Ärztin, deinen Arzt oder die Apotheke, ob Probiotika für dich sinnvoll sind.',
+  },
+  {
+    title: 'Atmen für die Verdauung',
+    body: 'Box-Atmung (4-4-4-4) vor dem Essen aktiviert dein Ruhe- und Verdauungsnervensystem.',
+  },
+  {
+    title: 'Weniger Zucker',
+    body: 'Zu viel Zucker nährt schädliche Bakterien und Hefen im Darm und bringt das mikrobielle Gleichgewicht durcheinander.',
+  },
+  {
+    title: 'Kältereize',
+    body: 'Manche Menschen empfinden kurze kalte Duschen als belebenden Teil ihrer Morgenroutine — höre auf deinen Körper, wenn du es ausprobierst.',
+  },
+  {
+    title: 'Omega-3-Fettsäuren',
+    body: 'Fisch, Walnüsse und Leinsamen enthalten Omega-3-Fettsäuren, die Entzündungen im Darm entgegenwirken und die Schleimhaut unterstützen.',
+  },
+];
+
+/** Both languages, index-aligned with TIPS. */
+export const TIP_COPY: Record<AppLanguage, TipCopy[]> = {
+  en: TIPS.map((tip) => ({ title: tip.title, body: tip.body })),
+  de: TIPS_DE,
+};
+
+/**
+ * The displayable copy for a tip in the given language.
+ *
+ * Selection returns elements of TIPS by reference, so the tip's position is
+ * recoverable with indexOf — no id field, and no change to any selection
+ * signature. An unknown tip or a short copy table falls back to the English
+ * carried on the tip itself, so a missing translation degrades to readable
+ * text rather than an empty card.
+ */
+export function getTipCopy(tip: WellnessTip, language: AppLanguage): TipCopy {
+  const index = TIPS.indexOf(tip);
+  const copy = index >= 0 ? TIP_COPY[language]?.[index] : undefined;
+  return copy ?? { title: tip.title, body: tip.body };
 }

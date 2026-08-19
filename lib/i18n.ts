@@ -584,13 +584,100 @@ const en = {
     chartTwelveWeeks: '12 weeks',
   },
 
-  // ── Legal Screens — UI only (substantive content NOT localized) ──────────
+  // ── Legal Screens ────────────────────────────────────────────────────────
+  // Substantive legal content lives here so that German users read the terms
+  // they actually accept, rather than English text held in the screen files.
+  // Both screens are collapsible section lists: keep privacySections and
+  // termsSections index-aligned between languages — key parity is enforced by
+  // i18n-coverage.test.ts, which walks array indices.
   legalScreens: {
     privacyPolicyTitle: 'Privacy Policy',
     termsOfServiceTitle: 'Terms of Service',
     goBack: 'Go back',
     accessGoBack: 'Go back to previous screen',
     legalNote: 'GutWell AI is a wellness tool. It does not provide medical advice.',
+
+    // Operator identity. Named once and reused by both screens so the two can
+    // never drift apart.
+    operatorName: 'Jafar Rusban Javanmardi',
+    operatorAddress: 'Sedanstraße 13\n65183 Wiesbaden\nGermany',
+    contactEmail: 'support@getgutwell.app',
+    // Both documents carry the same date: they are revised as one set.
+    lastUpdated: 'Last updated: August 2026',
+    contactPrompt: 'Questions? Reach us at',
+    operatedBy: 'Operated by',
+
+    privacyIntro: 'Your privacy matters to us. Tap each section below to learn how we handle your data.',
+    privacySections: [
+      {
+        title: '1. Data We Collect',
+        body: 'GutWell AI collects the data you voluntarily enter: check-in logs (stool type, bloating, pain, energy, mood, water intake), food logs (meal names, meal types, and meal photos you choose to analyse), symptom logs (type, severity), supplement notes, onboarding answers (your gut concerns and goals), and basic account information (email, display name). If you use voice input to describe or correct a meal, your speech is converted to text by your device’s speech recognition and only the resulting text is stored — we do not keep an audio recording. If you grant location access for local food suggestions, your approximate location is used during that analysis.',
+      },
+      {
+        title: '2. How We Use Your Data',
+        body: 'Your data is used to provide the GutWell AI service — displaying your trends, calculating your gut health score, showing possible food–symptom patterns, personalising AI meal analysis, and sending reminders you configure. We never sell your data, and we do not use it for advertising or cross-app tracking.',
+      },
+      {
+        title: '3. Service Providers We Share Data With',
+        body: 'To run GutWell AI we use a small number of service providers:\n\n• Supabase — stores your account and all logs described above. The project’s primary database region is configured in the EU.\n• Google Gemini — when you analyse a meal, the photo and the context you provide (description, symptoms, conditions, supplements, and — if you have enabled it — your approximate location) is transmitted to Google’s Gemini API so that your analysis can be generated. Google’s handling of data submitted to that API is governed by Google’s own API terms.\n• Apple and RevenueCat — involved only if you purchase a subscription, in order to process and verify it.\n\nThis version of GutWell AI does not use analytics or crash-reporting services. We do not sell or share your personal health data with any other third parties.',
+      },
+      {
+        title: '4. Data Storage & Security',
+        body: 'Your data is stored using Supabase, encrypted in transit and at rest. Row-level security means only you can access your own data. Authentication tokens are kept in your device’s secure storage. AI requests are made by our server, so AI provider keys are never included in the app.',
+      },
+      {
+        title: '5. Data Retention & Deletion',
+        body: 'Your data is retained while your account is active. You can export your data at any time from Profile → Export My Data, which produces a CSV file shared through your device’s share sheet. You can permanently delete your account and its associated data in the app: Profile → Delete Account. Deletion cannot be undone. Meal photos are not retained by GutWell AI once an analysis request has completed.',
+      },
+      {
+        title: '6. Your Rights',
+        body: 'You have the right to access, export, correct, or delete your personal data (GDPR Articles 15–20). Your check-ins and symptom entries are health-related information: we process them only to provide the features you ask for, and you can stop that processing at any time by deleting the entries or your account. You can exercise these rights in the app or by contacting us. You may also withdraw location, camera, microphone, or notification permissions at any time in your device settings.',
+      },
+      {
+        title: '7. Operator and Contact',
+        body: 'GutWell AI is operated by Jafar Rusban Javanmardi, Sedanstraße 13, 65183 Wiesbaden, Germany. For privacy questions, or to exercise any of the rights above, contact support@getgutwell.app.',
+      },
+    ],
+
+    termsIntro: 'Please review our terms below. Tap each section for details.',
+    termsSections: [
+      {
+        title: '1. Usage Terms',
+        body: 'By creating an account and using GutWell AI, you agree to these Terms of Service. GutWell AI is intended for personal wellness tracking only. You must be at least 16 years old to use this app. You are responsible for maintaining the confidentiality of your account credentials.',
+      },
+      {
+        title: '2. Health Disclaimer',
+        body: 'GutWell AI is a wellness tracking application, not a medical device. The information, scores, patterns, and insights provided are for personal tracking purposes only and do not constitute medical advice, diagnosis, or treatment. It is not intended to diagnose, treat, cure, or prevent any disease. Always seek the advice of a qualified healthcare professional with any questions regarding a medical condition. Never disregard professional medical advice or delay seeking it because of information provided by GutWell AI.',
+      },
+      {
+        title: '3. Subscription Terms',
+        body: 'GutWell AI offers a free tier and an optional Premium subscription, available as a monthly or an annual plan. Premium subscriptions are billed through Apple’s App Store. Payment is charged to your Apple ID account at confirmation of purchase. Subscriptions renew automatically unless cancelled at least 24 hours before the end of the current billing period, and your account is charged for renewal within 24 hours before the end of the current period. Prices are shown in the app in your own currency before you purchase.',
+      },
+      {
+        title: '4. Cancellation Policy',
+        body: 'You may cancel your subscription at any time through your Apple ID account settings. Cancellation takes effect at the end of the current billing period. Refunds are handled by Apple under Apple’s refund policy; GutWell AI does not process refunds directly. Free features remain accessible after cancellation. Your mandatory statutory rights as a consumer are not affected.',
+      },
+      {
+        title: '5. Liability',
+        body: 'GutWell AI is provided with care, but we do not warrant that it will be uninterrupted or error-free, and AI-generated analyses may be inaccurate or unsuitable for your situation. Nothing in these Terms excludes or limits liability where such exclusion or limitation is not permitted by law — including liability for intent, for injury to life, body, or health, and under mandatory product-liability rules. Your mandatory statutory rights as a consumer remain unaffected.',
+      },
+      {
+        title: '6. User Content',
+        body: 'You retain ownership of all data you enter into GutWell AI. By using the service, you grant us a limited licence to process your data solely for the purpose of providing the GutWell AI service. We do not sell your personal health data to third parties. You may export or delete your data at any time.',
+      },
+      {
+        title: '7. Acceptable Use',
+        body: 'You agree not to misuse the service, including but not limited to: attempting to access other users’ data, reverse-engineering the app, using automated tools to interact with the service, or using GutWell AI for any unlawful purpose.',
+      },
+      {
+        title: '8. Changes to Terms',
+        body: 'We may update these terms from time to time. We will notify users of material changes through the app or via email. Where applicable law requires your express consent to a change, we will ask for it.',
+      },
+      {
+        title: '9. Governing Law',
+        body: 'These Terms are governed by the law of the Federal Republic of Germany. If you are a consumer, this choice of law does not deprive you of the protection afforded by mandatory provisions of the law of the country in which you habitually reside, and it does not remove any right you may have to bring proceedings before the courts of that country.',
+      },
+    ],
   },
 
   // ── Onboarding Steps ─────────────────────────────────────────────────────
@@ -1014,7 +1101,7 @@ const en = {
     dailyLimitMessage: "You've analysed 5 meals today, which is the daily maximum.",
     dailyLimitResetsAt: 'You can analyse more from {time}.',
     revisionLimitTitle: 'Daily correction limit reached',
-    revisionLimitMessage: "You've made 20 corrections today, which is the daily maximum.",
+    revisionLimitMessage: "You've made 5 corrections today, which is the daily maximum.",
     photoAnalysisFailedTitle: 'Photo analysis failed',
     photoAnalysisFailedTryAgain: 'Please try again.',
     photoUnavailableTitle: 'Photo unavailable',
@@ -1437,6 +1524,16 @@ const en = {
     },
     dailyTip: {
       title: 'Daily Insight',
+      // Display labels for the category pill. The values used for selection
+      // and styling stay the English literals in lib/tips.ts — these are
+      // presentation only. English matches what the pill rendered before,
+      // when it capitalized the raw value.
+      categories: {
+        nutrition: 'Nutrition',
+        lifestyle: 'Lifestyle',
+        science: 'Science',
+        mindfulness: 'Mindfulness',
+      },
     },
     calendar: {
       less: 'Less',
@@ -1566,10 +1663,16 @@ const de: Translations = {
     passwordPlaceholder: 'Mindestens 6 Zeichen',
     confirmPasswordLabel: 'Passwort bestätigen',
     confirmPasswordPlaceholder: 'Passwort wiederholen',
-    termsAgree: 'Ich stimme den',
+    // "zustimmen" is separable ("Ich stimme ... zu"), and this sentence is
+    // assembled from these parts with no trailing slot, so the prefix had
+    // nowhere to go and the German read as an unfinished sentence. Welcome
+    // solves the same problem with a legalSuffix segment; here the checkbox
+    // has no such slot, so "akzeptieren" — which takes a plain accusative
+    // object and needs no suffix — fixes the grammar without adding one.
+    termsAgree: 'Ich akzeptiere die',
     termsOfService: 'Nutzungsbedingungen',
     privacyPolicy: 'Datenschutzrichtlinie',
-    termsAnd: 'und der',
+    termsAnd: 'und die',
     createButton: 'Konto erstellen',
     haveAccount: 'Bereits ein Konto?',
     signInLink: 'Anmelden',
@@ -1978,6 +2081,85 @@ const de: Translations = {
     goBack: 'Zurück',
     accessGoBack: 'Zurück zum vorherigen Bildschirm',
     legalNote: 'GutWell AI ist ein Wellness-Tool. Es bietet keine medizinische Beratung.',
+
+    operatorName: 'Jafar Rusban Javanmardi',
+    operatorAddress: 'Sedanstraße 13\n65183 Wiesbaden\nDeutschland',
+    contactEmail: 'support@getgutwell.app',
+    lastUpdated: 'Zuletzt aktualisiert: August 2026',
+    contactPrompt: 'Fragen? Schreib uns an',
+    operatedBy: 'Betrieben von',
+
+    privacyIntro: 'Deine Privatsphäre ist uns wichtig. Tippe auf einen Abschnitt, um zu erfahren, wie wir mit deinen Daten umgehen.',
+    privacySections: [
+      {
+        title: '1. Welche Daten wir erheben',
+        body: 'GutWell AI erhebt die Daten, die du selbst einträgst: Check-in-Einträge (Stuhltyp, Blähungen, Schmerzen, Energie, Stimmung, Wasseraufnahme), Ernährungseinträge (Mahlzeitennamen, Mahlzeitentypen und Fotos von Mahlzeiten, die du analysieren lässt), Symptomeinträge (Art, Stärke), Notizen zu Nahrungsergänzungsmitteln, Antworten aus dem Onboarding (deine Beschwerden und Ziele) sowie grundlegende Kontodaten (E-Mail, Anzeigename). Wenn du die Spracheingabe nutzt, um eine Mahlzeit zu beschreiben oder zu korrigieren, wird deine Sprache von der Spracherkennung deines Geräts in Text umgewandelt; gespeichert wird ausschließlich der entstandene Text — eine Audioaufnahme bewahren wir nicht auf. Wenn du den Standortzugriff für lokale Essensvorschläge erlaubst, wird dein ungefährer Standort während dieser Analyse verwendet.',
+      },
+      {
+        title: '2. Wie wir deine Daten verwenden',
+        body: 'Deine Daten werden verwendet, um den GutWell-AI-Dienst bereitzustellen — um deine Verläufe darzustellen, deinen Darmgesundheits-Score zu berechnen, mögliche Zusammenhänge zwischen Ernährung und Symptomen aufzuzeigen, die KI-Mahlzeitenanalyse zu personalisieren und die von dir eingerichteten Erinnerungen zu senden. Wir verkaufen deine Daten nicht und nutzen sie weder für Werbung noch für app-übergreifendes Tracking.',
+      },
+      {
+        title: '3. Dienstleister, mit denen wir Daten teilen',
+        body: 'Für den Betrieb von GutWell AI nutzen wir eine kleine Zahl von Dienstleistern:\n\n• Supabase — speichert dein Konto und alle oben beschriebenen Einträge. Die primäre Datenbankregion des Projekts ist in der EU konfiguriert.\n• Google Gemini — wenn du eine Mahlzeit analysieren lässt, werden das Foto und der von dir angegebene Kontext (Beschreibung, Symptome, Beschwerden, Nahrungsergänzungsmittel und — sofern von dir aktiviert — dein ungefährer Standort) an die Gemini-API von Google übermittelt, damit deine Analyse erstellt werden kann. Wie Google mit an diese API übermittelten Daten umgeht, richtet sich nach den API-Bedingungen von Google.\n• Apple und RevenueCat — nur beteiligt, wenn du ein Abonnement abschließt, um dieses abzuwickeln und zu prüfen.\n\nDiese Version von GutWell AI verwendet keine Analyse- oder Absturzberichtsdienste. Wir verkaufen oder teilen deine persönlichen Gesundheitsdaten mit keinen weiteren Dritten.',
+      },
+      {
+        title: '4. Speicherung & Sicherheit',
+        body: 'Deine Daten werden bei Supabase gespeichert, verschlüsselt bei der Übertragung und im Ruhezustand. Row-Level-Security stellt sicher, dass nur du auf deine eigenen Daten zugreifen kannst. Anmelde-Tokens liegen im sicheren Speicher deines Geräts. KI-Anfragen stellt unser Server, sodass Schlüssel der KI-Anbieter nie in der App enthalten sind.',
+      },
+      {
+        title: '5. Aufbewahrung & Löschung',
+        body: 'Deine Daten werden aufbewahrt, solange dein Konto aktiv ist. Du kannst deine Daten jederzeit über Profil → Meine Daten exportieren ausgeben lassen; dabei entsteht eine CSV-Datei, die über das Teilen-Menü deines Geräts bereitgestellt wird. Du kannst dein Konto und die zugehörigen Daten in der App dauerhaft löschen: Profil → Konto löschen. Die Löschung lässt sich nicht rückgängig machen. Fotos von Mahlzeiten werden von GutWell AI nach Abschluss einer Analyse nicht aufbewahrt.',
+      },
+      {
+        title: '6. Deine Rechte',
+        body: 'Du hast das Recht, auf deine personenbezogenen Daten zuzugreifen, sie zu exportieren, zu berichtigen oder zu löschen (Art. 15–20 DSGVO). Deine Check-ins und Symptomeinträge sind gesundheitsbezogene Angaben: Wir verarbeiten sie ausschließlich, um die von dir gewünschten Funktionen bereitzustellen, und du kannst diese Verarbeitung jederzeit beenden, indem du die Einträge oder dein Konto löschst. Du kannst diese Rechte in der App oder durch eine Nachricht an uns ausüben. Berechtigungen für Standort, Kamera, Mikrofon oder Mitteilungen kannst du jederzeit in den Einstellungen deines Geräts widerrufen.',
+      },
+      {
+        title: '7. Betreiber und Kontakt',
+        body: 'GutWell AI wird betrieben von Jafar Rusban Javanmardi, Sedanstraße 13, 65183 Wiesbaden, Deutschland. Bei Fragen zum Datenschutz oder zur Ausübung der oben genannten Rechte wende dich an support@getgutwell.app.',
+      },
+    ],
+
+    termsIntro: 'Bitte lies unsere Bedingungen. Tippe auf einen Abschnitt für Details.',
+    termsSections: [
+      {
+        title: '1. Nutzungsbedingungen',
+        body: 'Mit der Erstellung eines Kontos und der Nutzung von GutWell AI akzeptierst du diese Nutzungsbedingungen. GutWell AI ist ausschließlich für das persönliche Wellness-Tracking bestimmt. Du musst mindestens 16 Jahre alt sein, um diese App zu nutzen. Du bist dafür verantwortlich, deine Zugangsdaten vertraulich zu behandeln.',
+      },
+      {
+        title: '2. Gesundheitshinweis',
+        body: 'GutWell AI ist eine Wellness-Tracking-App und kein Medizinprodukt. Die bereitgestellten Informationen, Scores, Muster und Hinweise dienen ausschließlich der persönlichen Beobachtung und stellen keine medizinische Beratung, Diagnose oder Behandlung dar. Die App ist nicht dazu bestimmt, Krankheiten zu diagnostizieren, zu behandeln, zu heilen oder ihnen vorzubeugen. Wende dich bei Fragen zu einer Erkrankung immer an qualifiziertes medizinisches Fachpersonal. Ignoriere ärztlichen Rat nicht und zögere seine Einholung nicht wegen Informationen hinaus, die dir GutWell AI anzeigt.',
+      },
+      {
+        title: '3. Abonnement',
+        body: 'GutWell AI bietet eine kostenlose Version und ein optionales Premium-Abonnement, wahlweise monatlich oder jährlich. Premium-Abonnements werden über den App Store von Apple abgerechnet. Die Zahlung wird bei Bestätigung des Kaufs deinem Apple-ID-Konto belastet. Abonnements verlängern sich automatisch, sofern sie nicht mindestens 24 Stunden vor Ende des laufenden Abrechnungszeitraums gekündigt werden; die Belastung für die Verlängerung erfolgt innerhalb von 24 Stunden vor Ende des laufenden Zeitraums. Die Preise werden dir vor dem Kauf in der App in deiner Währung angezeigt.',
+      },
+      {
+        title: '4. Kündigung',
+        body: 'Du kannst dein Abonnement jederzeit über die Einstellungen deiner Apple-ID kündigen. Die Kündigung wird zum Ende des laufenden Abrechnungszeitraums wirksam. Erstattungen wickelt Apple nach den Erstattungsrichtlinien von Apple ab; GutWell AI nimmt keine Erstattungen direkt vor. Die kostenlosen Funktionen bleiben nach einer Kündigung weiterhin verfügbar. Deine zwingenden gesetzlichen Verbraucherrechte bleiben unberührt.',
+      },
+      {
+        title: '5. Haftung',
+        body: 'GutWell AI wird mit Sorgfalt bereitgestellt. Wir sichern jedoch nicht zu, dass der Dienst unterbrechungsfrei oder fehlerfrei ist; von der KI erstellte Analysen können ungenau oder für deine Situation unpassend sein. Diese Bedingungen schließen keine Haftung aus und beschränken keine Haftung, soweit ein Ausschluss oder eine Beschränkung gesetzlich nicht zulässig ist — insbesondere nicht bei Vorsatz, bei Verletzung von Leben, Körper oder Gesundheit sowie nach zwingendem Produkthaftungsrecht. Deine zwingenden gesetzlichen Verbraucherrechte bleiben unberührt.',
+      },
+      {
+        title: '6. Deine Inhalte',
+        body: 'Alle Daten, die du in GutWell AI einträgst, bleiben deine. Mit der Nutzung des Dienstes räumst du uns ein beschränktes Recht ein, deine Daten ausschließlich zur Bereitstellung des GutWell-AI-Dienstes zu verarbeiten. Wir verkaufen deine persönlichen Gesundheitsdaten nicht an Dritte. Du kannst deine Daten jederzeit exportieren oder löschen.',
+      },
+      {
+        title: '7. Zulässige Nutzung',
+        body: 'Du verpflichtest dich, den Dienst nicht zu missbrauchen. Dazu zählen insbesondere: der Versuch, auf Daten anderer Nutzerinnen und Nutzer zuzugreifen, das Reverse Engineering der App, der Einsatz automatisierter Werkzeuge zur Interaktion mit dem Dienst sowie jede rechtswidrige Nutzung von GutWell AI.',
+      },
+      {
+        title: '8. Änderungen dieser Bedingungen',
+        body: 'Wir können diese Bedingungen von Zeit zu Zeit anpassen. Über wesentliche Änderungen informieren wir dich in der App oder per E-Mail. Soweit das anwendbare Recht deine ausdrückliche Zustimmung zu einer Änderung verlangt, holen wir diese ein.',
+      },
+      {
+        title: '9. Anwendbares Recht',
+        body: 'Auf diese Bedingungen findet das Recht der Bundesrepublik Deutschland Anwendung. Bist du Verbraucherin oder Verbraucher, so entzieht dir diese Rechtswahl nicht den Schutz zwingender Vorschriften des Rechts deines gewöhnlichen Aufenthaltsstaats; sie nimmt dir auch nicht ein etwaiges Recht, Verfahren vor den Gerichten dieses Staates einzuleiten.',
+      },
+    ],
   },
 
   onboardingSteps: {
@@ -2378,7 +2560,7 @@ const de: Translations = {
     dailyLimitMessage: 'Du hast heute 5 Mahlzeiten analysiert — das ist das Tagesmaximum.',
     dailyLimitResetsAt: 'Ab {time} kannst du weitere analysieren.',
     revisionLimitTitle: 'Tageslimit für Korrekturen erreicht',
-    revisionLimitMessage: 'Du hast heute 20 Korrekturen gemacht — das ist das Tagesmaximum.',
+    revisionLimitMessage: 'Du hast heute 5 Korrekturen gemacht — das ist das Tagesmaximum.',
     photoAnalysisFailedTitle: 'Fotoanalyse fehlgeschlagen',
     photoAnalysisFailedTryAgain: 'Bitte versuche es erneut.',
     photoUnavailableTitle: 'Foto nicht verfügbar',
@@ -2766,6 +2948,12 @@ const de: Translations = {
     },
     dailyTip: {
       title: 'Tages-Impuls',
+      categories: {
+        nutrition: 'Ernährung',
+        lifestyle: 'Alltag',
+        science: 'Wissenschaft',
+        mindfulness: 'Achtsamkeit',
+      },
     },
     calendar: {
       less: 'Weniger',

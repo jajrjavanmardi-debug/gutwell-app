@@ -516,6 +516,10 @@ describe('cost model', () => {
   });
 });
 
+/** The live per-user-per-UTC-day correction allowance: ai_quota_limit('meal_revision')
+ *  in migration 20260808120000. Consumer copy must state this number, not another. */
+const MEAL_REVISION_DAILY_LIMIT = 5;
+
 describe('revision request identity and limit UX', () => {
   test('one id per correction SUBMISSION, keyed by the correction text', () => {
     // A retry of the same text reuses the id (free); different text mints a new
@@ -551,7 +555,8 @@ describe('revision request identity and limit UX', () => {
   test('EN revision copy is plain and reveals nothing about cost or abuse', () => {
     const p = translations.en.photoAnalysis;
     expect(p.revisionLimitTitle).toBe('Daily correction limit reached');
-    expect(p.revisionLimitMessage).toContain('20 corrections');
+    expect(p.revisionLimitMessage).toContain(`${MEAL_REVISION_DAILY_LIMIT} corrections`);
+    expect(p.revisionLimitMessage).not.toContain('20');
     for (const banned of ['abuse', 'hack', 'cost', 'spend', 'Gemini', 'API', 'quota', 'billing', 'error']) {
       expect(`${p.revisionLimitTitle} ${p.revisionLimitMessage}`).not.toContain(banned);
     }
@@ -562,7 +567,8 @@ describe('revision request identity and limit UX', () => {
     expect(de.revisionLimitTitle).toBe('Tageslimit für Korrekturen erreicht');
     expect(de.revisionLimitTitle).not.toBe(translations.en.photoAnalysis.revisionLimitTitle);
     expect(de.revisionLimitMessage).not.toBe(translations.en.photoAnalysis.revisionLimitMessage);
-    expect(de.revisionLimitMessage).toContain('20');
+    expect(de.revisionLimitMessage).toContain(String(MEAL_REVISION_DAILY_LIMIT));
+    expect(de.revisionLimitMessage).not.toContain('20');
     for (const banned of ['Gemini', 'API', 'Kosten', 'Missbrauch', 'Fehler']) {
       expect(de.revisionLimitMessage).not.toContain(banned);
     }
