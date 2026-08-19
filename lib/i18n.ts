@@ -858,6 +858,15 @@ const en = {
     removeSymptomMessage: 'Are you sure you want to remove this symptom entry?',
     delete: 'Delete',
     cancel: 'Cancel',
+    // Recently-logged chrome. These were assembled in English in the screen
+    // itself, so a German user read them in English. The entry LABEL is not
+    // localized here — it is the user's own meal name or an AI-generated one,
+    // and must stay in the language it was written in.
+    deleteEntryConfirm: 'Delete "{label}"?',
+    stoolTypeEntry: 'Stool type {type}',
+    justNow: 'Just now',
+    minutesAgo: '{n}m ago',
+    hoursAgo: '{n}h ago',
     todayActivity: "Today's Activity",
     recentMeals: 'Recent Meals',
     noDataYet: 'No data yet',
@@ -2334,6 +2343,11 @@ const de: Translations = {
     removeSymptomMessage: 'Möchtest du diesen Symptogeintrag wirklich entfernen?',
     delete: 'Löschen',
     cancel: 'Abbrechen',
+    deleteEntryConfirm: '„{label}“ löschen?',
+    stoolTypeEntry: 'Stuhltyp {type}',
+    justNow: 'Gerade eben',
+    minutesAgo: 'vor {n} Min.',
+    hoursAgo: 'vor {n} Std.',
     todayActivity: 'Heutige Aktivität',
     recentMeals: 'Letzte Mahlzeiten',
     noDataYet: 'Noch keine Daten',

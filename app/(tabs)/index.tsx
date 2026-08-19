@@ -1,7 +1,7 @@
-import React, { useEffect, useState, useCallback, useRef } from 'react';
+import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { View, Text, StyleSheet, ScrollView, RefreshControl, TouchableOpacity, Alert, Animated, Easing } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
@@ -17,8 +17,9 @@ import { scheduleStreakAtRiskAlert } from '../../lib/notifications';
 import { ErrorState } from '../../components/ui/ErrorState';
 import { getStreakSnapshot } from '../../lib/streaks';
 import { computeCorrelations, type FoodCorrelation } from '../../lib/correlations';
-import { getLocalDateKey, addDaysToLocalDateKey } from '../../lib/date';
+import { getLocalDateKey, addDaysToLocalDateKey, getLocalDayIsoRange } from '../../lib/date';
 import { useTranslation } from '../../lib/i18n';
+import { useLanguage } from '../../lib/LanguageContext';
 
 type RecentEntry = {
   id: string | number;
@@ -39,7 +40,22 @@ function scoreRingColor(score: number | null): string {
 
 export default function HomeScreen() {
   const t = useTranslation();
+  const { language } = useLanguage();
   const { user, profile } = useAuth();
+  // Same mapping food.tsx and ai-quota.ts already use, so dates follow the
+  // language chosen in the app rather than the device's region setting.
+  const dateLocale = language === 'de' ? 'de-DE' : 'en-US';
+  // Memoized because loadData depends on it: useTranslation returns a stable
+  // module-level object per language, so this changes only when the language
+  // does — a fresh literal each render would retrigger loadData forever.
+  const relativeTimeLabels = useMemo(
+    () => ({
+      justNow: t.home.justNow,
+      minutesAgo: t.home.minutesAgo,
+      hoursAgo: t.home.hoursAgo,
+    }),
+    [t],
+  );
   const [gutScore, setGutScore] = useState<number | null>(null);
   const [yesterdayScore, setYesterdayScore] = useState<number | null>(null);
   const [streak, setStreak] = useState(0);
@@ -75,6 +91,11 @@ export default function HomeScreen() {
     const today = getLocalDateKey();
     const yesterdayStr = addDaysToLocalDateKey(today, -1);
     const sevenDaysAgoStr = addDaysToLocalDateKey(today, -6);
+    // food_logs.logged_at is a timestamptz, so it cannot be compared against a
+    // bare date key: Postgres reads "2026-08-19" as UTC midnight, which in CEST
+    // starts the day at 02:00 local and drops meals logged just after midnight.
+    // The half-open local-day range is the same one scoring.ts uses.
+    const { startIso: todayStartIso, endIso: todayEndIso } = getLocalDayIsoRange(today);
 
     // ── Fetch all independent data in parallel ──────────────────────────────
     const [
@@ -114,7 +135,8 @@ export default function HomeScreen() {
         .from('food_logs')
         .select('id', { count: 'exact', head: true })
         .eq('user_id', user.id)
-        .gte('logged_at', today),
+        .gte('logged_at', todayStartIso)
+        .lt('logged_at', todayEndIso),
       // Recent check-ins
       supabase
         .from('check_ins')
@@ -187,18 +209,21 @@ export default function HomeScreen() {
       entries.push({
         id: c.id,
         type: 'checkin',
-        label: `Stool type ${c.stool_type}`,
-        time: formatTime(c.created_at),
+        label: t.home.stoolTypeEntry.replace('{type}', String(c.stool_type)),
+        time: formatTime(c.created_at, relativeTimeLabels, dateLocale),
         sortKey: c.created_at,
       });
     });
 
     recentFood?.forEach(f => {
+      // f.meal_name is the user's own text or an AI-generated name. It is
+      // rendered as stored — switching app language must never retranslate
+      // content the user already has.
       entries.push({
         id: f.id,
         type: 'food',
         label: f.meal_name,
-        time: formatTime(f.logged_at),
+        time: formatTime(f.logged_at, relativeTimeLabels, dateLocale),
         sortKey: f.logged_at,
       });
     });
@@ -215,9 +240,20 @@ export default function HomeScreen() {
     } finally {
       setIsLoading(false);
     }
-  }, [user]);
+  }, [user, t, relativeTimeLabels, dateLocale]);
 
   useEffect(() => { loadData(); }, [loadData]);
+
+  // Home is a tab screen, so it stays mounted while the user logs a meal or a
+  // check-in elsewhere; without this the mount effect above never runs again
+  // and Home keeps showing whatever it read at sign-in. Refetching on focus is
+  // the pattern progress.tsx already uses. isLoading is only ever set false,
+  // so this cannot re-trigger the skeleton.
+  useFocusEffect(
+    useCallback(() => {
+      loadData();
+    }, [loadData]),
+  );
 
   const handleEntryPress = useCallback((entry: RecentEntry) => {
     if (entry.type === 'checkin') {
@@ -225,7 +261,7 @@ export default function HomeScreen() {
     } else if (entry.type === 'food') {
       Alert.alert(
         t.home.removeFood,
-        `Delete "${entry.label}"?`,
+        t.home.deleteEntryConfirm.replace('{label}', entry.label),
         [
           { text: t.home.cancel, style: 'cancel' },
           {
@@ -241,7 +277,7 @@ export default function HomeScreen() {
     } else if (entry.type === 'symptom') {
       Alert.alert(
         t.home.removeSymptom,
-        `Delete "${entry.label}"?`,
+        t.home.deleteEntryConfirm.replace('{label}', entry.label),
         [
           { text: t.home.cancel, style: 'cancel' },
           {
@@ -553,13 +589,25 @@ function entryIcon(type: string): keyof typeof Ionicons.glyphMap {
   return type === 'checkin' ? 'body-outline' : type === 'food' ? 'restaurant-outline' : 'medical-outline';
 }
 
-function formatTime(iso: string) {
+/**
+ * Relative time for a Recently-logged row.
+ *
+ * Labels and locale are passed in rather than read here: this runs outside the
+ * component, and the older version returned English literals and called
+ * toLocaleDateString() with no locale, so the date followed the DEVICE region
+ * instead of the language the user chose in the app.
+ */
+function formatTime(
+  iso: string,
+  labels: { justNow: string; minutesAgo: string; hoursAgo: string },
+  locale: string,
+) {
   const diffMins = Math.floor((Date.now() - new Date(iso).getTime()) / 60000);
-  if (diffMins < 1) return 'Just now';
-  if (diffMins < 60) return `${diffMins}m ago`;
+  if (diffMins < 1) return labels.justNow;
+  if (diffMins < 60) return labels.minutesAgo.replace('{n}', String(diffMins));
   const diffHours = Math.floor(diffMins / 60);
-  if (diffHours < 24) return `${diffHours}h ago`;
-  return new Date(iso).toLocaleDateString();
+  if (diffHours < 24) return labels.hoursAgo.replace('{n}', String(diffHours));
+  return new Date(iso).toLocaleDateString(locale);
 }
 
 // ─── Styles ─────────────────────────────────────────────────────────────────
