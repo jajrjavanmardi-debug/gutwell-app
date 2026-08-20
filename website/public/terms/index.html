@@ -4,68 +4,292 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Terms of Service — GutWell AI</title>
-<!--
-  ROUTE SCAFFOLD — NOT THE TERMS OF SERVICE.
-
-  This file exists so that /terms resolves and can later host the approved terms
-  without any infrastructure change. It deliberately contains NO legal wording.
-
-  The drafted terms in legal/terms.html still carry 18 unresolved [PLACEHOLDER]
-  markers (effective date, operator legal name, minimum age, subscription tiers,
-  EU withdrawal right, limitation of liability, jurisdiction, dispute
-  resolution) and their own RELEASE BLOCKER notice. Publishing that text here
-  would present an incomplete document as final, so it has not been copied in.
-
-  TO PUBLISH: replace this file's <body> with the approved terms, remove the
-  noindex directive below, and add the URL to sitemap.xml.
-
-  DO NOT enter this URL in App Store Connect until that has happened.
--->
-<meta name="robots" content="noindex, nofollow">
+<meta name="description" content="The terms governing your use of GutWell AI: eligibility, health disclaimer, subscriptions, cancellation, and governing law.">
 <meta name="theme-color" content="#0B1F14">
 <link rel="icon" type="image/png" href="/favicon.png">
 <link rel="apple-touch-icon" href="/icon.png">
+<link rel="canonical" href="https://www.getgutwell.app/terms">
+<link rel="alternate" hreflang="en" href="https://www.getgutwell.app/terms">
+<link rel="alternate" hreflang="de" href="https://www.getgutwell.app/terms/de">
+<link rel="alternate" hreflang="x-default" href="https://www.getgutwell.app/terms">
+<meta property="og:title" content="Terms of Service — GutWell AI">
+<meta property="og:description" content="The terms governing your use of GutWell AI.">
+<meta property="og:image" content="https://www.getgutwell.app/icon.png">
+<meta property="og:url" content="https://www.getgutwell.app/terms">
+<meta property="og:type" content="website">
+<meta name="twitter:card" content="summary">
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{
   --green-900:#0B1F14;
+  --green-700:#1B4332;
   --green-400:#52B788;
   --green-300:#74C69D;
+  --text:#fff;
   --text-secondary:rgba(255,255,255,0.65);
   --text-tertiary:rgba(255,255,255,0.55);
   --card-bg:rgba(255,255,255,0.05);
   --card-border:rgba(255,255,255,0.09);
   --font-sans:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;
 }
-body{font-family:var(--font-sans);background:var(--green-900);color:#fff;-webkit-font-smoothing:antialiased;line-height:1.6;
-     display:flex;min-height:100vh;align-items:center;justify-content:center;padding:24px}
+body{font-family:var(--font-sans);background:var(--green-900);color:var(--text);-webkit-font-smoothing:antialiased;line-height:1.6}
+img{max-width:100%;display:block}
 a{color:var(--green-300)}
 a:focus-visible{outline:2px solid var(--green-400);outline-offset:3px;border-radius:4px}
-.card{max-width:560px;background:var(--card-bg);border:1px solid var(--card-border);border-radius:16px;padding:32px}
-h1{font-size:26px;margin-bottom:12px}
-p{color:var(--text-secondary);margin-bottom:12px}
+
+.container{max-width:760px;margin:0 auto;padding:0 24px}
+
+nav{border-bottom:1px solid var(--card-border)}
+.nav-inner{display:flex;align-items:center;justify-content:space-between;height:64px}
+.nav-logo{display:flex;align-items:center;gap:10px;text-decoration:none;color:var(--text)}
+.nav-logo img{width:28px;height:28px;border-radius:7px}
+.nav-logo-text{font-weight:700;font-size:16px}
+.nav-back{font-size:14px;text-decoration:none}
+
+header.page{padding:56px 0 32px}
+h1{font-size:36px;line-height:1.2;margin-bottom:12px}
+.lede{color:var(--text-secondary);font-size:17px}
+.updated{color:var(--text-tertiary);font-size:14px;margin-top:10px}
+
+.lang{margin-top:18px;font-size:14px;color:var(--text-tertiary)}
+.lang a{text-decoration:none}
+
+.operator-card{margin-top:26px;background:var(--card-bg);border:1px solid var(--card-border);border-radius:16px;padding:22px}
+.operator-card h2{font-size:17px;margin-bottom:8px}
+.operator-card address{font-style:normal;color:var(--text-secondary);font-size:15px;line-height:1.7}
+
+.notice{margin-top:22px;background:rgba(82,183,136,0.08);border:1px solid rgba(82,183,136,0.28);border-radius:14px;padding:18px 20px}
+.notice p{color:var(--text-secondary);margin:0}
+
+section.block{padding:34px 0;border-top:1px solid var(--card-border)}
+h2.section-title{font-size:22px;margin-bottom:10px}
+p{color:var(--text-secondary);margin-bottom:10px}
+ol,ul{color:var(--text-secondary);margin:0 0 10px 20px}
+li{margin-bottom:7px}
 .muted{color:var(--text-tertiary);font-size:14px}
-.links{display:flex;flex-wrap:wrap;gap:16px;margin-top:20px}
-.links a{font-size:14px;text-decoration:none;color:var(--text-secondary)}
-.links a:hover{color:#fff}
-@media(max-width:768px){.card{padding:24px}h1{font-size:22px}}
+strong{color:var(--text)}
+
+footer{border-top:1px solid var(--card-border);padding:32px 0 48px;margin-top:24px}
+.footer-links{display:flex;flex-wrap:wrap;gap:18px;margin-bottom:14px}
+.footer-links a{font-size:14px;text-decoration:none;color:var(--text-secondary)}
+.footer-links a:hover{color:var(--text)}
+.footer-legal{color:var(--text-tertiary);font-size:13px}
+
+@media(max-width:768px){
+  header.page{padding:40px 0 24px}
+  h1{font-size:28px}
+  .lede{font-size:16px}
+  section.block{padding:26px 0}
+}
 </style>
 </head>
 <body>
-  <div class="card">
+
+<nav>
+  <div class="container nav-inner">
+    <a class="nav-logo" href="/">
+      <img src="/icon.png" alt="GutWell AI app icon">
+      <span class="nav-logo-text">GutWell AI</span>
+    </a>
+    <a class="nav-back" href="/">&larr; Home</a>
+  </div>
+</nav>
+
+<main class="container">
+
+  <header class="page">
     <h1>Terms of Service</h1>
-    <p>
-      The GutWell AI terms of service are being finalised ahead of the App Store
-      release and are not yet published at this address.
+    <p class="lede">
+      These terms govern your use of the GutWell AI app and this website.
     </p>
-    <p class="muted">
-      For any question in the meantime, email
+    <p class="updated">Last updated: August 2026</p>
+    <p class="lang">Also available in <a href="/terms/de" hreflang="de">Deutsch</a>.</p>
+
+    <div class="operator-card">
+      <h2>Operator</h2>
+      <address>
+        Jafar Rusban Javanmardi<br>
+        Sedanstra&szlig;e 13<br>
+        65183 Wiesbaden<br>
+        Germany<br>
+        <a href="mailto:support@getgutwell.app?subject=Terms%20question">support@getgutwell.app</a>
+      </address>
+    </div>
+
+    <div class="notice">
+      <p>
+        <strong>GutWell AI is a wellness tracking application, not a medical
+        device.</strong> It is not intended to diagnose, treat, cure, or prevent any
+        disease.
+      </p>
+    </div>
+  </header>
+
+  <section class="block">
+    <h2 class="section-title">1. Usage Terms</h2>
+    <p>
+      By creating an account and using GutWell AI, you agree to these Terms of
+      Service. GutWell AI is intended for personal wellness tracking only. You must
+      be at least <strong>16 years old</strong> to use this app. You are responsible
+      for maintaining the confidentiality of your account credentials.
+    </p>
+  </section>
+
+  <section class="block">
+    <h2 class="section-title">2. Health Disclaimer</h2>
+    <p>
+      GutWell AI is a wellness tracking application, not a medical device. The
+      information, scores, patterns, and insights provided are for personal
+      tracking purposes only and do not constitute medical advice, diagnosis, or
+      treatment. It is not intended to diagnose, treat, cure, or prevent any
+      disease.
+    </p>
+    <p>
+      Always seek the advice of a qualified healthcare professional with any
+      questions regarding a medical condition. Never disregard professional medical
+      advice or delay seeking it because of information provided by GutWell AI.
+    </p>
+  </section>
+
+  <section class="block">
+    <h2 class="section-title">3. AI-Generated Analyses</h2>
+    <p>
+      Meal analyses are generated by a third-party AI service. They are suggestions
+      only and may be inaccurate, incomplete, or unsuitable for your situation. The
+      AI may misidentify foods or misread context, and its output is not reviewed by
+      a medical professional before you see it.
+    </p>
+    <p>
+      You are free to correct, question, or disregard any analysis. What data is
+      sent for analysis is described in our
+      <a href="/privacy">Privacy Policy</a>.
+    </p>
+  </section>
+
+  <section class="block">
+    <h2 class="section-title">4. Subscription Terms</h2>
+    <p>
+      GutWell AI offers a free tier and an optional Premium subscription, available
+      as a <strong>monthly</strong> or an <strong>annual</strong> plan. Premium
+      subscriptions are billed through Apple&rsquo;s App Store. Payment is charged to
+      your Apple ID account at confirmation of purchase.
+    </p>
+    <p>
+      Subscriptions renew automatically unless cancelled at least 24 hours before
+      the end of the current billing period, and your account is charged for renewal
+      within 24 hours before the end of the current period. Prices are shown in the
+      app in your own currency before you purchase.
+    </p>
+  </section>
+
+  <section class="block">
+    <h2 class="section-title">5. Cancellation Policy</h2>
+    <p>
+      You may cancel your subscription at any time through your Apple ID account
+      settings. Cancellation takes effect at the end of the current billing period.
+      Refunds are handled by Apple under Apple&rsquo;s refund policy; GutWell AI does not
+      process refunds directly. Free features remain accessible after cancellation.
+    </p>
+    <p>
+      <strong>Your mandatory statutory rights as a consumer are not
+      affected.</strong>
+    </p>
+  </section>
+
+  <section class="block">
+    <h2 class="section-title">6. Liability</h2>
+    <p>
+      GutWell AI is provided with care, but we do not warrant that it will be
+      uninterrupted or error-free, and AI-generated analyses may be inaccurate or
+      unsuitable for your situation.
+    </p>
+    <p>
+      Nothing in these Terms excludes or limits liability where such exclusion or
+      limitation is not permitted by law — including liability for intent, for
+      injury to life, body, or health, and under mandatory product-liability rules.
+      Your mandatory statutory rights as a consumer remain unaffected.
+    </p>
+  </section>
+
+  <section class="block">
+    <h2 class="section-title">7. User Content</h2>
+    <p>
+      You retain ownership of all data you enter into GutWell AI. By using the
+      service, you grant us a limited licence to process your data solely for the
+      purpose of providing the GutWell AI service. We do not sell your personal
+      health data to third parties. You may export or delete your data at any time.
+    </p>
+  </section>
+
+  <section class="block">
+    <h2 class="section-title">8. Acceptable Use</h2>
+    <p>You agree not to misuse the service, including but not limited to:</p>
+    <ul>
+      <li>attempting to access other users&rsquo; data</li>
+      <li>reverse-engineering the app</li>
+      <li>using automated tools to interact with the service</li>
+      <li>using GutWell AI for any unlawful purpose</li>
+    </ul>
+  </section>
+
+  <section class="block">
+    <h2 class="section-title">9. Changes to Terms</h2>
+    <p>
+      We may update these terms from time to time. We will notify users of material
+      changes through the app or via email. Where applicable law requires your
+      express consent to a change, we will ask for it.
+    </p>
+  </section>
+
+  <section class="block">
+    <h2 class="section-title">10. Governing Law</h2>
+    <p>
+      These Terms are governed by the law of the Federal Republic of Germany. If you
+      are a consumer, this choice of law does not deprive you of the protection
+      afforded by mandatory provisions of the law of the country in which you
+      habitually reside, and it does not remove any right you may have to bring
+      proceedings before the courts of that country.
+    </p>
+  </section>
+
+  <section class="block">
+    <h2 class="section-title">11. Apple App Store</h2>
+    <p>
+      GutWell AI is distributed through Apple&rsquo;s App Store. Apple is not a party to
+      these Terms. Your use of the app is also subject to Apple&rsquo;s applicable terms,
+      and Apple&rsquo;s standard Licensed Application End User License Agreement applies
+      to the app.
+    </p>
+  </section>
+
+  <section class="block">
+    <h2 class="section-title">12. Contact</h2>
+    <p>
+      GutWell AI is operated by <strong>Jafar Rusban Javanmardi</strong>,
+      Sedanstra&szlig;e 13, 65183 Wiesbaden, Germany. Questions about these Terms:
       <a href="mailto:support@getgutwell.app?subject=Terms%20question">support@getgutwell.app</a>.
     </p>
-    <div class="links">
+    <p class="muted">
+      See also our <a href="/privacy">Privacy Policy</a> and
+      <a href="/impressum">Legal Notice (Impressum)</a>.
+    </p>
+  </section>
+
+</main>
+
+<footer>
+  <div class="container">
+    <div class="footer-links">
       <a href="/">Home</a>
       <a href="/support">Support</a>
+      <a href="/privacy">Privacy Policy</a>
+      <a href="/terms">Terms of Service</a>
+      <a href="/impressum">Legal Notice</a>
+      <a href="/terms/de" hreflang="de">Deutsch</a>
     </div>
+    <p class="footer-legal">&copy; 2026 GutWell AI. All rights reserved.</p>
   </div>
+</footer>
+
 </body>
 </html>
