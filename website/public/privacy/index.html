@@ -4,69 +4,333 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Privacy Policy — GutWell AI</title>
-<!--
-  ROUTE SCAFFOLD — NOT THE PRIVACY POLICY.
-
-  This file exists so that /privacy resolves and can later host the approved
-  policy without any infrastructure change. It deliberately contains NO legal
-  wording.
-
-  The drafted policy in legal/privacy.html still carries 36 unresolved
-  [PLACEHOLDER] markers (operator legal name, service address, contact email,
-  DPO determination, Impressum). Publishing that text here would present an
-  incomplete document as final, so it has not been copied in.
-
-  TO PUBLISH: replace this file's <body> with the approved policy, remove the
-  noindex directive below, and add the URL to sitemap.xml.
-
-  DO NOT enter this URL in App Store Connect until that has happened.
--->
-<meta name="robots" content="noindex, nofollow">
+<meta name="description" content="How GutWell AI collects, uses, and protects your data. Operator, processors, your rights, data export and account deletion.">
 <meta name="theme-color" content="#0B1F14">
 <link rel="icon" type="image/png" href="/favicon.png">
 <link rel="apple-touch-icon" href="/icon.png">
+<!-- www, not the apex: getgutwell.app 308-redirects to www.getgutwell.app, and
+     a canonical URL should be the address that actually serves the page. -->
+<link rel="canonical" href="https://www.getgutwell.app/privacy">
+<link rel="alternate" hreflang="en" href="https://www.getgutwell.app/privacy">
+<link rel="alternate" hreflang="de" href="https://www.getgutwell.app/privacy/de">
+<link rel="alternate" hreflang="x-default" href="https://www.getgutwell.app/privacy">
+<meta property="og:title" content="Privacy Policy — GutWell AI">
+<meta property="og:description" content="How GutWell AI collects, uses, and protects your data.">
+<meta property="og:image" content="https://www.getgutwell.app/icon.png">
+<meta property="og:url" content="https://www.getgutwell.app/privacy">
+<meta property="og:type" content="website">
+<meta name="twitter:card" content="summary">
 <style>
+/* Tokens and reset mirror the landing and support pages so the site reads as one. */
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{
   --green-900:#0B1F14;
+  --green-700:#1B4332;
   --green-400:#52B788;
   --green-300:#74C69D;
+  --text:#fff;
   --text-secondary:rgba(255,255,255,0.65);
   --text-tertiary:rgba(255,255,255,0.55);
   --card-bg:rgba(255,255,255,0.05);
   --card-border:rgba(255,255,255,0.09);
   --font-sans:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;
 }
-body{font-family:var(--font-sans);background:var(--green-900);color:#fff;-webkit-font-smoothing:antialiased;line-height:1.6;
-     display:flex;min-height:100vh;align-items:center;justify-content:center;padding:24px}
+body{font-family:var(--font-sans);background:var(--green-900);color:var(--text);-webkit-font-smoothing:antialiased;line-height:1.6}
+img{max-width:100%;display:block}
 a{color:var(--green-300)}
 a:focus-visible{outline:2px solid var(--green-400);outline-offset:3px;border-radius:4px}
-.card{max-width:560px;background:var(--card-bg);border:1px solid var(--card-border);border-radius:16px;padding:32px}
-h1{font-size:26px;margin-bottom:12px}
-p{color:var(--text-secondary);margin-bottom:12px}
+
+.container{max-width:760px;margin:0 auto;padding:0 24px}
+
+nav{border-bottom:1px solid var(--card-border)}
+.nav-inner{display:flex;align-items:center;justify-content:space-between;height:64px}
+.nav-logo{display:flex;align-items:center;gap:10px;text-decoration:none;color:var(--text)}
+.nav-logo img{width:28px;height:28px;border-radius:7px}
+.nav-logo-text{font-weight:700;font-size:16px}
+.nav-back{font-size:14px;text-decoration:none}
+
+header.page{padding:56px 0 32px}
+h1{font-size:36px;line-height:1.2;margin-bottom:12px}
+.lede{color:var(--text-secondary);font-size:17px}
+.updated{color:var(--text-tertiary);font-size:14px;margin-top:10px}
+
+.lang{margin-top:18px;font-size:14px;color:var(--text-tertiary)}
+.lang a{text-decoration:none}
+
+.operator-card{margin-top:26px;background:var(--card-bg);border:1px solid var(--card-border);border-radius:16px;padding:22px}
+.operator-card h2{font-size:17px;margin-bottom:8px}
+.operator-card address{font-style:normal;color:var(--text-secondary);font-size:15px;line-height:1.7}
+
+section.block{padding:34px 0;border-top:1px solid var(--card-border)}
+h2.section-title{font-size:22px;margin-bottom:10px}
+h3{font-size:16px;margin:22px 0 6px}
+p{color:var(--text-secondary);margin-bottom:10px}
+ol,ul{color:var(--text-secondary);margin:0 0 10px 20px}
+li{margin-bottom:7px}
 .muted{color:var(--text-tertiary);font-size:14px}
-.links{display:flex;flex-wrap:wrap;gap:16px;margin-top:20px}
-.links a{font-size:14px;text-decoration:none;color:var(--text-secondary)}
-.links a:hover{color:#fff}
-@media(max-width:768px){.card{padding:24px}h1{font-size:22px}}
+strong{color:var(--text)}
+
+footer{border-top:1px solid var(--card-border);padding:32px 0 48px;margin-top:24px}
+.footer-links{display:flex;flex-wrap:wrap;gap:18px;margin-bottom:14px}
+.footer-links a{font-size:14px;text-decoration:none;color:var(--text-secondary)}
+.footer-links a:hover{color:var(--text)}
+.footer-legal{color:var(--text-tertiary);font-size:13px}
+
+@media(max-width:768px){
+  header.page{padding:40px 0 24px}
+  h1{font-size:28px}
+  .lede{font-size:16px}
+  section.block{padding:26px 0}
+}
 </style>
 </head>
 <body>
-  <div class="card">
+
+<nav>
+  <div class="container nav-inner">
+    <a class="nav-logo" href="/">
+      <img src="/icon.png" alt="GutWell AI app icon">
+      <span class="nav-logo-text">GutWell AI</span>
+    </a>
+    <a class="nav-back" href="/">&larr; Home</a>
+  </div>
+</nav>
+
+<main class="container">
+
+  <header class="page">
     <h1>Privacy Policy</h1>
+    <p class="lede">
+      GutWell AI is a personal gut-health tracking app. This policy explains what
+      we collect, why, who processes it, and how you can export or delete it.
+    </p>
+    <p class="updated">Last updated: August 2026</p>
+    <p class="lang">Also available in <a href="/privacy/de" hreflang="de">Deutsch</a>.</p>
+
+    <div class="operator-card">
+      <h2>Operator</h2>
+      <address>
+        Jafar Rusban Javanmardi<br>
+        Sedanstra&szlig;e 13<br>
+        65183 Wiesbaden<br>
+        Germany<br>
+        <a href="mailto:support@getgutwell.app?subject=Privacy%20question">support@getgutwell.app</a>
+      </address>
+    </div>
+  </header>
+
+  <section class="block">
+    <h2 class="section-title">1. Data We Collect</h2>
     <p>
-      The GutWell AI privacy policy is being finalised ahead of the App Store
-      release and is not yet published at this address.
+      GutWell AI collects the data you voluntarily enter: check-in logs (stool
+      type, bloating, pain, energy, mood, water intake), food logs (meal names,
+      meal types, and meal photos you choose to analyse), symptom logs (type,
+      severity), supplement notes, onboarding answers (your gut concerns and
+      goals), and basic account information (email address, display name).
+    </p>
+    <p>
+      If you use <strong>voice input</strong> to describe or correct a meal, your
+      speech is converted to text by your device&rsquo;s speech recognition and only
+      the resulting text is stored — we do not keep an audio recording.
+    </p>
+    <p>
+      If you grant <strong>location access</strong> for local food suggestions,
+      your approximate location is used during that analysis. This is optional and
+      you can decline or withdraw it at any time in your device settings.
+    </p>
+    <p>
+      When you correct or ask follow-up questions about an AI analysis, your
+      correction and the revised analysis are stored as part of that meal entry.
+    </p>
+    <h3>On this website</h3>
+    <p>
+      If you join the waitlist, we store the email address you submit and the time
+      of submission, solely to notify you when GutWell AI launches. Our hosting
+      provider processes standard server request logs (such as IP address and
+      browser type) for the operation and security of the site.
+    </p>
+  </section>
+
+  <section class="block">
+    <h2 class="section-title">2. How We Use Your Data</h2>
+    <p>
+      Your data is used to provide the GutWell AI service — displaying your
+      trends, calculating your gut health score, showing possible food&ndash;symptom
+      patterns, personalising AI meal analysis, and sending reminders you
+      configure.
+    </p>
+    <p>
+      We never sell your data, and we do not use it for advertising or cross-app
+      tracking. GutWell AI contains no advertising SDK and does not ask for
+      permission to track you across other apps or websites.
+    </p>
+  </section>
+
+  <section class="block">
+    <h2 class="section-title">3. Service Providers We Share Data With</h2>
+    <p>To run GutWell AI we use a small number of service providers:</p>
+    <ul>
+      <li>
+        <strong>Supabase</strong> — stores your account and all logs described
+        above. The project&rsquo;s primary database region is configured in the EU.
+      </li>
+      <li>
+        <strong>Google Gemini</strong> — when you analyse a meal, the photo and the
+        context you provide (description, symptoms, conditions, supplements, and
+        — if you have enabled it — your approximate location) is transmitted to
+        Google&rsquo;s Gemini API so that your analysis can be generated. Google&rsquo;s
+        handling of data submitted to that API is governed by Google&rsquo;s own API
+        terms.
+      </li>
+      <li>
+        <strong>Apple and RevenueCat</strong> — involved only if you purchase a
+        subscription, in order to process and verify it. We do not receive or
+        store your payment card details.
+      </li>
+      <li>
+        <strong>Vercel</strong> — hosts this website. It does not receive data from
+        the app.
+      </li>
+    </ul>
+    <p>
+      <strong>This version of GutWell AI does not use analytics or crash-reporting
+      services.</strong> We do not sell or share your personal health data with any
+      other third parties.
     </p>
     <p class="muted">
-      For any privacy question in the meantime, including a request to access or
-      delete your data, email
+      Some of these providers are based outside the European Economic Area. Where
+      that is the case, your data may be processed outside the EEA.
+    </p>
+  </section>
+
+  <section class="block">
+    <h2 class="section-title">4. Data Storage &amp; Security</h2>
+    <p>
+      Your data is stored using Supabase, encrypted in transit and at rest.
+      Row-level security means only you can access your own data. Authentication
+      tokens are kept in your device&rsquo;s secure storage. AI requests are made by our
+      server, so AI provider keys are never included in the app.
+    </p>
+    <p>
+      No system can guarantee absolute security, but we use appropriate technical
+      and organisational measures to protect your information.
+    </p>
+  </section>
+
+  <section class="block">
+    <h2 class="section-title">5. Data Retention &amp; Deletion</h2>
+    <p>
+      Your data is retained while your account is active.
+    </p>
+    <p>
+      You can <strong>export your data</strong> at any time from Profile &rarr;
+      Export My Data, which produces a <strong>CSV file</strong> shared through your
+      device&rsquo;s share sheet.
+    </p>
+    <p>
+      You can <strong>permanently delete your account</strong> and its associated
+      data in the app: Profile &rarr; Delete Account. Deletion cannot be undone.
+    </p>
+    <p>
+      <strong>Meal photos are not retained</strong> by GutWell AI once an analysis
+      request has completed. The resulting analysis text is stored in your account
+      history until you delete it or your account.
+    </p>
+    <p>
+      Waitlist email addresses are kept until the launch notification has been
+      sent, or until you ask us to remove yours.
+    </p>
+  </section>
+
+  <section class="block">
+    <h2 class="section-title">6. Your Rights</h2>
+    <p>
+      You have the right to access, export, correct, or delete your personal data
+      (GDPR Articles 15&ndash;20). Your check-ins and symptom entries are
+      health-related information: we process them only to provide the features you
+      ask for, and you can stop that processing at any time by deleting the entries
+      or your account.
+    </p>
+    <p>
+      You can exercise these rights in the app or by contacting
+      <a href="mailto:support@getgutwell.app?subject=Privacy%20request">support@getgutwell.app</a>.
+      You may also withdraw location, camera, microphone, or notification
+      permissions at any time in your device settings.
+    </p>
+    <p>
+      You also have the right to lodge a complaint with a data protection
+      supervisory authority.
+    </p>
+  </section>
+
+  <section class="block">
+    <h2 class="section-title">7. Minimum Age</h2>
+    <p>
+      GutWell AI is intended for people aged <strong>16 or older</strong>. If you
+      believe someone under this age has created an account, contact
+      <a href="mailto:support@getgutwell.app?subject=Minimum%20age">support@getgutwell.app</a>
+      and we will delete it.
+    </p>
+  </section>
+
+  <section class="block">
+    <h2 class="section-title">8. Cookies and This Website</h2>
+    <p>
+      This website does not set advertising or tracking cookies, and does not load
+      fonts or scripts from third-party servers. The GutWell AI app does not use
+      browser cookies; it uses local device storage to keep you signed in and to
+      remember your preferences, which is necessary for the app to work.
+    </p>
+  </section>
+
+  <section class="block">
+    <h2 class="section-title">9. Health and Wellness Positioning</h2>
+    <p>
+      GutWell AI is a wellness and self-tracking tool. It is
+      <strong>not a medical device</strong> and is
+      <strong>not intended to diagnose, treat, cure, or prevent any disease</strong>.
+      AI-generated analyses are informational only and may be inaccurate. Always
+      consult a qualified healthcare professional about any medical concern.
+    </p>
+  </section>
+
+  <section class="block">
+    <h2 class="section-title">10. Changes to This Policy</h2>
+    <p>
+      We may update this policy. We will notify users of material changes through
+      the app or by email, and where applicable law requires your express consent
+      to a change, we will ask for it.
+    </p>
+  </section>
+
+  <section class="block">
+    <h2 class="section-title">11. Operator and Contact</h2>
+    <p>
+      GutWell AI is operated by <strong>Jafar Rusban Javanmardi</strong>,
+      Sedanstra&szlig;e 13, 65183 Wiesbaden, Germany. For privacy questions, or to
+      exercise any of the rights above, contact
       <a href="mailto:support@getgutwell.app?subject=Privacy%20question">support@getgutwell.app</a>.
     </p>
-    <div class="links">
+    <p class="muted">
+      See also our <a href="/impressum">Legal Notice (Impressum)</a>.
+    </p>
+  </section>
+
+</main>
+
+<footer>
+  <div class="container">
+    <div class="footer-links">
       <a href="/">Home</a>
       <a href="/support">Support</a>
+      <a href="/privacy">Privacy Policy</a>
+      <a href="/terms">Terms of Service</a>
+      <a href="/impressum">Legal Notice</a>
+      <a href="/privacy/de" hreflang="de">Deutsch</a>
     </div>
+    <p class="footer-legal">&copy; 2026 GutWell AI. All rights reserved.</p>
   </div>
+</footer>
+
 </body>
 </html>
