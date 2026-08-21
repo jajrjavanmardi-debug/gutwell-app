@@ -1669,7 +1669,14 @@ export default function PhotoAnalysisScreen() {
             <Text style={styles.backButtonText}>{t.photoAnalysis.back}</Text>
           </Pressable>
           <View style={styles.headerTextBlock}>
-            <Text style={[styles.title]}>{t.photoAnalysis.title}</Text>
+            {/* The screen serves both flows. Titling it "Photo Analysis" while
+                startTextOnlyFlow has cleared the image left people describing a
+                meal on a screen that claimed to be analysing a photo — so a
+                text-quota message ("you've described 5 meals today") read as a
+                photo bug. The copy was right; the heading above it was not. */}
+            <Text style={[styles.title]}>
+              {textOnlyMode ? t.photoAnalysis.describeTitle : t.photoAnalysis.title}
+            </Text>
             <Text style={[styles.subtitle]}>{wizardSubtitle}</Text>
           </View>
           <Pressable

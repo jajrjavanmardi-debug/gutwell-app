@@ -1029,6 +1029,9 @@ const en = {
     onboardingSkipForNowHint: 'You can analyse a meal any time from the home screen.',
     back: 'Back',
     title: 'Photo Analysis',
+    // Shown instead of the title above once startTextOnlyFlow has cleared the
+    // photo. Same screen, different flow — and the heading has to say which.
+    describeTitle: 'Describe Your Meal',
     wizardStep1Subtitle: 'Step 1 of 3 — Capture',
     wizardStep2Subtitle: 'Step 2 of 3 — Describe',
     wizardStep3Subtitle: 'Step 3 of 3 — Analysis',
@@ -2511,6 +2514,7 @@ const de: Translations = {
     onboardingSkipForNowHint: 'Du kannst jederzeit vom Startbildschirm aus eine Mahlzeit analysieren.',
     back: 'Zurück',
     title: 'Fotoanalyse',
+    describeTitle: 'Mahlzeit beschreiben',
     wizardStep1Subtitle: 'Schritt 1 von 3 — Aufnahme',
     wizardStep2Subtitle: 'Schritt 2 von 3 — Beschreiben',
     wizardStep3Subtitle: 'Schritt 3 von 3 — Analyse',
