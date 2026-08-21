@@ -1895,6 +1895,45 @@ export default function PhotoAnalysisScreen() {
                 <Text style={styles.analyzeHint}>{t.photoAnalysis.generateNeedsDescription}</Text>
               ) : null}
 
+              {/* Back from the result preserves every input AND the analysis
+                  itself, but until now nothing led forward again: step 3 was
+                  reachable only by finishing an analysis, so the only way back
+                  to a finished result was to run it a second time. That spends
+                  real provider budget for a navigation action and returns a
+                  DIFFERENT answer, because generation is not deterministic.
+
+                  This reopens the result already in memory. It is deliberately
+                  not a regenerate: no request id is minted, no quota reserved,
+                  no meal identity touched, nothing persisted. Generate above
+                  stays exactly as it was for a deliberate new analysis. */}
+              {analysis.trim() ? (
+                <Pressable
+                  onPress={() => setWizardStep(3)}
+                  disabled={isAnalyzing}
+                  accessibilityRole="button"
+                  accessibilityLabel={t.photoAnalysis.viewAnalysis}
+                  style={({ pressed }) => [
+                    styles.viewAnalysisButton,
+                    isAnalyzing && styles.viewAnalysisButtonDisabled,
+                    pressed && !isAnalyzing && styles.pressed,
+                  ]}
+                >
+                  <Ionicons
+                    name="document-text-outline"
+                    size={18}
+                    color={isAnalyzing ? Colors.textSecondary : Colors.secondary}
+                  />
+                  <Text
+                    style={[
+                      styles.viewAnalysisButtonText,
+                      isAnalyzing && styles.viewAnalysisButtonTextDisabled,
+                    ]}
+                  >
+                    {t.photoAnalysis.viewAnalysis}
+                  </Text>
+                </Pressable>
+              ) : null}
+
               {/* ONBOARDING: escape hatch, shown only after two genuine analysis
                   failures so a user cannot be trapped by a persistent outage.
                   Retry stays available above — this is additive, not a
@@ -2705,6 +2744,34 @@ const styles = StyleSheet.create({
     fontSize: FontSize.sm,
     marginTop: Spacing.xs,
     textAlign: 'center',
+  },
+  // Outlined, not filled: reopening a result you already have must not compete
+  // with Generate, which is the action that actually costs something.
+  viewAnalysisButton: {
+    alignItems: 'center',
+    alignSelf: 'stretch',
+    backgroundColor: 'transparent',
+    borderColor: Colors.secondary,
+    borderRadius: BorderRadius.lg,
+    borderWidth: 1,
+    flexDirection: 'row',
+    gap: Spacing.sm,
+    justifyContent: 'center',
+    marginTop: Spacing.sm,
+    minHeight: 48,
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.sm,
+  },
+  viewAnalysisButtonDisabled: {
+    borderColor: Colors.border,
+  },
+  viewAnalysisButtonText: {
+    color: Colors.secondary,
+    fontFamily: FontFamily.sansSemiBold,
+    fontSize: FontSize.md,
+  },
+  viewAnalysisButtonTextDisabled: {
+    color: Colors.textSecondary,
   },
   analyzeCombinedButtonText: {
     color: '#000000',

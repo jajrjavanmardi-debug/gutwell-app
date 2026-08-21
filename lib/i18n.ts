@@ -381,7 +381,10 @@ const en = {
     accessEditProfile: 'Edit profile',
     setYourName: 'Set your name',
     personalDetails: 'Personal Details',
-    preferences: 'Preferences',
+    // The row routes to /settings, which is also where language switching lives
+    // after sign-up. Labelled "Preferences", it was not findable by anyone
+    // looking for Settings. German already read "Einstellungen".
+    preferences: 'Settings',
     progressInsights: 'Progress & Insights',
     reminders: 'Reminders',
     upgradePremium: 'Upgrade to Premium',
@@ -1049,6 +1052,10 @@ const en = {
     textLimitMessage: "You've described 5 meals today, which is the daily maximum.",
     step2Prompt: 'What is this food? How do you feel?',
     generateAnalysis: 'Generate Analysis',
+    // Reopens the result already held in memory after Back. Worded as viewing,
+    // not generating, so it cannot be mistaken for the action that costs a
+    // provider call.
+    viewAnalysis: 'View analysis',
     isThisAccurate: 'Is this accurate?',
     yes: 'Yes',
     no: 'No',
@@ -2516,6 +2523,7 @@ const de: Translations = {
     textLimitMessage: 'Du hast heute 5 Mahlzeiten beschrieben — das ist das Tagesmaximum.',
     step2Prompt: 'Was ist das für Essen? Wie fühlst du dich?',
     generateAnalysis: 'Analyse erstellen',
+    viewAnalysis: 'Analyse anzeigen',
     isThisAccurate: 'Stimmt das so?',
     yes: 'Ja',
     no: 'Nein',
