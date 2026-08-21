@@ -79,9 +79,12 @@ describe('the Generate Analysis CTA reads as the primary action', () => {
 
   test('a disabled CTA says why, and only for the recoverable reason', () => {
     expect(code).toContain('t.photoAnalysis.generateNeedsDescription');
-    // Not shown while working, and not during onboarding, where a photo alone
-    // is a legitimate submission.
-    expect(code).toContain('analyzeDisabled && !isAnalyzing && !isOnboarding && !mealDescription.trim() ?');
+    // The hint belongs to TEXT-ONLY mode, which is the only mode that still
+    // needs words. It used to be gated on `!isOnboarding` instead, back when a
+    // photo run also demanded a description; showing it in photo mode now
+    // would advertise a requirement that no longer exists.
+    expect(code).toContain('textOnlyMode && analyzeDisabled && !isAnalyzing && !mealDescription.trim() ?');
+    expect(code).not.toContain('analyzeDisabled && !isAnalyzing && !isOnboarding && !mealDescription.trim() ?');
   });
 
   test('an active recording blocks analysis and says so', () => {

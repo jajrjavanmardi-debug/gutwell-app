@@ -513,9 +513,18 @@ export default function PhotoAnalysisScreen() {
     wizardStep === 1 ? t.photoAnalysis.wizardStep1Subtitle : wizardStep === 2 ? t.photoAnalysis.wizardStep2Subtitle : t.photoAnalysis.wizardStep3Subtitle;
   const canRecordFeelings = wizardStep === 2 && (textOnlyMode || Boolean(photoUri && lastImageBase64));
   /**
-   * The Describe requirement, derived once. Normal mode keeps it; the
-   * onboarding run may analyse a photo alone. Both the button's disabled state
-   * and handleGenerateAnalysis read this, so they cannot drift apart.
+   * What each mode needs before Generate can run, derived once. Both the
+   * button's disabled state and handleGenerateAnalysis read this, so they
+   * cannot drift apart.
+   *
+   * Photo mode requires ONLY a photo. The description used to be mandatory
+   * here, which forced people to name a dish they had photographed precisely
+   * because they could not name it — and the server then treated those words
+   * as authoritative over the image. Notes are now optional context; the
+   * picture is the evidence.
+   *
+   * Text-only mode is unchanged and still requires words, because there is no
+   * image to reason about.
    */
   const analyzeDisabled =
     isAnalyzing ||
@@ -527,8 +536,7 @@ export default function PhotoAnalysisScreen() {
     // and racing it against a submission is how the transcript gets lost.
     isListening ||
     // The text path needs a description and no image; the photo path the reverse.
-    (textOnlyMode ? !mealDescription.trim() : !lastImageBase64.trim()) ||
-    (!isOnboarding && !mealDescription.trim());
+    (textOnlyMode ? !mealDescription.trim() : !lastImageBase64.trim());
 
   useEffect(() => {
     if (!voiceNativeEnabled) {
@@ -843,14 +851,10 @@ export default function PhotoAnalysisScreen() {
       return;
     }
     if (!lastImageBase64.trim() || !photoUri) return;
-    // ONBOARDING (1/4): the description stays REQUIRED in the normal flow. Only
-    // the onboarding run may proceed without one, so a brand-new user can reach
-    // a real result from a photo alone. Removing this gate globally would be a
-    // separate product decision and is deliberately not made here.
-    if (!narrative && !isOnboarding) {
-      Alert.alert(t.photoAnalysis.feelingsRequiredTitle, t.photoAnalysis.feelingsRequiredMessage);
-      return;
-    }
+    // A photograph is sufficient evidence on its own. The description guard that
+    // used to stand here — relaxed only for onboarding — is gone: notes are
+    // optional context in every photo run now, onboarding included, so the two
+    // paths no longer differ and no flag is needed to tell them apart.
     void runPhotoAnalysis(lastImageBase64, photoUri, narrative);
   };
 
@@ -879,9 +883,13 @@ export default function PhotoAnalysisScreen() {
           supplementsTakenToday: todaysSupplements.map((item) => `${item.name} (${item.dosage}, ${item.time})`),
           locationContext,
           retailLocationHint,
-          userFeelingsNarrative: gutProfileContext.dietType
-            ? `(My diet is ${gutProfileContext.dietType}.) ${description}`
-            : description,
+          // Same guard as the photo path. A description is mandatory here, so
+          // this cannot currently fire — it is kept identical so the two call
+          // sites cannot drift into different behaviour.
+          userFeelingsNarrative:
+            gutProfileContext.dietType && description.trim()
+              ? `(My diet is ${gutProfileContext.dietType}.) ${description}`
+              : description,
           mealContext: (currentStateKeys.length > 0 || afterMealActivity) ? {
             currentState: serializeCurrentState(currentStateKeys),
             afterMealActivity: afterMealActivity ?? undefined,
@@ -941,9 +949,15 @@ export default function PhotoAnalysisScreen() {
         triggerMemories: [],
         locationContext,
         retailLocationHint,
-        userFeelingsNarrative: gutProfileContext.dietType
-          ? `(My diet is ${gutProfileContext.dietType}.) ${feelingsNarrative}`
-          : feelingsNarrative,
+        // The diet prefix rides along with the user's own words; it must never
+        // BE them. Prefixing an empty description produced "(My diet is
+        // vegan.) ", which is non-empty, and the server reads a non-empty
+        // narrative as "the person told us what this is" — so a photo-only run
+        // would have instructed the model to treat a diet label as the meal.
+        userFeelingsNarrative:
+          gutProfileContext.dietType && feelingsNarrative.trim()
+            ? `(My diet is ${gutProfileContext.dietType}.) ${feelingsNarrative}`
+            : feelingsNarrative,
         // currentState is a single string in the Edge Function contract, so
         // several symptoms are joined rather than restructured — every one
         // still reaches the prompt, and no function change is needed.
@@ -1891,7 +1905,7 @@ export default function PhotoAnalysisScreen() {
                   already obvious from the screen. */}
               {isListening ? (
                 <Text style={styles.analyzeHint}>{t.photoAnalysis.generateNeedsRecordingStopped}</Text>
-              ) : analyzeDisabled && !isAnalyzing && !isOnboarding && !mealDescription.trim() ? (
+              ) : textOnlyMode && analyzeDisabled && !isAnalyzing && !mealDescription.trim() ? (
                 <Text style={styles.analyzeHint}>{t.photoAnalysis.generateNeedsDescription}</Text>
               ) : null}
 

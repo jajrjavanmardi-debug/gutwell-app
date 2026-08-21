@@ -938,10 +938,23 @@ function buildMealTextPrompt(body: MealTextBody): string {
     `Supplements taken in the last 12 hours: ${supplementSummary}.`,
   ];
 
-  // 🍽️ MEAL section guidance: the user's confirmation (if any) overrides the photo.
+  // 🍽️ MEAL section guidance: the PHOTO is the evidence.
+  //
+  // This used to invert that whenever the person typed anything — their words
+  // were declared authoritative and the photo demoted to filling gaps. The
+  // client made a description mandatory, so that branch was effectively the
+  // only one that ever ran: someone photographing a dish they could not name
+  // still had to name it, and whatever they guessed then outranked the picture.
+  //
+  // Notes are now optional and are treated as what they actually are — context
+  // the camera cannot capture (portion, hidden ingredients, preparation,
+  // timing). Naming a different food is still respected, because that is an
+  // explicit correction rather than incidental context. Deliberate corrections
+  // after the fact are unaffected: meal_revise has its own rules and still
+  // gives the user absolute priority.
   const mealLine = narrative
-    ? `State the meal the person describes ("${narrative}") as authoritative; use the photo only to fill gaps. If their words conflict with the photo, follow their words.`
-    : "Briefly state the most likely meal or drink visible in the photo.";
+    ? `Identify the most likely meal, dish, or drink visible in the photo and state it. The person added these notes: "${narrative}". Treat them as SUPPLEMENTARY context — portion size, ingredients that are not visible, preparation, timing, or how they felt — and use them to sharpen the analysis, not to replace what is clearly in the image. Only if the notes explicitly name a different food than the one visible should you follow the notes over the photo. If the photo is ambiguous, state the most likely identification cautiously ("this looks like…") rather than inventing certainty.`
+    : `Identify the most likely meal, dish, or drink visible in the photo and state it. If the photo is ambiguous, state the most likely identification cautiously ("this looks like…") rather than inventing certainty.`;
 
   return [
     "Analyze this meal photo for gut health and return ONE short report.",

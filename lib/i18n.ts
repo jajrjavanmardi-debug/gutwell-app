@@ -1050,7 +1050,11 @@ const en = {
       "You've used today's 5 photo analyses. You can still describe your meal.",
     textLimitTitle: 'Daily limit reached',
     textLimitMessage: "You've described 5 meals today, which is the daily maximum.",
-    step2Prompt: 'What is this food? How do you feel?',
+    // Photo mode. This asked "What is this food?" while the field was
+    // mandatory, so it demanded the one thing the camera is there to work out.
+    // Notes are optional now and this asks for what a photo genuinely cannot
+    // show.
+    step2Prompt: 'Optional: Add context the photo can’t show',
     generateAnalysis: 'Generate Analysis',
     // Reopens the result already held in memory after Back. Worded as viewing,
     // not generating, so it cannot be mistaken for the action that costs a
@@ -1079,7 +1083,9 @@ const en = {
     symptomsLabel: 'Symptoms & notes',
     symptomsPlaceholder: 'Before taking a photo you can note symptoms; after capture, describe how you feel.',
     howYouFeelLabel: 'What is it & how do you feel?',
-    howYouFeelPlaceholder: 'Example: This is lentil soup — I feel bloated and sluggish.',
+    // Deliberately does not model naming the dish — the previous example
+    // ("This is lentil soup") taught exactly the habit this change removes.
+    howYouFeelPlaceholder: 'Portion size, ingredients, preparation, timing, or how you felt afterward',
     photoCapturedPrompt: 'Photo captured! Speak or type how you feel.',
     analyzeCombined: 'Analyze Meal',
     feelingsRequiredTitle: 'Describe the meal first',
@@ -2521,7 +2527,7 @@ const de: Translations = {
       'Du hast heute deine 5 Fotoanalysen genutzt. Du kannst deine Mahlzeit weiterhin beschreiben.',
     textLimitTitle: 'Tageslimit erreicht',
     textLimitMessage: 'Du hast heute 5 Mahlzeiten beschrieben — das ist das Tagesmaximum.',
-    step2Prompt: 'Was ist das für Essen? Wie fühlst du dich?',
+    step2Prompt: 'Optional: Ergänze Kontext, den das Foto nicht zeigen kann',
     generateAnalysis: 'Analyse erstellen',
     viewAnalysis: 'Analyse anzeigen',
     isThisAccurate: 'Stimmt das so?',
@@ -2547,7 +2553,7 @@ const de: Translations = {
     symptomsLabel: 'Symptome & Notizen',
     symptomsPlaceholder: 'Vor dem Foto optional Symptome; nach der Aufnahme dein Befinden beschreiben.',
     howYouFeelLabel: 'Was ist es & wie fühlst du dich?',
-    howYouFeelPlaceholder: 'Zum Beispiel: Das ist Linsensuppe — ich fühle mich aufgebläht.',
+    howYouFeelPlaceholder: 'Portionsgröße, Zutaten, Zubereitung, Zeitpunkt oder wie du dich danach gefühlt hast',
     photoCapturedPrompt: 'Foto gespeichert! Sprich oder tippe, wie du dich fühlst.',
     analyzeCombined: 'Mahlzeit analysieren',
     feelingsRequiredTitle: 'Erst die Mahlzeit beschreiben',
