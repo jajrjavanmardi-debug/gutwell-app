@@ -81,10 +81,35 @@ function isRateLimited(ip: string): boolean {
  * (successful requests ran 11.2–20.6s end to end), so it only bites on a
  * genuinely degraded provider.
  *
- * ONE attempt. No retry: two sequential attempts share the same budget, so
- * retrying without more provider-latency data would defeat the ordering above.
+ * ── Why there is now a second attempt ───────────────────────────────────────
+ * 42s is the budget for the WHOLE provider phase, not for one attempt, so the
+ * ordering above is unchanged and the client's margin is exactly what it was.
+ * The first attempt still gets the entire 42s, so a slow-but-healthy provider
+ * behaves identically to before.
+ *
+ * A retry only happens when the first attempt failed FAST and left real budget
+ * behind, which is precisely the observed failure shape: the 2026-08-18 photo
+ * incident failed three times in 3m45s and then succeeded on the fourth try
+ * with the SAME image and the SAME request id, and 2026-08-24 failed twice
+ * 15.3s apart. Those are transport blips, and the user was already recovering
+ * from them by hand — at the cost of an alert that gave them no way to.
+ *
+ * A timed-out attempt is never retried: it has by definition spent the budget
+ * the retry would need, and the ordering above is what keeps the client from
+ * giving up first.
  */
 const GEMINI_TIMEOUT_MS = 42_000;
+
+/** Two provider attempts per logical analysis. Never more, never a loop. */
+const PROVIDER_MAX_ATTEMPTS = 2;
+/** Long enough for a momentary upstream blip to clear, short enough to spend. */
+const PROVIDER_RETRY_BACKOFF_MS = 1_200;
+/**
+ * Budget that must remain AFTER the backoff for a second attempt to be worth
+ * starting. Below this the retry would likely be cut off mid-flight, burning
+ * the rest of the budget to reach the same failure more slowly.
+ */
+const PROVIDER_MIN_RETRY_BUDGET_MS = 10_000;
 
 // Max base64 image size: 10 MB
 const MAX_IMAGE_SIZE = 10 * 1024 * 1024;
@@ -270,15 +295,64 @@ function readUsage(data: unknown): GeminiUsage {
  * Refunding a failed call would hand an attacker a way to buy compute for
  * free: force failures, get refunded, repeat.
  */
-type ProviderError = Error & { upstream?: boolean; empty?: boolean; providerAttempted?: boolean };
+/**
+ * What actually went wrong, kept apart from what the CLIENT is told.
+ *
+ * failure_kind ('upstream' | 'empty' | 'error') stays exactly as it was, and
+ * so does the UPSTREAM_ERROR the client receives — these classes exist to make
+ * the telemetry answer a question the old row could not: was this a connection
+ * that never landed, a provider that answered 503, or a deadline we set
+ * ourselves.
+ */
+type FailureClass =
+  | "network_exception"
+  | "provider_429"
+  | "provider_4xx"
+  | "provider_5xx"
+  | "timeout"
+  | "empty_response";
 
-async function callGemini(
+type ProviderError = Error & {
+  upstream?: boolean;
+  empty?: boolean;
+  providerAttempted?: boolean;
+  failureClass?: FailureClass;
+  providerStatus?: number;
+  providerReason?: string;
+  timedOut?: boolean;
+  attempts?: number;
+  usage?: GeminiUsage;
+};
+
+/** Statuses worth a second attempt. Everything else is a decision, not a blip. */
+const RETRYABLE_STATUSES = new Set([429, 500, 502, 503, 504]);
+
+/**
+ * A retry must be able to change the outcome.
+ *
+ * 4xx other than 429 will not: a rejected image, a malformed body or a bad key
+ * fail identically the second time and cost a second billed call to prove it.
+ * A timeout has already spent the budget the retry needs. An empty candidate
+ * is a model outcome rather than a transport fault, and the provider has
+ * already billed for it.
+ */
+function isRetryableProviderError(err: ProviderError): boolean {
+  if (err.timedOut) return false;
+  if (err.failureClass === "network_exception") return true;
+  return typeof err.providerStatus === "number" && RETRYABLE_STATUSES.has(err.providerStatus);
+}
+
+const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
+
+/** ONE bounded provider attempt. Retry policy lives in callGemini below. */
+async function attemptGemini(
   parts: GeminiPart[],
   options: {
     responseMimeType?: "application/json" | "text/plain";
     temperature?: number;
     maxOutputTokens?: number;
-  } = {},
+  },
+  deadlineMs: number,
 ): Promise<{ text: string; usage: GeminiUsage }> {
   // AbortController + clearTimeout rather than AbortSignal.timeout(): the
   // runtime is Deno 2.x and would support the native form, but its timer
@@ -290,7 +364,7 @@ async function callGemini(
   // The signal covers the body read as well as the headers, so a provider that
   // answers fast and then streams slowly is still bounded.
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), GEMINI_TIMEOUT_MS);
+  const timeoutId = setTimeout(() => controller.abort(), deadlineMs);
   try {
     let response: Response;
     try {
@@ -316,11 +390,23 @@ async function callGemini(
         }),
       });
     } catch (networkError) {
+      // An abort lands here when the deadline fires before headers arrive. It
+      // was previously indistinguishable from a connection failure, which
+      // matters now: a timeout must not be retried, a dropped connection must.
+      if (controller.signal.aborted) {
+        const timedOut = new Error("AI provider timed out") as ProviderError;
+        timedOut.upstream = true;
+        timedOut.providerAttempted = true;
+        timedOut.timedOut = true;
+        timedOut.failureClass = "timeout";
+        throw timedOut;
+      }
       // The request left this process. We cannot know whether the provider
       // billed it, so it counts as attempted.
       const err = new Error("Failed to reach AI provider") as ProviderError;
       err.upstream = true;
       err.providerAttempted = true;
+      err.failureClass = "network_exception";
       throw err;
     }
 
@@ -347,6 +433,16 @@ async function callGemini(
       const err = new Error("Failed to get analysis from AI provider") as ProviderError;
       err.upstream = true;
       err.providerAttempted = true;
+      err.providerStatus = response.status;
+      // `reason` is Google's own status symbol, already parsed above and capped
+      // at 40 chars; the body it came from is still discarded unread.
+      err.providerReason = reason;
+      err.failureClass =
+        response.status === 429
+          ? "provider_429"
+          : response.status >= 500
+            ? "provider_5xx"
+            : "provider_4xx";
       throw err;
     }
 
@@ -363,6 +459,8 @@ async function callGemini(
       const err = new Error("Empty response from AI provider") as ProviderError;
       err.empty = true;
       err.providerAttempted = true;
+      err.providerStatus = response.status;
+      err.failureClass = "empty_response";
       // An empty candidate is still a billed call, so the usage travels with the
       // error and is recorded like any other spend.
       (err as ProviderError & { usage?: GeminiUsage }).usage = usage;
@@ -382,6 +480,8 @@ async function callGemini(
       const timedOut = new Error("AI provider timed out") as ProviderError;
       timedOut.upstream = true;
       timedOut.providerAttempted = true;
+      timedOut.timedOut = true;
+      timedOut.failureClass = "timeout";
       throw timedOut;
     }
     throw error;
@@ -390,6 +490,65 @@ async function callGemini(
     // pending in the worker.
     clearTimeout(timeoutId);
   }
+}
+
+/**
+ * The provider call, with at most ONE retry inside a fixed total budget.
+ *
+ * Every caller is unchanged: same arguments, same shape back, same errors on
+ * the way out. What is new is that a transient first failure no longer reaches
+ * the user — the same recovery they were already performing by hand, minus the
+ * dead-end alert and without a second quota slot, because the reservation and
+ * the request id both belong to the logical analysis rather than the attempt.
+ *
+ * Bounded by construction, not by convention: two attempts maximum, a single
+ * shared deadline, and no path that starts an attempt with no budget left.
+ */
+async function callGemini(
+  parts: GeminiPart[],
+  options: {
+    responseMimeType?: "application/json" | "text/plain";
+    temperature?: number;
+    maxOutputTokens?: number;
+  } = {},
+): Promise<{ text: string; usage: GeminiUsage; attempts: number }> {
+  const startedAt = Date.now();
+  const elapsed = () => Date.now() - startedAt;
+  let lastError: ProviderError | undefined;
+
+  for (let attempt = 1; attempt <= PROVIDER_MAX_ATTEMPTS; attempt++) {
+    const remaining = GEMINI_TIMEOUT_MS - elapsed();
+    // Never start an attempt that cannot finish. The first pass always has the
+    // full budget, so this only ever guards the second.
+    if (remaining <= 0) break;
+
+    try {
+      const result = await attemptGemini(parts, options, remaining);
+      return { ...result, attempts: attempt };
+    } catch (error) {
+      const err = error as ProviderError;
+      err.attempts = attempt;
+      lastError = err;
+
+      if (attempt >= PROVIDER_MAX_ATTEMPTS) break;
+      if (!isRetryableProviderError(err)) break;
+
+      // Budget left AFTER the backoff, or the retry is not worth starting.
+      const afterBackoff = GEMINI_TIMEOUT_MS - elapsed() - PROVIDER_RETRY_BACKOFF_MS;
+      if (afterBackoff < PROVIDER_MIN_RETRY_BUDGET_MS) break;
+
+      // Status only — never the provider's body, and never anything from the
+      // request that produced it.
+      console.error("Gemini retry", {
+        provider: "gemini",
+        failureClass: err.failureClass,
+        status: err.providerStatus ?? null,
+      });
+      await sleep(PROVIDER_RETRY_BACKOFF_MS);
+    }
+  }
+
+  throw lastError ?? new Error("Failed to reach AI provider");
 }
 
 // ---------------------------------------------------------------------------
@@ -658,6 +817,43 @@ async function releaseDailyQuota(userId: string, requestId: string, kind: QuotaK
  * Records what a provider call cost. Never blocks or fails the request: losing
  * a telemetry row is much cheaper than losing a user's analysis.
  */
+/**
+ * Non-content provider metadata for ONE logical analysis.
+ *
+ * Everything here is a status, a count or a flag. Nothing is derived from the
+ * prompt, the description, the image or the provider's response body — and the
+ * SQL clamps each field again on the way in, so a value that escaped this type
+ * still could not become content in the table.
+ */
+type ProviderMeta = {
+  status?: number;
+  reason?: string;
+  failureClass?: FailureClass;
+  timedOut?: boolean;
+  attempted?: boolean;
+  attempts?: number;
+  imageBytes?: number;
+  mimeType?: string;
+};
+
+/** Telemetry for a provider call that returned. */
+const providerOk = (attempts: number): ProviderMeta => ({
+  status: 200,
+  attempted: true,
+  timedOut: false,
+  attempts,
+});
+
+/** Telemetry for a provider call that threw, whatever the reason. */
+const providerFailed = (err: ProviderError): ProviderMeta => ({
+  status: err.providerStatus,
+  reason: err.providerReason,
+  failureClass: err.failureClass,
+  timedOut: err.timedOut === true,
+  attempted: err.providerAttempted === true,
+  attempts: err.attempts ?? 0,
+});
+
 async function recordUsage(
   userId: string,
   args: {
@@ -666,6 +862,7 @@ async function recordUsage(
     succeeded: boolean;
     failureKind?: "upstream" | "empty" | "error";
     usage?: GeminiUsage;
+    provider?: ProviderMeta;
   },
 ) {
   try {
@@ -687,6 +884,14 @@ async function recordUsage(
       p_thoughts_tokens: u.thoughtsTokens,
       p_cached_tokens: u.cachedTokens,
       p_total_tokens: u.totalTokens,
+      p_provider_status: args.provider?.status ?? null,
+      p_provider_reason: args.provider?.reason ?? null,
+      p_failure_class: args.provider?.failureClass ?? null,
+      p_timed_out: args.provider?.timedOut ?? false,
+      p_provider_attempted: args.provider?.attempted ?? false,
+      p_provider_attempts: args.provider?.attempts ?? 0,
+      p_image_bytes: args.provider?.imageBytes ?? null,
+      p_mime_type: args.provider?.mimeType ?? null,
     });
     if (error) console.error("Usage telemetry failed", { detail: error.message });
   } catch (e) {
@@ -1230,13 +1435,22 @@ Deno.serve(async (req: Request) => {
         const reservation = await reserveDailyQuota(supabase, requestId as string, "photo_analysis");
         if (!reservation.ok) return reservation.response;
 
+        // Hoisted so the telemetry records the label actually SENT, not a
+        // second guess at it. The client currently hardcodes image/jpeg while
+        // ImagePicker can hand it HEIC or PNG, and this is the column that will
+        // show whether a mislabelled payload correlates with failures.
+        const imageMimeType = typeof body.mimeType === "string" ? body.mimeType : "image/jpeg";
+        // Length of the base64 text, which is what MAX_IMAGE_SIZE bounds. A
+        // size, never the bytes.
+        const imageBytes = image.length;
+
         try {
           const result = await callGemini(
             [
               { text: `${MEAL_COACH_PERSONA}\n\n${prompt}` },
               {
                 inline_data: {
-                  mime_type: typeof body.mimeType === "string" ? body.mimeType : "image/jpeg",
+                  mime_type: imageMimeType,
                   data: image,
                 },
               },
@@ -1248,6 +1462,7 @@ Deno.serve(async (req: Request) => {
             mode,
             succeeded: true,
             usage: result.usage,
+            provider: { ...providerOk(result.attempts), imageBytes, mimeType: imageMimeType },
           });
           return jsonResponse({ analysis: result.text });
         } catch (error) {
@@ -1258,6 +1473,7 @@ Deno.serve(async (req: Request) => {
             succeeded: false,
             failureKind: err.empty ? "empty" : err.upstream ? "upstream" : "error",
             usage: err.usage,
+            provider: { ...providerFailed(err), imageBytes, mimeType: imageMimeType },
           });
           // Refund ONLY if nothing reached the provider.
           if (!err.providerAttempted) {
@@ -1318,6 +1534,7 @@ Deno.serve(async (req: Request) => {
             mode,
             succeeded: true,
             usage: result.usage,
+            provider: providerOk(result.attempts),
           });
           return jsonResponse({ analysis: result.text });
         } catch (error) {
@@ -1328,6 +1545,7 @@ Deno.serve(async (req: Request) => {
             succeeded: false,
             failureKind: err.empty ? "empty" : err.upstream ? "upstream" : "error",
             usage: err.usage,
+            provider: providerFailed(err),
           });
           if (!err.providerAttempted) {
             await releaseDailyQuota(user.id, requestId as string, "text_analysis");
@@ -1382,6 +1600,7 @@ Deno.serve(async (req: Request) => {
             mode,
             succeeded: true,
             usage: result.usage,
+            provider: providerOk(result.attempts),
           });
           return jsonResponse({ analysis: result.text });
         } catch (error) {
@@ -1392,6 +1611,7 @@ Deno.serve(async (req: Request) => {
             succeeded: false,
             failureKind: err.empty ? "empty" : err.upstream ? "upstream" : "error",
             usage: err.usage,
+            provider: providerFailed(err),
           });
           if (!err.providerAttempted) {
             await releaseDailyQuota(user.id, requestId as string, "meal_revision");

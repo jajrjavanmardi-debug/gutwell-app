@@ -369,9 +369,15 @@ describe('telemetry is cost data, never content', () => {
     // future `p_meal_description` simply because nobody thought to ban it.
     const sent = [...call.matchAll(/\b(p_[a-z_]+):/g)].map((m) => m[1]).sort();
     expect(sent).toEqual([
-      'p_cached_tokens', 'p_failure_kind', 'p_mode', 'p_model', 'p_output_tokens',
-      'p_prompt_tokens', 'p_request_id', 'p_succeeded', 'p_thoughts_tokens',
-      'p_total_tokens', 'p_user_id',
+      // Provider failure metadata. Every one is a status, a count or a flag,
+      // and each is clamped AGAIN in SQL — provider_reason to Google's own
+      // SCREAMING_SNAKE symbol, failure_class to six literals, mime_type to a
+      // type/subtype — so none can carry a prompt, a description or an image.
+      'p_cached_tokens', 'p_failure_class', 'p_failure_kind', 'p_image_bytes',
+      'p_mime_type', 'p_mode', 'p_model', 'p_output_tokens',
+      'p_prompt_tokens', 'p_provider_attempted', 'p_provider_attempts',
+      'p_provider_reason', 'p_provider_status', 'p_request_id', 'p_succeeded',
+      'p_thoughts_tokens', 'p_timed_out', 'p_total_tokens', 'p_user_id',
     ]);
     // Nothing derived from the request body reaches this function.
     expect(call).not.toMatch(/\bbody\b/);
@@ -928,8 +934,9 @@ describe('the provider call has a deadline inside the platform budget', () => {
    * and no error was classified. Measured exec_ms on the two kills: 150182 and
    * 150233, against a normal 12–21s and one degraded-but-successful 112s.
    *
-   * Deliberately ONE attempt. Two sequential attempts share the same 150s
-   * budget, so a retry without more latency data would raise 546 risk.
+   * There is now ONE bounded retry, but the 150s reasoning is untouched:
+   * GEMINI_TIMEOUT_MS is the budget for the WHOLE provider phase, shared by
+   * both attempts, so the worst case is the same 42s it always was.
    */
   // The three deadlines, innermost first. The server must fail before the
   // client gives up, or the classification and usage row it produces arrive
@@ -939,7 +946,10 @@ describe('the provider call has a deadline inside the platform budget', () => {
   const CLIENT_TIMEOUT_MS = 55_000;
   /** Worst observed non-Gemini server work: the 502 path, 2026-08-18. */
   const SERVER_OVERHEAD_MS = 6_262;
-  const fn = EDGE.slice(EDGE.indexOf('async function callGemini'), EDGE.indexOf('function buildMealTextPrompt'));
+  // Spans attemptGemini AND callGemini: the bounded attempt and the retry
+  // policy that wraps it. Anchored on attemptGemini because it comes first —
+  // anchoring on callGemini would silently skip the attempt internals.
+  const fn = EDGE.slice(EDGE.indexOf('async function attemptGemini'), EDGE.indexOf('function buildMealTextPrompt'));
   const code = fn.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
 
   test('the Gemini fetch carries an abort signal', () => {
@@ -1012,10 +1022,20 @@ describe('the provider call has a deadline inside the platform budget', () => {
     expect(photo).toContain('err.empty ? "empty" : err.upstream ? "upstream" : "error"');
   });
 
-  test('exactly one provider attempt, and no retry loop', () => {
+  test('at most two provider attempts, and no unbounded loop', () => {
+    // Was "exactly one attempt, no retry". One bounded retry is now deliberate:
+    // identical payloads have failed and then succeeded (2026-08-18, same image
+    // and same request id, three failures then a success). What must remain
+    // true is that the provider call cannot run away.
     expect((code.match(/await fetch\(GEMINI_URL/g) ?? []).length).toBe(1);
-    for (const banned of ['for (', 'while (', 'attempt', 'retryCount', 'maxRetries', 'backoff']) {
-      expect(`${banned} in callGemini: ${code.includes(banned)}`).toBe(`${banned} in callGemini: false`);
+    expect(EDGE).toContain('const PROVIDER_MAX_ATTEMPTS = 2;');
+    // The ceiling is the loop bound, not a comment.
+    expect(code).toContain('attempt <= PROVIDER_MAX_ATTEMPTS');
+    expect(code).toContain('if (attempt >= PROVIDER_MAX_ATTEMPTS) break;');
+    for (const banned of ['while (', 'retryCount', 'maxRetries', 'setInterval']) {
+      expect(`${banned} in provider call: ${code.includes(banned)}`).toBe(
+        `${banned} in provider call: false`,
+      );
     }
   });
 
