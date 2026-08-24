@@ -1043,6 +1043,16 @@ const en = {
     // moment the daily photo ceiling is reached.
     describeMealCta: 'Describe your meal instead',
     describeMealHint: 'Tell us what you ate, ingredients, and how you feel.',
+    // Photo-selected variant of the CTA above. The old label read like a way
+    // to add notes to the photo just picked; tapping it discarded the image
+    // silently. This one names the trade the tap actually makes, and the
+    // dialog below makes the user agree to it first.
+    switchToTextCta: 'Use text instead',
+    switchToTextHint: 'Switch to text-only analysis and remove this photo.',
+    switchToTextConfirmTitle: 'Switch to text-only analysis?',
+    switchToTextConfirmMessage:
+      'This will remove your selected photo. You can describe the meal instead.',
+    switchToTextCancel: 'Cancel',
     describeMealPlaceholder:
       "Example: Chicken burger with fries and soda. It had cheese, onions and sauce. I'm feeling bloated and need to drive afterwards.",
     describeRequiredMessage: 'Tell us what you ate so we can look at it.',
@@ -2523,6 +2533,12 @@ const de: Translations = {
     changePhoto: 'Foto ändern',
     describeMealCta: 'Mahlzeit stattdessen beschreiben',
     describeMealHint: 'Beschreibe, was du gegessen hast, die Zutaten und wie du dich fühlst.',
+    switchToTextCta: 'Stattdessen Text verwenden',
+    switchToTextHint: 'Zur Textanalyse wechseln und dieses Foto entfernen.',
+    switchToTextConfirmTitle: 'Zur Textanalyse wechseln?',
+    switchToTextConfirmMessage:
+      'Das ausgewählte Foto wird entfernt. Du kannst die Mahlzeit stattdessen beschreiben.',
+    switchToTextCancel: 'Abbrechen',
     describeMealPlaceholder:
       'Beispiel: Chickenburger mit Pommes und Cola. Mit Käse, Zwiebeln und Soße. Ich fühle mich aufgebläht und muss danach Auto fahren.',
     describeRequiredMessage: 'Beschreibe kurz, was du gegessen hast, damit wir es ansehen können.',

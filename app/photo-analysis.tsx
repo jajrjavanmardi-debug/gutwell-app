@@ -1155,6 +1155,10 @@ export default function PhotoAnalysisScreen() {
     }
   };
 
+  // Either half is enough. A history-restored analysis sets photoUri with no
+  // base64, and that image is just as visible to lose.
+  const hasSelectedPhoto = Boolean(photoUri || lastImageBase64);
+
   /**
    * Enter the describe-your-meal flow.
    *
@@ -1172,6 +1176,43 @@ export default function PhotoAnalysisScreen() {
     setUserFeedback([]);
     analysisRequestIdRef.current = newAnalysisRequestId();
     setWizardStep(2);
+  };
+
+  /**
+   * Step 1's text-only button, and only that button.
+   *
+   * The quota and entitlement fallbacks keep calling startTextOnlyFlow
+   * directly. Each has already told the user the photo path is closed, so
+   * making them confirm the loss of a photo they cannot analyse anyway would
+   * be a second dialog that says nothing.
+   *
+   * On Step 1 the photo is still viable, and the label used to hide what the
+   * tap costs: it read as a way to add notes to the image just picked, and
+   * discarded it instead. Build 10 QA lost a photo that way and reported the
+   * text-only result as a photo-mode failure. The image is cleared only once
+   * the user has agreed to lose it.
+   *
+   * startTextOnlyFlow remains the single owner of the state reset. This
+   * decides whether it runs, never what it does.
+   */
+  const handleStartTextOnlyFromStep1 = () => {
+    if (isAnalyzing) return;
+    if (!hasSelectedPhoto) {
+      startTextOnlyFlow();
+      return;
+    }
+    Alert.alert(
+      t.photoAnalysis.switchToTextConfirmTitle,
+      t.photoAnalysis.switchToTextConfirmMessage,
+      [
+        { text: t.photoAnalysis.switchToTextCancel, style: 'cancel' },
+        {
+          text: t.photoAnalysis.switchToTextCta,
+          style: 'destructive',
+          onPress: startTextOnlyFlow,
+        },
+      ],
+    );
   };
 
   const submitChatCorrection = async (rawCorrection: string) => {
@@ -2083,13 +2124,23 @@ export default function PhotoAnalysisScreen() {
                     it is the only analysis a Free user will have once photo is
                     Premium-gated, and the fallback the moment the daily photo
                     ceiling is reached — so it must never be something the user
-                    has to discover. */}
+                    has to discover. Always rendered; only its wording and its
+                    handler change once a photo is selected, because the tap
+                    becomes destructive at that point. */}
                 <Pressable
-                  onPress={startTextOnlyFlow}
+                  onPress={handleStartTextOnlyFromStep1}
                   disabled={isAnalyzing}
                   accessibilityRole="button"
-                  accessibilityLabel={t.photoAnalysis.describeMealCta}
-                  accessibilityHint={t.photoAnalysis.describeMealHint}
+                  accessibilityLabel={
+                    hasSelectedPhoto
+                      ? t.photoAnalysis.switchToTextCta
+                      : t.photoAnalysis.describeMealCta
+                  }
+                  accessibilityHint={
+                    hasSelectedPhoto
+                      ? t.photoAnalysis.switchToTextHint
+                      : t.photoAnalysis.describeMealHint
+                  }
                   style={({ pressed }) => [
                     styles.describeMealButton,
                     photoQuotaExhausted && styles.describeMealButtonPromoted,
@@ -2099,11 +2150,17 @@ export default function PhotoAnalysisScreen() {
                 >
                   <Ionicons name="create-outline" size={22} color={Colors.textInverse} />
                   <View style={styles.describeMealTextGroup}>
-                    <Text style={styles.describeMealTitle}>{t.photoAnalysis.describeMealCta}</Text>
+                    <Text style={styles.describeMealTitle}>
+                      {hasSelectedPhoto
+                        ? t.photoAnalysis.switchToTextCta
+                        : t.photoAnalysis.describeMealCta}
+                    </Text>
                     <Text style={styles.describeMealSubtitle}>
-                      {photoQuotaExhausted
-                        ? t.photoAnalysis.dailyLimitFallbackMessage
-                        : t.photoAnalysis.describeMealHint}
+                      {hasSelectedPhoto
+                        ? t.photoAnalysis.switchToTextHint
+                        : photoQuotaExhausted
+                          ? t.photoAnalysis.dailyLimitFallbackMessage
+                          : t.photoAnalysis.describeMealHint}
                     </Text>
                   </View>
                 </Pressable>

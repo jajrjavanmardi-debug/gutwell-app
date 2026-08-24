@@ -593,7 +593,10 @@ describe('text-only meal analysis — the permanent fallback', () => {
     const opensAt = step1.lastIndexOf('<Pressable', cta);
     const guard = step1.slice(step1.lastIndexOf('{', opensAt), opensAt);
     expect(guard).not.toMatch(/\?|&&/);
-    expect(step1.indexOf('onPress={startTextOnlyFlow}')).toBeGreaterThan(-1);
+    // No longer wired straight to startTextOnlyFlow: with a photo selected the
+    // tap discards it, so it routes through a confirmation first. What this
+    // test protects is unchanged — the entry point is never conditional.
+    expect(step1.indexOf('onPress={handleStartTextOnlyFromStep1}')).toBeGreaterThan(-1);
   });
 
   test('the client sends no image key at all on the text path', () => {
