@@ -488,25 +488,47 @@ export default function PhotoAnalysisScreen() {
   // UI chrome and AI output are both EN/DE, driven by the same preference.
   /** Dev client / standalone only — Expo Go has no custom native STT modules. */
   const voiceNativeEnabled = canUseNativeSpeechToText();
-  const userEnteredSymptoms = mealDescription
-      .split(/[,\n]+/)
-      .map((symptom) => symptom.trim())
-      .filter(Boolean);
   // The chips are symptoms the user is reporting right now, so they belong
-  // here alongside the profile conditions and anything typed in the box. They
-  // were previously absent, which is why selecting "Stomach pain" never
-  // reached the pain-aware path.
+  // here alongside the profile conditions. They were previously absent, which
+  // is why selecting "Stomach pain" never reached the pain-aware path.
   const selectedStateSymptoms = symptomsForRequest(
     currentStateKeys.filter((k) => k !== FEELING_FINE),
   );
+  /**
+   * Symptoms the person reported for THIS meal, as opposed to the standing
+   * conditions on their profile — which is exactly what the server means by
+   * "user-entered symptoms", and why it lets them outrank profile symptoms.
+   *
+   * This used to be `mealDescription.split(/[,\n]+/)`. That was arguable when
+   * the Step 2 box asked how you felt ("Example: This is lentil soup — I feel
+   * bloated and sluggish."), but 8508604 reframed it as meal context —
+   * "Portion size, ingredients, preparation, timing" — and made it optional,
+   * and this line was not updated with it. Since then every sentence typed
+   * there has been filed as a symptom, twice: once here, and again inside
+   * `currentSymptoms` as "All current symptoms combined". A question like "how
+   * about eating this two hours before sleeping" arrived at the model as a
+   * reported symptom, under a rule granting user-entered symptoms priority.
+   *
+   * The chips are the only symptom input this screen has, so they are the only
+   * thing that belongs in this field.
+   */
+  const userEnteredSymptoms = selectedStateSymptoms;
   const currentSymptoms = [
     ...gutProfileContext.conditions,
-    ...userEnteredSymptoms,
     ...selectedStateSymptoms,
   ];
-  const hasPainSymptom = currentSymptoms.some((symptom) =>
-    hasPainText(symptom)
-  );
+  /**
+   * Pain DETECTION deliberately still reads the free text.
+   *
+   * Someone who types "my stomach really hurts" without touching the chips
+   * must still get the apology, the safety notice and the gentler Plan B.
+   * Noticing a word in a sentence is not the same as filing that sentence as a
+   * reported symptom — the first is a local safety heuristic, the second is a
+   * data label that travels to the model and into the prompt.
+   */
+  const hasPainSymptom =
+    currentSymptoms.some((symptom) => hasPainText(symptom)) ||
+    hasPainText(mealDescription);
   const shouldShowMealScoreBadge = true; // SCORE badge re-enabled for GutWell meal impact scoring
   const mealImpactScore = extractMealImpactScore(analysis);
   const wizardSubtitle =

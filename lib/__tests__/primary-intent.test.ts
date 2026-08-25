@@ -298,9 +298,14 @@ describe('no other mode moved', () => {
     expect(engine).toContain('userFeelingsNarrative');
   });
 
-  test('the client symptom mislabelling is deliberately still here', () => {
-    // Documented, not fixed: it needs a binary. The prompt above must stay
-    // safe while the same sentence also arrives labelled as a symptom.
-    expect(read('app', 'photo-analysis.tsx')).toContain('const userEnteredSymptoms = mealDescription');
+  test('the client no longer files the meal description as a symptom', () => {
+    // Was: an assertion that the mislabelling was STILL PRESENT, written as a
+    // deliberate marker while the fix waited for a binary. The fix landed in
+    // the same release batch as this prompt, so the marker is inverted — it
+    // now guards the correction instead of recording the defect. The prompt
+    // above is unchanged either way: it never relied on the client's labels.
+    const screen = read('app', 'photo-analysis.tsx');
+    expect(screen).not.toContain('const userEnteredSymptoms = mealDescription');
+    expect(screen).toContain('const userEnteredSymptoms = selectedStateSymptoms;');
   });
 });

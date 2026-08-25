@@ -630,7 +630,7 @@ const en = {
       },
       {
         title: '5. Data Retention & Deletion',
-        body: 'Your data is retained while your account is active. You can export your data at any time from Profile → Export My Data, which produces a CSV file shared through your device’s share sheet. You can permanently delete your account and its associated data in the app: Profile → Delete Account. Deletion cannot be undone. Meal photos are not retained by GutWell AI once an analysis request has completed.',
+        body: 'Your data is retained while your account is active. You can export your data at any time from your Profile as a CSV file, shared through your device’s share sheet. You can permanently delete your account and its associated data in the app: Profile → Delete Account. Deletion cannot be undone. Meal photos are not retained by GutWell AI once an analysis request has completed.',
       },
       {
         title: '6. Your Rights',
@@ -2144,7 +2144,7 @@ const de: Translations = {
       },
       {
         title: '5. Aufbewahrung & Löschung',
-        body: 'Deine Daten werden aufbewahrt, solange dein Konto aktiv ist. Du kannst deine Daten jederzeit über Profil → Meine Daten exportieren ausgeben lassen; dabei entsteht eine CSV-Datei, die über das Teilen-Menü deines Geräts bereitgestellt wird. Du kannst dein Konto und die zugehörigen Daten in der App dauerhaft löschen: Profil → Konto löschen. Die Löschung lässt sich nicht rückgängig machen. Fotos von Mahlzeiten werden von GutWell AI nach Abschluss einer Analyse nicht aufbewahrt.',
+        body: 'Deine Daten werden aufbewahrt, solange dein Konto aktiv ist. Du kannst deine Daten jederzeit in deinem Profil als CSV-Datei exportieren; die Datei wird über das Teilen-Menü deines Geräts bereitgestellt. Du kannst dein Konto und die zugehörigen Daten in der App dauerhaft löschen: Profil → Konto löschen. Die Löschung lässt sich nicht rückgängig machen. Fotos von Mahlzeiten werden von GutWell AI nach Abschluss einer Analyse nicht aufbewahrt.',
       },
       {
         title: '6. Deine Rechte',
