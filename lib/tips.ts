@@ -13,7 +13,7 @@ export type WellnessTip = {
 const TIPS: WellnessTip[] = [
   {
     title: 'Chew slowly',
-    body: 'Chewing food thoroughly reduces bloating and improves nutrient absorption. Aim for 20-30 chews per bite.',
+    body: 'Eating slowly and chewing thoroughly may help some people feel more comfortable after meals. Aim for 20-30 chews per bite.',
     category: 'nutrition',
     icon: 'time',
     tags: ['bloating', 'digestion', 'general'],
@@ -34,7 +34,7 @@ const TIPS: WellnessTip[] = [
   },
   {
     title: 'Stress & your gut',
-    body: 'The gut-brain axis means stress directly impacts digestion. Even 5 minutes of deep breathing helps.',
+    body: 'The gut-brain axis describes how closely stress and digestion are linked. Even 5 minutes of deep breathing can be a calming pause.',
     category: 'science',
     icon: 'pulse-outline',
     tags: ['stress', 'digestion', 'general'],
@@ -62,21 +62,21 @@ const TIPS: WellnessTip[] = [
   },
   {
     title: 'Prebiotic power',
-    body: 'Garlic, onions, bananas, and oats feed your good bacteria. They are fuel for a healthy microbiome.',
+    body: 'Garlic, onions, bananas, and oats are prebiotic foods, which may support the bacteria already living in your gut.',
     category: 'nutrition',
     icon: 'leaf',
     tags: ['digestion', 'general'],
   },
   {
     title: 'Mindful eating',
-    body: 'Eating without distractions helps your body properly signal fullness and improves nutrient absorption.',
+    body: 'Eating without distractions can make it easier to notice fullness, and some people find meals sit better that way.',
     category: 'mindfulness',
     icon: 'eye',
     tags: ['bloating', 'digestion', 'stress'],
   },
   {
     title: 'Gut barrier health',
-    body: 'Zinc, vitamin D, and glutamine support your intestinal lining. Consider bone broth as a natural source.',
+    body: 'Zinc, vitamin D, and glutamine are nutrients associated with intestinal lining health. Bone broth is one natural source.',
     category: 'science',
     icon: 'shield',
     tags: ['inflammation', 'digestion', 'general'],
@@ -132,7 +132,7 @@ const TIPS: WellnessTip[] = [
   },
   {
     title: 'Reduce sugar intake',
-    body: 'Excess sugar feeds harmful bacteria and yeast in your gut, disrupting microbial balance.',
+    body: 'Diets high in added sugar are associated with shifts in gut microbial balance.',
     category: 'nutrition',
     icon: 'alert-circle',
     tags: ['inflammation', 'bloating', 'energy'],
@@ -146,7 +146,7 @@ const TIPS: WellnessTip[] = [
   },
   {
     title: 'Omega-3 fatty acids',
-    body: 'Fish, walnuts, and flaxseeds contain omega-3s that reduce gut inflammation and support lining health.',
+    body: 'Fish, walnuts, and flaxseeds contain omega-3s, which may support a healthy inflammatory balance.',
     category: 'nutrition',
     icon: 'fish',
     tags: ['inflammation', 'digestion', 'general'],
@@ -316,7 +316,7 @@ export type TipCopy = { title: string; body: string };
 const TIPS_DE: TipCopy[] = [
   {
     title: 'Langsam kauen',
-    body: 'Gründliches Kauen reduziert Blähungen und verbessert die Nährstoffaufnahme. Ziel sind 20–30 Kaubewegungen pro Bissen.',
+    body: 'Langsam essen und gründlich kauen kann manchen Menschen helfen, sich nach dem Essen wohler zu fühlen. Ziel sind 20–30 Kaubewegungen pro Bissen.',
   },
   {
     title: 'Wasser am Morgen',
@@ -328,7 +328,7 @@ const TIPS_DE: TipCopy[] = [
   },
   {
     title: 'Stress & dein Darm',
-    body: 'Über die Darm-Hirn-Achse wirkt sich Stress unmittelbar auf die Verdauung aus. Schon 5 Minuten tiefes Atmen helfen.',
+    body: 'Die Darm-Hirn-Achse beschreibt, wie eng Stress und Verdauung zusammenhängen. Schon 5 Minuten tiefes Atmen können eine ruhige Pause sein.',
   },
   {
     title: 'Fermentierte Lebensmittel',
@@ -344,15 +344,15 @@ const TIPS_DE: TipCopy[] = [
   },
   {
     title: 'Präbiotika',
-    body: 'Knoblauch, Zwiebeln, Bananen und Hafer füttern deine guten Bakterien. Sie sind Treibstoff für eine gesunde Darmflora.',
+    body: 'Knoblauch, Zwiebeln, Bananen und Hafer sind präbiotische Lebensmittel, die die Bakterien in deinem Darm unterstützen können.',
   },
   {
     title: 'Achtsam essen',
-    body: 'Essen ohne Ablenkung hilft deinem Körper, Sättigung richtig zu signalisieren, und verbessert die Nährstoffaufnahme.',
+    body: 'Essen ohne Ablenkung kann es leichter machen, Sättigung wahrzunehmen — manche Menschen vertragen Mahlzeiten so besser.',
   },
   {
     title: 'Gesunde Darmbarriere',
-    body: 'Zink, Vitamin D und Glutamin unterstützen deine Darmschleimhaut. Knochenbrühe ist eine natürliche Quelle.',
+    body: 'Zink, Vitamin D und Glutamin sind Nährstoffe, die mit der Gesundheit der Darmschleimhaut in Verbindung gebracht werden. Knochenbrühe ist eine natürliche Quelle.',
   },
   {
     title: 'Regelmäßigkeit hilft',
@@ -384,7 +384,7 @@ const TIPS_DE: TipCopy[] = [
   },
   {
     title: 'Weniger Zucker',
-    body: 'Zu viel Zucker nährt schädliche Bakterien und Hefen im Darm und bringt das mikrobielle Gleichgewicht durcheinander.',
+    body: 'Eine Ernährung mit viel zugesetztem Zucker wird mit Veränderungen im mikrobiellen Gleichgewicht des Darms in Verbindung gebracht.',
   },
   {
     title: 'Kältereize',
@@ -392,7 +392,7 @@ const TIPS_DE: TipCopy[] = [
   },
   {
     title: 'Omega-3-Fettsäuren',
-    body: 'Fisch, Walnüsse und Leinsamen enthalten Omega-3-Fettsäuren, die Entzündungen im Darm entgegenwirken und die Schleimhaut unterstützen.',
+    body: 'Fisch, Walnüsse und Leinsamen enthalten Omega-3-Fettsäuren, die eine ausgewogene Entzündungsreaktion unterstützen können.',
   },
 ];
 

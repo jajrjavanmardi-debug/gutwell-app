@@ -929,8 +929,54 @@ const en = {
     noDataYet: 'No data yet',
     scanTitle: 'Scan your meal',
     scanSubtitle: 'Snap a photo — get gut-friendly insights in seconds',
-    recentlyLogged: 'Recently logged',
-    emptyHint: 'Tap + to log your first entry of the day',
+    // Renamed from 'Recently logged'. The list holds only check-ins and meals
+    // (symptoms are never queried) and is not date-bounded, so the old title
+    // promised both more sources and more recency than it delivers.
+    latestActivity: 'Latest meals & check-ins',
+    emptyHint: 'Your check-ins and meals will appear here.',
+    emptyActivityTitle: 'Nothing logged yet',
+
+    // ── Greeting ──────────────────────────────────────────────────────────
+    // Device-local time of day. See getDayPart() in lib/date.ts for the
+    // boundaries; evening deliberately wraps past midnight.
+    greetingMorning: 'Good morning',
+    greetingAfternoon: 'Good afternoon',
+    greetingEvening: 'Good evening',
+    // Only rendered when usableDisplayName() returns a name.
+    greetingWithName: '{greeting}, {name}',
+
+    // ── Score card ────────────────────────────────────────────────────────
+    // Named so the number reads as this app's daily summary rather than a
+    // clinical measurement, and always shown with its provenance.
+    scoreTitle: "Today's GutWell Score",
+    scoreProvenance: 'Based on today’s check-in',
+    scoreEmptyTitle: 'No score yet',
+    scoreEmptyBody: 'Complete today’s check-in to create your daily score.',
+    // Descriptions of the DAY, not of the organ. The previous labels
+    // ("Thriving gut" / "Needs care") described a body part from five
+    // self-reported sliders.
+    dayLabelSettled: 'Settled day',
+    dayLabelMixed: 'Mixed day',
+    dayLabelTougher: 'Tougher day',
+
+    // ── Contextual hero ───────────────────────────────────────────────────
+    heroCheckinTitle: 'Daily check-in',
+    heroCheckinSubtitle: 'Start with how you’re feeling today.',
+    heroMealTitle: 'Analyze a meal',
+    heroMealSubtitle: 'See how your next meal fits your day.',
+    heroProgressTitle: 'See your progress',
+    heroProgressSubtitle: 'Your day is taking shape. See what GutWell is learning.',
+
+    // ── Stat cards ────────────────────────────────────────────────────────
+    // Was hardcoded in the screen; German users saw the English.
+    vsYesterday: 'vs yesterday',
+    checkinDone: 'Done',
+    checkinPending: 'Not yet',
+    labelCheckins7d: '7-day check-ins',
+    consistencyStart: 'Start today',
+    // Count, not a percentage: "14%" after a first successful check-in reads
+    // as a failure grade rather than as day one of seven.
+    consistencyCount: '{n} of 7 days',
     accessSeeAllRecent: 'See all recent activity',
     triggerLinked: 'May be associated with {symptom} — {withSymptoms} of {logged} logs',
     triggerFollowed: 'Symptoms followed {withSymptoms} of {logged} logs',
@@ -2458,8 +2504,36 @@ const de: Translations = {
     noDataYet: 'Noch keine Daten',
     scanTitle: 'Mahlzeit scannen',
     scanSubtitle: 'Foto machen — in Sekunden eine Einschätzung für deinen Darm',
-    recentlyLogged: 'Zuletzt erfasst',
-    emptyHint: 'Tippe auf +, um deinen ersten Eintrag des Tages zu erfassen',
+    latestActivity: 'Letzte Mahlzeiten & Check-ins',
+    emptyHint: 'Deine Check-ins und Mahlzeiten erscheinen hier.',
+    emptyActivityTitle: 'Noch nichts erfasst',
+
+    greetingMorning: 'Guten Morgen',
+    greetingAfternoon: 'Guten Tag',
+    greetingEvening: 'Guten Abend',
+    greetingWithName: '{greeting}, {name}',
+
+    scoreTitle: 'Heutiger GutWell-Score',
+    scoreProvenance: 'Basierend auf deinem heutigen Check-in',
+    scoreEmptyTitle: 'Noch kein Score',
+    scoreEmptyBody: 'Mach den heutigen Check-in, um deinen Tagesscore zu erstellen.',
+    dayLabelSettled: 'Ruhiger Tag',
+    dayLabelMixed: 'Gemischter Tag',
+    dayLabelTougher: 'Anstrengender Tag',
+
+    heroCheckinTitle: 'Täglicher Check-in',
+    heroCheckinSubtitle: 'Beginne damit, wie du dich heute fühlst.',
+    heroMealTitle: 'Mahlzeit analysieren',
+    heroMealSubtitle: 'Sieh, wie deine nächste Mahlzeit zu deinem Tag passt.',
+    heroProgressTitle: 'Deinen Fortschritt ansehen',
+    heroProgressSubtitle: 'Dein Tag nimmt Form an. Sieh, was GutWell erkennt.',
+
+    vsYesterday: 'ggü. gestern',
+    checkinDone: 'Erledigt',
+    checkinPending: 'Noch offen',
+    labelCheckins7d: 'Check-ins in 7 Tagen',
+    consistencyStart: 'Heute starten',
+    consistencyCount: '{n} von 7 Tagen',
     accessSeeAllRecent: 'Alle letzten Aktivitäten ansehen',
     triggerLinked: 'Möglicher Zusammenhang mit {symptom} — bei {withSymptoms} von {logged} Einträgen',
     triggerFollowed: 'Symptome folgten bei {withSymptoms} von {logged} Einträgen',

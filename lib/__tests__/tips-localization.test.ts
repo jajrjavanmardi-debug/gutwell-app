@@ -12,6 +12,7 @@
  */
 import { getAllTips, getTipCopy, TIP_COPY, type WellnessTip } from '../tips';
 import { translations } from '../i18n';
+import { BANNED_CLAIMS as SHARED_BANNED_CLAIMS } from './banned-claims';
 
 const TIPS = getAllTips();
 
@@ -72,12 +73,40 @@ describe('copy tables', () => {
     });
   });
 
-  test('specific English strings are unchanged', () => {
+  test('specific English strings are pinned', () => {
+    // Re-pinned to the softened wording from the Stage 3B claim-safety pass.
+    // Titles and tip ORDER are unchanged — only two bodies were reworded, so
+    // the day-of-year selection still returns the same tip it always did.
     expect(TIP_COPY.en[0].title).toBe('Chew slowly');
     expect(TIP_COPY.en[0].body).toBe(
-      'Chewing food thoroughly reduces bloating and improves nutrient absorption. Aim for 20-30 chews per bite.',
+      'Eating slowly and chewing thoroughly may help some people feel more comfortable after meals. Aim for 20-30 chews per bite.',
     );
     expect(TIP_COPY.en[19].title).toBe('Omega-3 fatty acids');
+    expect(TIP_COPY.en[19].body).toBe(
+      'Fish, walnuts, and flaxseeds contain omega-3s, which may support a healthy inflammatory balance.',
+    );
+  });
+
+  test('the causal phrasings replaced in Stage 3B cannot return', () => {
+    // The point of the rewrite, asserted as absence rather than as equality —
+    // an equality test only guards the one string it names, and these claims
+    // could reappear on any tip.
+    const RETIRED = [
+      'reduces bloating',
+      'reduce gut inflammation',
+      'directly impacts digestion',
+      'feeds harmful bacteria',
+      'reduziert Blähungen',
+      'wirkt sich Stress unmittelbar',
+      'nährt schädliche Bakterien',
+    ];
+    for (const lang of ['en', 'de'] as const) {
+      for (const copy of TIP_COPY[lang]) {
+        for (const phrase of RETIRED) {
+          expect(`${lang}: ${copy.body}`).not.toContain(phrase);
+        }
+      }
+    }
   });
 
   test('no German entry is left as English', () => {
@@ -220,7 +249,29 @@ describe('claim safety survives translation', () => {
     expect(TIP_COPY.de[12].body).toMatch(/in Verbindung gebracht/i);
   });
 
-  test('no tip in either language makes a banned claim', () => {
+  /**
+   * The shared list, not a private one.
+   *
+   * This suite used to carry five patterns of its own while i18n-coverage
+   * carried twenty-two. Tips are the third copy surface to have had its own
+   * weaker list, and the pattern each time is the same: the narrow list passes,
+   * the broad one would not have. `SHARED_BANNED_CLAIMS` is now the same array
+   * that guards i18n and the onboarding config — see banned-claims.ts.
+   */
+  test('no tip in either language makes a banned claim (shared list)', () => {
+    for (const lang of ['en', 'de'] as const) {
+      for (const copy of TIP_COPY[lang]) {
+        for (const pattern of SHARED_BANNED_CLAIMS) {
+          expect(`${lang} title: ${copy.title}`).not.toMatch(pattern);
+          expect(`${lang} body: ${copy.body}`).not.toMatch(pattern);
+        }
+      }
+    }
+  });
+
+  test('the original narrow tip patterns still hold', () => {
+    // Kept as well as, not instead of: these were the tips-specific rules and
+    // dropping them while widening coverage would be a net loss.
     const BANNED = [/guaranteed/i, /garantiert/i, /\bheilt\b/i, /\bcures?\b/i, /proven to/i];
     for (const lang of ['en', 'de'] as const) {
       for (const copy of TIP_COPY[lang]) {
