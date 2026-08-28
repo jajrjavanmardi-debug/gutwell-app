@@ -294,7 +294,10 @@ export const LEGACY_ONBOARDING_STEPS: OnboardingStep[] = [
     id: 'target_state',
     type: 'single-select',
     field: 'target_state',
-    title: 'Where do you want to be in 12 weeks?',
+    // See the i18n note on this key: the "in 12 weeks" horizon was removed as
+    // an implied improvement timeline. Copy-only — the step, its field and its
+    // options are untouched so the legacy sequence still rolls back cleanly.
+    title: 'Where do you want to get to?',
     subtitle: 'Pick the outcome that would change the most.',
     options: [
       { value: 'Symptom-free most days', label: 'Symptom-free most days', icon: 'sunny-outline' },
@@ -310,9 +313,16 @@ export const LEGACY_ONBOARDING_STEPS: OnboardingStep[] = [
     type: 'info',
     icon: 'trending-down-outline',
     illustration: 'trend',
-    title: 'Your symptoms can trend down',
-    body: 'People who track consistently with Gutwell tend to notice their flare-up days dropping within the first few weeks.',
-    caption: 'Steady tracking reveals what actually helps.',
+    // Copy-only correction. The original title promised a symptom trajectory
+    // ("Your symptoms can trend down") and the body promised a timeline for it
+    // ("...flare-up days dropping within the first few weeks") — an outcome
+    // claim about a health condition, with no evidence behind it. The i18n
+    // copy for this step had already been rewritten; these fallbacks had not,
+    // because no claim-safety test reached this file. They now match the
+    // approved i18n wording. Structure, id, type and illustration unchanged.
+    title: 'Your patterns can become easier to see',
+    body: 'Consistent tracking can help make personal patterns easier to notice over time.',
+    caption: 'Steady tracking is what makes patterns visible.',
   },
 
   // 15 — With/without comparison (info)
@@ -392,7 +402,11 @@ export const LEGACY_ONBOARDING_STEPS: OnboardingStep[] = [
     icon: 'heart-outline',
     illustration: 'icon',
     title: 'Thank you for trusting us',
-    body: 'Your gut data is personal. We treat it that way — encrypted, private, and never sold. You stay in control.',
+    // Aligned with the i18n wording for this step, which already avoided
+    // "treat": in a gut-health app that verb reads as medical treatment even
+    // in the "handle it that way" sense, and the claim-safety guard flags it
+    // for exactly that reason. Same meaning, no ambiguous verb.
+    body: 'Your gut data is personal. We keep it encrypted, private, and never sell it. You stay in control.',
     caption: "Let's set up the last few details.",
   },
 
@@ -419,11 +433,16 @@ export const LEGACY_ONBOARDING_STEPS: OnboardingStep[] = [
     type: 'info',
     icon: 'star-outline',
     illustration: 'rating',
-    title: 'Join thousands feeling better',
-    body: 'Gutwell members rate us highly for one reason: it helps them finally make sense of their symptoms.',
-    caption: 'Give us a rating to help others find Gutwell.',
+    // Aligned with the i18n wording, which had already been rewritten. The
+    // originals were fabricated social proof ("Join thousands feeling
+    // better") plus an outcome claim attributed to unnamed members ("it helps
+    // them finally make sense of their symptoms") — two of the oldest banned
+    // patterns in the list, sitting unguarded because no test read this file.
+    title: 'Build a clearer picture of your gut health',
+    body: 'Your feedback helps us improve GutWell AI.',
+    caption: 'Give us a rating to help others find GutWell AI.',
     skippable: true,
-    cta: 'Rate Gutwell',
+    cta: 'Rate GutWell AI',
   },
 
   // 26 — Referral code
@@ -497,17 +516,24 @@ export function computePlan(answers: Record<string, unknown>): {
 }
 
 /* ──────────────────────────────────────────────────────────────────────────
- * v1.0 ACTIVE ONBOARDING — exactly two questions.
+ * v1.0 ACTIVE ONBOARDING — exactly two questions, then one interlude.
  *
  * The 21-step sequence above asked for body measurements inherited from a
  * weight-loss template and eight tap-through interstitials. Only three of its
- * answers ever reached the database. These two steps preserve all three that
+ * answers ever reached the database. These steps preserve all three that
  * matter, and nothing else:
  *
  *   main_goal          → field 'goal'          → profiles.goal
  *   after_meal_feeling → field 'meal_feeling'  → profiles.gut_concern
  *                                                (feeds analyze-food via
  *                                                 photo-analysis.tsx)
+ *   context_interlude  → no field              → nothing persisted
+ *
+ * The interlude is the ONLY non-answerable step in the active flow and it is
+ * deliberately last: it explains how the app reads a meal immediately before
+ * the example analysis demonstrates it. It carries no `field`, so it writes
+ * nothing, and canAdvance() returns true for 'info' — Continue is always
+ * enabled and Back still walks to the feeling question.
  *
  * `id` drives the i18n lookup (t.onboardingSteps[id]); `field` is the storage
  * key and deliberately keeps its legacy name so the profile write in
@@ -552,17 +578,23 @@ export const ONBOARDING_STEPS: OnboardingStep[] = [
       { value: 'Pain', label: 'Pain or cramping', description: 'Stomach pain or cramps', icon: 'flash-outline' },
       { value: 'It varies', label: 'It varies', description: 'Depends on the meal', icon: 'shuffle-outline' },
     ],
-    // Optional, local-only. No database write, no AI payload — see StepChips.
-    chips: {
-      field: 'avoid',
-      options: [
-        { value: 'Lactose', label: 'Lactose' },
-        { value: 'Gluten', label: 'Gluten' },
-        { value: 'Spicy foods', label: 'Spicy foods' },
-        { value: 'High-fat foods', label: 'High-fat foods' },
-        { value: 'Other', label: 'Other' },
-      ],
-    },
+    // The optional "anything you avoid?" chip row was removed here. It wrote an
+    // `avoid` array into onboarding_answers and nothing ever read it: no
+    // profile column, no analyze-food field, no screen. Asking someone for
+    // dietary information and then discarding it is friction that buys nothing,
+    // and it was the only place in onboarding that collected an answer with no
+    // consumer. The StepChips type is retained for a future step that has one.
+  },
+  {
+    id: 'context_interlude',
+    type: 'info',
+    icon: 'layers-outline',
+    // 'icon' is the plain ring illustration — no comparison bars, no trend
+    // line. Both of those variants imply an outcome over time, which is
+    // exactly the claim this screen must not make.
+    illustration: 'icon',
+    title: 'Built around your context',
+    body: 'GutWell looks at your meals together with the symptoms and context you choose to share — not one-size-fits-all food rules.',
   },
 ];
 

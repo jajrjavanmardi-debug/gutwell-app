@@ -50,9 +50,15 @@ describe('step configuration', () => {
     expect(ONBOARDING_STEPS[0].type).toBe('single-select');
   });
 
-  test('avoid chips remain a separate optional field', () => {
-    expect(feeling.chips?.field).toBe('avoid');
-    expect(feeling.chips?.field).not.toBe(feeling.field);
+  test('the step carries no chip row, so meal_feeling is its only answer', () => {
+    // Replaces "avoid chips remain a separate optional field". The chip row
+    // was removed because nothing read the `avoid` key it wrote — see
+    // lib/onboarding-config.ts. Asserting its ABSENCE is the stronger of the
+    // two: the old test allowed any chip field as long as it differed from
+    // `meal_feeling`, so a second unread field could have been added and
+    // passed. This one fails on any chip row at all.
+    expect(feeling.chips).toBeUndefined();
+    expect(feeling.field).toBe('meal_feeling');
   });
 });
 

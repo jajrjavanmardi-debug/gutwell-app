@@ -190,7 +190,12 @@ const en = {
 
   welcome: {
     appName: 'GutWell AI',
-    createAccount: 'Create Account',
+    // Names what the next few screens actually produce rather than the account
+    // mechanics. "Create Account" described the form, not the reason to fill
+    // it in; the two questions that follow build a gut profile, and the CTA
+    // now says so. Only the label changed — the route, the stage write and the
+    // auth behaviour behind it are untouched (see app/(onboarding)/welcome.tsx).
+    createAccount: 'Build my Gut Profile',
     signIn: 'Sign In',
     // Split into segments so Terms and Privacy render as tappable links.
     legalPrefix: 'By continuing you agree to our',
@@ -202,7 +207,7 @@ const en = {
     legalSuffix: '.',
     accessTerms: 'Open Terms of Service',
     accessPrivacy: 'Open Privacy Policy',
-    accessCreateAccount: 'Create a new GutWell AI account',
+    accessCreateAccount: 'Build my Gut Profile and create a GutWell AI account',
     accessSignIn: 'Sign in to existing account',
     // Language selector shown before sign-up / sign-in.
     languageLabel: 'Language',
@@ -705,15 +710,15 @@ const en = {
         Pain: { label: 'Pain or cramping', description: 'Stomach pain or cramps' },
         'It varies': { label: 'It varies', description: 'Depends on the meal' },
       },
-      chipsTitle: 'Anything you tend to avoid?',
-      chipsOptional: 'Optional',
-      chips: {
-        Lactose: 'Lactose',
-        Gluten: 'Gluten',
-        'Spicy foods': 'Spicy foods',
-        'High-fat foods': 'High-fat foods',
-        Other: 'Other',
-      },
+    },
+    // Interlude, not a question. It states the product principle between the
+    // last question and the example analysis: GutWell reads a meal together
+    // with the context the user chose to share. Deliberately no field, no
+    // persistence, no number and no outcome — the claim is about HOW the app
+    // reads a meal, never about what will happen to anyone's symptoms.
+    context_interlude: {
+      title: 'Built around your context',
+      body: 'GutWell looks at your meals together with the symptoms and context you choose to share — not one-size-fits-all food rules.',
     },
     sex: {
       title: 'Which best describes you?',
@@ -758,7 +763,10 @@ const en = {
       },
     },
     target_state: {
-      title: 'Where do you want to be in 12 weeks?',
+      // "in 12 weeks" removed: a named horizon turns a preference question
+      // into an implied timeline for improvement. The step is unreachable,
+      // but the string is scanned by the claim-safety guard either way.
+      title: 'Where do you want to get to?',
       subtitle: 'Pick the outcome that would change the most.',
       options: {
         'Symptom-free most days': 'Symptom-free most days',
@@ -1784,7 +1792,7 @@ const de: Translations = {
 
   welcome: {
     appName: 'GutWell AI',
-    createAccount: 'Konto erstellen',
+    createAccount: 'Mein Darmprofil erstellen',
     signIn: 'Anmelden',
     legalPrefix: 'Mit der Nutzung stimmst du unseren',
     legalTerms: 'Nutzungsbedingungen',
@@ -1793,7 +1801,7 @@ const de: Translations = {
     legalSuffix: 'zu.',
     accessTerms: 'Nutzungsbedingungen öffnen',
     accessPrivacy: 'Datenschutzrichtlinie öffnen',
-    accessCreateAccount: 'Neues GutWell AI Konto erstellen',
+    accessCreateAccount: 'Darmprofil erstellen und neues GutWell AI Konto anlegen',
     accessSignIn: 'Bei bestehendem Konto anmelden',
     languageLabel: 'Sprache',
     accessLanguageHint: 'Öffnet ein Menü zur Auswahl der App-Sprache',
@@ -2218,15 +2226,10 @@ const de: Translations = {
         Pain: { label: 'Schmerzen oder Krämpfe', description: 'Bauchschmerzen oder Krämpfe' },
         'It varies': { label: 'Unterschiedlich', description: 'Kommt auf das Essen an' },
       },
-      chipsTitle: 'Meidest du etwas davon?',
-      chipsOptional: 'Optional',
-      chips: {
-        Lactose: 'Laktose',
-        Gluten: 'Gluten',
-        'Spicy foods': 'Scharfes',
-        'High-fat foods': 'Fettreiches',
-        Other: 'Anderes',
-      },
+    },
+    context_interlude: {
+      title: 'Auf deinen Kontext abgestimmt',
+      body: 'GutWell betrachtet deine Mahlzeiten gemeinsam mit den Symptomen und dem Kontext, die du teilen möchtest – statt nach pauschalen Ernährungsregeln.',
     },
     sex: {
       title: 'Was trifft am besten auf dich zu?',
@@ -2271,7 +2274,7 @@ const de: Translations = {
       },
     },
     target_state: {
-      title: 'Wo möchtest du in 12 Wochen stehen?',
+      title: 'Wo möchtest du hinkommen?',
       subtitle: 'Wähle das Ergebnis, das am meisten verändern würde.',
       options: {
         'Symptom-free most days': 'An den meisten Tagen beschwerdefrei',
