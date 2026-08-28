@@ -1041,10 +1041,78 @@ const en = {
     patternsTitle: 'Patterns take shape with data',
     patternsMessage: 'Keep checking in — trends and correlations appear after about 7 days of daily logging.',
     patternsAction: "Log Today's Check-in",
+    // statusThriving / statusBuilding / statusNeedsCare were the organ-state
+    // labels on the retired Gut Health Index. Progress now reuses the SAME
+    // day-oriented vocabulary Home uses (t.home.dayLabel*) rather than keeping
+    // a second set that could drift from it. The keys stay defined because
+    // other surfaces may still reference them; Progress no longer does.
     statusThriving: 'Thriving',
     statusBuilding: 'Building',
     statusNeedsCare: 'Needs care',
     noDataScore: 'No data',
+
+    // ── A. Current summary ────────────────────────────────────────────────
+    // Two titles, because the most recent score in the period is not
+    // necessarily today's. Calling a four-day-old number "Current" was the
+    // mismatch with Home, which shows "No score yet" on the same day.
+    scoreTitleToday: "Today's GutWell Score",
+    scoreTitleLatest: 'Latest GutWell Score',
+    scoreProvenanceToday: 'Based on today’s check-in',
+    scoreProvenanceOlder: 'From your check-in on {date}',
+    scoreEmptyTitle: 'No score yet',
+    scoreEmptyBody: 'Complete a check-in to start building your score history.',
+
+    // ── B. What GutWell is learning ───────────────────────────────────────
+    // Presentation only. Both thresholds are the ones already enforced in
+    // code: 3 scores for the recent insight, 5 logged meals before
+    // lib/correlations.ts will look for patterns at all.
+    learningTitle: 'What GutWell is learning',
+    learningScoresLabel: 'Score history',
+    learningScoresProgress: '{n} of 3 check-ins',
+    learningScoresReady: 'Recent insight available',
+    learningMealsLabel: 'Meal patterns',
+    learningMealsProgress: '{n} of 5 meals',
+    learningMealsReady: 'Pattern analysis available',
+
+    // ── C. Trends ─────────────────────────────────────────────────────────
+    trendsTitle: 'Trends',
+    // Shown instead of a chart or an average when the sample is too small for
+    // either to mean anything. No invented value, no fake precision.
+    lowDataMore: 'More check-ins needed',
+    lowDataTrend: 'More data needed for a trend',
+    // Window is otherwise invisible: these counts follow the period toggle.
+    windowSuffix: 'Last {period}',
+    // Chart summaries for VoiceOver — built from values already on screen.
+    a11yScoreTrend: 'GutWell Score trend. {n} recorded scores in this period. Latest score {latest}.',
+    a11yMoodTrend: 'Mood trend. {n} recorded mood check-ins.',
+    a11yStoolTrend: 'Stool trend. {n} recorded check-ins.',
+    a11yCalendar: 'Check-in consistency calendar. {n} check-ins in this period.',
+
+    // ── D. Possible patterns ──────────────────────────────────────────────
+    // Replaces HIGH / MEDIUM / LOW. Describes the strength of an OBSERVED
+    // pattern, never a risk, never a verdict about a food.
+    patternStronger: 'Stronger pattern',
+    patternPossible: 'Possible pattern',
+    patternEarly: 'Early pattern',
+    // Was a bare "{pct}% correlation". This says what the number counts.
+    patternCoOccurrence: 'Seen together in {pct}% of logged cases',
+
+    // ── E. Milestones ─────────────────────────────────────────────────────
+    // Mood scale labels — were a hardcoded English record inside the screen.
+    moodLabels: { '1': 'Bad', '2': 'Low', '3': 'Okay', '4': 'Good', '5': 'Great' },
+    milestonesTitle: 'Milestones',
+    bestStreakLabel: 'Best streak',
+    bestStreakValue: '{n} days',
+    nextLevelLabel: 'Next: {name}',
+    // Display names for the levels in lib/levels.ts, keyed by their stable
+    // internal `key`. Thresholds and identifiers are untouched.
+    levelNames: {
+      beginner: 'Beginner',
+      explorer: 'Explorer',
+      tracker: 'Tracker',
+      specialist: 'Specialist',
+      guru: 'Gut Guru',
+    },
     premiumTriggerTeaser: 'See all your trigger foods and safe foods with Premium',
     premiumFoodInsights: 'Unlock food-symptom insights with Premium',
     windowLabels: { '3': '3 days', '7': '7 days', '14': '14 days', '30': '30 days', '90': '90 days', null: 'All Time' },
@@ -1541,7 +1609,10 @@ const en = {
     shareButton: 'Share',
     close: 'Close',
     // {score} and {streak} are substituted at runtime.
-    shareMessage: 'My GutWell AI Gut Score this week: {score}/100 🌿 Day {streak} streak! Download GutWell AI to track your gut health.',
+    // Qualifier added so the number is not read as a measurement by whoever
+    // receives it. Score, streak and level only — never symptoms, meal names,
+    // photos, email or display name.
+    shareMessage: 'My GutWell AI Score this week: {score}/100, based on my GutWell check-ins 🌿 Day {streak} streak! Download GutWell AI to track your gut health.',
   },
 
   // ── Tab bar + quick-action menu + tab error boundary ──────────────────────
@@ -2598,6 +2669,48 @@ const de: Translations = {
     statusBuilding: 'Im Aufbau',
     statusNeedsCare: 'Braucht Pflege',
     noDataScore: 'Keine Daten',
+
+    scoreTitleToday: 'Heutiger GutWell-Score',
+    scoreTitleLatest: 'Letzter GutWell-Score',
+    scoreProvenanceToday: 'Basierend auf deinem heutigen Check-in',
+    scoreProvenanceOlder: 'Aus deinem Check-in vom {date}',
+    scoreEmptyTitle: 'Noch kein Score',
+    scoreEmptyBody: 'Mach einen Check-in, um deinen Score-Verlauf aufzubauen.',
+
+    learningTitle: 'Was GutWell gerade lernt',
+    learningScoresLabel: 'Score-Verlauf',
+    learningScoresProgress: '{n} von 3 Check-ins',
+    learningScoresReady: 'Aktuelle Auswertung verfügbar',
+    learningMealsLabel: 'Mahlzeiten-Muster',
+    learningMealsProgress: '{n} von 5 Mahlzeiten',
+    learningMealsReady: 'Musteranalyse verfügbar',
+
+    trendsTitle: 'Verläufe',
+    lowDataMore: 'Mehr Check-ins nötig',
+    lowDataTrend: 'Für einen Verlauf sind mehr Daten nötig',
+    windowSuffix: 'Letzte {period}',
+    a11yScoreTrend: 'Verlauf des GutWell-Scores. {n} erfasste Werte in diesem Zeitraum. Letzter Wert {latest}.',
+    a11yMoodTrend: 'Stimmungsverlauf. {n} erfasste Stimmungs-Check-ins.',
+    a11yStoolTrend: 'Stuhlverlauf. {n} erfasste Check-ins.',
+    a11yCalendar: 'Kalender zur Check-in-Regelmäßigkeit. {n} Check-ins in diesem Zeitraum.',
+
+    patternStronger: 'Deutlicheres Muster',
+    patternPossible: 'Mögliches Muster',
+    patternEarly: 'Frühes Muster',
+    patternCoOccurrence: 'In {pct}% der erfassten Fälle gemeinsam aufgetreten',
+
+    moodLabels: { '1': 'Schlecht', '2': 'Mäßig', '3': 'Okay', '4': 'Gut', '5': 'Sehr gut' },
+    milestonesTitle: 'Meilensteine',
+    bestStreakLabel: 'Längste Serie',
+    bestStreakValue: '{n} Tage',
+    nextLevelLabel: 'Als Nächstes: {name}',
+    levelNames: {
+      beginner: 'Einsteiger',
+      explorer: 'Entdecker',
+      tracker: 'Tracker',
+      specialist: 'Spezialist',
+      guru: 'Darm-Profi',
+    },
     premiumTriggerTeaser: 'Alle Trigger- und sichere Lebensmittel mit Premium ansehen',
     premiumFoodInsights: 'Ernährungs-Symptom-Einblicke mit Premium freischalten',
     windowLabels: { '3': '3 Tage', '7': '7 Tage', '14': '14 Tage', '30': '30 Tage', '90': '90 Tage', null: 'Gesamt' },
@@ -3035,7 +3148,7 @@ const de: Translations = {
     actionsTitle: 'Teile deinen Fortschritt',
     shareButton: 'Teilen',
     close: 'Schließen',
-    shareMessage: 'Mein GutWell AI Darm-Score diese Woche: {score}/100 🌿 Tag {streak} in Folge! Lade GutWell AI herunter, um deine Darmgesundheit zu verfolgen.',
+    shareMessage: 'Mein GutWell AI Score diese Woche: {score}/100, basierend auf meinen GutWell Check-ins 🌿 Tag {streak} in Folge! Lade GutWell AI herunter, um deine Darmgesundheit zu verfolgen.',
   },
 
   tabs: {
