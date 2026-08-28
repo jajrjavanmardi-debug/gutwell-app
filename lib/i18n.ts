@@ -157,6 +157,52 @@ const en = {
   // Copy rules: this screen shows a SAMPLE meal, never the user's own data.
   // No diagnosis or treatment language, no promised outcome, no personalisation
   // claim. Hedged wording only ("may", "for some people", "notice how you feel").
+  /**
+   * Gut Profile Reveal — shown after the example, before signup.
+   *
+   * Every line here restates something the user selected. Nothing is derived,
+   * scored or predicted, and the wording is hedged on purpose: "may be
+   * associated with", "possible", "can become", "over time". There is no
+   * number, no percentage, no risk language and no claim that an analysis has
+   * already run — no account exists yet at this point in the flow.
+   */
+  profileReveal: {
+    eyebrow: 'YOUR STARTING PROFILE',
+    title: 'Your Gut Profile is taking shape',
+    intro:
+      'Based on what you shared, GutWell will start by focusing on the patterns that matter most to you.',
+    focusLabel: 'YOUR FOCUS',
+    patternLabel: 'AFTER-MEAL PATTERN',
+    // Keyed by the stable goal value stored in onboarding_answers.
+    focus: {
+      'Reduce bloating': 'Understanding meals that may be associated with bloating',
+      'Improve digestion': 'Building a clearer picture of your everyday digestion',
+      'Find food triggers': 'Looking for possible food and symptom patterns over time',
+      'Improve everyday wellbeing': 'Understanding how meals fit into how you feel day to day',
+      // Used when the answer is missing, empty or from an older build.
+      fallback: 'Building a clearer picture of how meals fit into your day',
+    },
+    // Keyed by the stable meal_feeling values. Several can apply at once, and
+    // they are never ranked — none of these implies severity or a cause.
+    feeling: {
+      Comfortable: 'Meals often feel comfortable',
+      Bloated: 'Bloating is something you want to watch',
+      Heavy: 'Some meals can feel heavy',
+      Pain: 'Post-meal discomfort is something you want to track',
+      'It varies': 'How you feel after meals varies',
+      fallback: 'You can add how meals feel as you log them',
+    },
+    expectation:
+      'GutWell can become more useful as you log meals, symptoms and check-ins over time.',
+    disclaimer: 'This is a personal tracking profile, not a medical assessment.',
+    // "Continue", not "Save my Gut Profile": no account exists yet and nothing
+    // is written anywhere by this screen, so a save label would describe
+    // something that does not happen.
+    cta: 'Continue',
+    accessCta: 'Continue to create your account',
+    accessBack: 'Go back',
+  },
+
   example: {
     label: 'Example analysis',
     intro: 'This is what a result looks like. It uses a sample meal — not your data.',
@@ -1760,6 +1806,36 @@ const de: Translations = {
     accessSaveButton: 'Passwort aktualisieren',
   },
   // ── Onboarding — Beispielanalyse (statisch, vor der Registrierung) ────────
+  profileReveal: {
+    eyebrow: 'DEIN STARTPROFIL',
+    title: 'Dein Darmprofil nimmt Form an',
+    intro:
+      'Basierend auf deinen Angaben konzentriert sich GutWell zunächst auf die Muster, die für dich am wichtigsten sind.',
+    focusLabel: 'DEIN FOKUS',
+    patternLabel: 'NACH DEM ESSEN',
+    focus: {
+      'Reduce bloating': 'Mahlzeiten verstehen, die mit Blähungen einhergehen können',
+      'Improve digestion': 'Ein klareres Bild deiner alltäglichen Verdauung gewinnen',
+      'Find food triggers': 'Mit der Zeit mögliche Zusammenhänge zwischen Essen und Beschwerden erkennen',
+      'Improve everyday wellbeing': 'Verstehen, wie Mahlzeiten in dein tägliches Befinden passen',
+      fallback: 'Ein klareres Bild davon gewinnen, wie Mahlzeiten in deinen Tag passen',
+    },
+    feeling: {
+      Comfortable: 'Mahlzeiten fühlen sich oft angenehm an',
+      Bloated: 'Blähungen möchtest du im Blick behalten',
+      Heavy: 'Manche Mahlzeiten können schwer im Magen liegen',
+      Pain: 'Beschwerden nach dem Essen möchtest du festhalten',
+      'It varies': 'Wie du dich nach dem Essen fühlst, ist unterschiedlich',
+      fallback: 'Du kannst beim Loggen ergänzen, wie sich Mahlzeiten anfühlen',
+    },
+    expectation:
+      'GutWell kann mit der Zeit nützlicher werden, je mehr Mahlzeiten, Beschwerden und Check-ins du festhältst.',
+    disclaimer: 'Dies ist ein persönliches Tracking-Profil und keine medizinische Beurteilung.',
+    cta: 'Weiter',
+    accessCta: 'Weiter zur Kontoerstellung',
+    accessBack: 'Zurück',
+  },
+
   example: {
     label: 'Beispielanalyse',
     intro: 'So sieht ein Ergebnis aus. Es zeigt eine Beispielmahlzeit — nicht deine Daten.',

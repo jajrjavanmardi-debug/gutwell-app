@@ -35,8 +35,17 @@ export default function ExampleScreen() {
   const handleCreateAccount = () => {
     // Stage advances before navigation so a relaunch resumes at signup rather
     // than replaying the example.
+    //
+    // The stage stays 'signup' even though the next screen is now the Gut
+    // Profile Reveal rather than the signup form. That is deliberate: the
+    // stage names the LEG of the funnel ("past the example, heading to account
+    // creation"), and the reveal is part of that leg — it collects nothing,
+    // writes nothing, and exists only to show the answers back. Giving it a
+    // stage of its own would mean widening the OnboardingStage union and the
+    // routing table for a screen that cannot be resumed into any differently
+    // than the signup form already is.
     void saveLocalStage('signup');
-    router.push('/(auth)/signup');
+    router.push('/(onboarding)/profile-reveal');
   };
 
   const sections = [
