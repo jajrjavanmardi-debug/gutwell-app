@@ -32,6 +32,7 @@ import {
   tryStartExpoSpeechRecognition,
 } from '../lib/meal-voice-session';
 import { canUseNativeSpeechToText } from '../lib/runtime-environment';
+import { useReducedMotion } from '../lib/useReducedMotion';
 import { analyzeMealPhoto, analyzeMealText, reviseMealAnalysis } from '../lib/RecommendationEngine';
 import { isPremiumFeature } from '../lib/subscription';
 import {
@@ -363,6 +364,16 @@ export default function PhotoAnalysisScreen() {
   const [wizardStep, setWizardStep] = useState<WizardStep>(1);
   const [accuracyAnswer, setAccuracyAnswer] = useState<'yes' | 'no' | null>(null);
   /**
+   * True from a successful revision until the next new analysis.
+   *
+   * The revised text used to replace the previous one with no marker at all,
+   * so a user who refined could not tell whether anything had happened. This
+   * is a presentation flag only — no second version is stored, no diff is
+   * computed, and nothing is persisted.
+   */
+  const [revisionJustApplied, setRevisionJustApplied] = useState(false);
+  const reduceMotion = useReducedMotion();
+  /**
    * The concise food label shown as the headline and in the Meal chip.
    *
    * Held in state rather than re-derived from the analysis on every render,
@@ -529,7 +540,9 @@ export default function PhotoAnalysisScreen() {
   const hasPainSymptom =
     currentSymptoms.some((symptom) => hasPainText(symptom)) ||
     hasPainText(mealDescription);
-  const shouldShowMealScoreBadge = true; // SCORE badge re-enabled for GutWell meal impact scoring
+  // `shouldShowMealScoreBadge` was a hardcoded `true` gating the bespoke score
+  // badge. The badge is gone; AnalysisResult renders the score when the model
+  // produced one, so the flag has nothing left to gate.
   const mealImpactScore = extractMealImpactScore(analysis);
   const wizardSubtitle =
     wizardStep === 1 ? t.photoAnalysis.wizardStep1Subtitle : wizardStep === 2 ? t.photoAnalysis.wizardStep2Subtitle : t.photoAnalysis.wizardStep3Subtitle;
@@ -571,6 +584,21 @@ export default function PhotoAnalysisScreen() {
       micGlowOpacity.setValue(1);
       return;
     }
+    /**
+     * Reduce Motion: no pulse, no glow — and nothing scheduled.
+     *
+     * A continuously looping scale-and-fade is exactly what that setting
+     * exists to stop. Recording is unaffected: the mic still records, the
+     * button still shows its active state through colour and its
+     * accessibility label, and the transcript still streams. Only the
+     * decoration is dropped, so the recording state stays obvious without
+     * moving.
+     */
+    if (reduceMotion) {
+      recordingPulse.setValue(1);
+      micGlowOpacity.setValue(1);
+      return;
+    }
     const loop = Animated.loop(
       Animated.parallel([
         Animated.sequence([
@@ -601,7 +629,7 @@ export default function PhotoAnalysisScreen() {
     );
     loop.start();
     return () => loop.stop();
-  }, [voiceNativeEnabled, isListening, voiceTarget, recordingPulse, micGlowOpacity]);
+  }, [voiceNativeEnabled, isListening, voiceTarget, recordingPulse, micGlowOpacity, reduceMotion]);
 
   /**
    * Location is strictly OPT-IN: no permission prompt on mount. The user taps
@@ -889,6 +917,9 @@ export default function PhotoAnalysisScreen() {
    */
   const runTextAnalysis = async (description: string) => {
     setIsAnalyzing(true);
+    // A new analysis is not a revision — clear the marker so it cannot
+    // linger over a fresh result.
+    setRevisionJustApplied(false);
     setPlanBMessage('');
     setUserFeedback([]);
 
@@ -952,6 +983,7 @@ export default function PhotoAnalysisScreen() {
     feelingsNarrative: string,
   ) => {
     setIsAnalyzing(true);
+    setRevisionJustApplied(false);
     setPhotoUri(uri);
     setLastImageBase64(imageBase64);
     setPlanBMessage('');
@@ -1294,7 +1326,11 @@ export default function PhotoAnalysisScreen() {
         t.photoAnalysis.painApology,
         hasPainSymptom || hasPainText(correction)
       );
+      // Set only after the request resolved: until this line the previous
+      // analysis is still the one on screen, so a failure leaves the user
+      // with the result they had rather than a blank surface.
       setAnalysis(correctedAnalysis);
+      setRevisionJustApplied(true);
       // The food identity survives a refinement that only adds timing,
       // symptoms or context — which is most of them. Re-deriving it from the
       // revised text is what turned the headline into "Focusing on meal
@@ -1642,7 +1678,76 @@ export default function PhotoAnalysisScreen() {
    * Only meaningful in onboarding mode; the normal result below reads none of
    * them and is byte-for-byte unchanged.
    */
-  const onboardingSections = parseAnalysisSections(isOnboarding ? analysis : '');
+  /**
+   * Parsed once, shared by both result surfaces.
+   *
+   * There used to be a separate `onboardingSections` that parsed
+   * `isOnboarding ? analysis : ''`, because onboarding was the only surface
+   * that needed sections. Now that the in-app result renders through the same
+   * component, a second parse of the same string would be pure duplication —
+   * and two parses are two things that can disagree.
+   */
+  const resultSections = parseAnalysisSections(analysis);
+
+  /**
+   * "What GutWell considered" — the context that was actually sent, shown back.
+   *
+   * Every row is built from a value already in the request payload, so this
+   * card cannot claim the analysis used something it did not receive. Rows
+   * with no value are omitted rather than rendered empty, and the location row
+   * shows only the already-coarse place text — `locationContext` never holds
+   * coordinates (see formatLocationContext, which discards them).
+   *
+   * Wording is "considered", never "determined by" or "caused by": these are
+   * inputs, not attributions.
+   */
+  const contextRows: { key: string; label: string; value: string }[] = [
+    {
+      key: 'symptoms',
+      label: t.analysisResult.contextSymptoms,
+      value: selectedStateSymptoms.join(', '),
+    },
+    {
+      key: 'afterMeal',
+      label: t.analysisResult.contextAfterMeal,
+      value: afterMealActivity ?? '',
+    },
+    {
+      key: 'profile',
+      label: t.analysisResult.contextProfile,
+      value: gutProfileContext.conditions.join(', '),
+    },
+    {
+      key: 'supplements',
+      label: t.analysisResult.contextSupplements,
+      value: todaysSupplements.map((item) => item.name).join(', '),
+    },
+    {
+      key: 'location',
+      label: t.analysisResult.contextLocation,
+      value: locationContext,
+    },
+    {
+      key: 'notes',
+      label: t.analysisResult.contextNotes,
+      value: mealDescription.trim(),
+    },
+  ].filter((row) => row.value.trim().length > 0);
+
+  const contextSummaryNode =
+    contextRows.length > 0 ? (
+      <View style={styles.contextCard} accessible accessibilityRole="summary">
+        <Text style={styles.contextTitle} accessibilityRole="header">
+          {t.analysisResult.contextTitle}
+        </Text>
+        {contextRows.map((row) => (
+          <View key={row.key} style={styles.contextRow}>
+            <Text style={styles.contextLabel}>{row.label}</Text>
+            <Text style={styles.contextValue}>{row.value}</Text>
+          </View>
+        ))}
+      </View>
+    ) : null;
 
   /**
    * Profile context as one line, or '' when the profile carries nothing.
@@ -1680,7 +1785,7 @@ export default function PhotoAnalysisScreen() {
    * of opening onto nothing. In practice that is the common case today.
    */
   const onboardingMoreContent =
-    onboardingProfileLine || onboardingSections.preamble || onboardingPlanB ? (
+    onboardingProfileLine || resultSections.preamble || onboardingPlanB ? (
       <>
         {onboardingProfileLine ? (
           <View style={styles.profileCard}>
@@ -1688,8 +1793,8 @@ export default function PhotoAnalysisScreen() {
             <Text style={styles.profileText}>{onboardingProfileLine}</Text>
           </View>
         ) : null}
-        {onboardingSections.preamble ? (
-          <Text style={styles.resultText}>{onboardingSections.preamble}</Text>
+        {resultSections.preamble ? (
+          <Text style={styles.resultText}>{resultSections.preamble}</Text>
         ) : null}
         {onboardingPlanB ? (
           <View style={styles.planBCard}>
@@ -2233,8 +2338,22 @@ export default function PhotoAnalysisScreen() {
                  below is untouched — this is an additional branch, not a
                  rewrite of it. Actions (Log meal, Share, Copy, accuracy, New
                  Scan) are omitted here; the meal is persisted by Continue. */
+              <>
+              {/* Reinforces the onboarding promise at the moment it pays off.
+                  Shown only when there IS context to have used, and worded as
+                  "using", not "calculated from" — no claim that any single
+                  field was decisive. */}
+              {contextRows.length > 0 ? (
+                <View style={styles.personalizedRow}>
+                  <Ionicons name="sparkles-outline" size={14} color={Colors.secondary} />
+                  <Text style={styles.personalizedText}>{t.analysisResult.personalizedLine}</Text>
+                </View>
+              ) : null}
               <AnalysisResult
                 photoUri={photoUri}
+                scoreLabel={t.analysisResult.scoreLabel}
+                scoreNote={t.analysisResult.scoreNote}
+                contextSummary={contextSummaryNode}
                 // The same stable identity as the normal result's headline, so
                 // the onboarding surface cannot drift from it. Re-deriving here
                 // would reintroduce exactly the narrative-in-the-headline
@@ -2242,11 +2361,12 @@ export default function PhotoAnalysisScreen() {
                 mealName={mealIdentity || t.photoAnalysis.mealTitleFallback}
                 score={mealImpactScore}
                 scoreReason={extractScoreReason(analysis)}
-                sections={onboardingSections}
+                sections={resultSections}
                 raw={sanitizeAnalysisForDisplay(analysis)}
                 safetyNotice={onboardingSafetyNotice}
                 moreContent={onboardingMoreContent}
               />
+              </>
             ) : null}
 
             {wizardStep === 3 && !isOnboarding ? (
@@ -2307,69 +2427,40 @@ export default function PhotoAnalysisScreen() {
                 {analysis ? (
                   <>
                   <View style={styles.resultCard}>
-                    {photoUri ? (
-                      <Image source={{ uri: photoUri }} style={styles.resultHeroImage} />
-                    ) : null}
-                    <View style={styles.resultHeader}>
-                      <View style={styles.resultTitleRow}>
-                        <Ionicons name="nutrition" size={20} color={Colors.secondary} />
-                        <View style={styles.resultTitleTextBlock}>
-                          <Text style={[styles.resultMealName]} numberOfLines={1}>
-                            {mealIdentity || t.photoAnalysis.mealTitleFallback}
-                          </Text>
-                          <Text style={[styles.resultTitle]}>{t.photoAnalysis.resultTitle}</Text>
-                        </View>
-                      </View>
-                    </View>
-                    {shouldShowMealScoreBadge && mealImpactScore ? (
-                      <View style={[
-                        styles.scoreBadge,
-                        hasPainSymptom && styles.scorePainBadge,
-                      ]}>
-                        <Ionicons name="speedometer" size={18} color={Colors.textInverse} />
-                        <Text style={styles.scoreBadgeValue}>{mealImpactScore}</Text>
-                        {extractScoreReason(analysis) ? (
-                          <Text style={styles.scoreBadgeLabel} numberOfLines={1}>{extractScoreReason(analysis)}</Text>
-                        ) : null}
+                    {/* The in-app result now renders through the SAME surface
+                        onboarding uses. It previously had its own layout: hero
+                        image, title row, score badge, two info chips, an
+                        "insights" heading, then the entire analysis as one
+                        undifferentiated block of text — thirteen blocks with
+                        six equally weighted actions under them. That hierarchy
+                        was diagnosed and fixed once already, for the first
+                        result only, so every analysis after a user's first was
+                        a downgrade from it.
+
+                        Nothing is removed: Refine, Log meal, Share, Copy,
+                        accuracy and New Scan all still follow below, now as
+                        secondary weight rather than competing with the result.
+                        The fuller medicalDisclaimer stays at the end of this
+                        surface, so AnalysisResult's shorter one is suppressed
+                        rather than duplicated. */}
+                    {revisionJustApplied ? (
+                      <View style={styles.updatedBadge}>
+                        <Ionicons name="sparkles" size={13} color={Colors.secondary} />
+                        <Text style={styles.updatedBadgeText}>{t.analysisResult.updatedBadge}</Text>
                       </View>
                     ) : null}
-
-                    {/* Cal AI info-chips row — adapted to gut-impact (NO numeric food score). */}
-                    <View style={[styles.chipsRow]}>
-                      <View style={styles.infoChip}>
-                        <Ionicons
-                          name={hasPainSymptom ? 'alert-circle' : 'leaf'}
-                          size={14}
-                          color={hasPainSymptom ? '#F59E0B' : Colors.secondary}
-                        />
-                        <Text style={styles.infoChipLabel}>{t.photoAnalysis.chipGutImpact}</Text>
-                        <Text style={styles.infoChipValue}>
-                          {hasPainSymptom ? t.photoAnalysis.instantReliefTitle : t.photoAnalysis.resultTitle}
-                        </Text>
-                      </View>
-                      <View style={styles.infoChip}>
-                        <Ionicons name="restaurant" size={14} color={Colors.secondaryLight} />
-                        <Text style={styles.infoChipLabel}>{t.photoAnalysis.chipMealType}</Text>
-                        <Text style={styles.infoChipValue} numberOfLines={1}>
-                          {/* The same identity as the headline. This used to
-                              call extractMealName, which has no scaffolding
-                              guard, so the chip showed raw narrative —
-                              "Looks like you're w…" — even when the headline
-                              had correctly refused it. */}
-                          {mealIdentity || t.photoAnalysis.mealTitleFallback}
-                        </Text>
-                      </View>
-                    </View>
-
-                    {/* Cal AI "Ingredients … + Add more" header — here: gut insights + add detail. */}
-                    <View style={[styles.insightsHeaderRow]}>
-                      <Text style={[styles.insightsHeading]}>
-                        {t.photoAnalysis.insightsHeading}
-                      </Text>
-                    </View>
-
-                    <Text style={[styles.resultText]}>{sanitizeAnalysisForDisplay(analysis)}</Text>
-
+                    <AnalysisResult
+                      photoUri={photoUri}
+                      mealName={mealIdentity || t.photoAnalysis.mealTitleFallback}
+                      score={mealImpactScore}
+                      scoreReason={extractScoreReason(analysis)}
+                      scoreLabel={t.analysisResult.scoreLabel}
+                      scoreNote={t.analysisResult.scoreNote}
+                      sections={resultSections}
+                      raw={sanitizeAnalysisForDisplay(analysis)}
+                      contextSummary={contextSummaryNode}
+                      showDisclaimer={false}
+                    />
                     {/* The single entry point into revision, replacing the
                         "+ Add more" text link that sat in the header above and
                         read as a label. Same handler, same flow — only the
@@ -2396,6 +2487,11 @@ export default function PhotoAnalysisScreen() {
                     >
                       <Ionicons name="create-outline" size={20} color={Colors.secondary} />
                       <View style={styles.refineTextBlock}>
+                        {/* Prompt first, then the action. "Not quite right?"
+                            is what makes the affordance findable — the old
+                            block led with the verb, which reads as a feature
+                            name rather than an invitation. */}
+                        <Text style={styles.refinePrompt}>{t.photoAnalysis.refineAnalysisPrompt}</Text>
                         <Text style={styles.refineTitle}>{t.photoAnalysis.refineAnalysis}</Text>
                         <Text style={styles.refineHint}>{t.photoAnalysis.refineAnalysisHint}</Text>
                       </View>
@@ -3139,20 +3235,85 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     textAlign: 'center',
   },
-  resultHeroImage: {
-    borderRadius: BorderRadius.lg,
-    height: 170,
-    marginBottom: Spacing.md,
-    width: '100%',
+  // Styles for the retired in-app result layout (hero image, title row, score
+  // badge, info chips, insights heading) were removed with it.
+
+  // ── "What GutWell considered" ────────────────────────────────────────
+  // A quiet card: this is provenance, not a finding, so it must not compete
+  // with the sections below it.
+  refinePrompt: {
+    fontFamily: FontFamily.sansSemiBold,
+    fontSize: FontSize.md,
+    color: Colors.text,
   },
-  resultTitleTextBlock: {
-    flex: 1,
+
+  personalizedRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: Spacing.sm,
   },
-  resultMealName: {
+  personalizedText: {
+    fontFamily: FontFamily.sansMedium,
+    fontSize: 13,
+    color: Colors.secondary,
+    flexShrink: 1,
+  },
+
+  contextCard: {
+    padding: 14,
+    borderRadius: 14,
+    backgroundColor: 'rgba(255,255,255,0.04)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.08)',
+    gap: 8,
+  },
+  contextTitle: {
+    fontFamily: FontFamily.sansSemiBold,
+    fontSize: 12,
+    letterSpacing: 0.4,
+    textTransform: 'uppercase',
+    color: 'rgba(255,255,255,0.55)',
+  },
+  contextRow: { flexDirection: 'row', gap: 10, alignItems: 'flex-start' },
+  contextLabel: {
+    fontFamily: FontFamily.sansMedium,
+    fontSize: 13,
+    color: 'rgba(255,255,255,0.55)',
+    width: 116,
+    flexShrink: 0,
+  },
+  // flexShrink so a long German label or a long notes string wraps rather
+  // than clipping — no numberOfLines anywhere on this card.
+  contextValue: {
+    fontFamily: FontFamily.sansRegular,
+    fontSize: 14,
+    lineHeight: 20,
     color: '#FFFFFF',
-    fontFamily: FontFamily.displaySemiBold,
-    fontSize: FontSize.xl,
+    flex: 1,
+    flexShrink: 1,
   },
+
+  // ── Revision marker ──────────────────────────────────────────────────
+  updatedBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    alignSelf: 'flex-start',
+    paddingVertical: 5,
+    paddingHorizontal: 10,
+    borderRadius: BorderRadius.full,
+    backgroundColor: 'rgba(82,183,136,0.16)',
+    borderWidth: 1,
+    borderColor: 'rgba(82,183,136,0.4)',
+    marginBottom: Spacing.sm,
+  },
+  updatedBadgeText: {
+    fontFamily: FontFamily.sansSemiBold,
+    fontSize: 12,
+    color: Colors.secondary,
+  },
+
   resultCard: {
     backgroundColor: 'rgba(255,255,255,0.07)',
     borderColor: 'rgba(255,255,255,0.14)',
@@ -3161,57 +3322,11 @@ const styles = StyleSheet.create({
     padding: Spacing.lg,
     ...Shadows.sm,
   },
-  resultHeader: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    gap: Spacing.sm,
-    justifyContent: 'space-between',
-    marginBottom: Spacing.sm,
-  },
-  resultTitleRow: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    flex: 1,
-    flexShrink: 1,
-    gap: Spacing.sm,
-  },
   resultShareButton: {
     alignItems: 'center',
     height: 40,
     justifyContent: 'center',
     width: 40,
-  },
-  resultTitle: {
-    color: Colors.secondaryLight,
-    fontFamily: FontFamily.sansSemiBold,
-    fontSize: FontSize.sm,
-    marginTop: 2,
-  },
-  scoreBadge: {
-    alignItems: 'center',
-    alignSelf: 'flex-start',
-    backgroundColor: '#102C20',
-    borderRadius: BorderRadius.full,
-    flexDirection: 'row',
-    gap: Spacing.xs,
-    marginBottom: Spacing.md,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
-    ...Shadows.sm,
-  },
-  scorePainBadge: {
-    backgroundColor: '#F59E0B',
-  },
-  scoreBadgeLabel: {
-    color: '#B7F7D6',
-    fontFamily: FontFamily.sansSemiBold,
-    fontSize: FontSize.xs,
-    opacity: 0.9,
-  },
-  scoreBadgeValue: {
-    color: Colors.secondary,
-    fontFamily: FontFamily.sansBold,
-    fontSize: FontSize.md,
   },
   instantReliefCard: {
     backgroundColor: '#1B1205',
@@ -3529,47 +3644,6 @@ const styles = StyleSheet.create({
     gap: Spacing.sm,
     marginTop: Spacing.md,
     padding: Spacing.md,
-  },
-  chipsRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: Spacing.sm,
-    marginTop: Spacing.sm,
-    marginBottom: Spacing.md,
-  },
-  infoChip: {
-    alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.06)',
-    borderColor: 'rgba(255,255,255,0.12)',
-    borderRadius: BorderRadius.full,
-    borderWidth: 1,
-    flexDirection: 'row',
-    gap: Spacing.xs,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
-  },
-  infoChipLabel: {
-    color: '#9A9A9A',
-    fontFamily: FontFamily.sansMedium,
-    fontSize: FontSize.xs,
-  },
-  infoChipValue: {
-    color: '#FFFFFF',
-    flexShrink: 1,
-    fontFamily: FontFamily.sansSemiBold,
-    fontSize: FontSize.xs,
-    maxWidth: 140,
-  },
-  insightsHeaderRow: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: Spacing.sm,
-  },
-  insightsHeading: {
-    color: '#FFFFFF',
-    fontFamily: FontFamily.sansBold,
-    fontSize: FontSize.md,
   },
   refineButton: {
     alignItems: 'center',

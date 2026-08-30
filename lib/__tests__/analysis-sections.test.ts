@@ -365,18 +365,23 @@ describe('More detail carries only genuinely additional content', () => {
 
   test('it is undefined when there is nothing extra, so More disappears', () => {
     expect(more).toContain(') : undefined;');
-    expect(more).toContain('onboardingProfileLine || onboardingSections.preamble || onboardingPlanB');
+    expect(more).toContain('onboardingProfileLine || resultSections.preamble || onboardingPlanB');
   });
 
   test('it carries profile context, the preamble and Plan B', () => {
     expect(more).toContain('onboardingProfileLine');
-    expect(more).toContain('onboardingSections.preamble');
+    expect(more).toContain('resultSections.preamble');
     expect(more).toContain('onboardingPlanB');
   });
 
   test('the parse happens once and is shared with the component', () => {
-    expect(PHOTO).toContain('sections={onboardingSections}');
+    // Both surfaces now render through AnalysisResult, and both read the SAME
+    // parse — `onboardingSections` was removed rather than a second parse of
+    // the same string being added. Still exactly one call.
+    expect(PHOTO).toContain('sections={resultSections}');
+    expect(PHOTO).not.toContain('onboardingSections');
     expect(PHOTO.match(/parseAnalysisSections\(/g)).toHaveLength(1);
+    expect((PHOTO.match(/sections=\{resultSections\}/g) ?? []).length).toBe(2);
   });
 });
 

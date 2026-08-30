@@ -220,9 +220,16 @@ describe('new copy is localized and makes no medical claim', () => {
     const en = translations.en.photoAnalysis;
     const de = translations.de.photoAnalysis;
     expect(en.refineAnalysis).toBe('Refine analysis');
-    expect(en.refineAnalysisHint).toBe('Correct the meal, add details, or ask a follow-up');
+    // Re-pinned to the Stage 5B.2 wording. The hint now normalizes correction
+    // — naming what AI can miss — instead of listing what the box accepts.
+    expect(en.refineAnalysisPrompt).toBe('Not quite right?');
+    expect(en.refineAnalysisHint).toBe(
+      'AI can miss an ingredient or context. Add or correct a detail and GutWell will reconsider the analysis.',
+    );
     expect(de.refineAnalysis).toBe('Analyse verfeinern');
-    expect(de.refineAnalysisHint).toBe('Mahlzeit korrigieren, Details ergänzen oder nachfragen');
+    expect(de.refineAnalysisPrompt).toBe('Passt etwas nicht?');
+    expect(de.refineAnalysisHint).not.toBe(en.refineAnalysisHint);
+    expect(de.refineAnalysisHint.length).toBeGreaterThan(20);
   });
 
   test('no diagnosis or treatment language is introduced', () => {
@@ -246,8 +253,12 @@ describe('the meal identity is stable across refinement', () => {
    */
   test('identity is held in state, not re-derived on every render', () => {
     expect(code).toContain("const [mealIdentity, setMealIdentity] = useState('');");
-    // The headline and the chip both read that one value.
-    expect(code.match(/mealIdentity \|\| t\.photoAnalysis\.mealTitleFallback/g)?.length).toBe(3);
+    // Both result surfaces read that one value. The count dropped from 3 to 2
+    // in Stage 5B.2: the in-app surface's info chip was removed when that
+    // surface moved onto AnalysisResult, so the chip's read went with it. The
+    // invariant is unchanged — identity comes from state, never re-derived.
+    expect(code.match(/mealIdentity \|\| t\.photoAnalysis\.mealTitleFallback/g)?.length).toBe(2);
+    expect(code).not.toContain('extractMealName(analysis)');
   });
 
   test('a new analysis resolves identity from the model, then the user words', () => {
@@ -278,12 +289,21 @@ describe('the meal identity is stable across refinement', () => {
     expect(store).toContain("setMealIdentity('');");
   });
 
-  test('the chip no longer renders raw narrative', () => {
-    // It used to call extractMealName, which has no scaffolding guard, so it
-    // showed "Looks like you're w…" even when the headline refused it.
-    const chip = code.slice(code.indexOf('t.photoAnalysis.chipMealType'), code.indexOf('t.photoAnalysis.chipMealType') + 400);
-    expect(chip).not.toContain('extractMealName(analysis');
-    expect(chip).toContain('mealIdentity');
+  test('no result surface renders raw narrative as the meal name', () => {
+    /**
+     * Was "the chip no longer renders raw narrative". The chip it named was
+     * removed in Stage 5B.2 along with the rest of the old in-app layout, so
+     * the test now asserts the RULE rather than that one element: no surface
+     * may derive the displayed meal name from the analysis text, because
+     * extractMealName has no scaffolding guard and would show
+     * "Looks like you're w…". Every surface reads `mealIdentity`.
+     *
+     * Scoped to DISPLAY: extractMealName legitimately still names the row
+     * written to food_logs, which is persistence, not a headline.
+     */
+    const surfaces = code.match(/mealName=\{[^}]+\}/g) ?? [];
+    expect(surfaces.length).toBeGreaterThanOrEqual(2);
+    for (const s of surfaces) expect(s).toContain('mealIdentity');
   });
 });
 
@@ -375,7 +395,11 @@ describe('scoring was not touched', () => {
   test('the score still comes from the model, with no hardcoded fallback', () => {
     expect(code).toContain('extractMealImpactScore(');
     expect(code).not.toMatch(/mealImpactScore\s*(\?\?|\|\|)\s*5\b/);
-    expect(code).toContain('shouldShowMealScoreBadge && mealImpactScore');
+    // The bespoke score badge was replaced by AnalysisResult's score in
+    // Stage 5B.2. The guarantee is the same and is now asserted on the prop:
+    // the value comes from the model's text, never a fallback number.
+    expect(code).toContain('score={mealImpactScore}');
+    expect(code).not.toMatch(/score=\{\s*mealImpactScore\s*(\?\?|\|\|)/);
   });
 });
 

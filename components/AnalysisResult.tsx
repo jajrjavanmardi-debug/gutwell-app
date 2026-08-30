@@ -53,6 +53,29 @@ export type AnalysisResultProps = {
    * then disappears rather than opening onto a repeat.
    */
   moreContent?: React.ReactNode;
+  /**
+   * "What GutWell considered" — rendered between the score and the sections,
+   * because that is where a reader asks "why this answer?". Optional: a
+   * caller with no context to show passes nothing and the block disappears
+   * rather than rendering an empty card.
+   */
+  contextSummary?: React.ReactNode;
+  /**
+   * Short line under the score naming what the number is. Optional so the
+   * component stays usable without it.
+   */
+  scoreLabel?: string;
+  scoreNote?: string;
+  /**
+   * Whether to render the built-in disclaimer.
+   *
+   * Defaults to true, so every existing caller is unchanged. The in-app
+   * result screen sets it false because it already renders the fuller
+   * `photoAnalysis.medicalDisclaimer` at the end of its own surface — two
+   * disclaimers on one screen reads as a bug, and the longer one is the
+   * established legal copy.
+   */
+  showDisclaimer?: boolean;
 };
 
 export default function AnalysisResult({
@@ -64,6 +87,10 @@ export default function AnalysisResult({
   raw,
   safetyNotice,
   moreContent,
+  contextSummary,
+  scoreLabel,
+  scoreNote,
+  showDisclaimer = true,
 }: AnalysisResultProps) {
   const t = useTranslation();
   const [expanded, setExpanded] = useState(false);
@@ -113,13 +140,38 @@ export default function AnalysisResult({
       ) : null}
 
       {score ? (
-        <View style={styles.scoreRow} accessible accessibilityLabel={`${score}. ${scoreReason}`}>
-          <View style={styles.scorePill}>
-            <Text style={styles.scoreValue}>{score}</Text>
+        <View
+          style={styles.scoreBlock}
+          accessible
+          /* "7 out of 10" rather than "7/10": VoiceOver reads the slash as
+             punctuation, so the scale was lost. The label also names WHICH
+             score this is, because the app has two. */
+          accessibilityLabel={[
+            scoreLabel,
+            score.replace('/', ' out of '),
+            scoreReason,
+          ]
+            .filter(Boolean)
+            .join('. ')}
+        >
+          <View style={styles.scoreRow}>
+            <View style={styles.scorePill}>
+              <Text style={styles.scoreValue}>{score}</Text>
+            </View>
+            <View style={styles.scoreTextBlock}>
+              {/* Names the number. Without it this reads as "the" score, and
+                  the app already has a different one on Home and Progress. */}
+              {scoreLabel ? <Text style={styles.scoreLabel}>{scoreLabel}</Text> : null}
+              {scoreReason ? <Text style={styles.scoreReason}>{scoreReason}</Text> : null}
+            </View>
           </View>
-          {scoreReason ? <Text style={styles.scoreReason}>{scoreReason}</Text> : null}
+          {scoreNote ? <Text style={styles.scoreNote}>{scoreNote}</Text> : null}
         </View>
       ) : null}
+
+      {/* Position 3: what the analysis had to work with, before what it
+          concluded. */}
+      {contextSummary ?? null}
 
       {sections.complete ? (
         <View style={styles.sections}>
@@ -182,11 +234,14 @@ export default function AnalysisResult({
       ) : null}
 
       {/* Always visible and never inside More: it is the compliance line, and
-          it sits before the actions in reading order. */}
+          it sits before the actions in reading order. Suppressed only when the
+          caller renders its own — never suppressed to save space. */}
+      {showDisclaimer ? (
       <View style={styles.disclaimerRow}>
         <Ionicons name="shield-checkmark-outline" size={15} color="rgba(255,255,255,0.5)" />
         <Text style={styles.disclaimer}>{t.analysisResult.disclaimer}</Text>
       </View>
+      ) : null}
     </View>
   );
 }
@@ -196,7 +251,21 @@ const styles = StyleSheet.create({
   photo: { width: '100%', aspectRatio: 4 / 3, borderRadius: 18, backgroundColor: 'rgba(255,255,255,0.06)' },
   mealName: { fontFamily: FontFamily.sansSemiBold, fontSize: 20, color: '#FFFFFF' },
 
+  scoreBlock: { gap: 6 },
   scoreRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  scoreTextBlock: { flex: 1, flexShrink: 1, gap: 2 },
+  scoreLabel: {
+    fontFamily: FontFamily.sansSemiBold,
+    fontSize: 13,
+    color: 'rgba(255,255,255,0.9)',
+  },
+  // Provenance for the number: AI-generated, contextual, not a measurement.
+  scoreNote: {
+    fontFamily: FontFamily.sansRegular,
+    fontSize: 12,
+    lineHeight: 17,
+    color: 'rgba(255,255,255,0.5)',
+  },
   scorePill: {
     paddingVertical: 8,
     paddingHorizontal: 14,

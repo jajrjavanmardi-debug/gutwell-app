@@ -232,6 +232,24 @@ const en = {
     moreDetail: 'More detail',
     photoAlt: 'The meal you photographed',
     disclaimer: 'General wellness information, not a diagnosis.',
+    // ── Meal Impact Score ────────────────────────────────────────────────
+    // Named so it cannot be read as the daily 0-100 GutWell Score on Home and
+    // Progress. Different thing, different scale, different inputs.
+    scoreLabel: 'Meal Impact Score',
+    scoreNote: 'An AI-generated reflection on how this meal may fit your current context.',
+    // ── What GutWell considered ──────────────────────────────────────────
+    // "Considered" throughout — never "determined by" or "caused by". Rows
+    // appear only when their value exists.
+    contextTitle: 'What GutWell considered',
+    contextSymptoms: 'Symptoms',
+    contextAfterMeal: 'After meal',
+    contextProfile: 'Gut profile',
+    contextSupplements: 'Supplements today',
+    contextLocation: 'Local context',
+    contextNotes: 'Your notes',
+    // Shown above the first analysis only, reinforcing the onboarding promise.
+    personalizedLine: 'Using the context you shared',
+    updatedBadge: 'Updated analysis',
   },
 
   welcome: {
@@ -1331,7 +1349,10 @@ const en = {
     // "Refine", not "Fix": the result is not broken, and correcting the meal
     // is only one of the three things this does.
     refineAnalysis: 'Refine analysis',
-    refineAnalysisHint: 'Correct the meal, add details, or ask a follow-up',
+    // Normalizes correction without claiming the AI is unreliable: it can miss
+    // an ingredient or a piece of context, and the user is the one who knows.
+    refineAnalysisPrompt: 'Not quite right?',
+    refineAnalysisHint: 'AI can miss an ingredient or context. Add or correct a detail and GutWell will reconsider the analysis.',
     // Its own state on the Generate button. isAnalyzing also disables the
     // button, so without this a working request looked like an unavailable one.
     analysing: 'Analysing…',
@@ -1981,6 +2002,17 @@ const de: Translations = {
     moreDetail: 'Mehr Details',
     photoAlt: 'Die Mahlzeit, die du fotografiert hast',
     disclaimer: 'Allgemeine Informationen zum Wohlbefinden, keine Diagnose.',
+    scoreLabel: 'Mahlzeiten-Impact-Score',
+    scoreNote: 'Eine KI-gestützte Einordnung, wie diese Mahlzeit zu deinem aktuellen Kontext passen könnte.',
+    contextTitle: 'Was GutWell berücksichtigt hat',
+    contextSymptoms: 'Beschwerden',
+    contextAfterMeal: 'Nach dem Essen',
+    contextProfile: 'Darmprofil',
+    contextSupplements: 'Ergänzungsmittel heute',
+    contextLocation: 'Lokaler Kontext',
+    contextNotes: 'Deine Notizen',
+    personalizedLine: 'Mit dem Kontext, den du geteilt hast',
+    updatedBadge: 'Aktualisierte Analyse',
   },
 
   welcome: {
@@ -2896,7 +2928,8 @@ const de: Translations = {
     photoMealDefault: 'Mahlzeit (Foto)',
     insightsHeading: 'Darm-Auswertung',
     refineAnalysis: 'Analyse verfeinern',
-    refineAnalysisHint: 'Mahlzeit korrigieren, Details ergänzen oder nachfragen',
+    refineAnalysisPrompt: 'Passt etwas nicht?',
+    refineAnalysisHint: 'KI kann eine Zutat oder einen Kontext übersehen. Ergänze oder korrigiere ein Detail, und GutWell schaut noch einmal darauf.',
     analysing: 'Analyse läuft…',
     generateNeedsDescription: 'Füge eine kurze Beschreibung hinzu, um fortzufahren',
     generateNeedsRecordingStopped: 'Beende die Aufnahme, um fortzufahren',
