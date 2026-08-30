@@ -192,8 +192,23 @@ describe('every flow that carries symptoms is otherwise untouched', () => {
     expect(text).toContain('userEnteredSymptoms');
   });
 
-  test('meal_revise still appends the correction to the symptom context', () => {
-    expect((CODE.match(/symptoms: \[\.\.\.currentSymptoms, correction\]/g) ?? []).length).toBe(2);
+  test('meal_revise no longer appends the correction to the symptom context', () => {
+    /**
+     * This test previously asserted the OPPOSITE — `.toBe(2)` — and it was
+     * right to at the time: it was a scope guard, recording that the fix which
+     * cleaned up the initial-analysis path had deliberately not touched the
+     * revision path. Its name said "still appends" for that reason.
+     *
+     * Stage 5B.1 fixed the revision path too, so the guard is inverted rather
+     * than deleted. It is now strictly stronger: the old assertion allowed the
+     * spread anywhere else in the file as long as it appeared exactly twice,
+     * where this permits it nowhere, and additionally pins what replaced it at
+     * both call sites (the request payload and the trigger-memory write).
+     */
+    expect(CODE).not.toContain('[...currentSymptoms, correction]');
+    expect(CODE.match(/symptoms: \[\.\.\.currentSymptoms, correction\]/g)).toBeNull();
+    // Both former sites now pass the symptom list itself.
+    expect((CODE.match(/symptoms: currentSymptoms,/g) ?? []).length).toBeGreaterThanOrEqual(4);
   });
 
   test('the request-id and quota contract is unchanged', () => {

@@ -1264,7 +1264,26 @@ export default function PhotoAnalysisScreen() {
         correction,
         gutScore: gutProfileContext.gutScore ?? undefined,
         conditions: gutProfileContext.conditions,
-        symptoms: [...currentSymptoms, correction],
+        /**
+         * Symptoms only — the correction is NOT one.
+         *
+         * This used to be `[...currentSymptoms, correction]`, so the server
+         * rendered "Current symptoms: bloating, how about eating this two
+         * hours before sleeping?" and the model was told a follow-up question
+         * was a reported symptom. Every refine did it: "It was actually
+         * chicken", "the portion was smaller", "it also had avocado" all
+         * arrived as symptoms.
+         *
+         * This is the same defect the initial-analysis path fixed in c8a92fa,
+         * where `userEnteredSymptoms` stopped being a split of the free-text
+         * box. The revision path was not updated with it.
+         *
+         * Nothing is lost by removing it: `correction` below is a first-class
+         * field that the prompt already labels "Latest user correction or new
+         * detail (highest priority—what they mean now)", so the text still
+         * reaches the model — as a correction, which is what it is.
+         */
+        symptoms: currentSymptoms,
         triggerMemories: [],
         locationContext,
         retailLocationHint,
@@ -1294,7 +1313,10 @@ export default function PhotoAnalysisScreen() {
         const triggers = await recordTriggerFeedback({
           mealName: extractMealName(correctedAnalysis, t.photoAnalysis.photoMealDefault),
           adviceSummary: correctedAnalysis.slice(0, 240),
-          symptoms: [...currentSymptoms, correction],
+          // Actual symptoms only, matching the initial-analysis call above.
+          // Storing the correction here filed arbitrary sentences as symptoms
+          // against a food in the local trigger memory.
+          symptoms: currentSymptoms,
         });
         setTriggerMemories(triggers);
       }
