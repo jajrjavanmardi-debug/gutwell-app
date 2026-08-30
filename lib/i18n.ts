@@ -543,7 +543,11 @@ const en = {
     premiumRequiredMessage:
       'Upgrade to analyse meal photos. You can describe your meal in words on any plan.',
     seePlans: 'See plans',
-    noPaymentDue: 'No Payment Due Now',
+    // Was "No Payment Due Now" — false without an introductory offer. The
+    // replacement is true today, already stated in the fine print below, and
+    // keeps the row's reassurance purpose. Key name kept so the render site
+    // does not change.
+    noPaymentDue: 'Cancel anytime in App Store settings',
     continueButton: 'Continue',
     restoreButton: 'Restore Purchases',
     // ── Accessibility labels ──────────────────────────────────────────────
@@ -626,8 +630,17 @@ const en = {
     debugInfoCopied: 'Debug info copied to clipboard.',
     purchaseFailed: 'Purchase Failed',
     restorePurchases: 'Restore Purchases',
-    heroLine1: 'We want you to try',
-    heroLine2: 'GutWell AI for free',
+    // The hero renders UNCONDITIONALLY, before any offering loads, so it must
+    // be true for every user on every storefront. It used to read "We want you
+    // to try / GutWell AI for free" — a free-trial promise, while App Store
+    // Connect has zero introductory offers on both products. Payment is due at
+    // confirmation, so the hero now names what the purchase unlocks.
+    //
+    // This is copy only: the CTA below still derives its own label from
+    // StoreKit (`product.introPrice`) and correctly says "Continue" while no
+    // offer exists. See startFreeTrial / startTrialWithPeriod, which stay.
+    heroLine1: 'Unlock everything in',
+    heroLine2: 'GutWell AI Premium',
     billedAnnuallySave: 'Billed annually — save {pct}%',
     startFreeTrial: 'Start Free Trial',
     startTrialWithPeriod: 'Start {n}-{unit} Free Trial',
@@ -2287,7 +2300,7 @@ const de: Translations = {
     premiumRequiredMessage:
       'Mit einem Upgrade kannst du Fotos von Mahlzeiten analysieren. Deine Mahlzeit beschreiben kannst du in jedem Tarif.',
     seePlans: 'Tarife ansehen',
-    noPaymentDue: 'Jetzt keine Zahlung fällig',
+    noPaymentDue: 'Jederzeit in den App-Store-Einstellungen kündbar',
     continueButton: 'Weiter',
     restoreButton: 'Käufe wiederherstellen',
     accessClose: 'Schließen',
@@ -2343,8 +2356,10 @@ const de: Translations = {
     debugInfoCopied: 'Debug-Infos in die Zwischenablage kopiert.',
     purchaseFailed: 'Kauf fehlgeschlagen',
     restorePurchases: 'Käufe wiederherstellen',
-    heroLine1: 'Wir möchten, dass du',
-    heroLine2: 'GutWell AI kostenlos testest',
+    // "GutWell AI kostenlos testest" was the more explicit of the two claims:
+    // unambiguously "test GutWell AI for free". Same fix as EN.
+    heroLine1: 'Schalte alles frei mit',
+    heroLine2: 'GutWell AI Premium',
     billedAnnuallySave: 'Jährliche Abrechnung — spare {pct} %',
     startFreeTrial: 'Kostenlos testen',
     startTrialWithPeriod: '{n} {unit} kostenlos testen',

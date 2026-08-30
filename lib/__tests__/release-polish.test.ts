@@ -305,3 +305,108 @@ describe('localization integrity', () => {
     }
   });
 });
+
+// ── Stage 6F.2: no false free-trial claim ───────────────────────────────────
+
+/**
+ * App Store Connect has ZERO introductory offers on both products (verified
+ * manually). The paywall's CTA already handled that correctly — it derives its
+ * label from `product.introPrice` and falls back to "Continue".
+ *
+ * The hero and the reassurance row did not: they rendered unconditionally,
+ * before any offering loads, and said the app was free to try and that no
+ * payment was due. Both were false for every user.
+ *
+ * The distinction these tests encode: trial wording is banned from the copy
+ * that ALWAYS renders, and deliberately still allowed in the copy that only
+ * renders when StoreKit reports a real zero-price offer.
+ */
+describe('the paywall makes no free-trial claim it cannot keep', () => {
+  /** Keys rendered unconditionally, before any offering has loaded. */
+  const UNCONDITIONAL = ['heroLine1', 'heroLine2', 'noPaymentDue'] as const;
+
+  const FALSE_CLAIMS = [
+    /free trial/i,
+    /try free/i,
+    /for free/i,
+    /no payment due/i,
+    /kostenlos testen/i,
+    /kostenlos testest/i,
+    /gratis testen/i,
+    /keine zahlung fällig/i,
+  ];
+
+  test.each(UNCONDITIONAL)('%s makes no trial or payment claim in either language', (key) => {
+    for (const lang of ['en', 'de'] as const) {
+      const value = (translations[lang].paywall as Record<string, string>)[key];
+      expect(value).toBeTruthy();
+      for (const pattern of FALSE_CLAIMS) {
+        expect(`${lang}.${key}: ${value}`).not.toMatch(pattern);
+      }
+    }
+  });
+
+  test('the approved hero copy ships in both languages', () => {
+    expect(translations.en.paywall.heroLine1).toBe('Unlock everything in');
+    expect(translations.en.paywall.heroLine2).toBe('GutWell AI Premium');
+    expect(translations.de.paywall.heroLine1).toBe('Schalte alles frei mit');
+    expect(translations.de.paywall.heroLine2).toBe('GutWell AI Premium');
+  });
+
+  test('the reassurance row states something true today', () => {
+    expect(translations.en.paywall.noPaymentDue).toBe('Cancel anytime in App Store settings');
+    expect(translations.de.paywall.noPaymentDue).toBe(
+      'Jederzeit in den App-Store-Einstellungen kündbar',
+    );
+    // It must agree with the fine print rather than contradict it.
+    expect(translations.en.paywall.finePrint).toMatch(/cancel/i);
+  });
+
+  test('the StoreKit-gated trial copy is retained, not deleted', () => {
+    // These are correct future-facing copy: they render ONLY when StoreKit
+    // reports a zero-price introductory offer. Banning them globally would
+    // remove the app's ability to describe a real trial the day one exists.
+    expect(translations.en.paywall.startFreeTrial).toBe('Start Free Trial');
+    expect(translations.en.paywall.startTrialWithPeriod).toContain('{n}');
+    expect(translations.en.paywall.startTrialWithPeriod).toContain('{unit}');
+    expect(translations.de.paywall.startFreeTrial).toBeTruthy();
+    expect(translations.de.paywall.startTrialWithPeriod).toContain('{n}');
+    for (const k of ['trialUnitDay', 'trialUnitWeek', 'trialUnitMonth', 'trialUnitYear'] as const) {
+      expect((translations.en.paywall as Record<string, string>)[k]).toBeTruthy();
+      expect((translations.de.paywall as Record<string, string>)[k]).toBeTruthy();
+    }
+  });
+
+  test('the trial CTA is still derived from StoreKit, not from copy', () => {
+    expect(PAYWALL_CODE).toContain('const selectedIntro = selectedPkg?.product.introPrice;');
+    // No offer, or a non-zero one, falls back to the plain purchase label.
+    expect(PAYWALL_CODE).toContain(
+      "if (!selectedIntro || selectedIntro.price !== 0) return t.paywall.continueButton;",
+    );
+    expect(PAYWALL_CODE).toContain('t.paywall.startFreeTrial');
+    expect(PAYWALL_CODE).toContain('t.paywall.startTrialWithPeriod');
+  });
+
+  test('the purchase path is unchanged and has no trial branch', () => {
+    expect(PAYWALL_CODE).toContain('purchaseSelectedPackage(selectedPkg)');
+    for (const token of [
+      'introductoryDiscount',
+      'promotionalOffer',
+      'offerIdentifier',
+      'trialPeriod',
+      'checkTrialEligibility',
+    ]) {
+      expect(PAYWALL_CODE).not.toContain(token);
+    }
+  });
+
+  test('no subscription product identifier was introduced or changed', () => {
+    const sub = read('lib', 'subscription.ts');
+    expect(sub).toContain("const ENTITLEMENT_ID = 'premium';");
+    expect(sub).toContain("selectPackage(current, 'monthly')");
+    expect(sub).toContain("selectPackage(current, 'annual')");
+    // Product ids come from the RevenueCat offering, never hardcoded here.
+    expect(PAYWALL_CODE).not.toMatch(/gutwell_premium_(monthly|annual)/);
+    expect(sub).not.toMatch(/gutwell_premium_(monthly|annual)/);
+  });
+});
