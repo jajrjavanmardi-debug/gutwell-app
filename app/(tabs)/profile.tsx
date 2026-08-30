@@ -285,7 +285,10 @@ export default function ProfileScreen() {
           </View>
           <View style={[styles.widgetPreview, styles.widgetPreviewAlt]}>
             <Ionicons name="leaf" size={26} color={Colors.secondary} />
-            <Text style={styles.widgetCaption}>Gutwell</Text>
+            {/* Was the old "Gutwell" spelling. The brand is "GutWell AI"
+                everywhere else, and this sits on a primary tab. Uses the
+                existing shared key rather than a second literal. */}
+            <Text style={styles.widgetCaption}>{t.home.appName}</Text>
           </View>
           <View style={styles.widgetHintWrap}>
             <Text style={styles.widgetHint}>{t.profile.widgetHint}</Text>

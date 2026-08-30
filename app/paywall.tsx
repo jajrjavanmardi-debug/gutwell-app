@@ -242,6 +242,8 @@ export default function PaywallScreen() {
           onPress={() => router.back()}
           activeOpacity={0.7}
           hitSlop={{ top: 12, right: 12, bottom: 12, left: 12 }}
+          accessibilityRole="button"
+          accessibilityLabel={t.paywall.accessClose}
         >
           <Ionicons name="close" size={22} color="rgba(255,255,255,0.9)" />
         </TouchableOpacity>
@@ -324,6 +326,9 @@ export default function PaywallScreen() {
               ]}
               onPress={() => setSelectedPlan('monthly')}
               activeOpacity={0.8}
+              accessibilityRole="radio"
+              accessibilityState={{ selected: selectedPlan === 'monthly' }}
+              accessibilityLabel={t.paywall.accessSelectMonthly}
             >
               {/* Neutral placeholder, never an invented figure. */}
               <Text style={styles.pricingAmount}>
@@ -348,6 +353,9 @@ export default function PaywallScreen() {
               ]}
               onPress={() => setSelectedPlan('annual')}
               activeOpacity={0.8}
+              accessibilityRole="radio"
+              accessibilityState={{ selected: selectedPlan === 'annual' }}
+              accessibilityLabel={t.paywall.accessSelectAnnual}
             >
               <View style={styles.bestValueBadge}>
                 <Text style={styles.bestValueText}>{t.paywall.bestValue}</Text>
@@ -373,6 +381,9 @@ export default function PaywallScreen() {
             onPress={handleCTA}
             activeOpacity={0.85}
             disabled={purchasing || loadingOffering}
+            accessibilityRole="button"
+            accessibilityState={{ disabled: purchasing || loadingOffering }}
+            accessibilityLabel={t.paywall.accessContinue}
           >
             <LinearGradient
               colors={['#52B788', '#2D6A4F']}
@@ -393,17 +404,32 @@ export default function PaywallScreen() {
 
           {/* Legal links — required on subscription paywalls (Guideline 3.1.2) */}
           <View style={styles.legalRow}>
-            <TouchableOpacity onPress={() => router.push('/terms-of-service')} accessibilityRole="link">
+            <TouchableOpacity
+              onPress={() => router.push('/terms-of-service')}
+              accessibilityRole="link"
+              accessibilityLabel={t.paywall.accessTerms}
+            >
               <Text style={styles.legalLink}>{t.paywall.termsOfService}</Text>
             </TouchableOpacity>
             <Text style={styles.legalDot}>·</Text>
-            <TouchableOpacity onPress={() => router.push('/privacy-policy')} accessibilityRole="link">
+            <TouchableOpacity
+              onPress={() => router.push('/privacy-policy')}
+              accessibilityRole="link"
+              accessibilityLabel={t.paywall.accessPrivacy}
+            >
               <Text style={styles.legalLink}>{t.paywall.privacyPolicy}</Text>
             </TouchableOpacity>
           </View>
 
           {/* Restore Purchases */}
-          <TouchableOpacity onPress={handleRestore} activeOpacity={0.7} disabled={restoring || purchasing}>
+          <TouchableOpacity
+            onPress={handleRestore}
+            activeOpacity={0.7}
+            disabled={restoring || purchasing}
+            accessibilityRole="button"
+            accessibilityState={{ disabled: restoring || purchasing }}
+            accessibilityLabel={t.paywall.accessRestore}
+          >
             <Text style={styles.restoreText}>
               {restoring ? t.paywall.restoring : t.paywall.restoreButton}
             </Text>

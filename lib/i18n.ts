@@ -546,13 +546,26 @@ const en = {
     noPaymentDue: 'No Payment Due Now',
     continueButton: 'Continue',
     restoreButton: 'Restore Purchases',
+    // ── Accessibility labels ──────────────────────────────────────────────
+    // The paywall previously carried one label in 718 lines, on a debug
+    // control. These cover the decisions a user actually makes here.
+    accessClose: 'Close',
+    accessSelectMonthly: 'Select the monthly plan',
+    accessSelectAnnual: 'Select the annual plan',
+    accessContinue: 'Continue to purchase',
+    accessRestore: 'Restore previous purchases',
+    accessTerms: 'Open Terms of Service',
+    accessPrivacy: 'Open Privacy Policy',
     privacyPolicy: 'Privacy Policy',
     termsOfService: 'Terms of Service',
     comingSoon: 'Coming Soon',
     featureDigest: 'Weekly gut health digest',
     featureTrigger: 'Full trigger-food analysis — every possible pattern, not just the strongest',
     featureTrends: 'Advanced trends & mood insights',
-    featureSafeFoods: 'Your personal safe-foods list',
+    // "safe foods" implies a food can be declared safe. The feature is titled
+    // "Well-Tolerated Foods" everywhere else in the app; the paywall now
+    // matches it.
+    featureSafeFoods: 'Your personal Well-Tolerated Foods list',
     restoreComplete: 'Restore Complete',
     restoreSuccess: 'Premium access has been restored.',
     activateSuccess: 'Premium is now active.',
@@ -562,7 +575,9 @@ const en = {
     loadError: 'Failed to load offerings',
     disclaimer: 'GutWell AI is a wellness tracking tool. It does not provide medical advice, diagnosis, or treatment.',
     checkIns: 'Check-ins',
-    gutScoreToday: 'Gut Score today',
+    // Matches the label Home actually shows. The preview is a mock-up of the
+    // real screen, so it must not advertise wording the app retired.
+    gutScoreToday: 'Today’s GutWell Score',
     dayStreak: 'Day streak',
     recentlyLogged: 'Recently logged',
     forFree: 'GutWell AI for free',
@@ -617,7 +632,10 @@ const en = {
     startFreeTrial: 'Start Free Trial',
     startTrialWithPeriod: 'Start {n}-{unit} Free Trial',
     previewDayStreak: 'Day streak',
-    previewSafeFoods: 'Safe foods',
+    // Same reason as featureSafeFoods: the app calls these "Well-Tolerated
+    // Foods", and "safe" implies a food can be declared safe. Shortened to fit
+    // the preview's stat label.
+    previewSafeFoods: 'Well-tolerated',
     previewCheckIns: 'Check-ins',
   },
 
@@ -1013,6 +1031,11 @@ const en = {
     saveButton: 'Save Check-in',
     accessGoBack: 'Go back',
     accessMoodLevel: 'level of 5',
+    // Accessibility only. {field} is the metric, {label} its current word,
+    // {n} the level. The pill sliders previously announced STOOL labels and
+    // called themselves "mood level" for bloating, pain and energy alike.
+    accessLevel: '{field}, {label}, level {n} of 5',
+    accessSave: 'Save today’s check-in',
     errorNotLoggedIn: 'Please log in to save your check-in',
     errorNoStool: 'Please select a stool type',
     successSaved: 'Check-in saved!',
@@ -1714,6 +1737,10 @@ const en = {
       accessAdd: 'Add water glass',
     },
     streakPopup: {
+      // Accessibility only. The visible card shows the numeral and the label
+      // as separate lines; VoiceOver needs them as one phrase.
+      close: 'Close',
+      streakValueA11y: '{n} day streak',
       dayStreak: 'Day Streak',
       thisWeek: 'This Week',
       milestoneProgress: 'Milestone Progress',
@@ -2263,6 +2290,13 @@ const de: Translations = {
     noPaymentDue: 'Jetzt keine Zahlung fällig',
     continueButton: 'Weiter',
     restoreButton: 'Käufe wiederherstellen',
+    accessClose: 'Schließen',
+    accessSelectMonthly: 'Monatsplan auswählen',
+    accessSelectAnnual: 'Jahresplan auswählen',
+    accessContinue: 'Weiter zum Kauf',
+    accessRestore: 'Frühere Käufe wiederherstellen',
+    accessTerms: 'Nutzungsbedingungen öffnen',
+    accessPrivacy: 'Datenschutzrichtlinie öffnen',
     privacyPolicy: 'Datenschutzrichtlinie',
     termsOfService: 'Nutzungsbedingungen',
     comingSoon: 'Demnächst',
@@ -2279,7 +2313,7 @@ const de: Translations = {
     loadError: 'Angebote konnten nicht geladen werden',
     disclaimer: 'GutWell AI ist ein Wellness-Tracking-Tool. Es bietet keine medizinische Beratung, Diagnose oder Behandlung.',
     checkIns: 'Check-ins',
-    gutScoreToday: 'Darm-Score heute',
+    gutScoreToday: 'Heutiger GutWell-Score',
     dayStreak: 'Tage-Streak',
     recentlyLogged: 'Zuletzt protokolliert',
     forFree: 'GutWell AI kostenlos',
@@ -2653,6 +2687,8 @@ const de: Translations = {
     saveButton: 'Check-in speichern',
     accessGoBack: 'Zurück',
     accessMoodLevel: 'von 5',
+    accessLevel: '{field}, {label}, Stufe {n} von 5',
+    accessSave: 'Heutigen Check-in speichern',
     errorNotLoggedIn: 'Bitte melde dich an, um deinen Check-in zu speichern',
     errorNoStool: 'Bitte wähle einen Stuhltyp aus',
     successSaved: 'Check-in gespeichert!',
@@ -3258,6 +3294,8 @@ const de: Translations = {
       accessAdd: 'Glas Wasser hinzufügen',
     },
     streakPopup: {
+      close: 'Schließen',
+      streakValueA11y: '{n} Tage in Folge',
       dayStreak: 'Tage in Folge',
       thisWeek: 'Diese Woche',
       milestoneProgress: 'Meilenstein-Fortschritt',
