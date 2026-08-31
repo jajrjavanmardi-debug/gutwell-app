@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>GutWell AI — Your Personal Gut Health Coach</title>
-<meta name="description" content="GutWell AI helps you track daily gut symptoms, review personal patterns over time, and make more confident food choices. Coming soon to iOS.">
+<meta name="description" content="GutWell AI helps you track daily gut symptoms, analyse meals by photo or text, and review your personal patterns over time.">
 <meta name="theme-color" content="#0B1F14">
 <link rel="icon" type="image/png" href="favicon.png">
 <link rel="apple-touch-icon" href="icon.png">
@@ -17,7 +17,7 @@
 <link rel="canonical" href="https://www.getgutwell.app/">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="GutWell AI — Your Personal Gut Health Coach">
-<meta name="twitter:description" content="Track daily gut symptoms, review personal patterns, and make more confident food choices. Coming soon to iOS.">
+<meta name="twitter:description" content="Track daily gut symptoms, analyse meals by photo or text, and review your personal patterns over time.">
 <meta property="og:type" content="website">
 <!-- Fonts: system stack only — no remote font requests -->
 <style>:root{--font-serif:Georgia,'Times New Roman',serif;--font-sans:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;}</style>
@@ -29,12 +29,21 @@ body{font-family:var(--font-sans);background:#0B1F14;color:#fff;-webkit-font-smo
 img{max-width:100%;display:block}
 a{color:inherit;text-decoration:none}
 button{cursor:pointer;border:none;font-family:inherit}
+/* Author display rules (e.g. .btn-primary) would otherwise beat the UA
+   [hidden] rule, so the live-state CTA must be hidden explicitly. */
+[hidden]{display:none!important}
 
 /* ── Reduced motion ── */
 @media(prefers-reduced-motion:reduce){
   *{animation-duration:0.01ms!important;transition-duration:0.01ms!important}
   html{scroll-behavior:auto}
 }
+
+/* ── Focus visibility ── */
+/* Keyboard users had almost no focus affordance on this dark theme. */
+:focus-visible{outline:2px solid var(--green-300);outline-offset:3px;border-radius:6px}
+.nav-cta:focus-visible,.nav-status:focus-visible,.btn-primary:focus-visible,.btn-secondary:focus-visible{outline-offset:4px}
+.faq-question:focus-visible{outline:2px solid var(--green-300);outline-offset:-3px;border-radius:0}
 
 /* ── Tokens ── */
 :root{
@@ -84,6 +93,9 @@ nav{position:sticky;top:0;z-index:100;background:rgba(11,31,20,0.85);backdrop-fi
 .nav-logo-text{font-family:var(--font-serif);font-size:22px;font-weight:600;color:#fff}
 .nav-cta{background:#fff;color:#0B1F14;font-weight:700;font-size:14px;padding:10px 20px;border-radius:var(--radius-full);transition:opacity .2s}
 .nav-cta:hover{opacity:.88}
+.nav-status{font-size:13px;font-weight:600;color:var(--text-secondary);border:1px solid var(--card-border);padding:8px 16px;border-radius:var(--radius-full);white-space:nowrap;transition:color .2s}
+.nav-status:hover{color:#fff}
+@media(max-width:420px){.nav-status{font-size:12px;padding:7px 12px}}
 
 /* ── Hero ── */
 .hero{position:relative;padding:120px 0 96px;text-align:center;z-index:1}
@@ -94,6 +106,8 @@ nav{position:sticky;top:0;z-index:100;background:rgba(11,31,20,0.85);backdrop-fi
 .hero-actions{display:flex;flex-direction:column;align-items:center;gap:12px}
 .btn-primary{display:inline-block;background:#fff;color:#0B1F14;font-weight:700;font-size:17px;padding:16px 36px;border-radius:var(--radius-full);transition:opacity .2s,transform .15s}
 .btn-primary:hover{opacity:.9;transform:translateY(-1px)}
+.btn-secondary{display:inline-block;background:rgba(255,255,255,0.06);color:#fff;font-weight:600;font-size:16px;padding:15px 32px;border-radius:var(--radius-full);border:1px solid rgba(255,255,255,0.22);transition:background .2s}
+.btn-secondary:hover{background:rgba(255,255,255,0.1)}
 .hero-trust{font-size:13px;color:var(--text-tertiary)}
 .hero-icon-wrap{margin:64px auto 0;width:120px;height:120px;border-radius:28px;overflow:hidden;box-shadow:0 24px 60px rgba(0,0,0,0.4),0 0 0 1px rgba(82,183,136,0.2)}
 .hero-icon-wrap img{width:100%;height:100%}
@@ -142,26 +156,22 @@ nav{position:sticky;top:0;z-index:100;background:rgba(11,31,20,0.85);backdrop-fi
 .demo-img{width:100%;height:200px;object-fit:cover;border-radius:12px;opacity:.7}
 .demo-section{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:32px;max-width:480px;margin-left:auto;margin-right:auto}
 
-/* ── Waitlist ── */
-.waitlist{position:relative;z-index:1}
-.waitlist-box{background:linear-gradient(135deg,rgba(27,67,50,0.6),rgba(45,106,79,0.3));border:1px solid rgba(82,183,136,0.2);border-radius:var(--radius-lg);padding:64px 48px;text-align:center;max-width:640px;margin:0 auto}
-@media(max-width:600px){.waitlist-box{padding:40px 24px}}
-.waitlist-headline{font-family:var(--font-serif);font-size:clamp(28px,4vw,40px);font-weight:700;color:#fff;margin-bottom:16px}
-.waitlist-sub{font-size:16px;color:var(--text-secondary);line-height:1.7;margin-bottom:32px}
-.form-row{display:flex;gap:10px;max-width:440px;margin:0 auto}
-.form-row input{flex:1;height:52px;padding:0 18px;border-radius:var(--radius-full);background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);color:#fff;font-size:15px;font-family:var(--font-sans);outline:none;transition:border-color .2s}
-.form-row input::placeholder{color:rgba(255,255,255,0.35)}
-.form-row input:focus{border-color:var(--green-400)}
-.form-submit{height:52px;padding:0 24px;border-radius:var(--radius-full);background:#fff;color:#0B1F14;font-weight:700;font-size:15px;white-space:nowrap;transition:opacity .2s,transform .15s}
-.form-submit:hover{opacity:.9;transform:translateY(-1px)}
-.form-submit:disabled{opacity:.5;cursor:not-allowed;transform:none}
-@media(max-width:480px){.form-row{flex-direction:column}.form-submit{width:100%;height:52px}}
-.form-consent{font-size:12px;color:var(--text-tertiary);margin-top:16px;line-height:1.6}
-.form-consent a{color:var(--green-300);text-decoration:underline}
-.form-message{margin-top:16px;font-size:14px;font-weight:600;min-height:20px}
-.form-message.success{color:var(--green-300)}
-.form-message.error{color:#FCA5A5}
-.waitlist-trust{font-size:13px;color:var(--text-tertiary);margin-top:20px}
+/* ── Launch CTA ── */
+.launch-cta{position:relative;z-index:1}
+.launch-box{background:linear-gradient(135deg,rgba(27,67,50,0.6),rgba(45,106,79,0.3));border:1px solid rgba(82,183,136,0.2);border-radius:var(--radius-lg);padding:64px 48px;text-align:center;max-width:640px;margin:0 auto}
+@media(max-width:600px){.launch-box{padding:40px 24px}}
+.launch-headline{font-family:var(--font-serif);font-size:clamp(28px,4vw,40px);font-weight:700;color:#fff;margin-bottom:16px}
+.launch-sub{font-size:16px;color:var(--text-secondary);line-height:1.7;margin-bottom:32px}
+.launch-status{display:inline-block;padding:14px 28px;border-radius:var(--radius-full);border:1px solid rgba(82,183,136,0.3);background:rgba(82,183,136,0.08);font-size:15px;font-weight:600;color:var(--green-300)}
+.launch-trust{font-size:13px;color:var(--text-tertiary);margin-top:20px;line-height:1.6}
+
+/* ── Premium ── */
+.premium{position:relative;z-index:1;padding-top:0}
+.premium-box{background:var(--card-bg);border:1px solid var(--card-border);border-radius:var(--radius-lg);padding:36px 40px;max-width:720px;margin:0 auto;text-align:center}
+@media(max-width:600px){.premium-box{padding:28px 24px}}
+.premium-headline{font-family:var(--font-serif);font-size:clamp(24px,3vw,32px);font-weight:700;color:#fff;margin-bottom:14px}
+.premium-body{font-size:15px;color:var(--text-secondary);line-height:1.7;max-width:580px;margin:0 auto}
+.premium-note{font-size:13px;color:var(--text-tertiary);line-height:1.6;margin-top:16px}
 
 /* ── FAQ ── */
 .faq{position:relative;z-index:1}
@@ -173,7 +183,7 @@ nav{position:sticky;top:0;z-index:100;background:rgba(11,31,20,0.85);backdrop-fi
 .faq-chevron{flex-shrink:0;transition:transform .25s;font-style:normal}
 .faq-question[aria-expanded="true"] .faq-chevron{transform:rotate(180deg)}
 .faq-answer{max-height:0;overflow:hidden;transition:max-height .3s ease,padding .3s}
-.faq-answer.open{max-height:300px}
+.faq-answer.open{max-height:720px}
 .faq-answer-inner{padding:0 24px 20px;font-size:15px;color:var(--text-secondary);line-height:1.7}
 
 /* ── Footer ── */
@@ -224,9 +234,12 @@ footer{position:relative;z-index:1;border-top:1px solid var(--card-border);paddi
       <img src="icon.png" alt="GutWell AI app icon">
       <span class="nav-logo-text">GutWell AI</span>
     </a>
-    <a class="nav-cta" href="#waitlist">Join the waitlist</a>
+    <a class="nav-status" href="#launch"
+       data-cta data-cta-live="Download on the App Store" data-cta-live-class="nav-cta">Launch in progress</a>
   </div>
 </nav>
+
+<main>
 
 <!-- Hero -->
 <section class="hero">
@@ -238,14 +251,16 @@ footer{position:relative;z-index:1;border-top:1px solid var(--card-border);paddi
       made visible.
     </h1>
     <p class="hero-sub fade-in">
-      GutWell AI combines daily symptom check-ins, meal context, and a personal
-      Gut Score — so you can see what's actually changing, one day at a time.
+      GutWell AI combines daily symptom check-ins, meal analysis by photo or text,
+      and a personal GutWell Score — so you can see what's actually changing, one
+      day at a time.
     </p>
     <div class="hero-actions fade-in">
-      <a class="btn-primary" href="#waitlist" id="hero-cta" data-state="waitlist">
-        Join the waitlist
+      <a class="btn-secondary" href="#launch" id="hero-cta"
+         data-cta data-cta-live="Download on the App Store" data-cta-live-class="btn-primary">
+        App Store launch in progress
       </a>
-      <p class="hero-trust">Coming soon to iOS &nbsp;·&nbsp; Free to join</p>
+      <p class="hero-trust">Built for iPhone &nbsp;·&nbsp; Free core features &nbsp;·&nbsp; Optional GutWell Premium</p>
     </div>
 
   </div>
@@ -296,13 +311,13 @@ footer{position:relative;z-index:1;border-top:1px solid var(--card-border);paddi
       </div>
       <div class="step fade-in">
         <div class="step-number">02</div>
-        <h3 class="step-title">Scan your meals (optional)</h3>
-        <p class="step-body">Photograph what you eat and describe your situation. GutWell AI notes what you ate, how you felt at the time, and what you were planning to do next.</p>
+        <h3 class="step-title">Analyse a meal — by photo or text</h3>
+        <p class="step-body">Photograph what you eat, or simply describe it in your own words. GutWell AI notes what you ate, how you felt at the time, and what you were planning to do next, then gives you a Meal Impact Score. If it got something wrong, Refine Analysis lets you correct it. Photo analysis requires GutWell Premium; describing a meal in text does not.</p>
       </div>
       <div class="step fade-in">
         <div class="step-number">03</div>
         <h3 class="step-title">Review your patterns over time</h3>
-        <p class="step-body">Your Gut Score updates daily based on your check-ins. Over time, your history gives you something to reflect on — and brings your personal patterns into view.</p>
+        <p class="step-body">Your GutWell Score updates daily based on your check-ins. Over time, your history gives you something to reflect on — bringing possible patterns and your Well-Tolerated Foods into view.</p>
       </div>
     </div>
   </div>
@@ -316,18 +331,18 @@ footer{position:relative;z-index:1;border-top:1px solid var(--card-border);paddi
     <div class="feature-grid">
       <div class="feature-card fade-in">
         <div class="feature-icon-ring">📊</div>
-        <h3 class="feature-title">Your Gut Score</h3>
+        <h3 class="feature-title">Your GutWell Score</h3>
         <p class="feature-body">A daily summary number calculated from your real check-in data — stool type, symptoms, energy, and mood. It's a reflection tool, not a medical measurement. It becomes more useful as you log consistently.</p>
       </div>
       <div class="feature-card fade-in">
         <div class="feature-icon-ring">📷</div>
-        <h3 class="feature-title">Meal Photo Analysis</h3>
-        <p class="feature-body">Scan a meal and add brief context — how you feel and what you're doing next. GutWell AI considers the whole picture, not just the food, and gives you a practical, non-judgmental perspective.</p>
+        <h3 class="feature-title">Meal Analysis — photo or text</h3>
+        <p class="feature-body">Scan a meal, or describe it in words, and add brief context — how you feel and what you're doing next. You get a Meal Impact Score plus &ldquo;What GutWell considered&rdquo;, so the reasoning behind it is visible rather than hidden. Photo analysis requires GutWell Premium.</p>
       </div>
       <div class="feature-card fade-in">
         <div class="feature-icon-ring">📈</div>
         <h3 class="feature-title">Personal Pattern Review</h3>
-        <p class="feature-body">After consistent check-ins, your history starts to reveal possible patterns — foods that appear alongside better or worse days. GutWell AI surfaces these for you to review and reflect on.</p>
+        <p class="feature-body">After consistent check-ins, your history starts to show possible patterns — foods that appear alongside better or worse days, and a Well-Tolerated Foods list built from your own logs. GutWell AI surfaces these for you to review and reflect on, never as a verdict.</p>
       </div>
       <div class="feature-card fade-in">
         <div class="feature-icon-ring">🎯</div>
@@ -344,6 +359,25 @@ footer{position:relative;z-index:1;border-top:1px solid var(--card-border);paddi
   </div>
 </section>
 
+<!-- Premium -->
+<section class="premium">
+  <div class="container">
+    <div class="premium-box fade-in">
+      <p class="section-label">GutWell Premium</p>
+      <h2 class="premium-headline">Free to start.<br>Premium when you want more.</h2>
+      <p class="premium-body">
+        Daily check-ins, your GutWell Score, and describing a meal in text are part of the
+        free experience. GutWell Premium adds meal photo analysis, the full trigger-food
+        and pattern review, your Well-Tolerated Foods list, and the weekly gut health digest.
+      </p>
+      <p class="premium-note">
+        Subscription options and pricing are shown in the app and on the App Store before
+        you subscribe. You can cancel anytime in your App Store settings.
+      </p>
+    </div>
+  </div>
+</section>
+
 <!-- Differentiator 1: Talk to your data -->
 <section class="diff-section">
   <div class="container">
@@ -355,19 +389,19 @@ footer{position:relative;z-index:1;border-top:1px solid var(--card-border);paddi
           GutWell AI gives you an analysis — but you are not required to accept it. If the AI misidentified your meal, got the context wrong, or gave advice that doesn't feel right, you can push back directly.
         </p>
         <p class="diff-body">
-          Correct the meal. Add what you actually ate. Ask what a different choice might have looked like. GutWell AI revises its guidance based on what you tell it — not the other way around.
+          Refine Analysis lets you correct the meal and add what you actually ate. Ask what a different choice might have looked like. GutWell AI revises its guidance based on what you tell it — not the other way around.
         </p>
         <p class="diff-note">
           You are talking to your own health data. GutWell AI is the interface — not the authority.
         </p>
       </div>
       <div class="diff-visual fade-in" aria-hidden="true">
-        <p class="diff-visual-label">Example conversation</p>
-        <div class="diff-chat-bubble ai">This looks like fried fish with a creamy dip — 5/10 for gut comfort today.</div>
+        <p class="diff-visual-label">Refine Analysis · example</p>
+        <div class="diff-chat-bubble ai">This looks like fried fish with a creamy dip — Meal Impact Score 5/10 for today.</div>
         <div class="diff-chat-bubble user">That was grilled, not fried. And I had it with yogurt, not dip.</div>
-        <div class="diff-chat-bubble ai">Thanks for the correction. Grilled fish with yogurt is lighter — I'd revise that to 7/10. The yogurt is worth watching if you're sensitive to dairy.</div>
+        <div class="diff-chat-bubble ai">Thanks for the correction. Grilled fish with yogurt is lighter — I'd revise the Meal Impact Score to 7/10. The yogurt is worth watching if you're sensitive to dairy.</div>
         <div class="diff-chat-bubble user">What if I had skipped the yogurt entirely?</div>
-        <div class="diff-chat-bubble ai">Without the dairy, this would be a straightforward high-protein meal — likely 8/10 for your gut today.</div>
+        <div class="diff-chat-bubble ai">Without the dairy, this would be a straightforward high-protein meal — likely a Meal Impact Score of 8/10 today.</div>
       </div>
     </div>
   </div>
@@ -423,8 +457,8 @@ footer{position:relative;z-index:1;border-top:1px solid var(--card-border);paddi
         <div class="screen-placeholder" style="height:400px;gap:16px">
           <div style="width:56px;height:56px;border-radius:16px;background:rgba(82,183,136,0.12);border:1px solid rgba(82,183,136,0.25);display:flex;align-items:center;justify-content:center;font-size:28px">🌿</div>
           <div>
-            <p style="font-size:13px;font-weight:600;color:rgba(255,255,255,0.5);letter-spacing:.5px;text-align:center">SCREENSHOTS COMING SOON</p>
-            <p style="font-size:12px;color:rgba(255,255,255,0.3);text-align:center;margin-top:8px">Real app · iOS</p>
+            <p style="font-size:13px;font-weight:600;color:rgba(255,255,255,0.5);letter-spacing:.5px;text-align:center">GutWell AI</p>
+            <p style="font-size:12px;color:rgba(255,255,255,0.3);text-align:center;margin-top:8px">iPhone</p>
           </div>
         </div>
       </div>
@@ -434,35 +468,18 @@ footer{position:relative;z-index:1;border-top:1px solid var(--card-border);paddi
   </div>
 </section>
 
-<!-- Waitlist -->
-<section class="waitlist" id="waitlist">
+<!-- Launch CTA -->
+<section class="launch-cta" id="launch">
   <div class="container">
-    <div class="waitlist-box fade-in">
-      <h2 class="waitlist-headline">Be the first to know<br>when GutWell AI launches.</h2>
-      <p class="waitlist-sub">
-        Join the waitlist and get a single notification when GutWell AI is available on the App Store.
+    <div class="launch-box fade-in">
+      <h2 class="launch-headline">GutWell AI for iPhone.</h2>
+      <p class="launch-sub">
+        The iOS app is being prepared for its App Store release. This page will link
+        straight to the App Store as soon as GutWell AI is live there.
       </p>
-      <form id="waitlist-form" novalidate>
-        <div class="form-row">
-          <input
-            type="email"
-            id="email-input"
-            name="email"
-            placeholder="your@email.com"
-            autocomplete="email"
-            required
-            aria-label="Email address"
-          >
-          <button type="submit" class="form-submit" id="form-btn">Get notified</button>
-        </div>
-        <p class="form-consent">
-          By submitting, you agree to our
-          <a href="/privacy">Privacy Policy</a>.
-          Your email is used only to notify you at launch. We do not share or sell it.
-        </p>
-        <p class="form-message" id="form-message" role="status" aria-live="polite"></p>
-      </form>
-      <p class="waitlist-trust">No spam. One email at launch. Unsubscribe anytime.</p>
+      <p class="launch-status" data-when="pending">App Store release being finalized</p>
+      <a class="btn-primary" href="#" hidden data-when="live" data-cta>Download on the App Store</a>
+      <p class="launch-trust">Built for iPhone · Free core features · Optional GutWell Premium</p>
     </div>
   </div>
 </section>
@@ -481,7 +498,7 @@ footer{position:relative;z-index:1;border-top:1px solid var(--card-border);paddi
         </button>
         <div class="faq-answer" id="faq-1" role="region">
           <div class="faq-answer-inner">
-            GutWell AI will launch with a free tier. An optional premium plan will be available for users who want access to additional features. Full details will be shared at launch.
+            GutWell AI has a free tier: daily check-ins, your GutWell Score, and describing a meal in text are included at no cost. GutWell Premium is an optional subscription that adds meal photo analysis, the full pattern review, your Well-Tolerated Foods list, and the weekly digest. Pricing is shown before you subscribe, and you can cancel anytime in your App Store settings.
           </div>
         </div>
       </div>
@@ -493,7 +510,7 @@ footer{position:relative;z-index:1;border-top:1px solid var(--card-border);paddi
         </button>
         <div class="faq-answer" id="faq-2" role="region">
           <div class="faq-answer-inner">
-            GutWell AI is currently in development for iOS. Android support is on the roadmap for a future release.
+            GutWell AI is built for iOS (iPhone). Android support is on the roadmap for a future release.
           </div>
         </div>
       </div>
@@ -512,12 +529,12 @@ footer{position:relative;z-index:1;border-top:1px solid var(--card-border);paddi
 
       <div class="faq-item fade-in" role="listitem">
         <button class="faq-question" aria-expanded="false" aria-controls="faq-4">
-          How does the Gut Score work?
+          How does the GutWell Score work?
           <i class="faq-chevron" aria-hidden="true">▾</i>
         </button>
         <div class="faq-answer" id="faq-4" role="region">
           <div class="faq-answer-inner">
-            Your Gut Score is a daily summary calculated from your check-in data — including stool type, symptom levels, energy, and mood. It is designed as a personal reflection tool to help you notice changes in how you feel over time. It is not a clinical measurement and does not reflect any medical assessment.
+            Your GutWell Score is a daily summary calculated from your check-in data — including stool type, symptom levels, energy, and mood. It is designed as a personal reflection tool to help you notice changes in how you feel over time. It is not a clinical measurement and does not reflect any medical assessment.
           </div>
         </div>
       </div>
@@ -529,7 +546,7 @@ footer{position:relative;z-index:1;border-top:1px solid var(--card-border);paddi
         </button>
         <div class="faq-answer" id="faq-5" role="region">
           <div class="faq-answer-inner">
-            Yes. Your health data is stored securely and is never sold or shared with third parties. Waitlist email addresses are stored solely to notify you at launch and for no other purpose. Read our full
+            Yes. Your health data is stored securely and is never sold or shared with third parties. Read our full
             <a href="/privacy" style="color:var(--green-300);text-decoration:underline">Privacy Policy</a>
             for details.
           </div>
@@ -539,6 +556,8 @@ footer{position:relative;z-index:1;border-top:1px solid var(--card-border);paddi
     </div>
   </div>
 </section>
+
+</main>
 
 <!-- Footer -->
 <footer>
@@ -552,7 +571,7 @@ footer{position:relative;z-index:1;border-top:1px solid var(--card-border);paddi
       <a href="/privacy">Privacy Policy</a>
       <a href="/terms">Terms of Service</a>
       <a href="/impressum">Legal Notice</a>
-      <a href="#waitlist">Join waitlist</a>
+      <a href="#launch" data-cta data-cta-live="Download on the App Store">Launch status</a>
     </div>
     <p class="footer-legal">&copy; 2026 GutWell AI. All rights reserved.</p>
   </div>
@@ -618,62 +637,31 @@ document.querySelectorAll('.faq-question').forEach(function(btn){
   });
 });
 
-// ── Waitlist form ───────────────────────────────────────────────────────────
-// Replace GUTWELL_WAITLIST_ENDPOINT with your Supabase Edge Function URL
-var ENDPOINT = 'https://peipdakrqtgabnvpazrc.supabase.co/functions/v1/waitlist-signup';
+// ── App Store CTA ───────────────────────────────────────────────────────────
+// SINGLE SOURCE OF TRUTH for the App Store link. It is intentionally empty
+// until the GutWell AI App Store page is actually live — an inactive store URL
+// is worse than none.
+//
+// The markup renders the pending state statically, so the page is correct with
+// JavaScript disabled. Filling in this one string is the whole launch switch:
+// every CTA (nav, hero, final section, footer) then points at the App Store.
+var APP_STORE_URL = '';
 
-document.getElementById('waitlist-form').addEventListener('submit', async function(e){
-  e.preventDefault();
-  var emailInput = document.getElementById('email-input');
-  var btn = document.getElementById('form-btn');
-  var msg = document.getElementById('form-message');
-  var email = emailInput.value.trim();
+(function(){
+  if(!APP_STORE_URL) return; // Pending state is already in the markup.
 
-  // Basic client-side validation
-  if(!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){
-    msg.textContent = 'Please enter a valid email address.';
-    msg.className = 'form-message error';
-    return;
-  }
+  document.querySelectorAll('[data-cta]').forEach(function(el){
+    el.setAttribute('href', APP_STORE_URL);
+    el.setAttribute('rel', 'noopener');
+    var liveText = el.getAttribute('data-cta-live');
+    if(liveText) el.textContent = liveText;
+    var liveClass = el.getAttribute('data-cta-live-class');
+    if(liveClass) el.className = liveClass;
+  });
 
-  btn.disabled = true;
-  btn.textContent = 'Saving...';
-  msg.textContent = '';
-  msg.className = 'form-message';
-
-  try{
-    var res = await fetch(ENDPOINT, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: email })
-    });
-    var data = await res.json().catch(function(){ return {}; });
-
-    if(res.ok){
-      msg.textContent = "You're on the list. We'll notify you at launch.";
-      msg.className = 'form-message success';
-      emailInput.value = '';
-      btn.textContent = 'Done ✓';
-    } else if(res.status === 409){
-      msg.textContent = 'This email is already on the waitlist.';
-      msg.className = 'form-message error';
-      btn.disabled = false;
-      btn.textContent = 'Get notified';
-    } else if(res.status === 429){
-      msg.textContent = 'Too many requests. Please try again in a moment.';
-      msg.className = 'form-message error';
-      btn.disabled = false;
-      btn.textContent = 'Get notified';
-    } else {
-      throw new Error(data.error || 'Submission failed');
-    }
-  } catch(err){
-    msg.textContent = 'Something went wrong. Please try again.';
-    msg.className = 'form-message error';
-    btn.disabled = false;
-    btn.textContent = 'Get notified';
-  }
-});
+  document.querySelectorAll('[data-when="pending"]').forEach(function(el){ el.hidden = true; });
+  document.querySelectorAll('[data-when="live"]').forEach(function(el){ el.hidden = false; });
+})();
 </script>
 </body>
 </html>
