@@ -9,20 +9,26 @@ import {
   StatusBar,
   ActivityIndicator,
 } from 'react-native';
+import * as Clipboard from 'expo-clipboard';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import type { PurchasesOffering, PurchasesPackage } from 'react-native-purchases';
+import type { PurchasesOffering } from 'react-native-purchases';
 import { useAuth } from '../contexts/AuthContext';
 import { Colors, FontFamily, FontSize, Spacing, BorderRadius } from '../constants/theme';
 import { track, Events } from '../lib/analytics';
 import { useTranslation } from '../lib/i18n';
 import {
-  getPaywallOffering,
+  formatSubscriptionDiagnostics,
+  getStorefrontCountry,
   initSubscription,
   isMonetizationEnabled,
-  purchasePlan,
+  isSubscriptionDebugEnabled,
+  loadPaywallOffering,
+  normalizedPriceString,
+  purchaseSelectedPackage,
+  selectPackage,
   restorePurchases,
 } from '../lib/subscription';
 
@@ -37,29 +43,7 @@ const FEATURE_ICONS = [
   'trending-up-outline',
 ] as const;
 
-/** Pick the package matching a plan from an offering, mirroring lib/subscription. */
-function packageForPlan(
-  offering: PurchasesOffering | null,
-  plan: 'monthly' | 'annual',
-): PurchasesPackage | null {
-  if (!offering) return null;
-  if (plan === 'annual') {
-    return (
-      offering.annual ??
-      offering.availablePackages.find(
-        (p) => p.packageType === 'ANNUAL' || p.product.subscriptionPeriod === 'P1Y',
-      ) ??
-      null
-    );
-  }
-  return (
-    offering.monthly ??
-    offering.availablePackages.find(
-      (p) => p.packageType === 'MONTHLY' || p.product.subscriptionPeriod === 'P1M',
-    ) ??
-    null
-  );
-}
+
 
 export default function PaywallScreen() {
   const t = useTranslation();
@@ -84,6 +68,10 @@ export default function PaywallScreen() {
   const [restoring, setRestoring] = useState(false);
   const [offering, setOffering] = useState<PurchasesOffering | null>(null);
   const [loadingOffering, setLoadingOffering] = useState(true);
+  // The App Store country the prices on screen were loaded from. Null means
+  // "could not be read", which is treated as "no evidence of a change" — never
+  // as a mismatch, so an unreadable storefront cannot block a purchase.
+  const [offeringStorefront, setOfferingStorefront] = useState<string | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -91,10 +79,19 @@ export default function PaywallScreen() {
     (async () => {
       try {
         await initSubscription(user?.id);
-        const current = await getPaywallOffering();
-        if (active) setOffering(current);
+        const result = await loadPaywallOffering();
+        if (!active) return;
+        // Only a sellable offering unlocks the CTA. The specific reason it is
+        // not sellable (not configured / fetch failed / no current offering /
+        // no usable packages / no price) is retained by lib/subscription.ts and
+        // readable via getSubscriptionDiagnostics(); the user never sees it.
+        setOffering(result.ok ? result.offering : null);
+        setOfferingStorefront(result.storefrontCountry);
+        if (!result.ok && __DEV__) {
+          console.warn('[paywall] offering unavailable:', result.reason);
+        }
       } catch (error) {
-        console.warn('Failed to load offerings:', error);
+        if (__DEV__) console.warn('[paywall] offering load threw:', error);
       } finally {
         if (active) setLoadingOffering(false);
       }
@@ -104,42 +101,31 @@ export default function PaywallScreen() {
     };
   }, [user?.id]);
 
-  // Real store prices when RevenueCat is configured; fall back to the static
-  // marketing prices below when there is no offering (unconfigured / Expo Go).
-  const monthlyPkg = packageForPlan(offering, 'monthly');
-  const annualPkg = packageForPlan(offering, 'annual');
-  const monthlyPrice = monthlyPkg?.product.priceString ?? '$6.99';
-  const annualPrice = annualPkg?.product.priceString ?? '$39.99';
+  // Prices come from StoreKit via RevenueCat and NOWHERE else.
+  //
+  // These used to fall back to '$6.99' / '$39.99' when no offering had loaded.
+  // Those were both invented AND stale — the real targets are higher — so the
+  // screen advertised a price the store would never charge. There is no honest
+  // fallback for a price we do not have, so when the offering is missing the
+  // screen says so instead of guessing.
+  const monthlyPkg = selectPackage(offering, 'monthly');
+  const annualPkg = selectPackage(offering, 'annual');
+  const monthlyPrice = monthlyPkg?.product.priceString ?? null;
+  const annualPrice = annualPkg?.product.priceString ?? null;
   const canPurchase = offering != null;
 
-  // Derive per-month and savings claims from the REAL store prices so they
-  // stay correct across currencies and price changes (hardcoded '$3.33' and
-  // '52%' would be false advertising the moment prices differ).
-  const annualProduct = annualPkg?.product;
-  const monthlyProduct = monthlyPkg?.product;
-  const perMonthLabel = (() => {
-    if (!annualProduct || typeof annualProduct.price !== 'number') return 'Just $3.33/mo';
-    try {
-      const perMonth = new Intl.NumberFormat(undefined, {
-        style: 'currency',
-        currency: annualProduct.currencyCode || 'USD',
-      }).format(annualProduct.price / 12);
-      return `Just ${perMonth}/mo`;
-    } catch {
-      return null;
-    }
-  })();
-  const savingsLabel = (() => {
-    if (
-      !annualProduct || !monthlyProduct ||
-      typeof annualProduct.price !== 'number' || typeof monthlyProduct.price !== 'number' ||
-      monthlyProduct.price <= 0
-    ) {
-      return t.paywall.billedAnnuallySave.replace('{pct}', '52');
-    }
-    const pct = Math.round((1 - annualProduct.price / (monthlyProduct.price * 12)) * 100);
-    return pct > 0 ? t.paywall.billedAnnuallySave.replace('{pct}', String(pct)) : t.paywall.billedAnnually;
-  })();
+  // Two plans billed on different intervals are hard to compare, so each card
+  // leads with the price restated on a common cadence and states the real
+  // charge underneath. Null whenever it cannot be derived honestly, in which
+  // case the card falls back to showing the actual price as its headline —
+  // never a blank, a zero, or a fabricated figure.
+  const monthlyPerWeek = normalizedPriceString(monthlyPkg, 'week');
+  const annualPerMonth = normalizedPriceString(annualPkg, 'month');
+
+  // The separate per-month sub-line and the savings percentage that used to sit
+  // on the Annual card are both gone: the per-month figure IS the headline now,
+  // and a discount claim is out of scope for this screen. Their i18n keys stay
+  // defined so restoring either is a render change, not a translation pass.
 
   // Trial copy must reflect the SELECTED plan's actual introductory offer.
   const selectedPkg = selectedPlan === 'annual' ? annualPkg : monthlyPkg;
@@ -149,18 +135,66 @@ export default function PaywallScreen() {
     const unit = selectedIntro.periodUnit?.toLowerCase() ?? 'day';
     const n = selectedIntro.periodNumberOfUnits ?? 0;
     if (!n) return t.paywall.startFreeTrial;
-    const unitLabel = unit.charAt(0).toUpperCase() + unit.slice(1);
+    // StoreKit reports the period unit in English. Capitalising it inline put
+    // "Day"/"Week"/"Month" straight into the German sentence, so it is mapped
+    // through i18n instead.
+    const unitLabel =
+      unit === 'week'
+        ? t.paywall.trialUnitWeek
+        : unit === 'month'
+          ? t.paywall.trialUnitMonth
+          : unit === 'year'
+            ? t.paywall.trialUnitYear
+            : t.paywall.trialUnitDay;
     return t.paywall.startTrialWithPeriod.replace('{n}', String(n)).replace('{unit}', unitLabel);
   })();
+
+  // Preview/QA only. isSubscriptionDebugEnabled() is EXPO_PUBLIC_RC_DEBUG==='true',
+  // which no production build sets, so this affordance never renders for a real
+  // user. It is additionally limited to the case where there is nothing to sell.
+  const showDiagnostics = isSubscriptionDebugEnabled() && !loadingOffering && !canPurchase;
+
+  const handleCopyDiagnostics = async () => {
+    await Clipboard.setStringAsync(formatSubscriptionDiagnostics());
+    Alert.alert(t.paywall.debugInfoCopied);
+  };
 
   const handleCTA = async () => {
     if (purchasing) return;
     if (!canPurchase) {
-      Alert.alert(t.paywall.comingSoon, t.paywall.comingSoonBody);
+      // One calm, non-technical message for every underlying cause. "Coming
+      // soon" was misleading once products exist but have not hydrated.
+      Alert.alert(t.paywall.unavailableTitle, t.paywall.unavailableBody);
       return;
     }
+    // Set before the storefront round-trip, not just around the purchase, so
+    // the CTA is disabled for the whole operation and a second tap cannot
+    // start a parallel purchase.
     setPurchasing(true);
-    const result = await purchasePlan(selectedPlan);
+
+    // Did the store move under us between loading these prices and this tap?
+    //
+    // Only a change BETWEEN two known countries counts. If either reading is
+    // null the storefront could not be read, which is not evidence of a
+    // change, and blocking on it would deny a purchase over a missing
+    // diagnostic.
+    const currentStorefront = await getStorefrontCountry();
+    if (offeringStorefront && currentStorefront && currentStorefront !== offeringStorefront) {
+      // Reload rather than buy: the amounts on screen belong to the previous
+      // region and are not what Apple would charge. The user stays here, sees
+      // the refreshed prices, and taps Continue again — a purchase is never
+      // completed silently on a price they have not seen.
+      const refreshed = await loadPaywallOffering();
+      setOffering(refreshed.ok ? refreshed.offering : null);
+      setOfferingStorefront(refreshed.storefrontCountry);
+      setPurchasing(false);
+      Alert.alert(t.paywall.pricingRefreshedTitle, t.paywall.pricingRefreshedBody);
+      return;
+    }
+
+    // Unchanged storefront: buy the exact package object whose price is on
+    // screen, rather than re-deriving one from a fresh offerings fetch.
+    const result = await purchaseSelectedPackage(selectedPkg);
     setPurchasing(false);
 
     if (result.success) {
@@ -208,6 +242,8 @@ export default function PaywallScreen() {
           onPress={() => router.back()}
           activeOpacity={0.7}
           hitSlop={{ top: 12, right: 12, bottom: 12, left: 12 }}
+          accessibilityRole="button"
+          accessibilityLabel={t.paywall.accessClose}
         >
           <Ionicons name="close" size={22} color="rgba(255,255,255,0.9)" />
         </TouchableOpacity>
@@ -290,10 +326,23 @@ export default function PaywallScreen() {
               ]}
               onPress={() => setSelectedPlan('monthly')}
               activeOpacity={0.8}
+              accessibilityRole="radio"
+              accessibilityState={{ selected: selectedPlan === 'monthly' }}
+              accessibilityLabel={t.paywall.accessSelectMonthly}
             >
-              <Text style={styles.pricingAmount}>{monthlyPrice}</Text>
-              <Text style={styles.pricingPeriod}>/mo</Text>
-              <Text style={styles.pricingBilled}>{t.paywall.billedMonthly}</Text>
+              {/* Neutral placeholder, never an invented figure. */}
+              <Text style={styles.pricingAmount}>
+                {monthlyPerWeek ?? monthlyPrice ?? t.paywall.priceUnavailable}
+              </Text>
+              <Text style={styles.pricingPeriod}>
+                {monthlyPerWeek ? t.paywall.periodWeekShort : t.paywall.periodMonthShort}
+              </Text>
+              {/* What Apple actually charges, and when. Never omitted. */}
+              <Text style={styles.pricingBilled}>
+                {monthlyPrice
+                  ? t.paywall.billedMonthlyAt.replace('{price}', monthlyPrice)
+                  : t.paywall.billedMonthly}
+              </Text>
             </TouchableOpacity>
 
             {/* Annual */}
@@ -304,14 +353,25 @@ export default function PaywallScreen() {
               ]}
               onPress={() => setSelectedPlan('annual')}
               activeOpacity={0.8}
+              accessibilityRole="radio"
+              accessibilityState={{ selected: selectedPlan === 'annual' }}
+              accessibilityLabel={t.paywall.accessSelectAnnual}
             >
               <View style={styles.bestValueBadge}>
                 <Text style={styles.bestValueText}>{t.paywall.bestValue}</Text>
               </View>
-              <Text style={styles.pricingAmount}>{annualPrice}</Text>
-              <Text style={styles.pricingPeriod}>/yr</Text>
-              {perMonthLabel ? <Text style={styles.pricingSubPrice}>{perMonthLabel}</Text> : null}
-              <Text style={styles.pricingBilled}>{savingsLabel}</Text>
+              <Text style={styles.pricingAmount}>
+                {annualPerMonth ?? annualPrice ?? t.paywall.priceUnavailable}
+              </Text>
+              <Text style={styles.pricingPeriod}>
+                {annualPerMonth ? t.paywall.periodMonthShort : t.paywall.periodYearShort}
+              </Text>
+              {/* What Apple actually charges, and when. Never omitted. */}
+              <Text style={styles.pricingBilled}>
+                {annualPrice
+                  ? t.paywall.billedAnnuallyAt.replace('{price}', annualPrice)
+                  : t.paywall.billedAnnually}
+              </Text>
             </TouchableOpacity>
           </View>
 
@@ -321,6 +381,9 @@ export default function PaywallScreen() {
             onPress={handleCTA}
             activeOpacity={0.85}
             disabled={purchasing || loadingOffering}
+            accessibilityRole="button"
+            accessibilityState={{ disabled: purchasing || loadingOffering }}
+            accessibilityLabel={t.paywall.accessContinue}
           >
             <LinearGradient
               colors={['#52B788', '#2D6A4F']}
@@ -337,27 +400,53 @@ export default function PaywallScreen() {
           </TouchableOpacity>
 
           {/* Fine Print */}
-          <Text style={styles.finePrint}>
-            Payment is charged to your Apple ID at confirmation. Subscriptions renew
-            automatically unless cancelled at least 24 hours before the end of the
-            period. Manage or cancel anytime in App Store settings.
-          </Text>
+          <Text style={styles.finePrint}>{t.paywall.finePrint}</Text>
 
           {/* Legal links — required on subscription paywalls (Guideline 3.1.2) */}
           <View style={styles.legalRow}>
-            <TouchableOpacity onPress={() => router.push('/terms-of-service')} accessibilityRole="link">
+            <TouchableOpacity
+              onPress={() => router.push('/terms-of-service')}
+              accessibilityRole="link"
+              accessibilityLabel={t.paywall.accessTerms}
+            >
               <Text style={styles.legalLink}>{t.paywall.termsOfService}</Text>
             </TouchableOpacity>
             <Text style={styles.legalDot}>·</Text>
-            <TouchableOpacity onPress={() => router.push('/privacy-policy')} accessibilityRole="link">
+            <TouchableOpacity
+              onPress={() => router.push('/privacy-policy')}
+              accessibilityRole="link"
+              accessibilityLabel={t.paywall.accessPrivacy}
+            >
               <Text style={styles.legalLink}>{t.paywall.privacyPolicy}</Text>
             </TouchableOpacity>
           </View>
 
           {/* Restore Purchases */}
-          <TouchableOpacity onPress={handleRestore} activeOpacity={0.7} disabled={restoring || purchasing}>
-            <Text style={styles.restoreText}>{restoring ? 'Restoring...' : 'Restore Purchases'}</Text>
+          <TouchableOpacity
+            onPress={handleRestore}
+            activeOpacity={0.7}
+            disabled={restoring || purchasing}
+            accessibilityRole="button"
+            accessibilityState={{ disabled: restoring || purchasing }}
+            accessibilityLabel={t.paywall.accessRestore}
+          >
+            <Text style={styles.restoreText}>
+              {restoring ? t.paywall.restoring : t.paywall.restoreButton}
+            </Text>
           </TouchableOpacity>
+
+          {/* Preview-build QA affordance. Never rendered in production: the flag
+              that gates it is not set in any release environment. */}
+          {showDiagnostics ? (
+            <TouchableOpacity
+              onPress={handleCopyDiagnostics}
+              activeOpacity={0.7}
+              accessibilityRole="button"
+              accessibilityLabel={t.paywall.copyDebugInfo}
+            >
+              <Text style={styles.diagnosticsText}>{t.paywall.copyDebugInfo}</Text>
+            </TouchableOpacity>
+          ) : null}
         </ScrollView>
       </SafeAreaView>
     </LinearGradient>
@@ -626,6 +715,15 @@ const styles = StyleSheet.create({
     color: 'rgba(255,255,255,0.5)',
     textDecorationLine: 'underline',
     textAlign: 'center',
+  },
+  // Deliberately quieter than restoreText — it is a QA affordance, not a
+  // feature, and only ever visible in a preview build.
+  diagnosticsText: {
+    fontFamily: FontFamily.sansRegular,
+    fontSize: FontSize.xs,
+    color: 'rgba(255,255,255,0.3)',
+    textAlign: 'center',
+    marginTop: Spacing.md,
   },
   legalRow: {
     flexDirection: 'row',

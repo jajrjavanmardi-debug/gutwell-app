@@ -4,6 +4,7 @@ import * as Notifications from 'expo-notifications';
 import { SchedulableTriggerInputTypes } from 'expo-notifications';
 import { supabase } from './supabase';
 import { isExpoGo } from './runtime-environment';
+import { loadLanguage, type AppLanguage } from './language';
 
 // ─── Notification handler ─────────────────────────────────────────────────────
 // Controls how notifications are presented while the app is foregrounded.
@@ -144,11 +145,12 @@ export async function scheduleDailyCheckInReminder(
     await ensureAndroidChannel();
     // Cancel any prior instance so we never stack duplicates.
     await Notifications.cancelScheduledNotificationAsync(ID_DAILY_CHECKIN).catch(() => {});
+    const copy = (await currentCopy()).dailyCheckIn;
     return await Notifications.scheduleNotificationAsync({
       identifier: ID_DAILY_CHECKIN,
       content: {
-        title: 'Time for your check-in',
-        body: 'Log how your gut feels today to keep your insights sharp.',
+        title: copy.title,
+        body: copy.body,
         sound: true,
         data: { reminderType: 'checkin' },
         ...(Platform.OS === 'android' ? { channelId: ANDROID_CHANNEL_ID } : {}),
@@ -190,11 +192,12 @@ export async function scheduleWeeklyDigestNotification(
     }
     await ensureAndroidChannel();
     await Notifications.cancelScheduledNotificationAsync(ID_WEEKLY_DIGEST).catch(() => {});
+    const copy = (await currentCopy()).weeklyDigest;
     return await Notifications.scheduleNotificationAsync({
       identifier: ID_WEEKLY_DIGEST,
       content: {
-        title: 'Your weekly gut report is ready',
-        body: 'See your trends, top triggers, and wins from the past week.',
+        title: copy.title,
+        body: copy.body,
         sound: true,
         data: { reminderType: 'digest' },
         ...(Platform.OS === 'android' ? { channelId: ANDROID_CHANNEL_ID } : {}),
@@ -247,11 +250,12 @@ export async function scheduleStreakAtRiskAlert(streakDays: number): Promise<voi
     fireAt.setHours(20, 0, 0, 0);
     if (fireAt.getTime() <= Date.now()) return;
 
+    const copy = (await currentCopy()).streakAtRisk;
     await Notifications.scheduleNotificationAsync({
       identifier: ID_STREAK_AT_RISK,
       content: {
-        title: `Keep your ${streakDays}-day streak alive`,
-        body: 'You have not checked in yet today. A quick log keeps your streak going.',
+        title: copy.title(streakDays),
+        body: copy.body,
         sound: true,
         data: { reminderType: 'checkin' },
         ...(Platform.OS === 'android' ? { channelId: ANDROID_CHANNEL_ID } : {}),
@@ -309,23 +313,101 @@ export async function requestNotificationPermissions(): Promise<boolean> {
   return requestPermissions();
 }
 
-const REMINDER_COPY: Record<
-  'checkin' | 'food' | 'symptom',
-  { title: string; body: string }
-> = {
-  checkin: {
-    title: 'Time for your check-in',
-    body: 'Log how your gut feels today to keep your insights sharp.',
+// ─── Localized notification copy ─────────────────────────────────────────────
+//
+// Scheduling happens outside React — settings handlers, onboarding, the Home
+// tab — so useTranslation() is unavailable here. loadLanguage() reads the same
+// persisted preference the provider does, which makes the language resolvable
+// from a plain async function without wiring context through five call sites.
+//
+// Copy is chosen at SCHEDULE time. A notification already queued keeps the
+// language it was scheduled in until it is next rescheduled; that is an
+// accepted v1 limitation, and eliminating it would mean rescheduling on every
+// language change — a behaviour change, not a copy change.
+
+type ReminderType = 'checkin' | 'food' | 'symptom';
+
+type NotificationCopy = {
+  dailyCheckIn: { title: string; body: string };
+  weeklyDigest: { title: string; body: string };
+  streakAtRisk: { title: (streakDays: number) => string; body: string };
+  reminders: Record<ReminderType, { title: string; body: string }>;
+};
+
+const NOTIFICATION_COPY: Record<AppLanguage, NotificationCopy> = {
+  en: {
+    dailyCheckIn: {
+      title: 'Time for your check-in',
+      body: 'Log how your gut feels today to keep your insights sharp.',
+    },
+    weeklyDigest: {
+      title: 'Your weekly gut report is ready',
+      body: 'See your trends, top triggers, and wins from the past week.',
+    },
+    streakAtRisk: {
+      title: (streakDays: number) => `Keep your ${streakDays}-day streak alive`,
+      body: 'You have not checked in yet today. A quick log keeps your streak going.',
+    },
+    reminders: {
+      checkin: {
+        title: 'Time for your check-in',
+        body: 'Log how your gut feels today to keep your insights sharp.',
+      },
+      food: {
+        title: 'Log your meal',
+        body: "Add what you ate so we can connect food to how you feel.",
+      },
+      symptom: {
+        title: 'How are your symptoms?',
+        body: 'Track any symptoms now to spot patterns over time.',
+      },
+    },
   },
-  food: {
-    title: 'Log your meal',
-    body: "Add what you ate so we can connect food to how you feel.",
-  },
-  symptom: {
-    title: 'How are your symptoms?',
-    body: 'Track any symptoms now to spot patterns over time.',
+  de: {
+    dailyCheckIn: {
+      title: 'Zeit für deinen Check-in',
+      body: 'Trag ein, wie es deinem Darm heute geht, damit deine Auswertungen aussagekräftig bleiben.',
+    },
+    weeklyDigest: {
+      title: 'Dein Wochenbericht ist da',
+      body: 'Sieh dir deine Verläufe, häufigsten Auslöser und Erfolge der letzten Woche an.',
+    },
+    streakAtRisk: {
+      title: (streakDays: number) => `Halte deine ${streakDays}-Tage-Serie am Leben`,
+      body: 'Du hast dich heute noch nicht eingetragen. Ein kurzer Eintrag hält deine Serie am Laufen.',
+    },
+    reminders: {
+      checkin: {
+        title: 'Zeit für deinen Check-in',
+        body: 'Trag ein, wie es deinem Darm heute geht, damit deine Auswertungen aussagekräftig bleiben.',
+      },
+      food: {
+        title: 'Mahlzeit eintragen',
+        body: 'Trag ein, was du gegessen hast, damit wir Ernährung und Befinden verknüpfen können.',
+      },
+      symptom: {
+        title: 'Wie sind deine Symptome?',
+        body: 'Trag jetzt Symptome ein, um Muster über die Zeit zu erkennen.',
+      },
+    },
   },
 };
+
+/**
+ * Copy for the language the user has selected.
+ *
+ * Never throws: an unreadable or unrecognised preference falls back to
+ * English, because failing to schedule a reminder would be a worse outcome
+ * than scheduling it in the wrong language.
+ */
+async function currentCopy(): Promise<NotificationCopy> {
+  try {
+    const language = (await loadLanguage()) as AppLanguage;
+    return NOTIFICATION_COPY[language] ?? NOTIFICATION_COPY.en;
+  } catch {
+    return NOTIFICATION_COPY.en;
+  }
+}
 
 /**
  * Schedule a daily local notification at a specific time.
@@ -343,7 +425,7 @@ export async function scheduleDailyReminder(
       if (!granted) return fallbackId;
     }
     await ensureAndroidChannel();
-    const copy = REMINDER_COPY[type];
+    const copy = (await currentCopy()).reminders[type];
     const id = await Notifications.scheduleNotificationAsync({
       content: {
         title: copy.title,
@@ -414,6 +496,11 @@ export async function syncReminders(userId: string) {
       .eq('user_id', userId);
     if (error || !data) return;
 
+    // Resolved once for the whole sync rather than per reminder: the language
+    // cannot change midway through, and this keeps the loop free of repeated
+    // storage reads.
+    const reminderCopy = (await currentCopy()).reminders;
+
     for (const r of data as Array<{
       id: number;
       reminder_type: 'checkin' | 'food' | 'symptom';
@@ -427,7 +514,7 @@ export async function syncReminders(userId: string) {
       const minute = Number(mStr);
       if (Number.isNaN(hour) || Number.isNaN(minute)) continue;
 
-      const copy = REMINDER_COPY[r.reminder_type] ?? REMINDER_COPY.checkin;
+      const copy = reminderCopy[r.reminder_type] ?? reminderCopy.checkin;
       const days = Array.isArray(r.days) && r.days.length > 0 ? r.days : [1, 2, 3, 4, 5, 6, 7];
 
       const baseContent = {

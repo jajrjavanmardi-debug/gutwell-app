@@ -4,42 +4,12 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { Colors, Spacing, FontSize, BorderRadius, FontFamily } from '../constants/theme';
+import { useTranslation } from '../lib/i18n';
 
 type SectionData = {
   title: string;
   body: string;
 };
-
-const SECTIONS: SectionData[] = [
-  {
-    title: '1. Data We Collect',
-    body: 'GutWell AI collects the data you voluntarily enter: check-in logs (stool type, bloating, pain, energy, mood, water intake), food logs (meal names, meal types, meal photos you choose to analyze), symptom logs (type, severity), supplement notes, onboarding answers (your gut concerns and goals), and basic account information (email, display name). If you use voice input, your speech is converted to text on your device or by your phone\u2019s operating system; we store only the resulting text. If you grant location access for local food suggestions, your approximate location is used during that analysis.',
-  },
-  {
-    title: '2. How We Use Your Data',
-    body: 'Your data is used to provide the GutWell AI service \u2014 displaying your health trends, calculating your gut health score, detecting food\u2013symptom patterns, personalizing AI meal analysis, and sending reminders you configure. We never sell your data, and we do not use it for advertising or cross-app tracking.',
-  },
-  {
-    title: '3. Service Providers We Share Data With',
-    body: 'To run GutWell AI we use a small number of processors, each bound by their own privacy commitments:\n\n\u2022 Supabase (hosted on AWS, EU region) \u2014 stores your account and all logs described above.\n\u2022 Google Gemini API \u2014 when you analyze a meal photo, the photo plus the context you provide (symptoms, conditions, supplements, and \u2014 if enabled \u2014 approximate location) is sent to Google\u2019s AI service to generate your analysis. Google does not use this data to train models per its API terms.\n\u2022 PostHog (analytics) \u2014 anonymous-style usage events (e.g. \u201ccheck-in logged\u201d) linked to a random user ID. We do not send your health values, name, or email to analytics.\n\u2022 Sentry (crash reporting) \u2014 technical crash data, not linked to your identity.\n\u2022 Apple / RevenueCat \u2014 only if you make a purchase, to process and validate it.\n\nWe do not sell or share your personal health data with any other third parties.',
-  },
-  {
-    title: '4. Data Storage & Security',
-    body: 'Your data is stored securely using Supabase (hosted on AWS) with encryption at rest and in transit. Row-level security ensures only you can access your data. Authentication tokens are stored in your device\u2019s secure storage. AI requests are processed by our server \u2014 API keys never live in the app.',
-  },
-  {
-    title: '5. Data Retention & Deletion',
-    body: 'Your data is retained as long as your account is active. You can export your data at any time from Settings or Profile. You can permanently delete your account and all associated data directly in the app: Profile \u2192 Delete Account. Deletion is immediate and irreversible.',
-  },
-  {
-    title: '6. Your Rights',
-    body: 'You have the right to access, export, correct, or delete your personal data (GDPR Articles 15\u201320 where applicable). You can exercise these rights through the app settings or by contacting us. You may also withdraw location, camera, microphone, or notification permissions at any time in your device Settings.',
-  },
-  {
-    title: '7. Contact',
-    body: 'GutWell AI is operated by GutWell AI. For privacy-related questions, contact us at support@getgutwell.app.',
-  },
-];
 
 function CollapsibleSection({ section }: { section: SectionData }) {
   const [expanded, setExpanded] = useState(false);
@@ -66,6 +36,9 @@ function CollapsibleSection({ section }: { section: SectionData }) {
 }
 
 export default function PrivacyPolicyScreen() {
+  const t = useTranslation();
+  const legal = t.legalScreens;
+
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       {/* Header */}
@@ -77,7 +50,7 @@ export default function PrivacyPolicyScreen() {
         >
           <Ionicons name="arrow-back" size={22} color={Colors.text} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Privacy Policy</Text>
+        <Text style={styles.headerTitle}>{legal.privacyPolicyTitle}</Text>
         <View style={styles.headerSpacer} />
       </View>
 
@@ -85,22 +58,28 @@ export default function PrivacyPolicyScreen() {
         contentContainerStyle={styles.scroll}
         showsVerticalScrollIndicator={false}
       >
-        <Text style={styles.pageTitle}>Privacy Policy</Text>
-        <Text style={styles.updated}>Last updated: June 2026</Text>
-        <Text style={styles.intro}>
-          Your privacy matters to us. Tap each section below to learn how we handle your data.
-        </Text>
+        <Text style={styles.pageTitle}>{legal.privacyPolicyTitle}</Text>
+        <Text style={styles.updated}>{legal.lastUpdated}</Text>
+        <Text style={styles.intro}>{legal.privacyIntro}</Text>
 
-        {SECTIONS.map((section, i) => (
+        {legal.privacySections.map((section: SectionData, i: number) => (
           <CollapsibleSection key={i} section={section} />
         ))}
+
+        {/* Operator identity — named here so the screen carries the same
+            controller details as the published policy. */}
+        <View style={styles.operatorFooter}>
+          <Text style={styles.operatorLabel}>{legal.operatedBy}</Text>
+          <Text style={styles.operatorText}>{legal.operatorName}</Text>
+          <Text style={styles.operatorText}>{legal.operatorAddress}</Text>
+        </View>
 
         {/* Contact Footer */}
         <View style={styles.contactFooter}>
           <Ionicons name="mail-outline" size={20} color={Colors.textSecondary} />
           <Text style={styles.contactText}>
-            Questions? Reach us at{' '}
-            <Text style={styles.contactEmail}>support@getgutwell.app</Text>
+            {legal.contactPrompt}{' '}
+            <Text style={styles.contactEmail}>{legal.contactEmail}</Text>
           </Text>
         </View>
       </ScrollView>
@@ -192,11 +171,29 @@ const styles = StyleSheet.create({
   },
 
   // Contact Footer
+  operatorFooter: {
+    marginTop: Spacing.xl,
+    paddingTop: Spacing.lg,
+    borderTopWidth: 1,
+    borderTopColor: Colors.divider,
+  },
+  operatorLabel: {
+    fontFamily: FontFamily.sansMedium,
+    fontSize: FontSize.xs,
+    color: Colors.textTertiary,
+    marginBottom: Spacing.xs,
+  },
+  operatorText: {
+    fontFamily: FontFamily.sansRegular,
+    fontSize: FontSize.sm,
+    color: Colors.textSecondary,
+    lineHeight: 20,
+  },
   contactFooter: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.sm,
-    marginTop: Spacing.xl,
+    marginTop: Spacing.lg,
     paddingTop: Spacing.lg,
     borderTopWidth: 1,
     borderTopColor: Colors.divider,

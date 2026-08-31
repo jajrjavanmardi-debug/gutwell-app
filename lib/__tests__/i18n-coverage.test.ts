@@ -6,6 +6,10 @@
  */
 
 import { translations, getTranslation, SUPPORTED_LANGUAGES, LANGUAGE_LABELS } from '../i18n';
+import { ONBOARDING_STEPS, LEGACY_ONBOARDING_STEPS } from '../onboarding-config';
+// One shared list — see the header of banned-claims.ts for why it is not
+// redefined per suite.
+import { ADDED_BANNED_CLAIMS, BANNED_CLAIMS, ORIGINAL_BANNED_CLAIMS } from './banned-claims';
 
 const PERSIAN_SCRIPT = /[؀-ۿ]/;
 
@@ -29,6 +33,7 @@ function leafStrings(value: unknown): string[] {
   if (value && typeof value === 'object') return Object.values(value).flatMap(leafStrings);
   return [];
 }
+
 
 describe('language scope', () => {
   test('exactly two translation resources ship: en and de', () => {
@@ -80,64 +85,26 @@ describe('key parity', () => {
 });
 
 describe('welcome hero sequence', () => {
-  const EXPECTED_EN = [
-    'Track your gut health.',
-    'Understand your gut.',
-    'Notice possible patterns.',
-    'Find your triggers.',
-    'Build healthier habits.',
-    'Feel your best.',
-    'Enjoy your meals.',
-  ];
+  // The cycling taglines and the three value points were removed when the
+  // Story Experience took the centre of Welcome. The tests that pinned their
+  // exact strings went with them — they asserted copy that no longer ships.
+  // What replaces them is asserted in story-carousel.test.ts.
 
-  const EXPECTED_DE = [
-    'Behalte deinen Darm im Blick.',
-    'Verstehe deinen Darm.',
-    'Erkenne mögliche Muster.',
-    'Finde deine Auslöser.',
-    'Entwickle gesündere Routinen.',
-    'Fühl dich rundum wohl.',
-    'Genieße deine Mahlzeiten.',
-  ];
-
-  test('English taglines match the approved sequence, in order', () => {
-    expect(translations.en.welcome.taglines).toEqual(EXPECTED_EN);
-  });
-
-  test('German taglines match the approved sequence, in order', () => {
-    expect(translations.de.welcome.taglines).toEqual(EXPECTED_DE);
-  });
-
-  test('both languages have the same number of taglines', () => {
-    expect(translations.de.welcome.taglines.length).toBe(
-      translations.en.welcome.taglines.length
-    );
+  test('the retired welcome copy is gone from both languages, not merely unused', () => {
+    for (const lang of ['en', 'de'] as const) {
+      const welcome = translations[lang].welcome as Record<string, unknown>;
+      expect(welcome.taglines).toBeUndefined();
+      expect(welcome.valuePoints).toBeUndefined();
+      expect(welcome.headline).toBeUndefined();
+    }
   });
 });
 
 describe('claim safety', () => {
-  // Banned phrasings from the product's standing claim-safety decision.
-  // These target AFFIRMATIVE claims only — the required medical disclaimers
-  // legitimately contain words like "diagnosis" and "treatment" in a negated
-  // form ("does not provide medical advice, diagnosis, or treatment").
-  const BANNED = [
-    /reduce symptoms/i,
-    /flare-?up days dropping/i,
-    /join thousands/i,
-    /rate us highly/i,
-    /\bcures? your\b/i,
-    /\bwe (diagnose|treat|cure)\b/i,
-    /guaranteed/i,
-    /garantiert/i,
-    /\bheilt\b/i,
-    /Beschwerden reduzier/i,
-    /proven to (reduce|improve|prevent)/i,
-  ];
-
   test('no user-facing string makes a banned health or marketing claim', () => {
     for (const [lang, resource] of Object.entries(translations)) {
       for (const value of leafStrings(resource)) {
-        for (const pattern of BANNED) {
+        for (const pattern of BANNED_CLAIMS) {
           expect(`${lang}: ${value}`).not.toMatch(pattern);
         }
       }
@@ -147,6 +114,141 @@ describe('claim safety', () => {
   test('dairy-free is not mistranslated as lactose-free in German', () => {
     expect(translations.de.settings.dietOptions.dairyFree).toBe('Ohne Milchprodukte');
     expect(translations.de.settings.dietOptions.dairyFree).not.toBe('Laktosefrei');
+  });
+});
+
+/**
+ * Claim safety for onboarding step definitions.
+ *
+ * The scan above walks `translations` only. Step copy in
+ * lib/onboarding-config.ts is hardcoded English that never passes through the
+ * i18n resources, so it sat outside every claim-safety guard the project had —
+ * which is how "People who track consistently with Gutwell tend to notice
+ * their flare-up days dropping within the first few weeks" survived in the
+ * repository while a pattern matching that exact phrase was already in the
+ * banned list.
+ *
+ * BOTH arrays are scanned. The legacy sequence is unreachable — nothing
+ * imports it and the stepper walks ONBOARDING_STEPS — but "unreachable" is a
+ * property of today's wiring, not of the text. Re-pointing the stepper is a
+ * one-line change, and the strings should not be waiting to become a claim if
+ * anyone ever makes it.
+ */
+describe('claim safety — onboarding step definitions', () => {
+  /** Every string in a step definition: titles, bodies, captions, options. */
+  function stepStrings(steps: readonly unknown[]): string[] {
+    return steps.flatMap(leafStrings);
+  }
+
+  test('the active flow makes no banned claim', () => {
+    for (const value of stepStrings(ONBOARDING_STEPS)) {
+      for (const pattern of BANNED_CLAIMS) {
+        expect(`ONBOARDING_STEPS: ${value}`).not.toMatch(pattern);
+      }
+    }
+  });
+
+  test('the retained legacy flow makes no banned claim either', () => {
+    for (const value of stepStrings(LEGACY_ONBOARDING_STEPS)) {
+      for (const pattern of BANNED_CLAIMS) {
+        expect(`LEGACY_ONBOARDING_STEPS: ${value}`).not.toMatch(pattern);
+      }
+    }
+  });
+
+  test('the specific claim that motivated this guard cannot come back', () => {
+    // Belt and braces: an exact-substring check that does not depend on the
+    // regex list staying correct.
+    const all = [...stepStrings(ONBOARDING_STEPS), ...stepStrings(LEGACY_ONBOARDING_STEPS)];
+    for (const value of all) {
+      expect(value).not.toMatch(/flare-?up days dropping/i);
+      expect(value).not.toMatch(/tend to notice their/i);
+    }
+  });
+});
+
+/**
+ * Calibration for the banned-claims list itself.
+ *
+ * A claim-safety test is only useful while people trust it. One that rejects
+ * "Your subscription renews in 4 weeks" gets suppressed, weakened, or worked
+ * around the first time someone writes ordinary billing copy — and then it
+ * protects nothing. These cases pin BOTH directions so the list can be
+ * tightened later without silently becoming unusable.
+ */
+describe('banned-claims calibration', () => {
+  /** True when any pattern in `list` matches. */
+  const flagged = (list: RegExp[], s: string) => list.some((r) => r.test(s));
+
+  const MUST_FAIL = [
+    // The claim that started this.
+    'People who track consistently tend to notice their flare-up days dropping within the first few weeks.',
+    // Outcome + numeric timeline, EN.
+    'Feel better in 2 weeks',
+    'Reduce symptoms in 7 days',
+    'Get relief in 3 weeks',
+    // Outcome + numeric timeline, DE.
+    'Fühl dich besser in 2 Wochen',
+    'Spürbare Linderung in 7 Tagen',
+    // Outcome + vague near-term period.
+    'Your symptoms improve within the first few weeks.',
+    // Trajectory without a number.
+    'Your symptoms can trend down',
+    // Medical objects.
+    'GutWell treats your symptoms',
+    'GutWell diagnoses your condition',
+    'This helps prevent your flare-ups',
+  ];
+
+  const MUST_PASS = [
+    // Neutral billing / retention / scheduling language. Every one of these
+    // was rejected by the first draft of the timeline patterns.
+    'Your subscription renews in 4 weeks',
+    'Your trial ends in 7 days',
+    'Your data is deleted in 30 days',
+    'Review your last 7 days',
+    'Deine Daten werden in 30 Tagen gelöscht',
+    'Dein Abo verlängert sich in 4 Wochen',
+    // Neutral use of a near-term period.
+    'Look back over the first few weeks of tracking.',
+    // The required disclaimers, which name diagnosis and treatment to DENY
+    // them. These must never be caught.
+    'GutWell does not diagnose or treat medical conditions.',
+    'GutWell AI does not provide medical advice, diagnosis, or treatment.',
+    'General wellness information, not a diagnosis.',
+    // The exact shipped disclaimer. An earlier draft of the medical-object
+    // pattern rejected this — the one string in the app that MUST say
+    // "diagnose, treat, cure, or prevent" out loud.
+    'GutWell AI is a wellness tracking tool and is not intended to diagnose, treat, cure, or prevent any disease. Always consult a qualified medical professional about health concerns.',
+  ];
+
+  test.each(MUST_FAIL)('flags the unsupported claim: %s', (phrase) => {
+    expect(flagged(BANNED_CLAIMS, phrase)).toBe(true);
+  });
+
+  test.each(MUST_PASS)('allows the neutral phrase: %s', (phrase) => {
+    expect(flagged(BANNED_CLAIMS, phrase)).toBe(false);
+  });
+
+  /**
+   * Known limitation, pinned deliberately rather than hidden.
+   *
+   * "We treat your data confidentially" is a privacy sentence, not a health
+   * claim, and none of the ADDED patterns match it — the medical-object
+   * narrowing was written precisely so they would not. It is still caught by
+   * the pre-existing `/\bwe (diagnose|treat|cure)\b/i`, which this stage was
+   * explicitly told to leave alone.
+   *
+   * So the phrase would fail the guard today. That is a property of the
+   * original list, not of the config-scan work, and the fix (narrowing the
+   * original pattern) is a separate decision. This test records exactly where
+   * the boundary sits so the next person does not rediscover it by accident.
+   */
+  test('the added patterns do not flag non-medical uses of "treat"', () => {
+    expect(flagged(ADDED_BANNED_CLAIMS, 'We treat your data confidentially')).toBe(false);
+    expect(flagged(ADDED_BANNED_CLAIMS, 'We treat all data as private')).toBe(false);
+    // Documented: the untouched original pattern still catches it.
+    expect(flagged(ORIGINAL_BANNED_CLAIMS, 'We treat your data confidentially')).toBe(true);
   });
 });
 

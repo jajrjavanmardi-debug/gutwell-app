@@ -157,6 +157,52 @@ const en = {
   // Copy rules: this screen shows a SAMPLE meal, never the user's own data.
   // No diagnosis or treatment language, no promised outcome, no personalisation
   // claim. Hedged wording only ("may", "for some people", "notice how you feel").
+  /**
+   * Gut Profile Reveal — shown after the example, before signup.
+   *
+   * Every line here restates something the user selected. Nothing is derived,
+   * scored or predicted, and the wording is hedged on purpose: "may be
+   * associated with", "possible", "can become", "over time". There is no
+   * number, no percentage, no risk language and no claim that an analysis has
+   * already run — no account exists yet at this point in the flow.
+   */
+  profileReveal: {
+    eyebrow: 'YOUR STARTING PROFILE',
+    title: 'Your Gut Profile is taking shape',
+    intro:
+      'Based on what you shared, GutWell will start by focusing on the patterns that matter most to you.',
+    focusLabel: 'YOUR FOCUS',
+    patternLabel: 'AFTER-MEAL PATTERN',
+    // Keyed by the stable goal value stored in onboarding_answers.
+    focus: {
+      'Reduce bloating': 'Understanding meals that may be associated with bloating',
+      'Improve digestion': 'Building a clearer picture of your everyday digestion',
+      'Find food triggers': 'Looking for possible food and symptom patterns over time',
+      'Improve everyday wellbeing': 'Understanding how meals fit into how you feel day to day',
+      // Used when the answer is missing, empty or from an older build.
+      fallback: 'Building a clearer picture of how meals fit into your day',
+    },
+    // Keyed by the stable meal_feeling values. Several can apply at once, and
+    // they are never ranked — none of these implies severity or a cause.
+    feeling: {
+      Comfortable: 'Meals often feel comfortable',
+      Bloated: 'Bloating is something you want to watch',
+      Heavy: 'Some meals can feel heavy',
+      Pain: 'Post-meal discomfort is something you want to track',
+      'It varies': 'How you feel after meals varies',
+      fallback: 'You can add how meals feel as you log them',
+    },
+    expectation:
+      'GutWell can become more useful as you log meals, symptoms and check-ins over time.',
+    disclaimer: 'This is a personal tracking profile, not a medical assessment.',
+    // "Continue", not "Save my Gut Profile": no account exists yet and nothing
+    // is written anywhere by this screen, so a save label would describe
+    // something that does not happen.
+    cta: 'Continue',
+    accessCta: 'Continue to create your account',
+    accessBack: 'Go back',
+  },
+
   example: {
     label: 'Example analysis',
     intro: 'This is what a result looks like. It uses a sample meal — not your data.',
@@ -175,16 +221,45 @@ const en = {
     accessCta: 'Create an account to analyse your first meal',
     signIn: 'I already have an account',
     accessSignIn: 'Sign in to an existing account',
+    accessBack: 'Go back',
+  },
+
+  // ── Concise first-result presentation (onboarding photo analysis) ────────
+  analysisResult: {
+    sensitivity: 'Possible sensitivity',
+    betterOption: 'Better option',
+    nextStep: 'Next step',
+    moreDetail: 'More detail',
+    photoAlt: 'The meal you photographed',
+    disclaimer: 'General wellness information, not a diagnosis.',
+    // ── Meal Impact Score ────────────────────────────────────────────────
+    // Named so it cannot be read as the daily 0-100 GutWell Score on Home and
+    // Progress. Different thing, different scale, different inputs.
+    scoreLabel: 'Meal Impact Score',
+    scoreNote: 'An AI-generated reflection on how this meal may fit your current context.',
+    // ── What GutWell considered ──────────────────────────────────────────
+    // "Considered" throughout — never "determined by" or "caused by". Rows
+    // appear only when their value exists.
+    contextTitle: 'What GutWell considered',
+    contextSymptoms: 'Symptoms',
+    contextAfterMeal: 'After meal',
+    contextProfile: 'Gut profile',
+    contextSupplements: 'Supplements today',
+    contextLocation: 'Local context',
+    contextNotes: 'Your notes',
+    // Shown above the first analysis only, reinforcing the onboarding promise.
+    personalizedLine: 'Using the context you shared',
+    updatedBadge: 'Updated analysis',
   },
 
   welcome: {
-    // Three concrete mechanism lines. They replace the cycling marketing
-    // taglines: stating how the product works earns more trust on first run
-    // than a benefit claim, and it makes no health promise.
-    valuePoints: ['Scan meals', 'AI analyses them', 'Discover possible patterns'],
     appName: 'GutWell AI',
-    headline: 'Welcome to GutWell AI',
-    createAccount: 'Create Account',
+    // Names what the next few screens actually produce rather than the account
+    // mechanics. "Create Account" described the form, not the reason to fill
+    // it in; the two questions that follow build a gut profile, and the CTA
+    // now says so. Only the label changed — the route, the stage write and the
+    // auth behaviour behind it are untouched (see app/(onboarding)/welcome.tsx).
+    createAccount: 'Build my Gut Profile',
     signIn: 'Sign In',
     // Split into segments so Terms and Privacy render as tappable links.
     legalPrefix: 'By continuing you agree to our',
@@ -196,22 +271,51 @@ const en = {
     legalSuffix: '.',
     accessTerms: 'Open Terms of Service',
     accessPrivacy: 'Open Privacy Policy',
-    accessCreateAccount: 'Create a new GutWell AI account',
+    accessCreateAccount: 'Build my Gut Profile and create a GutWell AI account',
     accessSignIn: 'Sign in to existing account',
     // Language selector shown before sign-up / sign-in.
     languageLabel: 'Language',
     accessLanguageHint: 'Opens a menu to choose the app language',
     languageModalTitle: 'Choose language',
     accessLanguageOptionHint: 'Sets the app language',
-    taglines: [
-      'Track your gut health.',
-      'Understand your gut.',
-      'Notice possible patterns.',
-      'Find your triggers.',
-      'Build healthier habits.',
-      'Feel your best.',
-      'Enjoy your meals.',
-    ],
+    // ── Story Experience ────────────────────────────────────────────────────
+    // Four manually-swiped frames, replacing the cycling taglines and the
+    // three value points. The arc is uncertainty → understanding → learning →
+    // confidence, and each frame's copy sits below its image, never over it.
+    //
+    // `alt` is the VoiceOver scene description. It says what is pictured and
+    // never what the app does: GutWell records meals, notes and check-ins, and
+    // does not track driving, work, study, exercise or walking. Describing
+    // those as anything but the person's own considerations would claim
+    // functionality that does not exist.
+    story: {
+      a11yCarouselLabel: 'Introduction story',
+      a11yCarouselHint: 'Swipe up or down to move between frames',
+      // {current} and {total} are substituted at render.
+      positionFormat: '{current} of {total}',
+      frames: [
+        {
+          title: 'Which foods work for you?',
+          body: 'Every body reacts differently.',
+          alt: 'A woman in a sunlit kitchen looking at several everyday meals in front of her, thinking about what the rest of her day involves.',
+        },
+        {
+          title: 'AI explains your meals',
+          body: 'Scan. Understand. Learn.',
+          alt: 'The same woman photographing an ordinary meal with her phone to have it explained.',
+        },
+        {
+          title: 'Understand. Choose better.',
+          body: 'Possible triggers. Better swaps.',
+          alt: 'The same woman choosing between two everyday meals, at ease, her phone set aside.',
+        },
+        {
+          title: 'See your patterns over time',
+          body: 'Track what may affect you.',
+          alt: 'The same woman sitting calmly, looking back over the meals she has recorded.',
+        },
+      ],
+    },
   },
 
   // ── Onboarding — Features ─────────────────────────────────────────────────
@@ -346,7 +450,10 @@ const en = {
     accessEditProfile: 'Edit profile',
     setYourName: 'Set your name',
     personalDetails: 'Personal Details',
-    preferences: 'Preferences',
+    // The row routes to /settings, which is also where language switching lives
+    // after sign-up. Labelled "Preferences", it was not findable by anyone
+    // looking for Settings. German already read "Einstellungen".
+    preferences: 'Settings',
     progressInsights: 'Progress & Insights',
     reminders: 'Reminders',
     upgradePremium: 'Upgrade to Premium',
@@ -427,17 +534,42 @@ const en = {
     bestValue: 'BEST VALUE',
     billedMonthly: 'Billed monthly',
     billedAnnually: 'Billed annually',
-    annualSaving: 'Billed annually — save 52%',
-    noPaymentDue: 'No Payment Due Now',
+    // Shown when StoreKit has not returned a price. Deliberately not a number:
+    // a guessed price is false advertising, and the old 'save 52%' here was
+    // wrong the moment prices moved. Real savings are computed from live
+    // package prices in app/paywall.tsx.
+    priceUnavailable: '—',
+    premiumRequiredTitle: 'Photo analysis is Premium',
+    premiumRequiredMessage:
+      'Upgrade to analyse meal photos. You can describe your meal in words on any plan.',
+    seePlans: 'See plans',
+    // Was "No Payment Due Now" — false without an introductory offer. The
+    // replacement is true today, already stated in the fine print below, and
+    // keeps the row's reassurance purpose. Key name kept so the render site
+    // does not change.
+    noPaymentDue: 'Cancel anytime in App Store settings',
     continueButton: 'Continue',
     restoreButton: 'Restore Purchases',
+    // ── Accessibility labels ──────────────────────────────────────────────
+    // The paywall previously carried one label in 718 lines, on a debug
+    // control. These cover the decisions a user actually makes here.
+    accessClose: 'Close',
+    accessSelectMonthly: 'Select the monthly plan',
+    accessSelectAnnual: 'Select the annual plan',
+    accessContinue: 'Continue to purchase',
+    accessRestore: 'Restore previous purchases',
+    accessTerms: 'Open Terms of Service',
+    accessPrivacy: 'Open Privacy Policy',
     privacyPolicy: 'Privacy Policy',
     termsOfService: 'Terms of Service',
     comingSoon: 'Coming Soon',
     featureDigest: 'Weekly gut health digest',
     featureTrigger: 'Full trigger-food analysis — every possible pattern, not just the strongest',
     featureTrends: 'Advanced trends & mood insights',
-    featureSafeFoods: 'Your personal safe-foods list',
+    // "safe foods" implies a food can be declared safe. The feature is titled
+    // "Well-Tolerated Foods" everywhere else in the app; the paywall now
+    // matches it.
+    featureSafeFoods: 'Your personal Well-Tolerated Foods list',
     restoreComplete: 'Restore Complete',
     restoreSuccess: 'Premium access has been restored.',
     activateSuccess: 'Premium is now active.',
@@ -447,22 +579,76 @@ const en = {
     loadError: 'Failed to load offerings',
     disclaimer: 'GutWell AI is a wellness tracking tool. It does not provide medical advice, diagnosis, or treatment.',
     checkIns: 'Check-ins',
-    gutScoreToday: 'Gut Score today',
+    // Matches the label Home actually shows. The preview is a mock-up of the
+    // real screen, so it must not advertise wording the app retired.
+    gutScoreToday: 'Today’s GutWell Score',
     dayStreak: 'Day streak',
     recentlyLogged: 'Recently logged',
     forFree: 'GutWell AI for free',
     sampleMeal: 'Greek yogurt + berries',
     sampleScore: 'Gut 9/10',
     comingSoonBody: 'Subscriptions are not available yet. Please try again later.',
+    // Shown when the store returned no sellable offering. Deliberately calm and
+    // non-technical: the underlying reason is recorded in subscription
+    // diagnostics, never surfaced to the user.
+    unavailableTitle: 'Subscriptions unavailable',
+    unavailableBody: 'Subscriptions are temporarily unavailable. Please try again.',
+    // Shown when the App Store region changed between the prices being loaded
+    // and Continue being tapped, so the amounts on screen were no longer the
+    // ones Apple would bill. Deliberately states no price and names no
+    // currency: the refreshed figures are on the cards behind this alert, and
+    // the user taps Continue again once they have seen them.
+    pricingRefreshedTitle: 'Prices updated',
+    pricingRefreshedBody:
+      'Your App Store region changed, so we refreshed the prices for that region. Please check them and continue.',
+    // Apple's required subscription terms. Wording mirrors the App Store
+    // guidelines and must keep the same meaning in every language.
+    finePrint:
+      'Payment is charged to your Apple ID at confirmation. Subscriptions renew automatically unless cancelled at least 24 hours before the end of the period. Manage or cancel anytime in App Store settings.',
+    restoring: 'Restoring…',
+    // {price} is the live StoreKit per-month figure — never a hardcoded amount.
+    perMonthLabel: 'Just {price}/mo',
+    periodMonthShort: '/mo',
+    periodYearShort: '/yr',
+    periodWeekShort: '/week',
+    // The normalized figure above these is a comparison aid; these state what
+    // Apple actually charges and when. {price} is always the live StoreKit
+    // price for the plan's real billing period.
+    billedMonthlyAt: 'Billed monthly at {price}',
+    billedAnnuallyAt: 'Billed annually at {price}',
+    // Introductory-offer period units. StoreKit reports these in English, so
+    // they are mapped through i18n before going into startTrialWithPeriod.
+    trialUnitDay: 'day',
+    trialUnitWeek: 'week',
+    trialUnitMonth: 'month',
+    trialUnitYear: 'year',
+    // Preview-build QA only — rendered solely when EXPO_PUBLIC_RC_DEBUG=true.
+    // Worded as "debug info" rather than "diagnostics": every paywall string is
+    // scanned for medical-claim substrings (including "diagnos"), and this
+    // technical label must not force a hole in that guard.
+    copyDebugInfo: 'Copy debug info',
+    debugInfoCopied: 'Debug info copied to clipboard.',
     purchaseFailed: 'Purchase Failed',
     restorePurchases: 'Restore Purchases',
-    heroLine1: 'We want you to try',
-    heroLine2: 'GutWell AI for free',
+    // The hero renders UNCONDITIONALLY, before any offering loads, so it must
+    // be true for every user on every storefront. It used to read "We want you
+    // to try / GutWell AI for free" — a free-trial promise, while App Store
+    // Connect has zero introductory offers on both products. Payment is due at
+    // confirmation, so the hero now names what the purchase unlocks.
+    //
+    // This is copy only: the CTA below still derives its own label from
+    // StoreKit (`product.introPrice`) and correctly says "Continue" while no
+    // offer exists. See startFreeTrial / startTrialWithPeriod, which stay.
+    heroLine1: 'Unlock everything in',
+    heroLine2: 'GutWell AI Premium',
     billedAnnuallySave: 'Billed annually — save {pct}%',
     startFreeTrial: 'Start Free Trial',
     startTrialWithPeriod: 'Start {n}-{unit} Free Trial',
     previewDayStreak: 'Day streak',
-    previewSafeFoods: 'Safe foods',
+    // Same reason as featureSafeFoods: the app calls these "Well-Tolerated
+    // Foods", and "safe" implies a food can be declared safe. Shortened to fit
+    // the preview's stat label.
+    previewSafeFoods: 'Well-tolerated',
     previewCheckIns: 'Check-ins',
   },
 
@@ -501,13 +687,100 @@ const en = {
     chartTwelveWeeks: '12 weeks',
   },
 
-  // ── Legal Screens — UI only (substantive content NOT localized) ──────────
+  // ── Legal Screens ────────────────────────────────────────────────────────
+  // Substantive legal content lives here so that German users read the terms
+  // they actually accept, rather than English text held in the screen files.
+  // Both screens are collapsible section lists: keep privacySections and
+  // termsSections index-aligned between languages — key parity is enforced by
+  // i18n-coverage.test.ts, which walks array indices.
   legalScreens: {
     privacyPolicyTitle: 'Privacy Policy',
     termsOfServiceTitle: 'Terms of Service',
     goBack: 'Go back',
     accessGoBack: 'Go back to previous screen',
     legalNote: 'GutWell AI is a wellness tool. It does not provide medical advice.',
+
+    // Operator identity. Named once and reused by both screens so the two can
+    // never drift apart.
+    operatorName: 'Jafar Rusban Javanmardi',
+    operatorAddress: 'Sedanstraße 13\n65183 Wiesbaden\nGermany',
+    contactEmail: 'support@getgutwell.app',
+    // Both documents carry the same date: they are revised as one set.
+    lastUpdated: 'Last updated: August 2026',
+    contactPrompt: 'Questions? Reach us at',
+    operatedBy: 'Operated by',
+
+    privacyIntro: 'Your privacy matters to us. Tap each section below to learn how we handle your data.',
+    privacySections: [
+      {
+        title: '1. Data We Collect',
+        body: 'GutWell AI collects the data you voluntarily enter: check-in logs (stool type, bloating, pain, energy, mood, water intake), food logs (meal names, meal types, and meal photos you choose to analyse), symptom logs (type, severity), supplement notes, onboarding answers (your gut concerns and goals), and basic account information (email, display name). If you use voice input to describe or correct a meal, your speech is converted to text by your device’s speech recognition and only the resulting text is stored — we do not keep an audio recording. If you grant location access for local food suggestions, your approximate location is used during that analysis.',
+      },
+      {
+        title: '2. How We Use Your Data',
+        body: 'Your data is used to provide the GutWell AI service — displaying your trends, calculating your gut health score, showing possible food–symptom patterns, personalising AI meal analysis, and sending reminders you configure. We never sell your data, and we do not use it for advertising or cross-app tracking.',
+      },
+      {
+        title: '3. Service Providers We Share Data With',
+        body: 'To run GutWell AI we use a small number of service providers:\n\n• Supabase — stores your account and all logs described above. The project’s primary database region is configured in the EU.\n• Google Gemini — when you analyse a meal, the photo and the context you provide (description, symptoms, conditions, supplements, and — if you have enabled it — your approximate location) is transmitted to Google’s Gemini API so that your analysis can be generated. Google’s handling of data submitted to that API is governed by Google’s own API terms.\n• Apple and RevenueCat — involved only if you purchase a subscription, in order to process and verify it.\n\nThis version of GutWell AI does not use analytics or crash-reporting services. We do not sell or share your personal health data with any other third parties.',
+      },
+      {
+        title: '4. Data Storage & Security',
+        body: 'Your data is stored using Supabase, encrypted in transit and at rest. Row-level security means only you can access your own data. Authentication tokens are kept in your device’s secure storage. AI requests are made by our server, so AI provider keys are never included in the app.',
+      },
+      {
+        title: '5. Data Retention & Deletion',
+        body: 'Your data is retained while your account is active. You can export your data at any time from your Profile as a CSV file, shared through your device’s share sheet. You can permanently delete your account and its associated data in the app: Profile → Delete Account. Deletion cannot be undone. Meal photos are not retained by GutWell AI once an analysis request has completed.',
+      },
+      {
+        title: '6. Your Rights',
+        body: 'You have the right to access, export, correct, or delete your personal data (GDPR Articles 15–20). Your check-ins and symptom entries are health-related information: we process them only to provide the features you ask for, and you can stop that processing at any time by deleting the entries or your account. You can exercise these rights in the app or by contacting us. You may also withdraw location, camera, microphone, or notification permissions at any time in your device settings.',
+      },
+      {
+        title: '7. Operator and Contact',
+        body: 'GutWell AI is operated by Jafar Rusban Javanmardi, Sedanstraße 13, 65183 Wiesbaden, Germany. For privacy questions, or to exercise any of the rights above, contact support@getgutwell.app.',
+      },
+    ],
+
+    termsIntro: 'Please review our terms below. Tap each section for details.',
+    termsSections: [
+      {
+        title: '1. Usage Terms',
+        body: 'By creating an account and using GutWell AI, you agree to these Terms of Service. GutWell AI is intended for personal wellness tracking only. You must be at least 16 years old to use this app. You are responsible for maintaining the confidentiality of your account credentials.',
+      },
+      {
+        title: '2. Health Disclaimer',
+        body: 'GutWell AI is a wellness tracking application, not a medical device. The information, scores, patterns, and insights provided are for personal tracking purposes only and do not constitute medical advice, diagnosis, or treatment. It is not intended to diagnose, treat, cure, or prevent any disease. Always seek the advice of a qualified healthcare professional with any questions regarding a medical condition. Never disregard professional medical advice or delay seeking it because of information provided by GutWell AI.',
+      },
+      {
+        title: '3. Subscription Terms',
+        body: 'GutWell AI offers a free tier and an optional Premium subscription, available as a monthly or an annual plan. Premium subscriptions are billed through Apple’s App Store. Payment is charged to your Apple ID account at confirmation of purchase. Subscriptions renew automatically unless cancelled at least 24 hours before the end of the current billing period, and your account is charged for renewal within 24 hours before the end of the current period. Prices are shown in the app in your own currency before you purchase.',
+      },
+      {
+        title: '4. Cancellation Policy',
+        body: 'You may cancel your subscription at any time through your Apple ID account settings. Cancellation takes effect at the end of the current billing period. Refunds are handled by Apple under Apple’s refund policy; GutWell AI does not process refunds directly. Free features remain accessible after cancellation. Your mandatory statutory rights as a consumer are not affected.',
+      },
+      {
+        title: '5. Liability',
+        body: 'GutWell AI is provided with care, but we do not warrant that it will be uninterrupted or error-free, and AI-generated analyses may be inaccurate or unsuitable for your situation. Nothing in these Terms excludes or limits liability where such exclusion or limitation is not permitted by law — including liability for intent, for injury to life, body, or health, and under mandatory product-liability rules. Your mandatory statutory rights as a consumer remain unaffected.',
+      },
+      {
+        title: '6. User Content',
+        body: 'You retain ownership of all data you enter into GutWell AI. By using the service, you grant us a limited licence to process your data solely for the purpose of providing the GutWell AI service. We do not sell your personal health data to third parties. You may export or delete your data at any time.',
+      },
+      {
+        title: '7. Acceptable Use',
+        body: 'You agree not to misuse the service, including but not limited to: attempting to access other users’ data, reverse-engineering the app, using automated tools to interact with the service, or using GutWell AI for any unlawful purpose.',
+      },
+      {
+        title: '8. Changes to Terms',
+        body: 'We may update these terms from time to time. We will notify users of material changes through the app or via email. Where applicable law requires your express consent to a change, we will ask for it.',
+      },
+      {
+        title: '9. Governing Law',
+        body: 'These Terms are governed by the law of the Federal Republic of Germany. If you are a consumer, this choice of law does not deprive you of the protection afforded by mandatory provisions of the law of the country in which you habitually reside, and it does not remove any right you may have to bring proceedings before the courts of that country.',
+      },
+    ],
   },
 
   // ── Onboarding Steps ─────────────────────────────────────────────────────
@@ -529,17 +802,18 @@ const en = {
         Comfortable: { label: 'Comfortable', description: 'Usually settled' },
         Bloated: { label: 'Bloated', description: 'Full or swollen' },
         Heavy: { label: 'Heavy or sluggish', description: 'Low energy after eating' },
+        Pain: { label: 'Pain or cramping', description: 'Stomach pain or cramps' },
         'It varies': { label: 'It varies', description: 'Depends on the meal' },
       },
-      chipsTitle: 'Anything you tend to avoid?',
-      chipsOptional: 'Optional',
-      chips: {
-        Lactose: 'Lactose',
-        Gluten: 'Gluten',
-        'Spicy foods': 'Spicy foods',
-        'High-fat foods': 'High-fat foods',
-        Other: 'Other',
-      },
+    },
+    // Interlude, not a question. It states the product principle between the
+    // last question and the example analysis: GutWell reads a meal together
+    // with the context the user chose to share. Deliberately no field, no
+    // persistence, no number and no outcome — the claim is about HOW the app
+    // reads a meal, never about what will happen to anyone's symptoms.
+    context_interlude: {
+      title: 'Built around your context',
+      body: 'GutWell looks at your meals together with the symptoms and context you choose to share — not one-size-fits-all food rules.',
     },
     sex: {
       title: 'Which best describes you?',
@@ -584,7 +858,10 @@ const en = {
       },
     },
     target_state: {
-      title: 'Where do you want to be in 12 weeks?',
+      // "in 12 weeks" removed: a named horizon turns a preference question
+      // into an implied timeline for improvement. The step is unreachable,
+      // but the string is scanned by the claim-safety guard either way.
+      title: 'Where do you want to get to?',
       subtitle: 'Pick the outcome that would change the most.',
       options: {
         'Symptom-free most days': 'Symptom-free most days',
@@ -687,13 +964,68 @@ const en = {
     removeSymptomMessage: 'Are you sure you want to remove this symptom entry?',
     delete: 'Delete',
     cancel: 'Cancel',
+    // Recently-logged chrome. These were assembled in English in the screen
+    // itself, so a German user read them in English. The entry LABEL is not
+    // localized here — it is the user's own meal name or an AI-generated one,
+    // and must stay in the language it was written in.
+    deleteEntryConfirm: 'Delete "{label}"?',
+    stoolTypeEntry: 'Stool type {type}',
+    justNow: 'Just now',
+    minutesAgo: '{n}m ago',
+    hoursAgo: '{n}h ago',
     todayActivity: "Today's Activity",
     recentMeals: 'Recent Meals',
     noDataYet: 'No data yet',
     scanTitle: 'Scan your meal',
     scanSubtitle: 'Snap a photo — get gut-friendly insights in seconds',
-    recentlyLogged: 'Recently logged',
-    emptyHint: 'Tap + to log your first entry of the day',
+    // Renamed from 'Recently logged'. The list holds only check-ins and meals
+    // (symptoms are never queried) and is not date-bounded, so the old title
+    // promised both more sources and more recency than it delivers.
+    latestActivity: 'Latest meals & check-ins',
+    emptyHint: 'Your check-ins and meals will appear here.',
+    emptyActivityTitle: 'Nothing logged yet',
+
+    // ── Greeting ──────────────────────────────────────────────────────────
+    // Device-local time of day. See getDayPart() in lib/date.ts for the
+    // boundaries; evening deliberately wraps past midnight.
+    greetingMorning: 'Good morning',
+    greetingAfternoon: 'Good afternoon',
+    greetingEvening: 'Good evening',
+    // Only rendered when usableDisplayName() returns a name.
+    greetingWithName: '{greeting}, {name}',
+
+    // ── Score card ────────────────────────────────────────────────────────
+    // Named so the number reads as this app's daily summary rather than a
+    // clinical measurement, and always shown with its provenance.
+    scoreTitle: "Today's GutWell Score",
+    scoreProvenance: 'Based on today’s check-in',
+    scoreEmptyTitle: 'No score yet',
+    scoreEmptyBody: 'Complete today’s check-in to create your daily score.',
+    // Descriptions of the DAY, not of the organ. The previous labels
+    // ("Thriving gut" / "Needs care") described a body part from five
+    // self-reported sliders.
+    dayLabelSettled: 'Settled day',
+    dayLabelMixed: 'Mixed day',
+    dayLabelTougher: 'Tougher day',
+
+    // ── Contextual hero ───────────────────────────────────────────────────
+    heroCheckinTitle: 'Daily check-in',
+    heroCheckinSubtitle: 'Start with how you’re feeling today.',
+    heroMealTitle: 'Analyze a meal',
+    heroMealSubtitle: 'See how your next meal fits your day.',
+    heroProgressTitle: 'See your progress',
+    heroProgressSubtitle: 'Your day is taking shape. See what GutWell is learning.',
+
+    // ── Stat cards ────────────────────────────────────────────────────────
+    // Was hardcoded in the screen; German users saw the English.
+    vsYesterday: 'vs yesterday',
+    checkinDone: 'Done',
+    checkinPending: 'Not yet',
+    labelCheckins7d: '7-day check-ins',
+    consistencyStart: 'Start today',
+    // Count, not a percentage: "14%" after a first successful check-in reads
+    // as a failure grade rather than as day one of seven.
+    consistencyCount: '{n} of 7 days',
     accessSeeAllRecent: 'See all recent activity',
     triggerLinked: 'May be associated with {symptom} — {withSymptoms} of {logged} logs',
     triggerFollowed: 'Symptoms followed {withSymptoms} of {logged} logs',
@@ -712,6 +1044,11 @@ const en = {
     saveButton: 'Save Check-in',
     accessGoBack: 'Go back',
     accessMoodLevel: 'level of 5',
+    // Accessibility only. {field} is the metric, {label} its current word,
+    // {n} the level. The pill sliders previously announced STOOL labels and
+    // called themselves "mood level" for bloating, pain and energy alike.
+    accessLevel: '{field}, {label}, level {n} of 5',
+    accessSave: 'Save today’s check-in',
     errorNotLoggedIn: 'Please log in to save your check-in',
     errorNoStool: 'Please select a stool type',
     successSaved: 'Check-in saved!',
@@ -758,10 +1095,78 @@ const en = {
     patternsTitle: 'Patterns take shape with data',
     patternsMessage: 'Keep checking in — trends and correlations appear after about 7 days of daily logging.',
     patternsAction: "Log Today's Check-in",
+    // statusThriving / statusBuilding / statusNeedsCare were the organ-state
+    // labels on the retired Gut Health Index. Progress now reuses the SAME
+    // day-oriented vocabulary Home uses (t.home.dayLabel*) rather than keeping
+    // a second set that could drift from it. The keys stay defined because
+    // other surfaces may still reference them; Progress no longer does.
     statusThriving: 'Thriving',
     statusBuilding: 'Building',
     statusNeedsCare: 'Needs care',
     noDataScore: 'No data',
+
+    // ── A. Current summary ────────────────────────────────────────────────
+    // Two titles, because the most recent score in the period is not
+    // necessarily today's. Calling a four-day-old number "Current" was the
+    // mismatch with Home, which shows "No score yet" on the same day.
+    scoreTitleToday: "Today's GutWell Score",
+    scoreTitleLatest: 'Latest GutWell Score',
+    scoreProvenanceToday: 'Based on today’s check-in',
+    scoreProvenanceOlder: 'From your check-in on {date}',
+    scoreEmptyTitle: 'No score yet',
+    scoreEmptyBody: 'Complete a check-in to start building your score history.',
+
+    // ── B. What GutWell is learning ───────────────────────────────────────
+    // Presentation only. Both thresholds are the ones already enforced in
+    // code: 3 scores for the recent insight, 5 logged meals before
+    // lib/correlations.ts will look for patterns at all.
+    learningTitle: 'What GutWell is learning',
+    learningScoresLabel: 'Score history',
+    learningScoresProgress: '{n} of 3 check-ins',
+    learningScoresReady: 'Recent insight available',
+    learningMealsLabel: 'Meal patterns',
+    learningMealsProgress: '{n} of 5 meals',
+    learningMealsReady: 'Pattern analysis available',
+
+    // ── C. Trends ─────────────────────────────────────────────────────────
+    trendsTitle: 'Trends',
+    // Shown instead of a chart or an average when the sample is too small for
+    // either to mean anything. No invented value, no fake precision.
+    lowDataMore: 'More check-ins needed',
+    lowDataTrend: 'More data needed for a trend',
+    // Window is otherwise invisible: these counts follow the period toggle.
+    windowSuffix: 'Last {period}',
+    // Chart summaries for VoiceOver — built from values already on screen.
+    a11yScoreTrend: 'GutWell Score trend. {n} recorded scores in this period. Latest score {latest}.',
+    a11yMoodTrend: 'Mood trend. {n} recorded mood check-ins.',
+    a11yStoolTrend: 'Stool trend. {n} recorded check-ins.',
+    a11yCalendar: 'Check-in consistency calendar. {n} check-ins in this period.',
+
+    // ── D. Possible patterns ──────────────────────────────────────────────
+    // Replaces HIGH / MEDIUM / LOW. Describes the strength of an OBSERVED
+    // pattern, never a risk, never a verdict about a food.
+    patternStronger: 'Stronger pattern',
+    patternPossible: 'Possible pattern',
+    patternEarly: 'Early pattern',
+    // Was a bare "{pct}% correlation". This says what the number counts.
+    patternCoOccurrence: 'Seen together in {pct}% of logged cases',
+
+    // ── E. Milestones ─────────────────────────────────────────────────────
+    // Mood scale labels — were a hardcoded English record inside the screen.
+    moodLabels: { '1': 'Bad', '2': 'Low', '3': 'Okay', '4': 'Good', '5': 'Great' },
+    milestonesTitle: 'Milestones',
+    bestStreakLabel: 'Best streak',
+    bestStreakValue: '{n} days',
+    nextLevelLabel: 'Next: {name}',
+    // Display names for the levels in lib/levels.ts, keyed by their stable
+    // internal `key`. Thresholds and identifiers are untouched.
+    levelNames: {
+      beginner: 'Beginner',
+      explorer: 'Explorer',
+      tracker: 'Tracker',
+      specialist: 'Specialist',
+      guru: 'Gut Guru',
+    },
     premiumTriggerTeaser: 'See all your trigger foods and safe foods with Premium',
     premiumFoodInsights: 'Unlock food-symptom insights with Premium',
     windowLabels: { '3': '3 days', '7': '7 days', '14': '14 days', '30': '30 days', '90': '90 days', null: 'All Time' },
@@ -846,14 +1251,50 @@ const en = {
     onboardingSkipForNowHint: 'You can analyse a meal any time from the home screen.',
     back: 'Back',
     title: 'Photo Analysis',
+    // Shown instead of the title above once startTextOnlyFlow has cleared the
+    // photo. Same screen, different flow — and the heading has to say which.
+    describeTitle: 'Describe Your Meal',
     wizardStep1Subtitle: 'Step 1 of 3 — Capture',
     wizardStep2Subtitle: 'Step 2 of 3 — Describe',
     wizardStep3Subtitle: 'Step 3 of 3 — Analysis',
     wizardStep4Hint: 'Final check',
     wizardNext: 'Next',
     changePhoto: 'Change photo',
-    step2Prompt: 'What is this food? How do you feel?',
+    // Permanent text-only entry point. Always visible: it is the only analysis
+    // a Free user will have once photo is Premium-gated, and the fallback the
+    // moment the daily photo ceiling is reached.
+    describeMealCta: 'Describe your meal instead',
+    describeMealHint: 'Tell us what you ate, ingredients, and how you feel.',
+    // Photo-selected variant of the CTA above. The old label read like a way
+    // to add notes to the photo just picked; tapping it discarded the image
+    // silently. This one names the trade the tap actually makes, and the
+    // dialog below makes the user agree to it first.
+    switchToTextCta: 'Use text instead',
+    switchToTextHint: 'Switch to text-only analysis and remove this photo.',
+    switchToTextConfirmTitle: 'Switch to text-only analysis?',
+    switchToTextConfirmMessage:
+      'This will remove your selected photo. You can describe the meal instead.',
+    switchToTextCancel: 'Cancel',
+    describeMealPlaceholder:
+      "Example: Chicken burger with fries and soda. It had cheese, onions and sauce. I'm feeling bloated and need to drive afterwards.",
+    describeRequiredMessage: 'Tell us what you ate so we can look at it.',
+    notNow: 'Not now',
+    // Shown when the photo ceiling is reached. States the limit plainly and
+    // points at what still works — never an error, never a backend reason.
+    dailyLimitFallbackMessage:
+      "You've used today's 5 photo analyses. You can still describe your meal.",
+    textLimitTitle: 'Daily limit reached',
+    textLimitMessage: "You've described 5 meals today, which is the daily maximum.",
+    // Photo mode. This asked "What is this food?" while the field was
+    // mandatory, so it demanded the one thing the camera is there to work out.
+    // Notes are optional now and this asks for what a photo genuinely cannot
+    // show.
+    step2Prompt: 'Optional: Add context the photo can’t show',
     generateAnalysis: 'Generate Analysis',
+    // Reopens the result already held in memory after Back. Worded as viewing,
+    // not generating, so it cannot be mistaken for the action that costs a
+    // provider call.
+    viewAnalysis: 'View analysis',
     isThisAccurate: 'Is this accurate?',
     yes: 'Yes',
     no: 'No',
@@ -877,7 +1318,9 @@ const en = {
     symptomsLabel: 'Symptoms & notes',
     symptomsPlaceholder: 'Before taking a photo you can note symptoms; after capture, describe how you feel.',
     howYouFeelLabel: 'What is it & how do you feel?',
-    howYouFeelPlaceholder: 'Example: This is lentil soup — I feel bloated and sluggish.',
+    // Deliberately does not model naming the dish — the previous example
+    // ("This is lentil soup") taught exactly the habit this change removes.
+    howYouFeelPlaceholder: 'Portion size, ingredients, preparation, timing, or how you felt afterward',
     photoCapturedPrompt: 'Photo captured! Speak or type how you feel.',
     analyzeCombined: 'Analyze Meal',
     feelingsRequiredTitle: 'Describe the meal first',
@@ -908,6 +1351,14 @@ const en = {
     voiceInputA11yHint: 'Hold to record; release to finish.',
     correcting: 'Updating with your correction...',
     recording: 'Recording…',
+    // Daily meal-analysis ceiling. Written as a normal limit, not as an error
+    // and not as a security measure: the user has done nothing wrong, and the
+    // reason it exists is not their concern.
+    dailyLimitTitle: 'Daily limit reached',
+    dailyLimitMessage: "You've analysed 5 meals today, which is the daily maximum.",
+    dailyLimitResetsAt: 'You can analyse more from {time}.',
+    revisionLimitTitle: 'Daily correction limit reached',
+    revisionLimitMessage: "You've made 5 corrections today, which is the daily maximum.",
     photoAnalysisFailedTitle: 'Photo analysis failed',
     photoAnalysisFailedTryAgain: 'Please try again.',
     photoUnavailableTitle: 'Photo unavailable',
@@ -928,6 +1379,29 @@ const en = {
     pendingScore: 'Pending',
     photoMealDefault: 'Photo meal',
     insightsHeading: 'Gut insights',
+    // Single entry point into the existing revision flow. Replaced a
+    // FontSize.sm "+ Add more" text link that first-time users did not read as
+    // interactive, so the app's ability to be corrected went unnoticed.
+    // "Refine", not "Fix": the result is not broken, and correcting the meal
+    // is only one of the three things this does.
+    refineAnalysis: 'Refine analysis',
+    // Normalizes correction without claiming the AI is unreliable: it can miss
+    // an ingredient or a piece of context, and the user is the one who knows.
+    refineAnalysisPrompt: 'Not quite right?',
+    refineAnalysisHint: 'AI can miss an ingredient or context. Add or correct a detail and GutWell will reconsider the analysis.',
+    // Its own state on the Generate button. isAnalyzing also disables the
+    // button, so without this a working request looked like an unavailable one.
+    analysing: 'Analysing…',
+    // Shown only while Generate is disabled for a missing description. The
+    // button is otherwise silently inert on a screen where nothing says a
+    // description is required.
+    generateNeedsDescription: 'Add a short description to continue',
+    // Recording blocks analysis: the transcript is only applied when the hold
+    // ends, so analysing mid-recording would submit what was there before.
+    generateNeedsRecordingStopped: 'Finish recording to continue',
+    // Headline fallback when the model returns no usable meal name, or only
+    // conversational scaffolding. Never a guess about the food.
+    mealTitleFallback: 'Meal analysis',
     addMore: 'Add more',
     fixResults: 'Fix Results',
     done: 'Done',
@@ -1192,7 +1666,10 @@ const en = {
     shareButton: 'Share',
     close: 'Close',
     // {score} and {streak} are substituted at runtime.
-    shareMessage: 'My GutWell AI Gut Score this week: {score}/100 🌿 Day {streak} streak! Download GutWell AI to track your gut health.',
+    // Qualifier added so the number is not read as a measurement by whoever
+    // receives it. Score, streak and level only — never symptoms, meal names,
+    // photos, email or display name.
+    shareMessage: 'My GutWell AI Score this week: {score}/100, based on my GutWell check-ins 🌿 Day {streak} streak! Download GutWell AI to track your gut health.',
   },
 
   // ── Tab bar + quick-action menu + tab error boundary ──────────────────────
@@ -1273,6 +1750,10 @@ const en = {
       accessAdd: 'Add water glass',
     },
     streakPopup: {
+      // Accessibility only. The visible card shows the numeral and the label
+      // as separate lines; VoiceOver needs them as one phrase.
+      close: 'Close',
+      streakValueA11y: '{n} day streak',
       dayStreak: 'Day Streak',
       thisWeek: 'This Week',
       milestoneProgress: 'Milestone Progress',
@@ -1310,6 +1791,16 @@ const en = {
     },
     dailyTip: {
       title: 'Daily Insight',
+      // Display labels for the category pill. The values used for selection
+      // and styling stay the English literals in lib/tips.ts — these are
+      // presentation only. English matches what the pill rendered before,
+      // when it capitalized the raw value.
+      categories: {
+        nutrition: 'Nutrition',
+        lifestyle: 'Lifestyle',
+        science: 'Science',
+        mindfulness: 'Mindfulness',
+      },
     },
     calendar: {
       less: 'Less',
@@ -1322,12 +1813,22 @@ const en = {
       title: 'Health Disclaimer',
       accept: 'I Understand',
       viewPrivacy: 'View Privacy Policy',
+      // Consent copy. The negated form ("does not diagnose…") is the required
+      // disclaimer — it must not be softened into an affirmative claim, and it
+      // must not be strengthened beyond wellness tracking.
+      body1:
+        'GutWell AI is a wellness tracking app, not a medical device. The information provided is for personal tracking purposes only and does not constitute medical advice.',
+      body2: 'Always consult a qualified healthcare professional for medical concerns.',
+      legalNote:
+        'By continuing, you acknowledge that GutWell AI does not diagnose, treat, cure, or prevent any disease or medical condition.',
     },
     swipe: {
       favorite: 'Favorite',
       delete: 'Delete',
     },
     scanTutorial: {
+      next: 'Next',
+      scanNow: 'Scan now',
       slides: [
         {
           title: 'Get the clearest scan',
@@ -1429,10 +1930,16 @@ const de: Translations = {
     passwordPlaceholder: 'Mindestens 6 Zeichen',
     confirmPasswordLabel: 'Passwort bestätigen',
     confirmPasswordPlaceholder: 'Passwort wiederholen',
-    termsAgree: 'Ich stimme den',
+    // "zustimmen" is separable ("Ich stimme ... zu"), and this sentence is
+    // assembled from these parts with no trailing slot, so the prefix had
+    // nowhere to go and the German read as an unfinished sentence. Welcome
+    // solves the same problem with a legalSuffix segment; here the checkbox
+    // has no such slot, so "akzeptieren" — which takes a plain accusative
+    // object and needs no suffix — fixes the grammar without adding one.
+    termsAgree: 'Ich akzeptiere die',
     termsOfService: 'Nutzungsbedingungen',
     privacyPolicy: 'Datenschutzrichtlinie',
-    termsAnd: 'und der',
+    termsAnd: 'und die',
     createButton: 'Konto erstellen',
     haveAccount: 'Bereits ein Konto?',
     signInLink: 'Anmelden',
@@ -1477,6 +1984,36 @@ const de: Translations = {
     accessSaveButton: 'Passwort aktualisieren',
   },
   // ── Onboarding — Beispielanalyse (statisch, vor der Registrierung) ────────
+  profileReveal: {
+    eyebrow: 'DEIN STARTPROFIL',
+    title: 'Dein Darmprofil nimmt Form an',
+    intro:
+      'Basierend auf deinen Angaben konzentriert sich GutWell zunächst auf die Muster, die für dich am wichtigsten sind.',
+    focusLabel: 'DEIN FOKUS',
+    patternLabel: 'NACH DEM ESSEN',
+    focus: {
+      'Reduce bloating': 'Mahlzeiten verstehen, die mit Blähungen einhergehen können',
+      'Improve digestion': 'Ein klareres Bild deiner alltäglichen Verdauung gewinnen',
+      'Find food triggers': 'Mit der Zeit mögliche Zusammenhänge zwischen Essen und Beschwerden erkennen',
+      'Improve everyday wellbeing': 'Verstehen, wie Mahlzeiten in dein tägliches Befinden passen',
+      fallback: 'Ein klareres Bild davon gewinnen, wie Mahlzeiten in deinen Tag passen',
+    },
+    feeling: {
+      Comfortable: 'Mahlzeiten fühlen sich oft angenehm an',
+      Bloated: 'Blähungen möchtest du im Blick behalten',
+      Heavy: 'Manche Mahlzeiten können schwer im Magen liegen',
+      Pain: 'Beschwerden nach dem Essen möchtest du festhalten',
+      'It varies': 'Wie du dich nach dem Essen fühlst, ist unterschiedlich',
+      fallback: 'Du kannst beim Loggen ergänzen, wie sich Mahlzeiten anfühlen',
+    },
+    expectation:
+      'GutWell kann mit der Zeit nützlicher werden, je mehr Mahlzeiten, Beschwerden und Check-ins du festhältst.',
+    disclaimer: 'Dies ist ein persönliches Tracking-Profil und keine medizinische Beurteilung.',
+    cta: 'Weiter',
+    accessCta: 'Weiter zur Kontoerstellung',
+    accessBack: 'Zurück',
+  },
+
   example: {
     label: 'Beispielanalyse',
     intro: 'So sieht ein Ergebnis aus. Es zeigt eine Beispielmahlzeit — nicht deine Daten.',
@@ -1495,13 +2032,32 @@ const de: Translations = {
     accessCta: 'Konto erstellen, um deine erste Mahlzeit zu analysieren',
     signIn: 'Ich habe schon ein Konto',
     accessSignIn: 'Bei einem bestehenden Konto anmelden',
+    accessBack: 'Zurück',
+  },
+
+  analysisResult: {
+    sensitivity: 'Mögliche Empfindlichkeit',
+    betterOption: 'Bessere Option',
+    nextStep: 'Nächster Schritt',
+    moreDetail: 'Mehr Details',
+    photoAlt: 'Die Mahlzeit, die du fotografiert hast',
+    disclaimer: 'Allgemeine Informationen zum Wohlbefinden, keine Diagnose.',
+    scoreLabel: 'Mahlzeiten-Impact-Score',
+    scoreNote: 'Eine KI-gestützte Einordnung, wie diese Mahlzeit zu deinem aktuellen Kontext passen könnte.',
+    contextTitle: 'Was GutWell berücksichtigt hat',
+    contextSymptoms: 'Beschwerden',
+    contextAfterMeal: 'Nach dem Essen',
+    contextProfile: 'Darmprofil',
+    contextSupplements: 'Ergänzungsmittel heute',
+    contextLocation: 'Lokaler Kontext',
+    contextNotes: 'Deine Notizen',
+    personalizedLine: 'Mit dem Kontext, den du geteilt hast',
+    updatedBadge: 'Aktualisierte Analyse',
   },
 
   welcome: {
-    valuePoints: ['Mahlzeiten scannen', 'Die KI analysiert sie', 'Mögliche Muster entdecken'],
     appName: 'GutWell AI',
-    headline: 'Willkommen bei GutWell AI',
-    createAccount: 'Konto erstellen',
+    createAccount: 'Mein Darmprofil erstellen',
     signIn: 'Anmelden',
     legalPrefix: 'Mit der Nutzung stimmst du unseren',
     legalTerms: 'Nutzungsbedingungen',
@@ -1510,25 +2066,40 @@ const de: Translations = {
     legalSuffix: 'zu.',
     accessTerms: 'Nutzungsbedingungen öffnen',
     accessPrivacy: 'Datenschutzrichtlinie öffnen',
-    accessCreateAccount: 'Neues GutWell AI Konto erstellen',
+    accessCreateAccount: 'Darmprofil erstellen und neues GutWell AI Konto anlegen',
     accessSignIn: 'Bei bestehendem Konto anmelden',
     languageLabel: 'Sprache',
     accessLanguageHint: 'Öffnet ein Menü zur Auswahl der App-Sprache',
     languageModalTitle: 'Sprache wählen',
     accessLanguageOptionHint: 'Legt die App-Sprache fest',
-    // Shortened for the 327pt of tagline width available on a 375pt iPhone.
-    // The longest of these measures 81.5% of that; the previous set had one
-    // outright overflow (104%) and three above 92%. Order and meaning match
-    // the English sequence; "mögliche" is kept for cautious wording.
-    taglines: [
-      'Behalte deinen Darm im Blick.',
-      'Verstehe deinen Darm.',
-      'Erkenne mögliche Muster.',
-      'Finde deine Auslöser.',
-      'Entwickle gesündere Routinen.',
-      'Fühl dich rundum wohl.',
-      'Genieße deine Mahlzeiten.',
-    ],
+    // See the English block for why `alt` never describes tracking.
+    story: {
+      a11yCarouselLabel: 'Einführungsgeschichte',
+      a11yCarouselHint: 'Wische nach oben oder unten, um zwischen den Bildern zu wechseln',
+      positionFormat: '{current} von {total}',
+      frames: [
+        {
+          title: 'Welche Lebensmittel passen zu dir?',
+          body: 'Jeder Körper reagiert anders.',
+          alt: 'Eine Frau in einer sonnigen Küche betrachtet mehrere alltägliche Mahlzeiten vor sich und überlegt, was der restliche Tag noch bringt.',
+        },
+        {
+          title: 'Die KI erklärt deine Mahlzeiten',
+          body: 'Scannen. Verstehen. Lernen.',
+          alt: 'Dieselbe Frau fotografiert eine ganz normale Mahlzeit mit ihrem Handy, um sie erklärt zu bekommen.',
+        },
+        {
+          title: 'Verstehen. Besser wählen.',
+          body: 'Mögliche Auslöser. Bessere Alternativen.',
+          alt: 'Dieselbe Frau wählt gelassen zwischen zwei alltäglichen Mahlzeiten, ihr Handy liegt zur Seite gelegt.',
+        },
+        {
+          title: 'Erkenne deine Muster mit der Zeit',
+          body: 'Verfolge, was dich beeinflussen kann.',
+          alt: 'Dieselbe Frau sitzt entspannt da und schaut sich die Mahlzeiten an, die sie festgehalten hat.',
+        },
+      ],
+    },
   },
   features: {
     continue: 'Weiter',
@@ -1724,10 +2295,21 @@ const de: Translations = {
     bestValue: 'BESTES ANGEBOT',
     billedMonthly: 'Monatliche Abrechnung',
     billedAnnually: 'Jährliche Abrechnung',
-    annualSaving: 'Jährlich abgerechnet — spare 52 %',
-    noPaymentDue: 'Jetzt keine Zahlung fällig',
+    priceUnavailable: '—',
+    premiumRequiredTitle: 'Fotoanalyse ist Premium',
+    premiumRequiredMessage:
+      'Mit einem Upgrade kannst du Fotos von Mahlzeiten analysieren. Deine Mahlzeit beschreiben kannst du in jedem Tarif.',
+    seePlans: 'Tarife ansehen',
+    noPaymentDue: 'Jederzeit in den App-Store-Einstellungen kündbar',
     continueButton: 'Weiter',
     restoreButton: 'Käufe wiederherstellen',
+    accessClose: 'Schließen',
+    accessSelectMonthly: 'Monatsplan auswählen',
+    accessSelectAnnual: 'Jahresplan auswählen',
+    accessContinue: 'Weiter zum Kauf',
+    accessRestore: 'Frühere Käufe wiederherstellen',
+    accessTerms: 'Nutzungsbedingungen öffnen',
+    accessPrivacy: 'Datenschutzrichtlinie öffnen',
     privacyPolicy: 'Datenschutzrichtlinie',
     termsOfService: 'Nutzungsbedingungen',
     comingSoon: 'Demnächst',
@@ -1744,17 +2326,40 @@ const de: Translations = {
     loadError: 'Angebote konnten nicht geladen werden',
     disclaimer: 'GutWell AI ist ein Wellness-Tracking-Tool. Es bietet keine medizinische Beratung, Diagnose oder Behandlung.',
     checkIns: 'Check-ins',
-    gutScoreToday: 'Darm-Score heute',
+    gutScoreToday: 'Heutiger GutWell-Score',
     dayStreak: 'Tage-Streak',
     recentlyLogged: 'Zuletzt protokolliert',
     forFree: 'GutWell AI kostenlos',
     sampleMeal: 'Griechischer Joghurt + Beeren',
     sampleScore: 'Darm 9/10',
     comingSoonBody: 'Abonnements sind noch nicht verfügbar. Bitte versuche es später erneut.',
+    unavailableTitle: 'Abos nicht verfügbar',
+    unavailableBody:
+      'Abonnements sind vorübergehend nicht verfügbar. Bitte versuche es erneut.',
+    pricingRefreshedTitle: 'Preise aktualisiert',
+    pricingRefreshedBody:
+      'Deine App-Store-Region hat sich geändert, daher haben wir die Preise für diese Region aktualisiert. Bitte prüfe sie und fahre dann fort.',
+    finePrint:
+      'Die Zahlung wird bei Bestätigung über deine Apple-ID abgebucht. Abonnements verlängern sich automatisch, sofern sie nicht mindestens 24 Stunden vor Ende des Zeitraums gekündigt werden. Du kannst sie jederzeit in den App-Store-Einstellungen verwalten oder kündigen.',
+    restoring: 'Wird wiederhergestellt…',
+    perMonthLabel: 'Nur {price}/Mon.',
+    periodMonthShort: '/Mon.',
+    periodYearShort: '/Jahr',
+    periodWeekShort: '/Woche',
+    billedMonthlyAt: 'Monatliche Abrechnung: {price}',
+    billedAnnuallyAt: 'Jährliche Abrechnung: {price}',
+    trialUnitDay: 'Tag',
+    trialUnitWeek: 'Woche',
+    trialUnitMonth: 'Monat',
+    trialUnitYear: 'Jahr',
+    copyDebugInfo: 'Debug-Infos kopieren',
+    debugInfoCopied: 'Debug-Infos in die Zwischenablage kopiert.',
     purchaseFailed: 'Kauf fehlgeschlagen',
     restorePurchases: 'Käufe wiederherstellen',
-    heroLine1: 'Wir möchten, dass du',
-    heroLine2: 'GutWell AI kostenlos testest',
+    // "GutWell AI kostenlos testest" was the more explicit of the two claims:
+    // unambiguously "test GutWell AI for free". Same fix as EN.
+    heroLine1: 'Schalte alles frei mit',
+    heroLine2: 'GutWell AI Premium',
     billedAnnuallySave: 'Jährliche Abrechnung — spare {pct} %',
     startFreeTrial: 'Kostenlos testen',
     startTrialWithPeriod: '{n} {unit} kostenlos testen',
@@ -1793,6 +2398,85 @@ const de: Translations = {
     goBack: 'Zurück',
     accessGoBack: 'Zurück zum vorherigen Bildschirm',
     legalNote: 'GutWell AI ist ein Wellness-Tool. Es bietet keine medizinische Beratung.',
+
+    operatorName: 'Jafar Rusban Javanmardi',
+    operatorAddress: 'Sedanstraße 13\n65183 Wiesbaden\nDeutschland',
+    contactEmail: 'support@getgutwell.app',
+    lastUpdated: 'Zuletzt aktualisiert: August 2026',
+    contactPrompt: 'Fragen? Schreib uns an',
+    operatedBy: 'Betrieben von',
+
+    privacyIntro: 'Deine Privatsphäre ist uns wichtig. Tippe auf einen Abschnitt, um zu erfahren, wie wir mit deinen Daten umgehen.',
+    privacySections: [
+      {
+        title: '1. Welche Daten wir erheben',
+        body: 'GutWell AI erhebt die Daten, die du selbst einträgst: Check-in-Einträge (Stuhltyp, Blähungen, Schmerzen, Energie, Stimmung, Wasseraufnahme), Ernährungseinträge (Mahlzeitennamen, Mahlzeitentypen und Fotos von Mahlzeiten, die du analysieren lässt), Symptomeinträge (Art, Stärke), Notizen zu Nahrungsergänzungsmitteln, Antworten aus dem Onboarding (deine Beschwerden und Ziele) sowie grundlegende Kontodaten (E-Mail, Anzeigename). Wenn du die Spracheingabe nutzt, um eine Mahlzeit zu beschreiben oder zu korrigieren, wird deine Sprache von der Spracherkennung deines Geräts in Text umgewandelt; gespeichert wird ausschließlich der entstandene Text — eine Audioaufnahme bewahren wir nicht auf. Wenn du den Standortzugriff für lokale Essensvorschläge erlaubst, wird dein ungefährer Standort während dieser Analyse verwendet.',
+      },
+      {
+        title: '2. Wie wir deine Daten verwenden',
+        body: 'Deine Daten werden verwendet, um den GutWell-AI-Dienst bereitzustellen — um deine Verläufe darzustellen, deinen Darmgesundheits-Score zu berechnen, mögliche Zusammenhänge zwischen Ernährung und Symptomen aufzuzeigen, die KI-Mahlzeitenanalyse zu personalisieren und die von dir eingerichteten Erinnerungen zu senden. Wir verkaufen deine Daten nicht und nutzen sie weder für Werbung noch für app-übergreifendes Tracking.',
+      },
+      {
+        title: '3. Dienstleister, mit denen wir Daten teilen',
+        body: 'Für den Betrieb von GutWell AI nutzen wir eine kleine Zahl von Dienstleistern:\n\n• Supabase — speichert dein Konto und alle oben beschriebenen Einträge. Die primäre Datenbankregion des Projekts ist in der EU konfiguriert.\n• Google Gemini — wenn du eine Mahlzeit analysieren lässt, werden das Foto und der von dir angegebene Kontext (Beschreibung, Symptome, Beschwerden, Nahrungsergänzungsmittel und — sofern von dir aktiviert — dein ungefährer Standort) an die Gemini-API von Google übermittelt, damit deine Analyse erstellt werden kann. Wie Google mit an diese API übermittelten Daten umgeht, richtet sich nach den API-Bedingungen von Google.\n• Apple und RevenueCat — nur beteiligt, wenn du ein Abonnement abschließt, um dieses abzuwickeln und zu prüfen.\n\nDiese Version von GutWell AI verwendet keine Analyse- oder Absturzberichtsdienste. Wir verkaufen oder teilen deine persönlichen Gesundheitsdaten mit keinen weiteren Dritten.',
+      },
+      {
+        title: '4. Speicherung & Sicherheit',
+        body: 'Deine Daten werden bei Supabase gespeichert, verschlüsselt bei der Übertragung und im Ruhezustand. Row-Level-Security stellt sicher, dass nur du auf deine eigenen Daten zugreifen kannst. Anmelde-Tokens liegen im sicheren Speicher deines Geräts. KI-Anfragen stellt unser Server, sodass Schlüssel der KI-Anbieter nie in der App enthalten sind.',
+      },
+      {
+        title: '5. Aufbewahrung & Löschung',
+        body: 'Deine Daten werden aufbewahrt, solange dein Konto aktiv ist. Du kannst deine Daten jederzeit in deinem Profil als CSV-Datei exportieren; die Datei wird über das Teilen-Menü deines Geräts bereitgestellt. Du kannst dein Konto und die zugehörigen Daten in der App dauerhaft löschen: Profil → Konto löschen. Die Löschung lässt sich nicht rückgängig machen. Fotos von Mahlzeiten werden von GutWell AI nach Abschluss einer Analyse nicht aufbewahrt.',
+      },
+      {
+        title: '6. Deine Rechte',
+        body: 'Du hast das Recht, auf deine personenbezogenen Daten zuzugreifen, sie zu exportieren, zu berichtigen oder zu löschen (Art. 15–20 DSGVO). Deine Check-ins und Symptomeinträge sind gesundheitsbezogene Angaben: Wir verarbeiten sie ausschließlich, um die von dir gewünschten Funktionen bereitzustellen, und du kannst diese Verarbeitung jederzeit beenden, indem du die Einträge oder dein Konto löschst. Du kannst diese Rechte in der App oder durch eine Nachricht an uns ausüben. Berechtigungen für Standort, Kamera, Mikrofon oder Mitteilungen kannst du jederzeit in den Einstellungen deines Geräts widerrufen.',
+      },
+      {
+        title: '7. Betreiber und Kontakt',
+        body: 'GutWell AI wird betrieben von Jafar Rusban Javanmardi, Sedanstraße 13, 65183 Wiesbaden, Deutschland. Bei Fragen zum Datenschutz oder zur Ausübung der oben genannten Rechte wende dich an support@getgutwell.app.',
+      },
+    ],
+
+    termsIntro: 'Bitte lies unsere Bedingungen. Tippe auf einen Abschnitt für Details.',
+    termsSections: [
+      {
+        title: '1. Nutzungsbedingungen',
+        body: 'Mit der Erstellung eines Kontos und der Nutzung von GutWell AI akzeptierst du diese Nutzungsbedingungen. GutWell AI ist ausschließlich für das persönliche Wellness-Tracking bestimmt. Du musst mindestens 16 Jahre alt sein, um diese App zu nutzen. Du bist dafür verantwortlich, deine Zugangsdaten vertraulich zu behandeln.',
+      },
+      {
+        title: '2. Gesundheitshinweis',
+        body: 'GutWell AI ist eine Wellness-Tracking-App und kein Medizinprodukt. Die bereitgestellten Informationen, Scores, Muster und Hinweise dienen ausschließlich der persönlichen Beobachtung und stellen keine medizinische Beratung, Diagnose oder Behandlung dar. Die App ist nicht dazu bestimmt, Krankheiten zu diagnostizieren, zu behandeln, zu heilen oder ihnen vorzubeugen. Wende dich bei Fragen zu einer Erkrankung immer an qualifiziertes medizinisches Fachpersonal. Ignoriere ärztlichen Rat nicht und zögere seine Einholung nicht wegen Informationen hinaus, die dir GutWell AI anzeigt.',
+      },
+      {
+        title: '3. Abonnement',
+        body: 'GutWell AI bietet eine kostenlose Version und ein optionales Premium-Abonnement, wahlweise monatlich oder jährlich. Premium-Abonnements werden über den App Store von Apple abgerechnet. Die Zahlung wird bei Bestätigung des Kaufs deinem Apple-ID-Konto belastet. Abonnements verlängern sich automatisch, sofern sie nicht mindestens 24 Stunden vor Ende des laufenden Abrechnungszeitraums gekündigt werden; die Belastung für die Verlängerung erfolgt innerhalb von 24 Stunden vor Ende des laufenden Zeitraums. Die Preise werden dir vor dem Kauf in der App in deiner Währung angezeigt.',
+      },
+      {
+        title: '4. Kündigung',
+        body: 'Du kannst dein Abonnement jederzeit über die Einstellungen deiner Apple-ID kündigen. Die Kündigung wird zum Ende des laufenden Abrechnungszeitraums wirksam. Erstattungen wickelt Apple nach den Erstattungsrichtlinien von Apple ab; GutWell AI nimmt keine Erstattungen direkt vor. Die kostenlosen Funktionen bleiben nach einer Kündigung weiterhin verfügbar. Deine zwingenden gesetzlichen Verbraucherrechte bleiben unberührt.',
+      },
+      {
+        title: '5. Haftung',
+        body: 'GutWell AI wird mit Sorgfalt bereitgestellt. Wir sichern jedoch nicht zu, dass der Dienst unterbrechungsfrei oder fehlerfrei ist; von der KI erstellte Analysen können ungenau oder für deine Situation unpassend sein. Diese Bedingungen schließen keine Haftung aus und beschränken keine Haftung, soweit ein Ausschluss oder eine Beschränkung gesetzlich nicht zulässig ist — insbesondere nicht bei Vorsatz, bei Verletzung von Leben, Körper oder Gesundheit sowie nach zwingendem Produkthaftungsrecht. Deine zwingenden gesetzlichen Verbraucherrechte bleiben unberührt.',
+      },
+      {
+        title: '6. Deine Inhalte',
+        body: 'Alle Daten, die du in GutWell AI einträgst, bleiben deine. Mit der Nutzung des Dienstes räumst du uns ein beschränktes Recht ein, deine Daten ausschließlich zur Bereitstellung des GutWell-AI-Dienstes zu verarbeiten. Wir verkaufen deine persönlichen Gesundheitsdaten nicht an Dritte. Du kannst deine Daten jederzeit exportieren oder löschen.',
+      },
+      {
+        title: '7. Zulässige Nutzung',
+        body: 'Du verpflichtest dich, den Dienst nicht zu missbrauchen. Dazu zählen insbesondere: der Versuch, auf Daten anderer Nutzerinnen und Nutzer zuzugreifen, das Reverse Engineering der App, der Einsatz automatisierter Werkzeuge zur Interaktion mit dem Dienst sowie jede rechtswidrige Nutzung von GutWell AI.',
+      },
+      {
+        title: '8. Änderungen dieser Bedingungen',
+        body: 'Wir können diese Bedingungen von Zeit zu Zeit anpassen. Über wesentliche Änderungen informieren wir dich in der App oder per E-Mail. Soweit das anwendbare Recht deine ausdrückliche Zustimmung zu einer Änderung verlangt, holen wir diese ein.',
+      },
+      {
+        title: '9. Anwendbares Recht',
+        body: 'Auf diese Bedingungen findet das Recht der Bundesrepublik Deutschland Anwendung. Bist du Verbraucherin oder Verbraucher, so entzieht dir diese Rechtswahl nicht den Schutz zwingender Vorschriften des Rechts deines gewöhnlichen Aufenthaltsstaats; sie nimmt dir auch nicht ein etwaiges Recht, Verfahren vor den Gerichten dieses Staates einzuleiten.',
+      },
+    ],
   },
 
   onboardingSteps: {
@@ -1813,17 +2497,13 @@ const de: Translations = {
         Comfortable: { label: 'Wohl', description: 'Meist entspannt' },
         Bloated: { label: 'Aufgebläht', description: 'Voll oder geschwollen' },
         Heavy: { label: 'Schwer oder träge', description: 'Wenig Energie danach' },
+        Pain: { label: 'Schmerzen oder Krämpfe', description: 'Bauchschmerzen oder Krämpfe' },
         'It varies': { label: 'Unterschiedlich', description: 'Kommt auf das Essen an' },
       },
-      chipsTitle: 'Meidest du etwas davon?',
-      chipsOptional: 'Optional',
-      chips: {
-        Lactose: 'Laktose',
-        Gluten: 'Gluten',
-        'Spicy foods': 'Scharfes',
-        'High-fat foods': 'Fettreiches',
-        Other: 'Anderes',
-      },
+    },
+    context_interlude: {
+      title: 'Auf deinen Kontext abgestimmt',
+      body: 'GutWell betrachtet deine Mahlzeiten gemeinsam mit den Symptomen und dem Kontext, die du teilen möchtest – statt nach pauschalen Ernährungsregeln.',
     },
     sex: {
       title: 'Was trifft am besten auf dich zu?',
@@ -1868,7 +2548,7 @@ const de: Translations = {
       },
     },
     target_state: {
-      title: 'Wo möchtest du in 12 Wochen stehen?',
+      title: 'Wo möchtest du hinkommen?',
       subtitle: 'Wähle das Ergebnis, das am meisten verändern würde.',
       options: {
         'Symptom-free most days': 'An den meisten Tagen beschwerdefrei',
@@ -1966,13 +2646,46 @@ const de: Translations = {
     removeSymptomMessage: 'Möchtest du diesen Symptogeintrag wirklich entfernen?',
     delete: 'Löschen',
     cancel: 'Abbrechen',
+    deleteEntryConfirm: '„{label}“ löschen?',
+    stoolTypeEntry: 'Stuhltyp {type}',
+    justNow: 'Gerade eben',
+    minutesAgo: 'vor {n} Min.',
+    hoursAgo: 'vor {n} Std.',
     todayActivity: 'Heutige Aktivität',
     recentMeals: 'Letzte Mahlzeiten',
     noDataYet: 'Noch keine Daten',
     scanTitle: 'Mahlzeit scannen',
     scanSubtitle: 'Foto machen — in Sekunden eine Einschätzung für deinen Darm',
-    recentlyLogged: 'Zuletzt erfasst',
-    emptyHint: 'Tippe auf +, um deinen ersten Eintrag des Tages zu erfassen',
+    latestActivity: 'Letzte Mahlzeiten & Check-ins',
+    emptyHint: 'Deine Check-ins und Mahlzeiten erscheinen hier.',
+    emptyActivityTitle: 'Noch nichts erfasst',
+
+    greetingMorning: 'Guten Morgen',
+    greetingAfternoon: 'Guten Tag',
+    greetingEvening: 'Guten Abend',
+    greetingWithName: '{greeting}, {name}',
+
+    scoreTitle: 'Heutiger GutWell-Score',
+    scoreProvenance: 'Basierend auf deinem heutigen Check-in',
+    scoreEmptyTitle: 'Noch kein Score',
+    scoreEmptyBody: 'Mach den heutigen Check-in, um deinen Tagesscore zu erstellen.',
+    dayLabelSettled: 'Ruhiger Tag',
+    dayLabelMixed: 'Gemischter Tag',
+    dayLabelTougher: 'Anstrengender Tag',
+
+    heroCheckinTitle: 'Täglicher Check-in',
+    heroCheckinSubtitle: 'Beginne damit, wie du dich heute fühlst.',
+    heroMealTitle: 'Mahlzeit analysieren',
+    heroMealSubtitle: 'Sieh, wie deine nächste Mahlzeit zu deinem Tag passt.',
+    heroProgressTitle: 'Deinen Fortschritt ansehen',
+    heroProgressSubtitle: 'Dein Tag nimmt Form an. Sieh, was GutWell erkennt.',
+
+    vsYesterday: 'ggü. gestern',
+    checkinDone: 'Erledigt',
+    checkinPending: 'Noch offen',
+    labelCheckins7d: 'Check-ins in 7 Tagen',
+    consistencyStart: 'Heute starten',
+    consistencyCount: '{n} von 7 Tagen',
     accessSeeAllRecent: 'Alle letzten Aktivitäten ansehen',
     triggerLinked: 'Möglicher Zusammenhang mit {symptom} — bei {withSymptoms} von {logged} Einträgen',
     triggerFollowed: 'Symptome folgten bei {withSymptoms} von {logged} Einträgen',
@@ -1989,6 +2702,8 @@ const de: Translations = {
     saveButton: 'Check-in speichern',
     accessGoBack: 'Zurück',
     accessMoodLevel: 'von 5',
+    accessLevel: '{field}, {label}, Stufe {n} von 5',
+    accessSave: 'Heutigen Check-in speichern',
     errorNotLoggedIn: 'Bitte melde dich an, um deinen Check-in zu speichern',
     errorNoStool: 'Bitte wähle einen Stuhltyp aus',
     successSaved: 'Check-in gespeichert!',
@@ -2037,6 +2752,48 @@ const de: Translations = {
     statusBuilding: 'Im Aufbau',
     statusNeedsCare: 'Braucht Pflege',
     noDataScore: 'Keine Daten',
+
+    scoreTitleToday: 'Heutiger GutWell-Score',
+    scoreTitleLatest: 'Letzter GutWell-Score',
+    scoreProvenanceToday: 'Basierend auf deinem heutigen Check-in',
+    scoreProvenanceOlder: 'Aus deinem Check-in vom {date}',
+    scoreEmptyTitle: 'Noch kein Score',
+    scoreEmptyBody: 'Mach einen Check-in, um deinen Score-Verlauf aufzubauen.',
+
+    learningTitle: 'Was GutWell gerade lernt',
+    learningScoresLabel: 'Score-Verlauf',
+    learningScoresProgress: '{n} von 3 Check-ins',
+    learningScoresReady: 'Aktuelle Auswertung verfügbar',
+    learningMealsLabel: 'Mahlzeiten-Muster',
+    learningMealsProgress: '{n} von 5 Mahlzeiten',
+    learningMealsReady: 'Musteranalyse verfügbar',
+
+    trendsTitle: 'Verläufe',
+    lowDataMore: 'Mehr Check-ins nötig',
+    lowDataTrend: 'Für einen Verlauf sind mehr Daten nötig',
+    windowSuffix: 'Letzte {period}',
+    a11yScoreTrend: 'Verlauf des GutWell-Scores. {n} erfasste Werte in diesem Zeitraum. Letzter Wert {latest}.',
+    a11yMoodTrend: 'Stimmungsverlauf. {n} erfasste Stimmungs-Check-ins.',
+    a11yStoolTrend: 'Stuhlverlauf. {n} erfasste Check-ins.',
+    a11yCalendar: 'Kalender zur Check-in-Regelmäßigkeit. {n} Check-ins in diesem Zeitraum.',
+
+    patternStronger: 'Deutlicheres Muster',
+    patternPossible: 'Mögliches Muster',
+    patternEarly: 'Frühes Muster',
+    patternCoOccurrence: 'In {pct}% der erfassten Fälle gemeinsam aufgetreten',
+
+    moodLabels: { '1': 'Schlecht', '2': 'Mäßig', '3': 'Okay', '4': 'Gut', '5': 'Sehr gut' },
+    milestonesTitle: 'Meilensteine',
+    bestStreakLabel: 'Längste Serie',
+    bestStreakValue: '{n} Tage',
+    nextLevelLabel: 'Als Nächstes: {name}',
+    levelNames: {
+      beginner: 'Einsteiger',
+      explorer: 'Entdecker',
+      tracker: 'Tracker',
+      specialist: 'Spezialist',
+      guru: 'Darm-Profi',
+    },
     premiumTriggerTeaser: 'Alle Trigger- und sichere Lebensmittel mit Premium ansehen',
     premiumFoodInsights: 'Ernährungs-Symptom-Einblicke mit Premium freischalten',
     windowLabels: { '3': '3 Tage', '7': '7 Tage', '14': '14 Tage', '30': '30 Tage', '90': '90 Tage', null: 'Gesamt' },
@@ -2116,14 +2873,32 @@ const de: Translations = {
     onboardingSkipForNowHint: 'Du kannst jederzeit vom Startbildschirm aus eine Mahlzeit analysieren.',
     back: 'Zurück',
     title: 'Fotoanalyse',
+    describeTitle: 'Mahlzeit beschreiben',
     wizardStep1Subtitle: 'Schritt 1 von 3 — Aufnahme',
     wizardStep2Subtitle: 'Schritt 2 von 3 — Beschreiben',
     wizardStep3Subtitle: 'Schritt 3 von 3 — Analyse',
     wizardStep4Hint: 'Abschluss',
     wizardNext: 'Weiter',
     changePhoto: 'Foto ändern',
-    step2Prompt: 'Was ist das für Essen? Wie fühlst du dich?',
+    describeMealCta: 'Mahlzeit stattdessen beschreiben',
+    describeMealHint: 'Beschreibe, was du gegessen hast, die Zutaten und wie du dich fühlst.',
+    switchToTextCta: 'Stattdessen Text verwenden',
+    switchToTextHint: 'Zur Textanalyse wechseln und dieses Foto entfernen.',
+    switchToTextConfirmTitle: 'Zur Textanalyse wechseln?',
+    switchToTextConfirmMessage:
+      'Das ausgewählte Foto wird entfernt. Du kannst die Mahlzeit stattdessen beschreiben.',
+    switchToTextCancel: 'Abbrechen',
+    describeMealPlaceholder:
+      'Beispiel: Chickenburger mit Pommes und Cola. Mit Käse, Zwiebeln und Soße. Ich fühle mich aufgebläht und muss danach Auto fahren.',
+    describeRequiredMessage: 'Beschreibe kurz, was du gegessen hast, damit wir es ansehen können.',
+    notNow: 'Jetzt nicht',
+    dailyLimitFallbackMessage:
+      'Du hast heute deine 5 Fotoanalysen genutzt. Du kannst deine Mahlzeit weiterhin beschreiben.',
+    textLimitTitle: 'Tageslimit erreicht',
+    textLimitMessage: 'Du hast heute 5 Mahlzeiten beschrieben — das ist das Tagesmaximum.',
+    step2Prompt: 'Optional: Ergänze Kontext, den das Foto nicht zeigen kann',
     generateAnalysis: 'Analyse erstellen',
+    viewAnalysis: 'Analyse anzeigen',
     isThisAccurate: 'Stimmt das so?',
     yes: 'Ja',
     no: 'Nein',
@@ -2147,7 +2922,7 @@ const de: Translations = {
     symptomsLabel: 'Symptome & Notizen',
     symptomsPlaceholder: 'Vor dem Foto optional Symptome; nach der Aufnahme dein Befinden beschreiben.',
     howYouFeelLabel: 'Was ist es & wie fühlst du dich?',
-    howYouFeelPlaceholder: 'Zum Beispiel: Das ist Linsensuppe — ich fühle mich aufgebläht.',
+    howYouFeelPlaceholder: 'Portionsgröße, Zutaten, Zubereitung, Zeitpunkt oder wie du dich danach gefühlt hast',
     photoCapturedPrompt: 'Foto gespeichert! Sprich oder tippe, wie du dich fühlst.',
     analyzeCombined: 'Mahlzeit analysieren',
     feelingsRequiredTitle: 'Erst die Mahlzeit beschreiben',
@@ -2178,6 +2953,11 @@ const de: Translations = {
     voiceInputA11yHint: 'Halten zum Aufnehmen; loslassen zum Beenden.',
     correcting: 'Analyse wird mit deiner Korrektur aktualisiert...',
     recording: 'Aufnahme…',
+    dailyLimitTitle: 'Tageslimit erreicht',
+    dailyLimitMessage: 'Du hast heute 5 Mahlzeiten analysiert — das ist das Tagesmaximum.',
+    dailyLimitResetsAt: 'Ab {time} kannst du weitere analysieren.',
+    revisionLimitTitle: 'Tageslimit für Korrekturen erreicht',
+    revisionLimitMessage: 'Du hast heute 5 Korrekturen gemacht — das ist das Tagesmaximum.',
     photoAnalysisFailedTitle: 'Fotoanalyse fehlgeschlagen',
     photoAnalysisFailedTryAgain: 'Bitte versuche es erneut.',
     photoUnavailableTitle: 'Foto nicht verfügbar',
@@ -2198,6 +2978,13 @@ const de: Translations = {
     pendingScore: 'Ausstehend',
     photoMealDefault: 'Mahlzeit (Foto)',
     insightsHeading: 'Darm-Auswertung',
+    refineAnalysis: 'Analyse verfeinern',
+    refineAnalysisPrompt: 'Passt etwas nicht?',
+    refineAnalysisHint: 'KI kann eine Zutat oder einen Kontext übersehen. Ergänze oder korrigiere ein Detail, und GutWell schaut noch einmal darauf.',
+    analysing: 'Analyse läuft…',
+    generateNeedsDescription: 'Füge eine kurze Beschreibung hinzu, um fortzufahren',
+    generateNeedsRecordingStopped: 'Beende die Aufnahme, um fortzufahren',
+    mealTitleFallback: 'Analyse der Mahlzeit',
     addMore: 'Mehr hinzufügen',
     fixResults: 'Korrigieren',
     done: 'Fertig',
@@ -2445,7 +3232,7 @@ const de: Translations = {
     actionsTitle: 'Teile deinen Fortschritt',
     shareButton: 'Teilen',
     close: 'Schließen',
-    shareMessage: 'Mein GutWell AI Darm-Score diese Woche: {score}/100 🌿 Tag {streak} in Folge! Lade GutWell AI herunter, um deine Darmgesundheit zu verfolgen.',
+    shareMessage: 'Mein GutWell AI Score diese Woche: {score}/100, basierend auf meinen GutWell Check-ins 🌿 Tag {streak} in Folge! Lade GutWell AI herunter, um deine Darmgesundheit zu verfolgen.',
   },
 
   tabs: {
@@ -2522,6 +3309,8 @@ const de: Translations = {
       accessAdd: 'Glas Wasser hinzufügen',
     },
     streakPopup: {
+      close: 'Schließen',
+      streakValueA11y: '{n} Tage in Folge',
       dayStreak: 'Tage in Folge',
       thisWeek: 'Diese Woche',
       milestoneProgress: 'Meilenstein-Fortschritt',
@@ -2559,6 +3348,12 @@ const de: Translations = {
     },
     dailyTip: {
       title: 'Tages-Impuls',
+      categories: {
+        nutrition: 'Ernährung',
+        lifestyle: 'Alltag',
+        science: 'Wissenschaft',
+        mindfulness: 'Achtsamkeit',
+      },
     },
     calendar: {
       less: 'Weniger',
@@ -2571,12 +3366,23 @@ const de: Translations = {
       title: 'Gesundheitshinweis',
       accept: 'Verstanden',
       viewPrivacy: 'Datenschutzrichtlinie ansehen',
+      body1:
+        'GutWell AI ist eine App zum Aufzeichnen des Wohlbefindens und kein Medizinprodukt. Die bereitgestellten Informationen dienen ausschließlich der persönlichen Aufzeichnung und stellen keine medizinische Beratung dar.',
+      body2:
+        'Wende dich bei gesundheitlichen Fragen immer an qualifiziertes medizinisches Fachpersonal.',
+      // Noun forms ("Heilung") rather than the verb, so the required negated
+      // disclaimer does not trip the affirmative-claim guard in
+      // lib/__tests__/i18n-coverage.test.ts. Meaning is unchanged.
+      legalNote:
+        'Wenn du fortfährst, bestätigst du, dass GutWell AI nicht der Diagnose, Behandlung, Heilung oder Vorbeugung von Krankheiten oder gesundheitlichen Beschwerden dient.',
     },
     swipe: {
       favorite: 'Favorit',
       delete: 'Löschen',
     },
     scanTutorial: {
+      next: 'Weiter',
+      scanNow: 'Jetzt scannen',
       slides: [
         {
           title: 'So wird der Scan am klarsten',

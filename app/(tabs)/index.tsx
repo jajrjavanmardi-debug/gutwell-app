@@ -1,7 +1,7 @@
-import React, { useEffect, useState, useCallback, useRef } from 'react';
+import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { View, Text, StyleSheet, ScrollView, RefreshControl, TouchableOpacity, Alert, Animated, Easing } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
@@ -10,15 +10,22 @@ import { DailyTip } from '../../components/DailyTip';
 import { StreakPopup } from '../../components/StreakPopup';
 import { ProgressRing } from '../../components/ui/ProgressRing';
 import { StatCard } from '../../components/ui/StatCard';
-import { DaySelector } from '../../components/ui/DaySelector';
 import { Colors, Spacing, FontSize, BorderRadius, Shadows, FontFamily } from '../../constants/theme';
 import { updateTodayScore } from '../../lib/scoring';
 import { scheduleStreakAtRiskAlert } from '../../lib/notifications';
 import { ErrorState } from '../../components/ui/ErrorState';
 import { getStreakSnapshot } from '../../lib/streaks';
 import { computeCorrelations, type FoodCorrelation } from '../../lib/correlations';
-import { getLocalDateKey, addDaysToLocalDateKey } from '../../lib/date';
+import {
+  getLocalDateKey,
+  addDaysToLocalDateKey,
+  getLocalDayIsoRange,
+  getDayPart,
+  usableDisplayName,
+} from '../../lib/date';
 import { useTranslation } from '../../lib/i18n';
+import { useLanguage } from '../../lib/LanguageContext';
+import { useReducedMotion } from '../../lib/useReducedMotion';
 
 type RecentEntry = {
   id: string | number;
@@ -39,7 +46,22 @@ function scoreRingColor(score: number | null): string {
 
 export default function HomeScreen() {
   const t = useTranslation();
+  const { language } = useLanguage();
   const { user, profile } = useAuth();
+  // Same mapping food.tsx and ai-quota.ts already use, so dates follow the
+  // language chosen in the app rather than the device's region setting.
+  const dateLocale = language === 'de' ? 'de-DE' : 'en-US';
+  // Memoized because loadData depends on it: useTranslation returns a stable
+  // module-level object per language, so this changes only when the language
+  // does — a fresh literal each render would retrigger loadData forever.
+  const relativeTimeLabels = useMemo(
+    () => ({
+      justNow: t.home.justNow,
+      minutesAgo: t.home.minutesAgo,
+      hoursAgo: t.home.hoursAgo,
+    }),
+    [t],
+  );
   const [gutScore, setGutScore] = useState<number | null>(null);
   const [yesterdayScore, setYesterdayScore] = useState<number | null>(null);
   const [streak, setStreak] = useState(0);
@@ -53,18 +75,35 @@ export default function HomeScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [topTrigger, setTopTrigger] = useState<FoodCorrelation | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
 
-  // Entrance animations
-  const fadeAnim = useRef(new Animated.Value(0)).current;
-  const slideAnim = useRef(new Animated.Value(20)).current;
+  /**
+   * Recomputed on focus so crossing 12:00 or 18:00 with the app open does not
+   * leave "Good morning" on screen all afternoon. `dayPart` is derived from
+   * this, so one state update refreshes both the greeting and the date line.
+   */
+  const [now, setNow] = useState<Date>(() => new Date());
+
+  const reduceMotion = useReducedMotion();
+
+  // Entrance animation. Under Reduce Motion both values start settled and
+  // nothing is scheduled — the screen is simply there, with no fade and no
+  // 20px rise. Pull-to-refresh and every handler are identical either way.
+  const fadeAnim = useRef(new Animated.Value(reduceMotion ? 1 : 0)).current;
+  const slideAnim = useRef(new Animated.Value(reduceMotion ? 0 : 20)).current;
 
   useEffect(() => {
-    Animated.parallel([
+    if (reduceMotion) {
+      fadeAnim.setValue(1);
+      slideAnim.setValue(0);
+      return;
+    }
+    const animation = Animated.parallel([
       Animated.timing(fadeAnim, { toValue: 1, duration: 600, useNativeDriver: true, easing: Easing.out(Easing.cubic) }),
       Animated.timing(slideAnim, { toValue: 0, duration: 600, useNativeDriver: true, easing: Easing.out(Easing.cubic) }),
-    ]).start();
-  }, [fadeAnim, slideAnim]);
+    ]);
+    animation.start();
+    return () => animation.stop();
+  }, [fadeAnim, slideAnim, reduceMotion]);
 
   const loadData = useCallback(async () => {
     if (!user) return;
@@ -75,6 +114,11 @@ export default function HomeScreen() {
     const today = getLocalDateKey();
     const yesterdayStr = addDaysToLocalDateKey(today, -1);
     const sevenDaysAgoStr = addDaysToLocalDateKey(today, -6);
+    // food_logs.logged_at is a timestamptz, so it cannot be compared against a
+    // bare date key: Postgres reads "2026-08-19" as UTC midnight, which in CEST
+    // starts the day at 02:00 local and drops meals logged just after midnight.
+    // The half-open local-day range is the same one scoring.ts uses.
+    const { startIso: todayStartIso, endIso: todayEndIso } = getLocalDayIsoRange(today);
 
     // ── Fetch all independent data in parallel ──────────────────────────────
     const [
@@ -114,7 +158,8 @@ export default function HomeScreen() {
         .from('food_logs')
         .select('id', { count: 'exact', head: true })
         .eq('user_id', user.id)
-        .gte('logged_at', today),
+        .gte('logged_at', todayStartIso)
+        .lt('logged_at', todayEndIso),
       // Recent check-ins
       supabase
         .from('check_ins')
@@ -187,18 +232,21 @@ export default function HomeScreen() {
       entries.push({
         id: c.id,
         type: 'checkin',
-        label: `Stool type ${c.stool_type}`,
-        time: formatTime(c.created_at),
+        label: t.home.stoolTypeEntry.replace('{type}', String(c.stool_type)),
+        time: formatTime(c.created_at, relativeTimeLabels, dateLocale),
         sortKey: c.created_at,
       });
     });
 
     recentFood?.forEach(f => {
+      // f.meal_name is the user's own text or an AI-generated name. It is
+      // rendered as stored — switching app language must never retranslate
+      // content the user already has.
       entries.push({
         id: f.id,
         type: 'food',
         label: f.meal_name,
-        time: formatTime(f.logged_at),
+        time: formatTime(f.logged_at, relativeTimeLabels, dateLocale),
         sortKey: f.logged_at,
       });
     });
@@ -215,9 +263,24 @@ export default function HomeScreen() {
     } finally {
       setIsLoading(false);
     }
-  }, [user]);
+  }, [user, t, relativeTimeLabels, dateLocale]);
 
   useEffect(() => { loadData(); }, [loadData]);
+
+  // Home is a tab screen, so it stays mounted while the user logs a meal or a
+  // check-in elsewhere; without this the mount effect above never runs again
+  // and Home keeps showing whatever it read at sign-in. Refetching on focus is
+  // the pattern progress.tsx already uses. isLoading is only ever set false,
+  // so this cannot re-trigger the skeleton.
+  useFocusEffect(
+    useCallback(() => {
+      // Refresh the clock alongside the data: the greeting and the date line
+      // are both derived from `now`, and a tab that stayed mounted since
+      // morning would otherwise still say "Good morning" at 8pm.
+      setNow(new Date());
+      loadData();
+    }, [loadData]),
+  );
 
   const handleEntryPress = useCallback((entry: RecentEntry) => {
     if (entry.type === 'checkin') {
@@ -225,7 +288,7 @@ export default function HomeScreen() {
     } else if (entry.type === 'food') {
       Alert.alert(
         t.home.removeFood,
-        `Delete "${entry.label}"?`,
+        t.home.deleteEntryConfirm.replace('{label}', entry.label),
         [
           { text: t.home.cancel, style: 'cancel' },
           {
@@ -241,7 +304,7 @@ export default function HomeScreen() {
     } else if (entry.type === 'symptom') {
       Alert.alert(
         t.home.removeSymptom,
-        `Delete "${entry.label}"?`,
+        t.home.deleteEntryConfirm.replace('{label}', entry.label),
         [
           { text: t.home.cancel, style: 'cancel' },
           {
@@ -275,14 +338,104 @@ export default function HomeScreen() {
       : 'at_risk';
 
   const scoreColor = scoreRingColor(gutScore);
+  /**
+   * Describes the DAY, not the organ.
+   *
+   * Thresholds are unchanged (70 / 40 — see lib/scoring.ts, untouched); only
+   * the wording moved. "Thriving gut" and "Needs care" made a claim about a
+   * body part on the strength of five self-reported sliders, and "Needs care"
+   * in particular reads as an instruction.
+   */
   const scoreCaption =
     gutScore === null
       ? t.home.noCheckInYet
       : gutScore >= 70
-      ? t.home.thrivingGut
+      ? t.home.dayLabelSettled
       : gutScore >= 40
-      ? t.home.settlingIn
-      : t.home.needsCare;
+      ? t.home.dayLabelMixed
+      : t.home.dayLabelTougher;
+
+  // ── Greeting ────────────────────────────────────────────────────────────
+  const greeting = useMemo(() => {
+    const part = getDayPart(now);
+    const base =
+      part === 'morning'
+        ? t.home.greetingMorning
+        : part === 'afternoon'
+          ? t.home.greetingAfternoon
+          : t.home.greetingEvening;
+    const name = usableDisplayName(profile?.display_name);
+    // No name is the normal case, not a fallback: the greeting reads correctly
+    // on its own, and a placeholder like "Good morning, User" would be worse
+    // than the plain form.
+    return name ? t.home.greetingWithName.replace('{greeting}', base).replace('{name}', name) : base;
+  }, [now, t, profile?.display_name]);
+
+  /**
+   * Non-interactive date line, replacing the day strip.
+   *
+   * The strip let the user select a date that changed nothing — every Home
+   * query reads today. A control that moves its highlight while the data
+   * stands still is worse than no control, so this states the day instead of
+   * pretending to filter by it.
+   */
+  const todayLabel = useMemo(
+    () =>
+      now.toLocaleDateString(dateLocale, {
+        weekday: 'long',
+        day: 'numeric',
+        month: 'long',
+      }),
+    [now, dateLocale],
+  );
+
+  // ── Contextual hero ─────────────────────────────────────────────────────
+  /**
+   * One next action, chosen from data Home already loads. No new query, no AI
+   * call, no entitlement logic: photo-analysis keeps its own Premium gate, and
+   * this only decides which existing route to offer first.
+   */
+  const hero = useMemo(() => {
+    if (!checkedInToday) {
+      return {
+        key: 'checkin' as const,
+        title: t.home.heroCheckinTitle,
+        subtitle: t.home.heroCheckinSubtitle,
+        icon: 'sunny-outline' as const,
+        route: '/(tabs)/checkin' as const,
+      };
+    }
+    if (mealsLoggedToday === 0) {
+      return {
+        key: 'meal' as const,
+        title: t.home.heroMealTitle,
+        subtitle: t.home.heroMealSubtitle,
+        icon: 'camera-outline' as const,
+        route: '/photo-analysis' as const,
+      };
+    }
+    return {
+      key: 'progress' as const,
+      title: t.home.heroProgressTitle,
+      subtitle: t.home.heroProgressSubtitle,
+      icon: 'trending-up-outline' as const,
+      route: '/(tabs)/progress' as const,
+    };
+  }, [checkedInToday, mealsLoggedToday, t]);
+
+  /**
+   * Check-in count for the trailing 7 local days, shown as a COUNT.
+   *
+   * The rolling window and its denominator are unchanged — `completionRate` is
+   * still computed and still drives the card's progress bar. Only the readout
+   * changed: "14%" after a first successful check-in reads as a failing grade,
+   * where "1 of 7 days" reads as day one.
+   */
+  const checkedCount = weeklyCompletions.filter(Boolean).length;
+  const consistencyValue =
+    checkedCount === 0
+      ? t.home.consistencyStart
+      : t.home.consistencyCount.replace('{n}', String(checkedCount));
   const trendDelta =
     gutScore !== null && yesterdayScore !== null ? gutScore - yesterdayScore : null;
 
@@ -294,11 +447,14 @@ export default function HomeScreen() {
         showsVerticalScrollIndicator={false}
       >
         <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}>
-        {/* Header: wordmark left, streak pill right */}
+        {/* Header: greeting + date left, streak pill right. The wordmark was
+            removed — the app's own name is the least useful thing it can tell
+            someone who has already opened it, and the space now carries who
+            they are and what day it is. */}
         <View style={styles.headerRow}>
-          <View style={styles.wordmark}>
-            <Ionicons name="leaf" size={22} color={Colors.secondary} />
-            <Text style={styles.wordmarkText}>{t.home.appName}</Text>
+          <View style={styles.greetingBlock}>
+            <Text style={styles.greetingText}>{greeting}</Text>
+            <Text style={styles.dateLine}>{todayLabel}</Text>
           </View>
 
           <TouchableOpacity
@@ -319,10 +475,11 @@ export default function HomeScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* Day selector strip */}
-        <View style={styles.daySelectorWrap}>
-          <DaySelector selectedDate={selectedDate} onSelectDate={setSelectedDate} />
-        </View>
+        {/* The interactive day strip was removed. `selectedDate` fed no query:
+            every card read today regardless of the highlighted date, so the
+            control could only ever mislead. Making it functional means routing
+            a date through every query, which is a separate change. The date is
+            now stated in the header instead. */}
 
         {!isLoading && error ? (
           <ErrorState type="offline" onRetry={() => { setError(null); loadData(); }} />
@@ -345,43 +502,80 @@ export default function HomeScreen() {
           </>
         ) : (
         <>
-          {/* HERO — Gut Score: big number left, ring right (Cal AI calories-left) */}
-          <View style={styles.heroCard}>
-            <View style={styles.heroLeft}>
-              <Text style={styles.heroValue}>{gutScore !== null ? gutScore : '--'}</Text>
-              <Text style={styles.heroLabel}>{t.home.gutScoreToday}</Text>
-              {trendDelta !== null && (
-                <View style={styles.trendRow}>
-                  <Ionicons
-                    name={trendDelta >= 0 ? 'trending-up' : 'trending-down'}
-                    size={13}
-                    color={trendDelta >= 0 ? Colors.secondary : '#E07070'}
-                  />
-                  <Text style={[styles.trendText, { color: trendDelta >= 0 ? Colors.secondary : '#E07070' }]}>
-                    {trendDelta > 0 ? `+${trendDelta}` : `${trendDelta}`} vs yesterday
-                  </Text>
-                </View>
-              )}
+          {/* HERO — the next useful action, not a number.
+              The score used to occupy this slot: the largest element on Home
+              was a read-only figure, while the flagship action sat below three
+              stat cards. */}
+          <TouchableOpacity
+            style={styles.heroAction}
+            onPress={() => router.push(hero.route)}
+            activeOpacity={0.88}
+            accessibilityRole="button"
+            accessibilityLabel={`${hero.title}. ${hero.subtitle}`}
+          >
+            <View style={styles.heroActionIcon}>
+              <Ionicons name={hero.icon} size={26} color={Colors.secondary} />
             </View>
+            <View style={styles.heroActionText}>
+              <Text style={styles.heroActionTitle}>{hero.title}</Text>
+              <Text style={styles.heroActionSubtitle}>{hero.subtitle}</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color={Colors.textTertiary} />
+          </TouchableOpacity>
 
-            <ProgressRing
-              progress={gutScore !== null ? gutScore / 100 : 0}
-              size={120}
-              strokeWidth={12}
-              fillColor={scoreColor}
-            >
-              <Text style={[styles.ringValue, { color: scoreColor }]}>
-                {gutScore !== null ? gutScore : '--'}
-              </Text>
-              <Text style={styles.ringCaption}>{scoreCaption}</Text>
-            </ProgressRing>
-          </View>
+          {/* SCORE — supporting information, with its provenance attached. */}
+          {gutScore !== null ? (
+            <View style={styles.scoreCard}>
+              <View style={styles.heroLeft}>
+                <Text style={styles.scoreCardTitle}>{t.home.scoreTitle}</Text>
+                <Text style={styles.heroValue}>{gutScore}</Text>
+                <Text style={styles.scoreProvenance}>{t.home.scoreProvenance}</Text>
+                {trendDelta !== null && (
+                  <View style={styles.trendRow}>
+                    <Ionicons
+                      name={trendDelta >= 0 ? 'trending-up' : 'trending-down'}
+                      size={13}
+                      color={trendDelta >= 0 ? Colors.secondary : '#E07070'}
+                    />
+                    <Text style={[styles.trendText, { color: trendDelta >= 0 ? Colors.secondary : '#E07070' }]}>
+                      {trendDelta > 0 ? `+${trendDelta}` : `${trendDelta}`} {t.home.vsYesterday}
+                    </Text>
+                  </View>
+                )}
+              </View>
+
+              <ProgressRing
+                progress={gutScore / 100}
+                size={104}
+                strokeWidth={11}
+                fillColor={scoreColor}
+              >
+                <Text style={[styles.ringValue, { color: scoreColor }]}>{gutScore}</Text>
+                <Text style={styles.ringCaption}>{scoreCaption}</Text>
+              </ProgressRing>
+            </View>
+          ) : (
+            /* No check-in today. A large "--" in a ring reads as a failed load,
+               so the empty state says what is missing and how to fill it. This
+               is also the honest answer for a meal-only day: meals do not feed
+               the score, and the copy does not imply they do. */
+            <View style={styles.scoreEmptyCard}>
+              <View style={styles.scoreEmptyIcon}>
+                <Ionicons name="clipboard-outline" size={20} color={Colors.textTertiary} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.scoreEmptyTitle}>{t.home.scoreEmptyTitle}</Text>
+                <Text style={styles.scoreEmptyBody}>{t.home.scoreEmptyBody}</Text>
+              </View>
+            </View>
+          )}
 
           {/* STAT CARDS — gut factors (Cal AI macros) */}
           <View style={styles.statsRow}>
             <StatCard
               icon={<Ionicons name="body" size={22} color={Colors.primaryLight} />}
-              value={checkedInToday ? 'Done' : '—'}
+              // Was a hardcoded English 'Done' / '—'. German users read "Done".
+              value={checkedInToday ? t.home.checkinDone : t.home.checkinPending}
               label={t.home.labelCheckin}
               accentColor={Colors.primaryLight}
               progress={checkedInToday ? 1 : 0}
@@ -398,40 +592,45 @@ export default function HomeScreen() {
               style={styles.statCard}
             />
             <StatCard
-              icon={<Ionicons name="water" size={22} color={Colors.info} />}
-              value={`${Math.round(completionRate * 100)}%`}
-              label={t.home.labelWeekConsistency}
+              // `water` described nothing on this card. `calendar` matches what
+              // the value actually counts: days with a check-in.
+              icon={<Ionicons name="calendar" size={22} color={Colors.info} />}
+              value={consistencyValue}
+              label={t.home.labelCheckins7d}
               accentColor={Colors.info}
+              // The rolling rate still drives the bar; only the readout is a
+              // count. The underlying calculation is untouched.
               progress={completionRate}
               onPress={() => router.push('/(tabs)/progress')}
               style={styles.statCard}
             />
           </View>
 
-          {/* Pagination dots beneath the stat cards (Cal AI horizontal pager) */}
-          <View style={styles.statDotsRow}>
-            <View style={[styles.statDot, styles.statDotActive]} />
-            <View style={styles.statDot} />
-            <View style={styles.statDot} />
-          </View>
+          {/* The three pagination dots that used to sit here were removed. They
+              were static Views with the first hardcoded active — there was no
+              pager, so they implied two screens that did not exist. */}
 
-          {/* AI Meal Scan — flagship action */}
-          <TouchableOpacity
-            onPress={() => router.push('/photo-analysis')}
-            style={styles.scanCardInner}
-            activeOpacity={0.85}
-            accessibilityRole="button"
-            accessibilityLabel={t.home.accessScanMeal}
-          >
-            <View style={styles.scanIconWrap}>
-              <Ionicons name="camera" size={24} color={Colors.secondary} />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.scanTitle}>{t.home.scanTitle}</Text>
-              <Text style={styles.scanSubtitle}>{t.home.scanSubtitle}</Text>
-            </View>
-            <Ionicons name="chevron-forward" size={18} color={Colors.textTertiary} />
-          </TouchableOpacity>
+          {/* Meal scan stays reachable even when it is not the hero, so a user
+              who has already checked in and logged a meal can still scan
+              another without going through Progress. */}
+          {hero.key !== 'meal' && (
+            <TouchableOpacity
+              onPress={() => router.push('/photo-analysis')}
+              style={styles.scanCardInner}
+              activeOpacity={0.85}
+              accessibilityRole="button"
+              accessibilityLabel={t.home.accessScanMeal}
+            >
+              <View style={styles.scanIconWrap}>
+                <Ionicons name="camera" size={24} color={Colors.secondary} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.scanTitle}>{t.home.scanTitle}</Text>
+                <Text style={styles.scanSubtitle}>{t.home.scanSubtitle}</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={18} color={Colors.textTertiary} />
+            </TouchableOpacity>
+          )}
 
           {/* Strongest trigger insight — the core promise, surfaced on Home */}
           {topTrigger && (
@@ -465,7 +664,7 @@ export default function HomeScreen() {
 
           {/* Recently logged */}
           <View style={styles.sectionRow}>
-            <Text style={styles.sectionTitle}>{t.home.recentlyLogged}</Text>
+            <Text style={styles.sectionTitle}>{t.home.latestActivity}</Text>
             {recentEntries.length > 0 && (
               <TouchableOpacity onPress={() => router.push('/(tabs)/progress')} accessibilityRole="button" accessibilityLabel={t.home.accessSeeAllRecent}>
                 <Text style={styles.seeAllLink}>{t.home.seeAll}</Text>
@@ -500,24 +699,19 @@ export default function HomeScreen() {
               ))}
             </View>
           ) : (
-            <>
-              <TouchableOpacity
-                style={styles.emptyMealCard}
-                onPress={() => router.push('/(tabs)/checkin')}
-                activeOpacity={0.8}
-                accessibilityRole="button"
-                accessibilityLabel={t.home.accessLogFirst}
-              >
-                <View style={styles.emptyMealThumb}>
-                  <Ionicons name="leaf-outline" size={22} color={Colors.textTertiary} />
-                </View>
-                <View style={styles.emptyMealLines}>
-                  <View style={[styles.emptyLine, { width: '70%' }]} />
-                  <View style={[styles.emptyLine, { width: '45%' }]} />
-                </View>
-              </TouchableOpacity>
-              <Text style={styles.emptyHint}>{t.home.emptyHint}</Text>
-            </>
+            /* Was a skeleton-shaped card with two grey placeholder bars, which
+               reads as content still loading rather than as an empty list. It
+               also duplicated the hero's call to action. This states the
+               situation and leaves the next step to the hero above. */
+            <View style={styles.emptyActivityCard}>
+              <View style={styles.emptyActivityIcon}>
+                <Ionicons name="leaf-outline" size={20} color={Colors.textTertiary} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.emptyActivityTitle}>{t.home.emptyActivityTitle}</Text>
+                <Text style={styles.emptyHint}>{t.home.emptyHint}</Text>
+              </View>
+            </View>
           )}
 
           {/* Daily Tip */}
@@ -553,13 +747,25 @@ function entryIcon(type: string): keyof typeof Ionicons.glyphMap {
   return type === 'checkin' ? 'body-outline' : type === 'food' ? 'restaurant-outline' : 'medical-outline';
 }
 
-function formatTime(iso: string) {
+/**
+ * Relative time for a Recently-logged row.
+ *
+ * Labels and locale are passed in rather than read here: this runs outside the
+ * component, and the older version returned English literals and called
+ * toLocaleDateString() with no locale, so the date followed the DEVICE region
+ * instead of the language the user chose in the app.
+ */
+function formatTime(
+  iso: string,
+  labels: { justNow: string; minutesAgo: string; hoursAgo: string },
+  locale: string,
+) {
   const diffMins = Math.floor((Date.now() - new Date(iso).getTime()) / 60000);
-  if (diffMins < 1) return 'Just now';
-  if (diffMins < 60) return `${diffMins}m ago`;
+  if (diffMins < 1) return labels.justNow;
+  if (diffMins < 60) return labels.minutesAgo.replace('{n}', String(diffMins));
   const diffHours = Math.floor(diffMins / 60);
-  if (diffHours < 24) return `${diffHours}h ago`;
-  return new Date(iso).toLocaleDateString();
+  if (diffHours < 24) return labels.hoursAgo.replace('{n}', String(diffHours));
+  return new Date(iso).toLocaleDateString(locale);
 }
 
 // ─── Styles ─────────────────────────────────────────────────────────────────
@@ -582,15 +788,23 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginBottom: Spacing.md,
   },
-  wordmark: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.sm,
+  // Replaces the wordmark. flexShrink so a long name or a long German weekday
+  // wraps rather than pushing the streak pill off the row.
+  greetingBlock: {
+    flex: 1,
+    flexShrink: 1,
+    paddingRight: Spacing.md,
   },
-  wordmarkText: {
+  greetingText: {
     fontFamily: FontFamily.displayBold,
     fontSize: FontSize.xxl,
     color: Colors.text,
+  },
+  dateLine: {
+    fontFamily: FontFamily.sansRegular,
+    fontSize: FontSize.sm,
+    color: Colors.textTertiary,
+    marginTop: 2,
   },
   streakPill: {
     flexDirection: 'row',
@@ -612,9 +826,103 @@ const styles = StyleSheet.create({
     color: Colors.textTertiary,
   },
 
-  // ── Day selector ─────────────────────────────────────
-  daySelectorWrap: {
+  // ── Hero action ──────────────────────────────────────
+  // Visually the heaviest element on the screen: a filled surface with an
+  // accent border, above the score. It replaces the score as the thing the
+  // eye lands on first, because it is the only element here that is an action.
+  heroAction: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.md,
+    backgroundColor: Colors.surface,
+    borderRadius: BorderRadius.xl,
+    borderWidth: 1,
+    borderColor: Colors.secondary + '55',
+    paddingVertical: Spacing.lg,
+    paddingHorizontal: Spacing.lg,
+    marginBottom: Spacing.md,
+    ...Shadows.md,
+  },
+  heroActionIcon: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Colors.secondary + '1F',
+  },
+  // flexShrink so longer German titles wrap instead of pushing the chevron out.
+  heroActionText: { flex: 1, flexShrink: 1 },
+  heroActionTitle: {
+    fontFamily: FontFamily.displayBold,
+    fontSize: FontSize.xl,
+    color: Colors.text,
+  },
+  heroActionSubtitle: {
+    fontFamily: FontFamily.sansRegular,
+    fontSize: FontSize.sm,
+    color: Colors.textSecondary,
+    marginTop: 3,
+  },
+
+  // ── Score card (supporting, no longer the hero) ──────
+  scoreCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.surface,
+    borderRadius: BorderRadius.xl,
+    paddingVertical: Spacing.lg,
+    paddingHorizontal: Spacing.lg,
     marginBottom: Spacing.lg,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  scoreCardTitle: {
+    fontFamily: FontFamily.sansSemiBold,
+    fontSize: FontSize.sm,
+    color: Colors.textSecondary,
+    marginBottom: 2,
+  },
+  // Always rendered with the score. The number is a summary of one check-in,
+  // and saying so is what keeps it from reading as a measurement.
+  scoreProvenance: {
+    fontFamily: FontFamily.sansRegular,
+    fontSize: FontSize.xs,
+    color: Colors.textTertiary,
+    marginTop: 2,
+  },
+
+  // ── Score empty state ────────────────────────────────
+  // Replaces a 120px ring around a large "--", which reads as a failed load.
+  scoreEmptyCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.md,
+    backgroundColor: Colors.surface,
+    borderRadius: BorderRadius.lg,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    padding: Spacing.md,
+    marginBottom: Spacing.lg,
+  },
+  scoreEmptyIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: BorderRadius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Colors.surfaceSecondary,
+  },
+  scoreEmptyTitle: {
+    fontFamily: FontFamily.sansSemiBold,
+    fontSize: FontSize.md,
+    color: Colors.text,
+  },
+  scoreEmptyBody: {
+    fontFamily: FontFamily.sansRegular,
+    fontSize: FontSize.sm,
+    color: Colors.textTertiary,
+    marginTop: 2,
   },
 
   // ── Hero (Gut Score) card ────────────────────────────
@@ -676,24 +984,6 @@ const styles = StyleSheet.create({
   },
   statCard: {
     flex: 1,
-  },
-
-  // ── Stat-card pagination dots ────────────────────────
-  statDotsRow: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: 6,
-    marginBottom: Spacing.lg,
-  },
-  statDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: Colors.border,
-  },
-  statDotActive: {
-    backgroundColor: Colors.secondary,
   },
 
   // ── AI Meal Scan card ────────────────────────────────
@@ -823,8 +1113,8 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
 
-  // ── Empty meal card (Cal AI empty state) ─────────────
-  emptyMealCard: {
+  // ── Empty activity state ─────────────────────────────
+  emptyActivityCard: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: Colors.surface,
@@ -833,31 +1123,26 @@ const styles = StyleSheet.create({
     borderColor: Colors.border,
     padding: Spacing.md,
     gap: Spacing.md,
-    marginBottom: Spacing.sm,
+    marginBottom: Spacing.lg,
   },
-  emptyMealThumb: {
-    width: 48,
-    height: 48,
+  emptyActivityIcon: {
+    width: 40,
+    height: 40,
     borderRadius: BorderRadius.md,
     backgroundColor: Colors.surfaceSecondary,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  emptyMealLines: {
-    flex: 1,
-    gap: 8,
-  },
-  emptyLine: {
-    height: 10,
-    borderRadius: BorderRadius.full,
-    backgroundColor: Colors.surfaceSecondary,
+  emptyActivityTitle: {
+    fontFamily: FontFamily.sansSemiBold,
+    fontSize: FontSize.md,
+    color: Colors.text,
   },
   emptyHint: {
     fontFamily: FontFamily.sansRegular,
     fontSize: FontSize.sm,
     color: Colors.textTertiary,
-    textAlign: 'center',
-    marginBottom: Spacing.lg,
+    marginTop: 2,
   },
 
   // ── Daily Tip ────────────────────────────────────────

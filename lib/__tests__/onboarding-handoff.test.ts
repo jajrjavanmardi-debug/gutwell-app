@@ -166,14 +166,33 @@ describe('photo-analysis onboarding mode', () => {
     expect(PHOTO.match(/params\.onboarding === '1'/g)).toHaveLength(1);
   });
 
-  test('the describe requirement is relaxed only in onboarding mode', () => {
-    expect(PHOTO).toContain('if (!narrative && !isOnboarding) {');
-    // The button gate derives from the same flag, so the two cannot drift.
-    expect(PHOTO).toContain("(!isOnboarding && !mealDescription.trim())");
+  test('photo mode never requires a description, in onboarding or out of it', () => {
+    // This used to assert the opposite: a description was mandatory unless
+    // isOnboarding relaxed it. That contract is gone — a photograph is
+    // sufficient evidence in every photo run — so onboarding and the normal
+    // flow no longer differ here and neither the guard nor the gate may
+    // reintroduce the flag.
+    expect(PHOTO).not.toContain('if (!narrative && !isOnboarding) {');
+    expect(PHOTO).not.toContain('(!isOnboarding && !mealDescription.trim())');
+
+    // The gate, bounded by its own terminating semicolon. Comments are removed
+    // FIRST: the explanatory comment inside the gate contains a semicolon, so
+    // slicing the raw source stops mid-comment and the assertions below then
+    // pass or fail on prose rather than on code.
+    const code = PHOTO.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
+    const start = code.indexOf('const analyzeDisabled =');
+    const gate = code.slice(start, code.indexOf(';', start));
+    expect(gate.length).toBeGreaterThan(80);
+    expect(gate).not.toContain('isOnboarding');
+    // Text-only still needs words; photo still needs an image. Nothing else.
+    expect(gate).toContain('textOnlyMode ? !mealDescription.trim() : !lastImageBase64.trim()');
   });
 
   test('the success event fires only in onboarding mode and only after a result', () => {
-    expect(PHOTO).toContain('if (isOnboarding) track(Events.FIRST_ANALYSIS_COMPLETED);');
+    // Now inside a block that also mints the stable auto-log key, but still
+    // guarded by isOnboarding and still after the result exists.
+    expect(PHOTO).toContain('track(Events.FIRST_ANALYSIS_COMPLETED);');
+    expect(PHOTO).toContain('if (isOnboarding) {');
     const resultAt = PHOTO.indexOf('setAnalysis(rawResult);');
     const eventAt = PHOTO.indexOf('FIRST_ANALYSIS_COMPLETED');
     expect(resultAt).toBeGreaterThan(-1);
@@ -188,7 +207,23 @@ describe('photo-analysis onboarding mode', () => {
 
   test('failures are counted only from the analysis catch block', () => {
     expect(PHOTO).toContain('if (isOnboarding) setOnboardingFailures((n) => n + 1);');
-    expect(PHOTO.match(/setOnboardingFailures/g)).toHaveLength(2); // declaration + one increment
+    // declaration, plus a reset and an increment in EACH of the two analysis
+    // paths (photo and text-only).
+    expect(PHOTO.match(/setOnboardingFailures/g)).toHaveLength(5);
+  });
+
+  test('a successful analysis clears the failure count, retiring the escape hatch', () => {
+    // The counter used to only ever grow, so once the "Having trouble?" block
+    // appeared it stayed for the session — visible beneath a result that had
+    // just succeeded, which reads as an error the app never cleared.
+    expect(PHOTO).toContain('setOnboardingFailures(0);');
+    const resetAt = PHOTO.indexOf('setOnboardingFailures(0);');
+    const resultAt = PHOTO.indexOf('setAnalysis(rawResult);');
+    expect(resultAt).toBeGreaterThan(-1);
+    // Reset sits on the success path, after a real result exists.
+    expect(resetAt).toBeGreaterThan(resultAt);
+    // …and never inside the catch block that counts failures.
+    expect(PHOTO.indexOf('setOnboardingFailures((n) => n + 1)')).toBeGreaterThan(resetAt);
   });
 
   test('the escape hatch appears only after two genuine failures', () => {
@@ -228,11 +263,23 @@ describe('photo-analysis onboarding mode', () => {
 });
 
 describe('normal photo-analysis path is unchanged', () => {
-  test('the description is still required when not onboarding', () => {
-    // The guard only adds `&& !isOnboarding`; the Alert and early return that
-    // block a normal empty-description analysis are intact.
+  test('the description-required alert now belongs to the text path alone', () => {
+    // It used to guard the photo path too. The remaining alert sits inside the
+    // textOnlyMode branch, before runTextAnalysis, where words really are the
+    // only evidence — and it must not reappear anywhere after it.
     expect(PHOTO).toContain('t.photoAnalysis.feelingsRequiredTitle');
-    expect(PHOTO).toContain('t.photoAnalysis.feelingsRequiredMessage');
+    expect(PHOTO).toContain('t.photoAnalysis.describeRequiredMessage');
+
+    const fn = PHOTO.slice(
+      PHOTO.indexOf('const handleGenerateAnalysis = () => {'),
+      PHOTO.indexOf('const runTextAnalysis'),
+    );
+    expect(fn.length).toBeGreaterThan(200);
+    // The alert precedes the text call, and the photo call has none before it.
+    expect(fn.indexOf('Alert.alert')).toBeLessThan(fn.indexOf('runTextAnalysis(narrative)'));
+    const photoTail = fn.slice(fn.indexOf('if (!lastImageBase64.trim()'));
+    expect(photoTail).not.toContain('Alert.alert');
+    expect(photoTail).toContain('runPhotoAnalysis(lastImageBase64, photoUri, narrative)');
   });
 
   test('normal success side effects are untouched', () => {
@@ -258,7 +305,9 @@ describe('normal photo-analysis path is unchanged', () => {
   test('onboarding UI is gated on the flag in every render branch', () => {
     for (const marker of [
       'isOnboarding && onboardingFailures >= 2',
-      '{isOnboarding ? (',
+      // The Continue button moved into the concise onboarding branch when the
+      // first-result presentation was split from the normal one.
+      'wizardStep === 3 && isOnboarding',
       'isOnboarding && !mealDescription.trim()',
     ]) {
       expect(PHOTO).toContain(marker);

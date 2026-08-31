@@ -9,9 +9,16 @@ export type OptionCardProps = {
   icon?: React.ReactNode;
   selected: boolean;
   onPress: () => void;
+  /**
+   * Renders as a checkbox rather than a radio: square indicator and
+   * accessibilityRole="checkbox". Defaults false, so every existing caller is
+   * unaffected. Announcing a multi-select option as a radio button would tell
+   * a screen-reader user that only one choice is possible.
+   */
+  multiSelect?: boolean;
 };
 
-export function OptionCard({ title, subtitle, icon, selected, onPress }: OptionCardProps) {
+export function OptionCard({ title, subtitle, icon, selected, onPress, multiSelect = false }: OptionCardProps) {
   const handlePress = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     onPress();
@@ -22,7 +29,7 @@ export function OptionCard({ title, subtitle, icon, selected, onPress }: OptionC
       style={[styles.container, selected ? styles.containerSelected : styles.containerUnselected]}
       onPress={handlePress}
       activeOpacity={0.85}
-      accessibilityRole="radio"
+      accessibilityRole={multiSelect ? 'checkbox' : 'radio'}
       accessibilityState={{ checked: selected }}
     >
       {icon ? (
@@ -45,16 +52,22 @@ export function OptionCard({ title, subtitle, icon, selected, onPress }: OptionC
       <View
         style={[
           styles.indicator,
+          multiSelect ? styles.indicatorSquare : null,
           selected ? styles.indicatorSelected : styles.indicatorUnselected,
         ]}
       >
-        {selected ? <View style={styles.dot} /> : null}
+        {selected ? <View style={[styles.dot, multiSelect ? styles.dotSquare : null]} /> : null}
       </View>
     </TouchableOpacity>
   );
 }
 
 const styles = StyleSheet.create({
+  // Square indicator distinguishes "choose any" from "choose one" visually, so
+  // the affordance does not rely on the accessibility role alone.
+  indicatorSquare: { borderRadius: 6 },
+  dotSquare: { borderRadius: 2 },
+
   container: {
     flexDirection: 'row',
     alignItems: 'center',

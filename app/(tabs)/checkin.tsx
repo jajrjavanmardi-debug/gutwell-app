@@ -25,6 +25,7 @@ import { getStreakSnapshot, refreshStreakSnapshot } from '../../lib/streaks';
 import { cancelStreakAtRiskAlert } from '../../lib/notifications';
 import { getLocalDateKey } from '../../lib/date';
 import { useTranslation } from '../../lib/i18n';
+import { useReducedMotion } from '../../lib/useReducedMotion';
 
 const STREAK_MILESTONES = [7, 14, 30, 100, 180, 366];
 
@@ -67,10 +68,12 @@ function ProgressDots({ stoolFilled, symptomsFilled, moodFilled }: {
 
 // ─── Pill Slider ─────────────────────────────────────────────────────────────
 
-function PillSlider({ value, onChange, labels }: {
+function PillSlider({ value, onChange, labels, field }: {
   value: number;
   onChange: (v: number) => void;
   labels: string[];
+  /** Metric name, spoken first so the slider identifies itself. */
+  field: string;
 }) {
   const t = useTranslation();
   return (
@@ -92,7 +95,14 @@ function PillSlider({ value, onChange, labels }: {
               }}
               activeOpacity={0.7}
               accessibilityRole="button"
-              accessibilityLabel={`${t.checkin.stoolLabels[v - 1] ?? labels[v - 1]}, ${t.checkin.accessMoodLevel}`}
+              /* Was `stoolLabels[v-1] … accessMoodLevel` — so the bloating,
+                 pain and energy sliders all announced STOOL wording and then
+                 called themselves "mood level". Now each reads its own metric,
+                 its own label and its position on the scale. */
+              accessibilityLabel={t.checkin.accessLevel
+                .replace('{field}', field)
+                .replace('{label}', labels[v - 1] ?? String(v))
+                .replace('{n}', String(v))}
               accessibilityState={{ selected: isSelected }}
             >
               <Text style={[
@@ -130,10 +140,24 @@ export default function CheckinScreen() {
   const [showStreakPopup, setShowStreakPopup] = useState(false);
 
   // Section entrance animation
-  const sectionFade = useRef(new Animated.Value(0)).current;
+  const reduceMotion = useReducedMotion();
+  const sectionFade = useRef(new Animated.Value(reduceMotion ? 1 : 0)).current;
   useEffect(() => {
-    Animated.timing(sectionFade, { toValue: 1, duration: 500, delay: 100, useNativeDriver: true }).start();
-  }, []);
+    // Decorative only. Under Reduce Motion the sections are simply present on
+    // the first frame — nothing is scheduled and every field behaves the same.
+    if (reduceMotion) {
+      sectionFade.setValue(1);
+      return;
+    }
+    const animation = Animated.timing(sectionFade, {
+      toValue: 1,
+      duration: 500,
+      delay: 100,
+      useNativeDriver: true,
+    });
+    animation.start();
+    return () => animation.stop();
+  }, [sectionFade, reduceMotion]);
 
   useEffect(() => {
     if (!user) {
@@ -297,7 +321,7 @@ export default function CheckinScreen() {
               <Ionicons name="balloon-outline" size={18} color={Colors.primaryLight} />
               <Text style={styles.symptomLabel}>{t.checkin.bloating}</Text>
             </View>
-            <PillSlider value={bloating} onChange={setBloating} labels={[...t.checkin.severityLabels]} />
+            <PillSlider value={bloating} onChange={setBloating} labels={[...t.checkin.severityLabels]} field={t.checkin.bloating} />
           </View>
 
           <View style={styles.symptomCard}>
@@ -305,7 +329,7 @@ export default function CheckinScreen() {
               <Ionicons name="flash-outline" size={18} color={Colors.primaryLight} />
               <Text style={styles.symptomLabel}>{t.checkin.abdominalPain}</Text>
             </View>
-            <PillSlider value={pain} onChange={setPain} labels={[...t.checkin.severityLabels]} />
+            <PillSlider value={pain} onChange={setPain} labels={[...t.checkin.severityLabels]} field={t.checkin.abdominalPain} />
           </View>
 
           <View style={styles.symptomCard}>
@@ -313,7 +337,7 @@ export default function CheckinScreen() {
               <Ionicons name="battery-charging-outline" size={18} color={Colors.primaryLight} />
               <Text style={styles.symptomLabel}>{t.checkin.energyLevel}</Text>
             </View>
-            <PillSlider value={energy} onChange={setEnergy} labels={[...t.checkin.energyLabels]} />
+            <PillSlider value={energy} onChange={setEnergy} labels={[...t.checkin.energyLabels]} field={t.checkin.energyLevel} />
           </View>
         </View>
 
@@ -353,6 +377,7 @@ export default function CheckinScreen() {
         {/* Save */}
         <Button
           title={t.checkin.saveButton}
+          accessibilityLabel={t.checkin.accessSave}
           onPress={handleSave}
           loading={loading}
           size="lg"

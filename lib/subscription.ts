@@ -21,12 +21,15 @@ import Purchases, {
  * available in Expo Go).
  */
 
+export type SubscriptionPlan = 'monthly' | 'annual';
+
 export type PremiumFeature =
+  | 'photo_analysis'
   | 'correlations'
   | 'weekly_digest'
   | 'advanced_insights'
   | 'export'
-  | 'unlimited_achievements';
+  | 'all_achievements';
 
 type PlanKey = 'monthly' | 'annual';
 
@@ -42,6 +45,13 @@ const ENTITLEMENT_ID = 'premium';
 /** iOS RevenueCat public API key. Empty string => monetization disabled. */
 const RC_IOS_KEY = (process.env.EXPO_PUBLIC_REVENUECAT_IOS_KEY ?? '').trim();
 
+/**
+ * Opt-in RevenueCat WARN logging for preview/TestFlight builds. Off unless the
+ * flag is explicitly set, so production stays quiet. Never enables verbose or
+ * debug levels — those print request bodies.
+ */
+const RC_DEBUG = (process.env.EXPO_PUBLIC_RC_DEBUG ?? '').trim() === 'true';
+
 /** True only once Purchases.configure has successfully run. */
 let configured = false;
 
@@ -50,6 +60,113 @@ let cachedCustomerInfo: CustomerInfo | null = null;
 
 /** Guard so initSubscription only configures the SDK once. */
 let initPromise: Promise<void> | null = null;
+
+/**
+ * Why the paywall could not present a purchasable offering.
+ *
+ * These used to be one undifferentiated `null`, which meant a wrong API key and
+ * an App-Store product that has not propagated yet were indistinguishable both
+ * on device and in this module. The UI still shows one calm message; the
+ * distinction exists so a failure can actually be diagnosed.
+ */
+export type OfferingFailureReason =
+  /** A — Purchases.configure never succeeded (missing key, or configure threw). */
+  | 'not_configured'
+  /** B — getOfferings() threw. */
+  | 'fetch_failed'
+  /** C — the fetch worked but RevenueCat has no current offering. */
+  | 'no_current_offering'
+  /** D — a current offering exists but carries no package we can sell. */
+  | 'no_usable_packages'
+  /** E — packages exist but StoreKit returned no localized price for them. */
+  | 'price_missing';
+
+/**
+ * The result of an offering load, plus the storefront the prices came from.
+ *
+ * `storefrontCountry` is the App Store country whose catalogue produced these
+ * prices, captured at load time so the paywall can tell later whether the
+ * prices on screen still belong to the store Apple will actually bill against.
+ * Null means "unknown", never "changed" — see purchaseSelectedPackage.
+ */
+export type OfferingLoadResult =
+  | { ok: true; offering: PurchasesOffering; storefrontCountry: string | null }
+  | {
+      ok: false;
+      reason: OfferingFailureReason;
+      offering: PurchasesOffering | null;
+      storefrontCountry: string | null;
+    };
+
+/**
+ * Snapshot of the last offering load, for support and preview QA.
+ *
+ * Deliberately carries NO secrets, NO receipts, NO purchase tokens and NO user
+ * identifiers. Product and package identifiers are public catalogue names that
+ * already ship inside the App Store listing, so they are safe to surface.
+ */
+export type SubscriptionDiagnostics = {
+  hasKey: boolean;
+  configured: boolean;
+  /** null until an offerings fetch has been attempted. */
+  offeringsFetched: boolean | null;
+  offeringsCount: number | null;
+  currentOfferingId: string | null;
+  hasCurrentOffering: boolean;
+  packageIdentifiers: string[];
+  hasMonthlyPackage: boolean;
+  hasAnnualPackage: boolean;
+  productIdentifiers: string[];
+  monthlyPriceStringPresent: boolean;
+  annualPriceStringPresent: boolean;
+  lastFailureReason: OfferingFailureReason | null;
+  lastErrorCode: string | null;
+  lastErrorMessage: string | null;
+  lastCheckedAt: string | null;
+};
+
+const EMPTY_DIAGNOSTICS: SubscriptionDiagnostics = {
+  hasKey: false,
+  configured: false,
+  offeringsFetched: null,
+  offeringsCount: null,
+  currentOfferingId: null,
+  hasCurrentOffering: false,
+  packageIdentifiers: [],
+  hasMonthlyPackage: false,
+  hasAnnualPackage: false,
+  productIdentifiers: [],
+  monthlyPriceStringPresent: false,
+  annualPriceStringPresent: false,
+  lastFailureReason: null,
+  lastErrorCode: null,
+  lastErrorMessage: null,
+  lastCheckedAt: null,
+};
+
+let diagnostics: SubscriptionDiagnostics = { ...EMPTY_DIAGNOSTICS };
+
+/**
+ * Reduce an unknown SDK rejection to a short, safe code + message.
+ *
+ * Truncated, stripped of anything token-shaped, and scrubbed of the API key, so
+ * a diagnostics dump can never become a credential leak.
+ */
+function sanitizeError(err: unknown): { code: string | null; message: string | null } {
+  if (err == null) return { code: null, message: null };
+  const source = err as { code?: unknown; message?: unknown };
+  const code =
+    typeof source.code === 'string' || typeof source.code === 'number'
+      ? String(source.code)
+      : null;
+  let message = typeof source.message === 'string' ? source.message : null;
+  if (message) {
+    if (RC_IOS_KEY) message = message.split(RC_IOS_KEY).join('[redacted]');
+    // Anything long and opaque is a token/receipt shape, not a human message.
+    message = message.replace(/[A-Za-z0-9_\-+/=]{32,}/g, '[redacted]').slice(0, 200);
+  }
+  return { code, message };
+}
 
 /** True when the SDK key is present AND configure() has run. */
 function isReady(): boolean {
@@ -95,7 +212,7 @@ export async function initSubscription(userId?: string): Promise<void> {
 
   initPromise = (async () => {
     try {
-      if (__DEV__) {
+      if (__DEV__ || RC_DEBUG) {
         await Purchases.setLogLevel(LOG_LEVEL.WARN);
       }
       Purchases.configure({
@@ -116,13 +233,25 @@ export async function initSubscription(userId?: string): Promise<void> {
       } catch {
         cachedCustomerInfo = null;
       }
-    } catch {
+    } catch (err) {
       // Never let payment setup break app startup.
       configured = false;
+      const { code, message } = sanitizeError(err);
+      diagnostics.lastFailureReason = 'not_configured';
+      diagnostics.lastErrorCode = code;
+      diagnostics.lastErrorMessage = message;
     }
   })();
 
   await initPromise;
+
+  // A failed configure must not poison the whole session. Leaving the guard set
+  // would make every later call short-circuit on a promise that already settled
+  // as "not configured", so one transient error would disable monetization
+  // until the app is killed. Clearing it lets the next screen retry.
+  if (!configured) {
+    initPromise = null;
+  }
 
   // If a userId arrived and configure used a different (or anonymous) id,
   // reconcile by identifying now.
@@ -192,13 +321,170 @@ export function isPremiumFeature(_feature: PremiumFeature): boolean {
  * Returns null when unconfigured, when there is no current offering, or on error.
  */
 export async function getPaywallOffering(): Promise<PurchasesOffering | null> {
+  const result = await loadPaywallOffering();
+  // Only a sellable offering is handed back, so existing callers keep their
+  // "null means do not attempt a purchase" contract unchanged.
+  return result.ok ? result.offering : null;
+}
+
+/**
+ * Load the current offering and say precisely why it is not sellable.
+ *
+ * The paywall shows one calm message whatever happens here; the reason exists
+ * so "the key is wrong" and "StoreKit has not returned the products yet" stop
+ * looking identical. Every branch also records a diagnostics snapshot.
+ */
+export async function loadPaywallOffering(): Promise<OfferingLoadResult> {
+  const stamp = new Date().toISOString();
+
+  if (!isReady()) {
+    diagnostics = {
+      ...diagnostics,
+      offeringsFetched: null,
+      lastFailureReason: 'not_configured',
+      lastCheckedAt: stamp,
+    };
+    return { ok: false, reason: 'not_configured', offering: null, storefrontCountry: null };
+  }
+
+  // Captured before the fetch so it describes the store the catalogue is being
+  // read from. Best-effort throughout: an unavailable storefront must never
+  // turn a perfectly good offering into a failure.
+  const storefrontCountry = await getStorefrontCountry();
+
+  let offerings;
+  try {
+    offerings = await Purchases.getOfferings();
+  } catch (err) {
+    const { code, message } = sanitizeError(err);
+    diagnostics = {
+      ...diagnostics,
+      offeringsFetched: false,
+      lastFailureReason: 'fetch_failed',
+      lastErrorCode: code,
+      lastErrorMessage: message,
+      lastCheckedAt: stamp,
+    };
+    return { ok: false, reason: 'fetch_failed', offering: null, storefrontCountry };
+  }
+
+  const current = offerings.current ?? null;
+  const offeringsCount = Object.keys(offerings.all ?? {}).length;
+  const packages = current?.availablePackages ?? [];
+  const monthly = selectPackage(current, 'monthly');
+  const annual = selectPackage(current, 'annual');
+
+  diagnostics = {
+    ...diagnostics,
+    offeringsFetched: true,
+    offeringsCount,
+    currentOfferingId: current?.identifier ?? null,
+    hasCurrentOffering: current != null,
+    packageIdentifiers: packages.map((p) => p.identifier),
+    hasMonthlyPackage: monthly != null,
+    hasAnnualPackage: annual != null,
+    productIdentifiers: packages.map((p) => p.product.identifier),
+    monthlyPriceStringPresent: Boolean(monthly?.product.priceString),
+    annualPriceStringPresent: Boolean(annual?.product.priceString),
+    lastErrorCode: null,
+    lastErrorMessage: null,
+    lastCheckedAt: stamp,
+  };
+
+  if (!current) {
+    diagnostics = { ...diagnostics, lastFailureReason: 'no_current_offering' };
+    return { ok: false, reason: 'no_current_offering', offering: null, storefrontCountry };
+  }
+
+  // An offering whose packages never hydrated from StoreKit is not sellable:
+  // purchasePackage would have nothing to buy and the price would render blank.
+  if (!monthly && !annual) {
+    diagnostics = { ...diagnostics, lastFailureReason: 'no_usable_packages' };
+    return { ok: false, reason: 'no_usable_packages', offering: current, storefrontCountry };
+  }
+
+  if (!monthly?.product.priceString && !annual?.product.priceString) {
+    diagnostics = { ...diagnostics, lastFailureReason: 'price_missing' };
+    return { ok: false, reason: 'price_missing', offering: current, storefrontCountry };
+  }
+
+  diagnostics = { ...diagnostics, lastFailureReason: null };
+  return { ok: true, offering: current, storefrontCountry };
+}
+
+/**
+ * The App Store country currently in effect, or null when it cannot be read.
+ *
+ * `Purchases.getStorefront()` returns the storefront of the signed-in App Store
+ * account, which is what decides the currency and amount Apple actually bills —
+ * independently of device locale, device region, or the account signed into the
+ * app. It is the only field the SDK exposes for this (`countryCode`).
+ *
+ * Never throws and never rejects: every failure is reported as null, so a
+ * storefront that cannot be read leaves the purchase path exactly as it was
+ * rather than blocking a paying customer.
+ */
+export async function getStorefrontCountry(): Promise<string | null> {
   if (!isReady()) return null;
   try {
-    const offerings = await Purchases.getOfferings();
-    return offerings.current ?? null;
+    const storefront = await Purchases.getStorefront();
+    const code = storefront?.countryCode;
+    return typeof code === 'string' && code.length > 0 ? code : null;
   } catch {
     return null;
   }
+}
+
+/**
+ * Safe snapshot of the last offering load, for support and preview QA.
+ * Contains no key, no receipt, no purchase token and no user identifier.
+ */
+export function getSubscriptionDiagnostics(): SubscriptionDiagnostics {
+  return {
+    ...diagnostics,
+    hasKey: Boolean(RC_IOS_KEY),
+    configured,
+  };
+}
+
+/**
+ * Whether the preview-only diagnostics affordance may be offered.
+ *
+ * Driven solely by EXPO_PUBLIC_RC_DEBUG=true. Production builds never set it,
+ * so the UI that calls formatSubscriptionDiagnostics() is unreachable there.
+ */
+export function isSubscriptionDebugEnabled(): boolean {
+  return RC_DEBUG;
+}
+
+/**
+ * Copy-pasteable summary for preview QA on a physical device.
+ *
+ * Built from an EXPLICIT allow-list rather than by serialising the diagnostics
+ * object, so a field added here later cannot silently start leaking. It carries
+ * no App User ID, Supabase UUID, API key, receipt, transaction id, purchase
+ * token or email — none of those are ever recorded in the first place.
+ */
+export function formatSubscriptionDiagnostics(): string {
+  const d = getSubscriptionDiagnostics();
+  const lines = [
+    `configured=${d.configured}`,
+    `offeringsFetched=${d.offeringsFetched}`,
+    `offeringsCount=${d.offeringsCount}`,
+    `currentOfferingId=${d.currentOfferingId ?? '-'}`,
+    `hasCurrentOffering=${d.hasCurrentOffering}`,
+    `packageIdentifiers=[${d.packageIdentifiers.join(', ')}]`,
+    `hasMonthlyPackage=${d.hasMonthlyPackage}`,
+    `hasAnnualPackage=${d.hasAnnualPackage}`,
+    `productIdentifiers=[${d.productIdentifiers.join(', ')}]`,
+    `monthlyPriceStringPresent=${d.monthlyPriceStringPresent}`,
+    `annualPriceStringPresent=${d.annualPriceStringPresent}`,
+    `lastFailureReason=${d.lastFailureReason ?? '-'}`,
+    `lastErrorCode=${d.lastErrorCode ?? '-'}`,
+    `lastErrorMessage=${d.lastErrorMessage ?? '-'}`,
+    `lastCheckedAt=${d.lastCheckedAt ?? '-'}`,
+  ];
+  return `GutWell subscription diagnostics\n${lines.join('\n')}`;
 }
 
 /**
@@ -206,10 +492,11 @@ export async function getPaywallOffering(): Promise<PurchasesOffering | null> {
  * RevenueCat well-known accessors (annual/monthly), then falls back to scanning
  * availablePackages by packageType / subscription period.
  */
-function selectPackage(
-  offering: PurchasesOffering,
+export function selectPackage(
+  offering: PurchasesOffering | null,
   plan: PlanKey,
 ): PurchasesPackage | null {
+  if (!offering) return null;
   if (plan === 'annual') {
     if (offering.annual) return offering.annual;
     return (
@@ -230,27 +517,77 @@ function selectPackage(
   );
 }
 
+/** The cadence a price is restated in, purely to make two plans comparable. */
+export type PriceCadence = 'week' | 'month';
+
+/**
+ * Restate a package's price per week or per month, formatted for the store's
+ * currency. Comparison aid only — the real charge and its real interval are
+ * shown alongside it, because this figure is not what Apple bills.
+ *
+ * Derived from the numeric `price` and `currencyCode`, never by parsing
+ * `priceString`: that string is already localized (grouping marks, symbol
+ * position, decimal separator) and parsing it back into a number breaks the
+ * moment a storefront formats differently.
+ *
+ * Deliberately NOT RevenueCat's own `pricePerWeek`/`pricePerWeekString`. Those
+ * divide a monthly price by 4, which overstates the weekly figure by ~8% — a
+ * month averages 52/12 ≈ 4.35 weeks, not 4.
+ *
+ * Returns null — never a guess, an empty string or NaN — whenever the figure
+ * cannot be produced honestly, so callers fall back to the real price.
+ */
+export function normalizedPriceString(
+  pkg: PurchasesPackage | null,
+  cadence: PriceCadence,
+): string | null {
+  const product = pkg?.product;
+  if (!product) return null;
+
+  const price = product.price;
+  if (typeof price !== 'number' || !Number.isFinite(price) || price <= 0) return null;
+
+  const currency = product.currencyCode;
+  if (typeof currency !== 'string' || currency.length === 0) return null;
+
+  // A monthly plan spans 12 months across 52 weeks; an annual plan, 12 months.
+  const amount = cadence === 'week' ? (price * 12) / 52 : price / 12;
+  if (!Number.isFinite(amount) || amount <= 0) return null;
+
+  try {
+    return new Intl.NumberFormat(undefined, { style: 'currency', currency }).format(amount);
+  } catch {
+    // An unknown currency code makes Intl throw. Better no figure than a wrong one.
+    return null;
+  }
+}
+
 /**
  * Purchase the package for the requested plan. Distinguishes a user-cancelled
  * flow (cancelled: true, no error UI) from a real failure (message set).
  * Returns a non-success no-op result when monetization is unconfigured.
  */
-export async function purchasePlan(selectedPlan: PlanKey): Promise<PurchaseResult> {
+export async function purchaseSelectedPackage(
+  pkg: PurchasesPackage | null,
+): Promise<PurchaseResult> {
   if (!isReady()) {
     return { success: false, message: 'Purchases are not available right now.' };
   }
+  if (!pkg) {
+    return { success: false, message: 'That plan is not available right now.' };
+  }
 
   try {
-    const offering = await getPaywallOffering();
-    if (!offering) {
-      return { success: false, message: 'No subscription options are available.' };
-    }
-
-    const pkg = selectPackage(offering, selectedPlan);
-    if (!pkg) {
-      return { success: false, message: 'That plan is not available right now.' };
-    }
-
+    // Deliberately NO getOfferings() here. The package handed in is the object
+    // whose price the user just read, and re-deriving it from a fresh fetch is
+    // how the screen and the charge can drift apart: RevenueCat caches
+    // offerings for five minutes, so a re-fetch at this exact moment can return
+    // different StoreProduct metadata than the paywall rendered.
+    //
+    // This does not, and cannot, make the displayed price authoritative —
+    // Apple prices at transaction time from the live storefront regardless of
+    // which product object is passed. It removes one way for the two to
+    // diverge; the storefront re-check at the call site covers the other.
     const { customerInfo } = await Purchases.purchasePackage(pkg);
     cachedCustomerInfo = customerInfo;
 
@@ -271,6 +608,27 @@ export async function purchasePlan(selectedPlan: PlanKey): Promise<PurchaseResul
     }
     return { success: false, message: 'Purchase failed. Please try again.' };
   }
+}
+
+/**
+ * Purchase by plan key, resolving the package itself.
+ *
+ * Retained for callers that hold no package. The paywall does hold one and uses
+ * purchaseSelectedPackage instead, because the object it renders and the object
+ * it buys must be the same one. Every result, error and cancellation path is
+ * shared with that function rather than duplicated.
+ */
+export async function purchasePlan(selectedPlan: PlanKey): Promise<PurchaseResult> {
+  if (!isReady()) {
+    return { success: false, message: 'Purchases are not available right now.' };
+  }
+
+  const offering = await getPaywallOffering();
+  if (!offering) {
+    return { success: false, message: 'No subscription options are available.' };
+  }
+
+  return purchaseSelectedPackage(selectPackage(offering, selectedPlan));
 }
 
 /**

@@ -28,6 +28,7 @@ import { track, Events } from '../../lib/analytics';
 import { getStreakSnapshot } from '../../lib/streaks';
 import { calculatePoints, calculateLevel, getNextLevel, getLevelProgress } from '../../lib/levels';
 import { useTranslation } from '../../lib/i18n';
+import { useLanguage } from '../../lib/LanguageContext';
 
 // Cal AI–style time ranges (90D / 6M / 1Y / ALL). Mapped to lookback windows
 // in `loadData` — the data semantics are preserved, only the range labels
@@ -56,6 +57,11 @@ const CHANGE_WINDOWS_DAYS: (number | null)[] = [3, 7, 14, 30, 90, null];
 
 export default function ProgressScreen() {
   const t = useTranslation();
+  // Same mapping Home and food.tsx use, so dates follow the app language
+  // rather than the device region — and rather than the hardcoded 'en-US'
+  // that used to format the best-day label.
+  const { language } = useLanguage();
+  const dateLocale = language === 'de' ? 'de-DE' : 'en-US';
   const CHANGE_WINDOWS: ChangeWindow[] = [
     { label: t.progress.windowLabels['3'], days: 3 },
     { label: t.progress.windowLabels['7'], days: 7 },
@@ -91,6 +97,16 @@ export default function ProgressScreen() {
   const [totalPoints, setTotalPoints] = useState(0);
   const [badgesEarned, setBadgesEarned] = useState(0);
   const [currentScore, setCurrentScore] = useState<number | null>(null);
+  /**
+   * Date of the score in `currentScore`, as a local date key.
+   *
+   * The screen used to call the most recent score in the period "Current Gut
+   * Score" with no date attached, so a four-day-old number was presented as
+   * today's — while Home, on the same day, correctly said "No score yet".
+   * Keeping the date lets the card say which it is. No extra query: the date
+   * already comes back in the same row.
+   */
+  const [currentScoreDate, setCurrentScoreDate] = useState<string | null>(null);
 
   const loadData = useCallback(async () => {
     if (!user) return;
@@ -126,6 +142,7 @@ export default function ProgressScreen() {
     if (scores && scores.length > 0) {
       setAllScores(scores);
       setCurrentScore(scores[scores.length - 1].score);
+      setCurrentScoreDate(scores[scores.length - 1].date);
       if (daysBack > 90) {
         // Group by ISO week and show weekly averages for long ranges
         const weekMap: Record<string, { sum: number; count: number; firstDate: string }> = {};
@@ -143,19 +160,20 @@ export default function ProgressScreen() {
           .map(([, v], i) => ({
             x: i,
             y: Math.round(v.sum / v.count),
-            label: formatShortDate(v.firstDate),
+            label: formatShortDate(v.firstDate, dateLocale),
           }));
         setGutScores(weeklyScores);
       } else {
         setGutScores(scores.map((s, i) => ({
           x: i,
           y: s.score,
-          label: formatShortDate(s.date),
+          label: formatShortDate(s.date, dateLocale),
         })));
       }
     } else {
       setAllScores([]);
       setCurrentScore(null);
+      setCurrentScoreDate(null);
       setGutScores([]);
     }
 
@@ -168,7 +186,9 @@ export default function ProgressScreen() {
         const firstHalf = last7.slice(0, 3).reduce((s: number, d: { score: number; date: string }) => s + d.score, 0) / 3;
         const secondHalf = last7.slice(-3).reduce((s: number, d: { score: number; date: string }) => s + d.score, 0) / 3;
         const trend = secondHalf > firstHalf + 3 ? 'up' : secondHalf < firstHalf - 3 ? 'down' : 'flat';
-        const dayLabel = new Date(bestDay.date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+        // Was hardcoded 'en-US', so a German user read an English date inside
+        // an otherwise German card.
+        const dayLabel = new Date(bestDay.date).toLocaleDateString(dateLocale, { weekday: 'short', month: 'short', day: 'numeric' });
         setWeekInsights({ avgScore: avg, bestDay: dayLabel, trend });
       }
     } else {
@@ -243,7 +263,7 @@ export default function ProgressScreen() {
     } finally {
       setIsLoading(false);
     }
-  }, [user, period]);
+  }, [user, period, dateLocale]);
 
   useEffect(() => { loadData(); }, [loadData]);
 
@@ -285,6 +305,75 @@ export default function ProgressScreen() {
   const level = calculateLevel(totalPoints);
   const nextLevel = getNextLevel(totalPoints);
   const levelProgress = getLevelProgress(totalPoints);
+
+  /**
+   * Localized level name.
+   *
+   * lib/levels.ts is left completely untouched — it carries the point
+   * thresholds — so the stable `key` is mapped to display copy here rather
+   * than renaming anything in the module.
+   */
+  const levelDisplayName = (key: string): string =>
+    (t.progress.levelNames as Record<string, string>)[key] ?? key;
+
+  // ── A. Current summary ──────────────────────────────────────────────────
+  const scoreIsToday = currentScoreDate === getLocalDateKey();
+  const scoreTitle = scoreIsToday ? t.progress.scoreTitleToday : t.progress.scoreTitleLatest;
+  const scoreProvenance = scoreIsToday
+    ? t.progress.scoreProvenanceToday
+    : t.progress.scoreProvenanceOlder.replace(
+        '{date}',
+        currentScoreDate
+          ? new Date(currentScoreDate + 'T00:00:00').toLocaleDateString(dateLocale, {
+              weekday: 'long',
+              day: 'numeric',
+              month: 'long',
+            })
+          : '',
+      );
+  /** Same vocabulary Home uses — referenced, not duplicated, so it cannot drift. */
+  const scoreDayLabel =
+    currentScore == null
+      ? null
+      : currentScore >= 70
+        ? t.home.dayLabelSettled
+        : currentScore >= 40
+          ? t.home.dayLabelMixed
+          : t.home.dayLabelTougher;
+
+  // ── B. What GutWell is learning ─────────────────────────────────────────
+  /**
+   * Presentation over thresholds that already exist in code — nothing new is
+   * introduced here:
+   *   3 scores  — the gate on weekInsights in loadData above.
+   *   5 meals   — `mealsWithFoods.length < 5` in lib/correlations.ts.
+   * Neither number is changed; this only makes the distance to them visible,
+   * so a thin screen reads as progress rather than as emptiness.
+   */
+  const LEARNING_SCORES_MIN = 3;
+  const LEARNING_MEALS_MIN = 5;
+  const scoresLogged = allScores.length;
+  const learningScoresReady = scoresLogged >= LEARNING_SCORES_MIN;
+  const learningMealsReady = foodCount >= LEARNING_MEALS_MIN;
+
+  // ── C. Low-data guards ──────────────────────────────────────────────────
+  /**
+   * Below three samples an average is fake precision: "Avg Stool 4.0" from a
+   * single check-in reads as an established baseline. The CALCULATION is
+   * untouched — `avgStoolType` and `avgMood` are still computed exactly as
+   * before; they are simply not presented as a figure yet.
+   */
+  const LOW_DATA_MIN = 3;
+  const stoolSampleCount = stoolHistory.length;
+  const moodSampleCount = moodHistory.length;
+  const showStoolAverage = stoolSampleCount >= LOW_DATA_MIN && avgStoolType != null;
+  const showMoodAverage = moodSampleCount >= LOW_DATA_MIN && avgMood != null;
+  const showScoreChart = gutScores.length >= 2;
+  const showMoodChart = moodSampleCount >= 2;
+  const showStoolChart = stoolSampleCount >= 2;
+
+  /** The active period's label, so period-scoped counts say so. */
+  const periodLabel = t.progress.windowSuffix.replace('{period}', period);
 
   // Cal AI "Weight Changes" analog: gut-score change over fixed day windows,
   // derived from the full score history (period-scoped via the toggle above).
@@ -365,12 +454,21 @@ export default function ProgressScreen() {
           </View>
         </View>
 
-        {/* Share Card Modal */}
+        {/* Share Card Modal
+            `streak` was `checkInCount` — the number of check-ins in the
+            selected period, not a consecutive-day streak. ShareCard labels it
+            "day streak" AND substitutes it into the outbound share text, so a
+            user on a two-day streak with twenty check-ins published "Day 20
+            streak" to other people. `currentStreak` is the value
+            getStreakSnapshot already returned into this component.
+
+            `level` was the literal "Tracker" for every user in both
+            languages, while the real level sat one line away in `level`. */}
         <ShareCard
           visible={showShare}
           score={weekInsights?.avgScore ?? null}
-          streak={checkInCount}
-          level="Tracker"
+          streak={currentStreak}
+          level={levelDisplayName(level.key)}
           weekTrend={weekInsights?.trend}
           onClose={() => setShowShare(false)}
         />
@@ -386,48 +484,64 @@ export default function ProgressScreen() {
           />
         )}
 
-        {/* Cal AI header stat cards: Day Streak + Badges Earned */}
-        <View style={styles.headerStatsRow}>
-          <StatCard
-            icon={<Ionicons name="flame" size={22} color={Colors.accent} />}
-            value={String(currentStreak)}
-            label={t.progress.labelStreak}
-            accentColor={Colors.accent}
-            style={styles.headerStatCard}
-          />
-          <StatCard
-            icon={<Ionicons name="ribbon" size={22} color={Colors.secondary} />}
-            value={String(badgesEarned)}
-            label={t.progress.labelBadges}
-            accentColor={Colors.secondary}
-            progress={badgesEarned / 4}
-            onPress={() => router.push('/(tabs)/profile')}
-            style={styles.headerStatCard}
-          />
-        </View>
+        {/* Streak, badges and level moved to the Milestones section at the
+            bottom. They used to open the screen, above the score — so the
+            first thing Progress said was a flame and a ribbon, not what the
+            user's data shows. */}
 
-        {/* Cal AI "Current Weight" analog: current Gut Score + next milestone */}
-        <Card style={styles.statusCard}>
-          <View style={styles.statusTopRow}>
-            <Text style={styles.statusLabel}>{t.progress.currentGutScore}</Text>
-            {nextLevel ? (
-              <View style={styles.statusPill}>
-                <Text style={styles.statusPillText}>Next: {nextLevel.name}</Text>
-              </View>
-            ) : (
-              <View style={styles.statusPill}>
-                <Text style={styles.statusPillText}>{t.progress.maxLevel}</Text>
-              </View>
-            )}
+        {/* ── A. CURRENT SUMMARY ─────────────────────────────────────── */}
+        {currentScore != null ? (
+          <Card style={styles.statusCard}>
+            <View style={styles.statusTopRow}>
+              <Text style={styles.statusLabel}>{scoreTitle}</Text>
+              {scoreDayLabel ? (
+                <View style={styles.statusPill}>
+                  <Text style={styles.statusPillText}>{scoreDayLabel}</Text>
+                </View>
+              ) : null}
+            </View>
+            <Text style={styles.statusValue}>{currentScore}<Text style={styles.statusUnit}> / 100</Text></Text>
+            {/* Always attached to the number, and it says WHICH day the score
+                is from — the card no longer calls a four-day-old score
+                "current". */}
+            <Text style={styles.statusProvenance}>{scoreProvenance}</Text>
+          </Card>
+        ) : (
+          <Card style={styles.statusCard}>
+            <Text style={styles.statusLabel}>{t.progress.scoreEmptyTitle}</Text>
+            <Text style={styles.statusProvenance}>{t.progress.scoreEmptyBody}</Text>
+          </Card>
+        )}
+
+        {/* ── B. WHAT GUTWELL IS LEARNING ────────────────────────────────
+            Presentation over thresholds that already exist. Makes a thin
+            screen read as progress toward something rather than as failure. */}
+        <Text style={styles.sectionTitle}>{t.progress.learningTitle}</Text>
+        <Card style={styles.learningCard}>
+          <View style={styles.learningRow}>
+            <Ionicons
+              name={learningScoresReady ? 'checkmark-circle' : 'ellipse-outline'}
+              size={18}
+              color={learningScoresReady ? Colors.secondary : Colors.textTertiary}
+            />
+            <Text style={styles.learningLabel}>{t.progress.learningScoresLabel}</Text>
+            <Text style={styles.learningValue}>
+              {learningScoresReady
+                ? t.progress.learningScoresReady
+                : t.progress.learningScoresProgress.replace('{n}', String(scoresLogged))}
+            </Text>
           </View>
-          <Text style={styles.statusValue}>{currentScore != null ? currentScore : '--'}<Text style={styles.statusUnit}> / 100</Text></Text>
-          <View style={styles.statusBarTrack}>
-            <View style={[styles.statusBarFill, { width: `${Math.round(levelProgress * 100)}%` }]} />
-          </View>
-          <View style={styles.statusBottomRow}>
-            <Text style={styles.statusMeta}>{t.progress.levelLabel} <Text style={styles.statusMetaStrong}>{level.name}</Text></Text>
-            <Text style={styles.statusMeta}>
-              {nextLevel ? `${Math.round(levelProgress * 100)}${t.progress.toNextLevel}` : t.progress.maxLevel}
+          <View style={styles.learningRow}>
+            <Ionicons
+              name={learningMealsReady ? 'checkmark-circle' : 'ellipse-outline'}
+              size={18}
+              color={learningMealsReady ? Colors.secondary : Colors.textTertiary}
+            />
+            <Text style={styles.learningLabel}>{t.progress.learningMealsLabel}</Text>
+            <Text style={styles.learningValue}>
+              {learningMealsReady
+                ? t.progress.learningMealsReady
+                : t.progress.learningMealsProgress.replace('{n}', String(foodCount))}
             </Text>
           </View>
         </Card>
@@ -451,17 +565,34 @@ export default function ProgressScreen() {
           </>
         ) : (
         <>
-        {/* Stats Cards */}
+        {/* ── C. TRENDS ─────────────────────────────────────────────────
+            Counts are period-scoped, which the labels never said — they sit
+            under a period toggle many users will not connect to them. The
+            average is withheld below three samples: "Avg Stool 4.0" from a
+            single check-in is fake precision, not a baseline. The CALCULATION
+            is unchanged; it is simply not shown as a figure yet. */}
+        <Text style={styles.sectionTitle}>{t.progress.trendsTitle}</Text>
         <View style={styles.statsRow}>
-          <ScoreCard icon="checkmark-circle" iconColor={Colors.primary} value={checkInCount} label={t.progress.labelCheckins} />
-          <ScoreCard icon="nutrition" iconColor={Colors.accent} value={avgStoolType ?? '--'} label={t.progress.labelAvgStool} />
-          <ScoreCard icon="restaurant" iconColor={Colors.secondary} value={foodCount} label={t.progress.labelMeals} />
+          <ScoreCard icon="checkmark-circle" iconColor={Colors.primary} value={checkInCount} label={`${t.progress.labelCheckins} · ${periodLabel}`} />
+          <ScoreCard icon="nutrition" iconColor={Colors.accent} value={showStoolAverage ? (avgStoolType as number) : '—'} label={showStoolAverage ? t.progress.labelAvgStool : t.progress.lowDataMore} />
+          <ScoreCard icon="restaurant" iconColor={Colors.secondary} value={foodCount} label={`${t.progress.labelMeals} · ${periodLabel}`} />
         </View>
 
         {/* Gut Score Trend — Cal AI's main "Weight Progress" chart card, with
             the time-range toggle (90D / 6M / 1Y / ALL) attached at the bottom
             of the card exactly as Cal AI places it under Weight Progress. */}
-        {gutScores.length >= 2 ? (
+        {/* Chart accessibility: the SVG-ish bar views carry no semantics, so
+            VoiceOver read nothing at all here. One summary per chart, built
+            from values already on screen — no extra data, no per-point
+            narration. */}
+        {showScoreChart ? (
+          <View
+            accessible
+            accessibilityRole="image"
+            accessibilityLabel={t.progress.a11yScoreTrend
+              .replace('{n}', String(gutScores.length))
+              .replace('{latest}', String(currentScore ?? ''))}
+          >
           <ChartComponent title={t.progress.gutScoreTrend}>
             <View style={styles.scoreTrendChart}>
               {gutScores.map((point, i) => (
@@ -483,13 +614,22 @@ export default function ProgressScreen() {
               style={styles.chartToggle}
             />
           </ChartComponent>
+          </View>
         ) : (
-          <SegmentedToggle
-            options={PERIOD_OPTIONS}
-            value={period}
-            onChange={setPeriod}
-            style={styles.toggle}
-          />
+          <>
+            {/* One recorded point cannot show a trend. The chart is suppressed
+                and the section says so, rather than drawing a single bar that
+                looks like a line. */}
+            {gutScores.length === 1 ? (
+              <Text style={styles.lowDataText}>{t.progress.lowDataTrend}</Text>
+            ) : null}
+            <SegmentedToggle
+              options={PERIOD_OPTIONS}
+              value={period}
+              onChange={setPeriod}
+              style={styles.toggle}
+            />
+          </>
         )}
 
         {/* Cal AI "Weight Changes" analog: Gut Score change over day windows */}
@@ -530,27 +670,44 @@ export default function ProgressScreen() {
           <>
             <Text style={styles.sectionTitle}>{t.progress.checkinConsistency}</Text>
             <View style={styles.calendarCard}>
-              <ContributionCalendar data={buildHeatmapData()} />
+              <View
+                accessible
+                accessibilityRole="image"
+                accessibilityLabel={t.progress.a11yCalendar.replace('{n}', String(checkInCount))}
+              >
+                <ContributionCalendar data={buildHeatmapData()} />
+              </View>
             </View>
           </>
         )}
 
         {/* Mood Trends */}
-        <>
+        <View
+          accessible
+          accessibilityRole="image"
+          accessibilityLabel={t.progress.a11yMoodTrend.replace('{n}', String(moodSampleCount))}
+        >
           <ChartComponent title={t.progress.moodTrends}>
             {moodHistory.length === 0 ? (
               <View style={styles.moodEmpty}>
                 <Text style={styles.moodEmptyEmoji}>🙂</Text>
                 <Text style={styles.moodEmptyText}>{t.progress.moodEmpty}</Text>
               </View>
+            ) : !showMoodChart ? (
+              /* One mood entry is not a trend. The average is withheld rather
+                 than presented as an established figure — avgMood is still
+                 computed exactly as before, just not shown yet. */
+              <Text style={styles.lowDataText}>{t.progress.lowDataTrend}</Text>
             ) : (
               <>
-                {avgMood !== null && (() => {
+                {showMoodAverage && avgMood !== null && (() => {
                   const avgRounded = Math.round(avgMood);
                   const clampedAvg = Math.min(5, Math.max(1, avgRounded)) as 1 | 2 | 3 | 4 | 5;
                   const MOOD_COLORS: Record<1 | 2 | 3 | 4 | 5, string> = { 1: '#C1444B', 2: '#E07A5F', 3: '#D4A373', 4: '#52B788', 5: '#2D6A4F' };
                   const MOOD_EMOJIS: Record<1 | 2 | 3 | 4 | 5, string> = { 1: '😣', 2: '😕', 3: '😐', 4: '🙂', 5: '😊' };
-                  const MOOD_LABELS: Record<1 | 2 | 3 | 4 | 5, string> = { 1: 'Bad', 2: 'Low', 3: 'Okay', 4: 'Good', 5: 'Great' };
+                  // Was a hardcoded English record; German users read "Okay",
+                  // "Great" inside an otherwise translated card.
+                  const MOOD_LABELS = t.progress.moodLabels as Record<string, string>;
                   return (
                     <View style={styles.moodAvgRow}>
                       <View style={[styles.moodAvgCircle, { backgroundColor: MOOD_COLORS[clampedAvg] + '20', borderColor: MOOD_COLORS[clampedAvg] + '50', borderWidth: 2 }]}>
@@ -558,7 +715,7 @@ export default function ProgressScreen() {
                       </View>
                       <View style={styles.moodAvgInfo}>
                         <Text style={[styles.moodAvgValue, { color: MOOD_COLORS[clampedAvg] }]}>{avgMood.toFixed(1)} / 5</Text>
-                        <Text style={styles.moodAvgLabel}>{MOOD_LABELS[clampedAvg]}</Text>
+                        <Text style={styles.moodAvgLabel}>{MOOD_LABELS[String(clampedAvg)]}</Text>
                         <Text style={styles.moodAvgSub}>{t.progress.avgMoodPeriod}</Text>
                       </View>
                     </View>
@@ -581,11 +738,17 @@ export default function ProgressScreen() {
               </>
             )}
           </ChartComponent>
-        </>
+        </View>
 
-        {/* Stool Type Trend */}
-        {stoolHistory.length > 0 && (
+        {/* Stool Type Trend — suppressed at a single sample, where the chart
+            is one bar and communicates nothing. */}
+        {showStoolChart && (
           <>
+            <View
+              accessible
+              accessibilityRole="image"
+              accessibilityLabel={t.progress.a11yStoolTrend.replace('{n}', String(stoolSampleCount))}
+            >
             <ChartComponent title={t.progress.stoolTypeTrend}>
               <View style={styles.stoolChart}>
                 {stoolHistory.slice(-14).map((entry, i) => (
@@ -603,6 +766,7 @@ export default function ProgressScreen() {
                 <Text style={styles.legendText}>{t.progress.idealStool}</Text>
               </View>
             </ChartComponent>
+            </View>
           </>
         )}
 
@@ -658,34 +822,55 @@ export default function ProgressScreen() {
           </>
         )}
 
-        {/* Gut Health Index — Cal AI's "Your BMI" analog. Summarises best streak
-            + avg gut score into a single banded index card. */}
-        {(bestStreak > 0 || currentScore != null) && (
-          <>
-            <Text style={styles.sectionTitle}>{t.progress.gutHealthIndex}</Text>
-            <Card style={styles.indexCard}>
-              <View style={styles.indexHeader}>
-                <Text style={styles.indexValue}>{currentScore != null ? currentScore : '--'}</Text>
-                <View style={styles.indexTag}>
-                  <Text style={styles.indexTagText}>
-                    {currentScore == null ? t.progress.noDataScore : currentScore >= 70 ? t.progress.statusThriving : currentScore >= 40 ? t.progress.statusBuilding : t.progress.statusNeedsCare}
-                  </Text>
-                </View>
-              </View>
-              <View style={styles.indexBands}>
-                <View style={[styles.indexBand, { backgroundColor: Colors.severity[4] }]} />
-                <View style={[styles.indexBand, { backgroundColor: Colors.accent }]} />
-                <View style={[styles.indexBand, { backgroundColor: Colors.secondary }]} />
-              </View>
-              <View style={styles.indexLegendRow}>
-                <Text style={styles.indexLegend}>Needs care{'\n'}0-39</Text>
-                <Text style={styles.indexLegend}>Building{'\n'}40-69</Text>
-                <Text style={styles.indexLegend}>Thriving{'\n'}70-100</Text>
-              </View>
-              <Text style={styles.indexMeta}>Best streak: {bestStreak} days</Text>
-            </Card>
-          </>
-        )}
+        {/* ── E. MILESTONES ──────────────────────────────────────────────
+            The Gut Health Index card used to sit here. It rendered
+            `currentScore` — the same number already shown at the top of the
+            screen — inside red/amber/green bands with "Needs care / Building /
+            Thriving" labels and hardcoded English legends, modelled on BMI.
+            It was a duplicate metric wearing the most clinically authoritative
+            framing in the app, so it is gone. Its one non-duplicate value,
+            best streak, moved into Milestones below. Score logic is
+            untouched. */}
+        <Text style={styles.sectionTitle}>{t.progress.milestonesTitle}</Text>
+        <View style={styles.headerStatsRow}>
+          <StatCard
+            icon={<Ionicons name="flame" size={22} color={Colors.accent} />}
+            value={String(currentStreak)}
+            label={t.progress.labelStreak}
+            accentColor={Colors.accent}
+            style={styles.headerStatCard}
+          />
+          <StatCard
+            icon={<Ionicons name="ribbon" size={22} color={Colors.secondary} />}
+            value={String(badgesEarned)}
+            label={t.progress.labelBadges}
+            accentColor={Colors.secondary}
+            progress={badgesEarned / 4}
+            onPress={() => router.push('/(tabs)/profile')}
+            style={styles.headerStatCard}
+          />
+        </View>
+        <Card style={styles.milestoneCard}>
+          <View style={styles.milestoneRow}>
+            <Text style={styles.statusMeta}>
+              {t.progress.levelLabel}{' '}
+              <Text style={styles.statusMetaStrong}>{levelDisplayName(level.key)}</Text>
+            </Text>
+            <Text style={styles.statusMeta}>
+              {nextLevel
+                ? t.progress.nextLevelLabel.replace('{name}', levelDisplayName(nextLevel.key))
+                : t.progress.maxLevel}
+            </Text>
+          </View>
+          <View style={styles.statusBarTrack}>
+            <View style={[styles.statusBarFill, { width: `${Math.round(levelProgress * 100)}%` }]} />
+          </View>
+          {bestStreak > 0 ? (
+            <Text style={styles.milestoneMeta}>
+              {t.progress.bestStreakLabel}: {t.progress.bestStreakValue.replace('{n}', String(bestStreak))}
+            </Text>
+          ) : null}
+        </Card>
 
         {checkInCount === 0 && foodCount === 0 && topSymptoms.length === 0 && (
           <EmptyState
@@ -701,13 +886,84 @@ export default function ProgressScreen() {
   );
 }
 
-function formatShortDate(dateStr: string): string {
+/**
+ * Chart x-axis label.
+ *
+ * The month name was a hardcoded English array, so every chart on this screen
+ * showed English months regardless of app language. Intl handles it and gives
+ * each locale its own conventional order and abbreviation.
+ */
+function formatShortDate(dateStr: string, locale: string): string {
   const d = new Date(dateStr + 'T00:00:00');
-  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-  return `${months[d.getMonth()]} ${d.getDate()}`;
+  return d.toLocaleDateString(locale, { month: 'short', day: 'numeric' });
 }
 
 const styles = StyleSheet.create({
+  // ── A. Current summary ───────────────────────────────────
+  // Always rendered beneath the number. The score is a summary of one
+  // check-in, and saying so — including WHICH day's check-in — is what stops
+  // it reading as a measurement.
+  statusProvenance: {
+    fontFamily: FontFamily.sansRegular,
+    fontSize: FontSize.sm,
+    color: Colors.textTertiary,
+    marginTop: 6,
+  },
+
+  // ── B. What GutWell is learning ──────────────────────────
+  learningCard: {
+    padding: Spacing.md,
+    marginBottom: Spacing.lg,
+    gap: Spacing.sm,
+  },
+  learningRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+  },
+  // flexShrink so the longer German labels wrap instead of squeezing the value.
+  learningLabel: {
+    flex: 1,
+    flexShrink: 1,
+    fontFamily: FontFamily.sansMedium,
+    fontSize: FontSize.sm,
+    color: Colors.text,
+  },
+  learningValue: {
+    fontFamily: FontFamily.sansRegular,
+    fontSize: FontSize.sm,
+    color: Colors.textSecondary,
+    flexShrink: 1,
+    textAlign: 'right',
+  },
+
+  // ── C. Low-data states ───────────────────────────────────
+  lowDataText: {
+    fontFamily: FontFamily.sansRegular,
+    fontSize: FontSize.sm,
+    color: Colors.textTertiary,
+    paddingVertical: Spacing.md,
+    textAlign: 'center',
+  },
+
+  // ── E. Milestones ────────────────────────────────────────
+  milestoneCard: {
+    padding: Spacing.md,
+    marginBottom: Spacing.lg,
+    gap: Spacing.sm,
+  },
+  milestoneRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: Spacing.sm,
+  },
+  milestoneMeta: {
+    fontFamily: FontFamily.sansRegular,
+    fontSize: FontSize.sm,
+    color: Colors.textTertiary,
+  },
+
   container: {
     flex: 1,
     backgroundColor: Colors.background,
@@ -1000,58 +1256,10 @@ const styles = StyleSheet.create({
     color: Colors.secondary,
   },
 
-  // Gut Health Index (Cal AI "Your BMI")
-  indexCard: {
-    marginBottom: Spacing.lg,
-    gap: Spacing.sm,
-  },
-  indexHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.md,
-  },
-  indexValue: {
-    fontFamily: FontFamily.displaySemiBold,
-    fontSize: FontSize.hero,
-    color: Colors.text,
-  },
-  indexTag: {
-    backgroundColor: Colors.secondary + '22',
-    borderRadius: BorderRadius.full,
-    paddingHorizontal: Spacing.sm + 2,
-    paddingVertical: 4,
-  },
-  indexTagText: {
-    fontFamily: FontFamily.sansSemiBold,
-    fontSize: FontSize.xs,
-    color: Colors.secondary,
-  },
-  indexBands: {
-    flexDirection: 'row',
-    gap: 4,
-    marginTop: Spacing.xs,
-  },
-  indexBand: {
-    flex: 1,
-    height: 8,
-    borderRadius: BorderRadius.full,
-  },
-  indexLegendRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  indexLegend: {
-    fontFamily: FontFamily.sansRegular,
-    fontSize: 10,
-    color: Colors.textTertiary,
-    flex: 1,
-  },
-  indexMeta: {
-    fontFamily: FontFamily.sansMedium,
-    fontSize: FontSize.xs,
-    color: Colors.textSecondary,
-    marginTop: Spacing.xs,
-  },
+  // The Gut Health Index styles were removed with the card. It rendered the
+  // same number as the summary at the top of the screen inside BMI-style
+  // bands — a duplicate metric in the most clinically authoritative framing
+  // in the app.
 
   // Empty / Insufficient
   insufficientCard: {

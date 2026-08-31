@@ -170,13 +170,13 @@ export function ShareCard({
               <View style={styles.statItem}>
                 <Ionicons name="flame-outline" size={16} color={Colors.accent} />
                 <Text style={styles.statValue}>{streak}</Text>
-                <Text style={styles.statLabel}>{t.shareCard.dayStreak}</Text>
+                <Text style={[styles.statLabel, styles.statLabelWrap]}>{t.shareCard.dayStreak}</Text>
               </View>
               <View style={styles.statSep} />
               <View style={styles.statItem}>
                 <Ionicons name="ribbon-outline" size={16} color={Colors.secondary} />
                 <Text style={styles.statValue}>{level}</Text>
-                <Text style={styles.statLabel}>{t.shareCard.level}</Text>
+                <Text style={[styles.statLabel, styles.statLabelWrap]}>{t.shareCard.level}</Text>
               </View>
             </View>
 
@@ -318,20 +318,31 @@ const styles = StyleSheet.create({
   },
 
   // ── Stats ──
+  // Wraps instead of clipping at large Dynamic Type. The two columns sat in a
+  // fixed row inside a card capped at 340pt, so German ("Tage in Folge") at an
+  // accessibility text size pushed the level column off the card. No
+  // maxFontSizeMultiplier and no numberOfLines were added — the layout gives
+  // way instead of the text.
   statsRow: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
     alignItems: 'center',
-    gap: Spacing.xl,
+    gap: Spacing.lg,
     marginBottom: Spacing.md,
   },
   statItem: {
     alignItems: 'center',
     gap: 3,
+    flexShrink: 1,
   },
   statSep: {
     width: 1,
     height: 36,
     backgroundColor: 'rgba(255,255,255,0.1)',
+  },
+  statLabelWrap: {
+    textAlign: 'center',
   },
   statValue: {
     fontFamily: FontFamily.displayBold,
