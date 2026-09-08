@@ -114,18 +114,21 @@ export default function PaywallScreen() {
   const annualPrice = annualPkg?.product.priceString ?? null;
   const canPurchase = offering != null;
 
-  // Two plans billed on different intervals are hard to compare, so each card
-  // leads with the price restated on a common cadence and states the real
-  // charge underneath. Null whenever it cannot be derived honestly, in which
-  // case the card falls back to showing the actual price as its headline —
-  // never a blank, a zero, or a fabricated figure.
+  // App Store Guideline 3.1.2: the amount Apple actually bills must be the most
+  // clear and conspicuous pricing element; every other figure — calculated
+  // cadences, intro pricing, trials — must be subordinate in size, weight,
+  // colour AND position.
+  //
+  // This screen previously inverted that: it headlined the calculated per-week /
+  // per-month figure at 28pt bold white and put the real charge underneath at
+  // 11pt/45%. That is what Build 14 was rejected for.
+  //
+  // The comparison figures are still useful, so they are kept — but strictly as
+  // a subordinate line below the real charge. Null whenever the figure cannot be
+  // derived honestly, in which case the line is simply omitted: never a blank, a
+  // zero, or a fabricated amount.
   const monthlyPerWeek = normalizedPriceString(monthlyPkg, 'week');
   const annualPerMonth = normalizedPriceString(annualPkg, 'month');
-
-  // The separate per-month sub-line and the savings percentage that used to sit
-  // on the Annual card are both gone: the per-month figure IS the headline now,
-  // and a discount claim is out of scope for this screen. Their i18n keys stay
-  // defined so restoring either is a render change, not a translation pass.
 
   // Trial copy must reflect the SELECTED plan's actual introductory offer.
   const selectedPkg = selectedPlan === 'annual' ? annualPkg : monthlyPkg;
@@ -328,21 +331,25 @@ export default function PaywallScreen() {
               activeOpacity={0.8}
               accessibilityRole="radio"
               accessibilityState={{ selected: selectedPlan === 'monthly' }}
-              accessibilityLabel={t.paywall.accessSelectMonthly}
+              accessibilityLabel={
+                monthlyPrice
+                  ? `${t.paywall.accessSelectMonthly}. ${t.paywall.accessPriceMonthly.replace('{price}', monthlyPrice)}`
+                  : t.paywall.accessSelectMonthly
+              }
             >
-              {/* Neutral placeholder, never an invented figure. */}
+              {/* PRIMARY (3.1.2): the amount Apple bills, on its real interval.
+                  Neutral placeholder, never an invented figure. */}
               <Text style={styles.pricingAmount}>
-                {monthlyPerWeek ?? monthlyPrice ?? t.paywall.priceUnavailable}
+                {monthlyPrice ?? t.paywall.priceUnavailable}
               </Text>
-              <Text style={styles.pricingPeriod}>
-                {monthlyPerWeek ? t.paywall.periodWeekShort : t.paywall.periodMonthShort}
-              </Text>
-              {/* What Apple actually charges, and when. Never omitted. */}
-              <Text style={styles.pricingBilled}>
-                {monthlyPrice
-                  ? t.paywall.billedMonthlyAt.replace('{price}', monthlyPrice)
-                  : t.paywall.billedMonthly}
-              </Text>
+              <Text style={styles.pricingPeriod}>{t.paywall.periodMonthShort}</Text>
+              {/* SUBORDINATE: comparison figure only. Omitted when it cannot be
+                  derived, so the card never shows an empty or invented line. */}
+              {monthlyPerWeek ? (
+                <Text style={styles.pricingCalc}>
+                  {t.paywall.approxPerWeek.replace('{price}', monthlyPerWeek)}
+                </Text>
+              ) : null}
             </TouchableOpacity>
 
             {/* Annual */}
@@ -355,23 +362,26 @@ export default function PaywallScreen() {
               activeOpacity={0.8}
               accessibilityRole="radio"
               accessibilityState={{ selected: selectedPlan === 'annual' }}
-              accessibilityLabel={t.paywall.accessSelectAnnual}
+              accessibilityLabel={
+                annualPrice
+                  ? `${t.paywall.accessSelectAnnual}. ${t.paywall.accessPriceAnnual.replace('{price}', annualPrice)}`
+                  : t.paywall.accessSelectAnnual
+              }
             >
               <View style={styles.bestValueBadge}>
                 <Text style={styles.bestValueText}>{t.paywall.bestValue}</Text>
               </View>
+              {/* PRIMARY (3.1.2): the amount Apple bills, on its real interval. */}
               <Text style={styles.pricingAmount}>
-                {annualPerMonth ?? annualPrice ?? t.paywall.priceUnavailable}
+                {annualPrice ?? t.paywall.priceUnavailable}
               </Text>
-              <Text style={styles.pricingPeriod}>
-                {annualPerMonth ? t.paywall.periodMonthShort : t.paywall.periodYearShort}
-              </Text>
-              {/* What Apple actually charges, and when. Never omitted. */}
-              <Text style={styles.pricingBilled}>
-                {annualPrice
-                  ? t.paywall.billedAnnuallyAt.replace('{price}', annualPrice)
-                  : t.paywall.billedAnnually}
-              </Text>
+              <Text style={styles.pricingPeriod}>{t.paywall.periodYearShort}</Text>
+              {/* SUBORDINATE: comparison figure only. */}
+              {annualPerMonth ? (
+                <Text style={styles.pricingCalc}>
+                  {t.paywall.approxPerMonth.replace('{price}', annualPerMonth)}
+                </Text>
+              ) : null}
             </TouchableOpacity>
           </View>
 
@@ -664,7 +674,7 @@ const styles = StyleSheet.create({
     color: Colors.secondary,
     marginTop: 4,
   },
-  pricingBilled: {
+  pricingCalc: {
     fontFamily: FontFamily.sansRegular,
     fontSize: 11,
     color: 'rgba(255,255,255,0.45)',

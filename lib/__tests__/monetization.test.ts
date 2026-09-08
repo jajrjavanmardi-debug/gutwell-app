@@ -840,24 +840,56 @@ describe('normalized price comparison', () => {
   });
 });
 
-describe('the real charge stays visible next to the comparison figure', () => {
-  test('each card renders the live StoreKit price for its own billing period', () => {
-    expect(PAYWALL).toContain("t.paywall.billedMonthlyAt.replace('{price}', monthlyPrice)");
-    expect(PAYWALL).toContain("t.paywall.billedAnnuallyAt.replace('{price}', annualPrice)");
+describe('the billed amount is the most conspicuous price (Guideline 3.1.2)', () => {
+  // Build 14 was rejected under 3.1.2: the card headlined the CALCULATED
+  // per-week / per-month figure at 28pt bold white and put the amount Apple
+  // actually bills underneath at 11pt/45%. These tests pin the inversion so it
+  // cannot silently come back.
+
+  test('the primary amount binds to the real StoreKit price, never a derived one', () => {
+    expect(PAYWALL).toContain('{monthlyPrice ?? t.paywall.priceUnavailable}');
+    expect(PAYWALL).toContain('{annualPrice ?? t.paywall.priceUnavailable}');
   });
 
-  test('the normalized figure falls back to the real price, never to a blank', () => {
-    expect(PAYWALL).toContain('monthlyPerWeek ?? monthlyPrice ?? t.paywall.priceUnavailable');
-    expect(PAYWALL).toContain('annualPerMonth ?? annualPrice ?? t.paywall.priceUnavailable');
+  test('REGRESSION: the derived figure must never lead the card again', () => {
+    // The exact bindings Apple rejected. Reintroducing either fails here.
+    for (const rejected of [
+      'monthlyPerWeek ?? monthlyPrice',
+      'annualPerMonth ?? annualPrice',
+      'monthlyPerWeek ? t.paywall.periodWeekShort',
+      'annualPerMonth ? t.paywall.periodMonthShort',
+    ]) {
+      expect(`rejected binding present: ${PAYWALL.includes(rejected)}`).toBe(
+        'rejected binding present: false',
+      );
+    }
   });
 
-  test('the period label follows whichever figure is actually shown', () => {
-    expect(PAYWALL).toContain(
-      'monthlyPerWeek ? t.paywall.periodWeekShort : t.paywall.periodMonthShort',
-    );
-    expect(PAYWALL).toContain(
-      'annualPerMonth ? t.paywall.periodMonthShort : t.paywall.periodYearShort',
-    );
+  test('the derived figure renders only in the subordinate style', () => {
+    // pricingAmount = 28pt bold #FFFFFF (primary). pricingCalc = 11pt 45% (subordinate).
+    const amountBlocks = PAYWALL.split('styles.pricingAmount').slice(1);
+    expect(amountBlocks.length).toBe(2);
+    for (const block of amountBlocks) {
+      const cell = block.slice(0, 120);
+      for (const derived of ['monthlyPerWeek', 'annualPerMonth', 'normalizedPriceString']) {
+        expect(`${derived} in primary amount: ${cell.includes(derived)}`).toBe(
+          `${derived} in primary amount: false`,
+        );
+      }
+    }
+    expect(PAYWALL).toContain("t.paywall.approxPerWeek.replace('{price}', monthlyPerWeek)");
+    expect(PAYWALL).toContain("t.paywall.approxPerMonth.replace('{price}', annualPerMonth)");
+  });
+
+  test('the period label states the real billing interval, not the derived one', () => {
+    expect(PAYWALL).toContain('{t.paywall.periodMonthShort}');
+    expect(PAYWALL).toContain('{t.paywall.periodYearShort}');
+  });
+
+  test('the derived line is omitted rather than rendered blank', () => {
+    expect(PAYWALL).toContain('{monthlyPerWeek ? (');
+    expect(PAYWALL).toContain('{annualPerMonth ? (');
+    expect(PAYWALL).toContain(') : null}');
   });
 
   test('billing cadence wording is not swapped between the two plans', () => {
@@ -866,6 +898,23 @@ describe('the real charge stays visible next to the comparison figure', () => {
     expect(en.paywall.billedAnnuallyAt.toLowerCase()).toContain('annually');
     expect(de.paywall.billedMonthlyAt.toLowerCase()).toContain('monatlich');
     expect(de.paywall.billedAnnuallyAt.toLowerCase()).toContain('jährlich');
+    // The derived line must name the cadence it was restated onto.
+    expect(en.paywall.approxPerWeek.toLowerCase()).toContain('week');
+    expect(en.paywall.approxPerMonth.toLowerCase()).toContain('month');
+    expect(de.paywall.approxPerWeek.toLowerCase()).toContain('woche');
+    expect(de.paywall.approxPerMonth.toLowerCase()).toContain('monat');
+  });
+
+  test('the derived figure is marked as approximate in both languages', () => {
+    for (const lang of ['en', 'de'] as const) {
+      const p = translations[lang].paywall;
+      expect(`${lang} approxPerWeek marker`).toBe(
+        `${lang} ${p.approxPerWeek.includes('≈') ? 'approxPerWeek marker' : 'MISSING'}`,
+      );
+      expect(`${lang} approxPerMonth marker`).toBe(
+        `${lang} ${p.approxPerMonth.includes('≈') ? 'approxPerMonth marker' : 'MISSING'}`,
+      );
+    }
   });
 
   test('no savings percentage is displayed by this screen', () => {
@@ -873,13 +922,35 @@ describe('the real charge stays visible next to the comparison figure', () => {
     expect(PAYWALL).not.toContain('billedAnnuallySave');
   });
 
-  test('both languages define every new pricing string, with the {price} slot', () => {
+  test('both languages define every pricing string, with the {price} slot', () => {
     for (const lang of ['en', 'de'] as const) {
       const p = translations[lang].paywall;
-      expect(`${lang} periodWeekShort`).toBe(`${lang} ${p.periodWeekShort ? 'periodWeekShort' : 'MISSING'}`);
-      expect(p.billedMonthlyAt).toContain('{price}');
-      expect(p.billedAnnuallyAt).toContain('{price}');
+      for (const key of ['approxPerWeek', 'approxPerMonth', 'billedMonthlyAt', 'billedAnnuallyAt',
+                         'accessPriceMonthly', 'accessPriceAnnual'] as const) {
+        expect(`${lang}.${key}`).toBe(`${lang}.${p[key] ? key : 'MISSING'}`);
+        expect(p[key]).toContain('{price}');
+      }
+      expect(`${lang} periodMonthShort`).toBe(
+        `${lang} ${p.periodMonthShort ? 'periodMonthShort' : 'MISSING'}`,
+      );
+      expect(`${lang} periodYearShort`).toBe(
+        `${lang} ${p.periodYearShort ? 'periodYearShort' : 'MISSING'}`,
+      );
     }
+  });
+
+  test('retired pricing keys are gone so the old layout cannot be rebuilt', () => {
+    for (const lang of ['en', 'de'] as const) {
+      const p = translations[lang].paywall as Record<string, unknown>;
+      for (const retired of ['perMonthLabel', 'periodWeekShort']) {
+        expect(`${lang}.${retired}: ${retired in p}`).toBe(`${lang}.${retired}: false`);
+      }
+    }
+  });
+
+  test('assistive tech hears the billed amount, not just the plan name', () => {
+    expect(PAYWALL).toContain("t.paywall.accessPriceMonthly.replace('{price}', monthlyPrice)");
+    expect(PAYWALL).toContain("t.paywall.accessPriceAnnual.replace('{price}', annualPrice)");
   });
 
   test('no monetary amount is hardcoded by the new presentation', () => {

@@ -607,15 +607,21 @@ const en = {
       'Payment is charged to your Apple ID at confirmation. Subscriptions renew automatically unless cancelled at least 24 hours before the end of the period. Manage or cancel anytime in App Store settings.',
     restoring: 'Restoring…',
     // {price} is the live StoreKit per-month figure — never a hardcoded amount.
-    perMonthLabel: 'Just {price}/mo',
-    periodMonthShort: '/mo',
-    periodYearShort: '/yr',
-    periodWeekShort: '/week',
+    periodMonthShort: '/month',
+    periodYearShort: '/year',
+    // Guideline 3.1.2: the billed amount is the headline, so these restate it
+    // on a comparison cadence in a SUBORDINATE line. The leading "≈" marks the
+    // figure as derived — it is never what Apple charges.
+    approxPerWeek: '≈ {price}/week',
+    approxPerMonth: '≈ {price}/month',
     // The normalized figure above these is a comparison aid; these state what
     // Apple actually charges and when. {price} is always the live StoreKit
     // price for the plan's real billing period.
     billedMonthlyAt: 'Billed monthly at {price}',
     billedAnnuallyAt: 'Billed annually at {price}',
+    // Accessibility: read the real charge first, the derived figure second.
+    accessPriceMonthly: '{price} per month, billed monthly',
+    accessPriceAnnual: '{price} per year, billed annually',
     // Introductory-offer period units. StoreKit reports these in English, so
     // they are mapped through i18n before going into startTrialWithPeriod.
     trialUnitDay: 'day',
@@ -2342,12 +2348,14 @@ const de: Translations = {
     finePrint:
       'Die Zahlung wird bei Bestätigung über deine Apple-ID abgebucht. Abonnements verlängern sich automatisch, sofern sie nicht mindestens 24 Stunden vor Ende des Zeitraums gekündigt werden. Du kannst sie jederzeit in den App-Store-Einstellungen verwalten oder kündigen.',
     restoring: 'Wird wiederhergestellt…',
-    perMonthLabel: 'Nur {price}/Mon.',
-    periodMonthShort: '/Mon.',
+    periodMonthShort: '/Monat',
     periodYearShort: '/Jahr',
-    periodWeekShort: '/Woche',
+    approxPerWeek: '≈ {price}/Woche',
+    approxPerMonth: '≈ {price}/Monat',
     billedMonthlyAt: 'Monatliche Abrechnung: {price}',
     billedAnnuallyAt: 'Jährliche Abrechnung: {price}',
+    accessPriceMonthly: '{price} pro Monat, monatliche Abrechnung',
+    accessPriceAnnual: '{price} pro Jahr, jährliche Abrechnung',
     trialUnitDay: 'Tag',
     trialUnitWeek: 'Woche',
     trialUnitMonth: 'Monat',
