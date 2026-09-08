@@ -33,8 +33,13 @@ const EDGE = readFileSync(
  * Matched as string LITERALS, not as lines: the rejected instruction lived
  * inside a ternary (`? "- If IBS, ..."`), so a line-prefix filter walked
  * straight past the one bullet these tests exist to catch.
+ *
+ * BOTH quote styles. The first version of this parser read double-quoted
+ * literals only, which silently skipped three single-quoted bullets — all of
+ * them in meal_revise, the path with the weakest rules. A guard that cannot
+ * see the code it guards is worse than no guard, because it reads as coverage.
  */
-const BULLETS = EDGE.match(/"- (?:[^"\\]|\\.)*"/g) ?? [];
+const BULLETS = EDGE.match(/"- (?:[^"\\]|\\.)*"|'- (?:[^'\\]|\\.)*'/g) ?? [];
 
 /** A bullet that fires BECAUSE a diagnosis label is present. */
 const DIAGNOSIS_TRIGGERED =
@@ -54,6 +59,16 @@ const RESTRICTION =
  */
 const NEGATED =
   /\b(never licenses?|does not license|never as|not as a|it never|must not|do not present|do not claim|do not infer|do not assume|do not default|rather than)\b/i;
+
+describe('the parser sees every bullet', () => {
+  test('both quote styles are captured, and the total is pinned', () => {
+    // 35 double-quoted + 3 single-quoted + 1 new meal_revise rule.
+    // A drop here means bullets stopped being inspected, not that the prompt
+    // got safer. Changing this number is a review decision, never a fix.
+    expect(BULLETS).toHaveLength(39);
+    expect(BULLETS.filter((b) => b.startsWith("'")).length).toBeGreaterThanOrEqual(3);
+  });
+});
 
 describe('no diagnosis-triggered dietary branch', () => {
   test('no prompt line is selected by the presence of a condition label', () => {
@@ -115,9 +130,11 @@ describe('no named clinical protocol reaches the user as an instruction', () => 
 });
 
 describe('condition labels are explicitly context only', () => {
-  test('both prompt paths say so', () => {
+  test('all three prompt paths say so', () => {
+    // Was 2. meal_revise now carries the same framing, so the expected count
+    // rises because coverage widened — never lower this to make a change pass.
     const framing = EDGE.match(/is context for relevance and tone only/g) ?? [];
-    expect(framing).toHaveLength(2);
+    expect(framing).toHaveLength(3);
   });
 
   test('the framing names what it refuses to license', () => {
@@ -164,6 +181,49 @@ describe('guidance is symptom-triggered and still specific', () => {
   test('guidance did not collapse into boilerplate — it still names this meal', () => {
     const specific = EDGE.match(/specific ingredients in THIS meal/g) ?? [];
     expect(specific).toHaveLength(2);
+  });
+});
+
+describe('the model may not put the condition or a protocol name in its reply', () => {
+  /**
+   * v38 obeyed the licensing rule and still wrote "Based on your symptoms and
+   * IBS, this meal scores 3/10" and "high-FODMAP foods likely contributed".
+   * The rule forbade the label from AUTHORISING a protocol; it said nothing
+   * about the label appearing in the output as a reason, and nothing about
+   * clinical vocabulary. These pin the gap that let both through.
+   */
+  test('every path forbids naming the condition as a reason', () => {
+    const rule = EDGE.match(/Do not name the condition/g) ?? [];
+    expect(rule).toHaveLength(3);
+  });
+
+  test('every path requires plain language instead of protocol names', () => {
+    const rule = EDGE.match(/Do not use named clinical diet or protocol terminology/g) ?? [];
+    expect(rule).toHaveLength(3);
+    // The rule is stated positively on purpose: naming the term in a negative
+    // instruction primes the model toward the very word it must not produce.
+    for (const bullet of BULLETS) {
+      expect(bullet).not.toMatch(/fodmap/i);
+    }
+  });
+
+  test('every path prefers hedged wording over causal wording', () => {
+    const rule =
+      EDGE.match(/Do not state a causal claim with words such as likely, caused, or triggered/g) ?? [];
+    expect(rule).toHaveLength(3);
+  });
+
+  test('meal_revise carries the condition-label rule too', () => {
+    // It receives "Known conditions:" and renders the same five sections
+    // including a score, but shipped with no condition rule at all.
+    const revise = EDGE.slice(
+      EDGE.indexOf('"Correction rules:"'),
+      EDGE.indexOf('...FIVE_SECTION_FORMAT_RULES', EDGE.indexOf('"Correction rules:"')),
+    );
+    expect(revise).toMatch(/is context for relevance and tone only/);
+    expect(revise).toMatch(/Do not name the condition/);
+    expect(revise).toMatch(/Do not use named clinical diet or protocol terminology/);
+    expect(revise).toMatch(/Do not state a causal claim/);
   });
 });
 
