@@ -88,7 +88,22 @@ const DEV_LOCATION_OVERRIDE = process.env.EXPO_PUBLIC_DEV_LOCATION_OVERRIDE?.tri
  * actually told us about. Empty when unknown — the server prompt treats
  * missing context as "not provided" instead of assuming a condition.
  */
-type GutProfileContext = { gutScore: number | null; conditions: string[]; dietType: string | null };
+type GutProfileContext = {
+  /**
+   * 1-10. PAYLOAD ONLY — the edge function's prompt states this scale
+   * verbatim ("Current gut score: N/10"), so it is a contract with the
+   * server and must not be changed to match what the UI shows.
+   */
+  gutScore: number | null;
+  /**
+   * 0-100. DISPLAY ONLY — the GutWell Score exactly as Home and Progress
+   * show it. Kept separate from `gutScore` so the screen never renders a
+   * number on the same 1-10 scale as the Meal Impact Score sitting beside it.
+   */
+  gutScoreDisplay: number | null;
+  conditions: string[];
+  dietType: string | null;
+};
 
 // copy object removed — strings migrated to lib/i18n.ts photoAnalysis namespace
 
@@ -423,13 +438,14 @@ export default function PhotoAnalysisScreen() {
   });
   const [gutProfileContext, setGutProfileContext] = useState<GutProfileContext>({
     gutScore: null,
+    gutScoreDisplay: null,
     conditions: [],
     dietType: null,
   });
 
   useEffect(() => {
     if (!user) {
-      setGutProfileContext({ gutScore: null, conditions: [], dietType: null });
+      setGutProfileContext({ gutScore: null, gutScoreDisplay: null, conditions: [], dietType: null });
       return;
     }
     let cancelled = false;
@@ -460,6 +476,7 @@ export default function PhotoAnalysisScreen() {
         // Optional context — analysis still works without it.
       }
       let gutScore: number | null = null;
+      let gutScoreDisplay: number | null = null;
       try {
         const { data } = await supabase
           .from('gut_scores')
@@ -469,6 +486,11 @@ export default function PhotoAnalysisScreen() {
           .limit(1)
           .maybeSingle();
         if (typeof data?.score === 'number') {
+          // Two values from one row, deliberately not derived from each other:
+          // the payload keeps the 1-10 scale the server's prompt declares, the
+          // UI keeps the real 0-100 score. gut_scores.score is already an
+          // integer 0-100 (see calculateGutScore), so display needs no clamp.
+          gutScoreDisplay = Math.round(data.score);
           gutScore = Math.min(10, Math.max(1, Math.round(data.score / 10)));
         }
       } catch {
@@ -484,7 +506,7 @@ export default function PhotoAnalysisScreen() {
       } catch {
         // Settings unreadable — diet context is optional.
       }
-      if (!cancelled) setGutProfileContext({ gutScore, conditions: [...conditions], dietType });
+      if (!cancelled) setGutProfileContext({ gutScore, gutScoreDisplay, conditions: [...conditions], dietType });
     })();
     return () => {
       cancelled = true;
@@ -1750,25 +1772,26 @@ export default function PhotoAnalysisScreen() {
     ) : null;
 
   /**
-   * Profile context as one line, or '' when the profile carries nothing.
+   * Profile context as one line, or '' when there is no score yet.
+   *
+   * Shows the 0-100 GutWell Score, never the 1-10 payload value: the Meal
+   * Impact Score is on screen on a 1-10 scale, and two different metrics
+   * reading "4/10" is what made this line ambiguous.
+   *
+   * A diagnosed-condition label is deliberately NOT appended here. It is
+   * still stored and still sent to the model for relevance and tone; putting
+   * it beside the number implied the score was calculated from a diagnosis,
+   * which it is not.
    *
    * Deliberately computed separately from the normal result's own inline
    * version rather than refactoring that one to share it: the normal surface
    * is out of scope for this change, and it needs an "empty" fallback string
    * that onboarding must not show. Here, no context simply means no row.
    */
-  const onboardingProfileLine = (() => {
-    const parts: string[] = [];
-    if (gutProfileContext.gutScore != null) {
-      parts.push(`${t.photoAnalysis.profileContextScore} ${gutProfileContext.gutScore}/10`);
-    }
-    if (gutProfileContext.conditions.length > 0) {
-      parts.push(gutProfileContext.conditions.join(', '));
-    }
-    return parts.length > 0
-      ? `${t.photoAnalysis.profileContextPrefix}${parts.join(' · ')}`
+  const onboardingProfileLine =
+    gutProfileContext.gutScoreDisplay != null
+      ? `${t.photoAnalysis.profileContextPrefix}${t.photoAnalysis.profileContextScore} ${gutProfileContext.gutScoreDisplay}/100`
       : '';
-  })();
 
   const onboardingPlanB = planBMessage ? sanitizeAnalysisForDisplay(planBMessage) : '';
 
@@ -2382,18 +2405,11 @@ export default function PhotoAnalysisScreen() {
                     color={hasPainSymptom ? '#F59E0B' : Colors.primary}
                   />
                   <Text style={[styles.profileText]}>
-                    {(() => {
-                      const parts: string[] = [];
-                      if (gutProfileContext.gutScore != null) {
-                        parts.push(`${t.photoAnalysis.profileContextScore} ${gutProfileContext.gutScore}/10`);
-                      }
-                      if (gutProfileContext.conditions.length > 0) {
-                        parts.push(gutProfileContext.conditions.join(', '));
-                      }
-                      return parts.length > 0
-                        ? `${t.photoAnalysis.profileContextPrefix}${parts.join(' · ')}`
-                        : t.photoAnalysis.profileContextEmpty;
-                    })()}
+                    {/* 0-100 score, no condition label — see
+                        onboardingProfileLine above for why. */}
+                    {gutProfileContext.gutScoreDisplay != null
+                      ? `${t.photoAnalysis.profileContextPrefix}${t.photoAnalysis.profileContextScore} ${gutProfileContext.gutScoreDisplay}/100`
+                      : t.photoAnalysis.profileContextEmpty}
                   </Text>
                 </View>
 
