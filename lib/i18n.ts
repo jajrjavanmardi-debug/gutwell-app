@@ -369,7 +369,7 @@ const en = {
     target: 'Target',
     supportingCopy: 'Your insights become more personal as you add meals and quick check-ins.',
     nowLabel: 'Now',
-    targetGutScore: 'Target Gut Score',
+    targetGutScore: 'Target GutWell Score',
     accessGetStarted: 'Get started',
     symptomDays: 'Symptom days / week',
     diet: 'Diet',
@@ -641,7 +641,10 @@ const en = {
     recentlyLogged: 'Recently logged',
     forFree: 'GutWell AI for free',
     sampleMeal: 'Greek yogurt + berries',
-    sampleScore: 'Gut 9/10',
+    // The preview's meal row mirrors Food History, where the number beside a
+    // meal is the Meal Impact Score (1-10). It is NOT the 0-100 GutWell Score
+    // shown above it in the same mock, so it must not be labelled "Gut".
+    sampleScore: 'Impact 9/10',
     comingSoonBody: 'Subscriptions are not available yet. Please try again later.',
     // Shown when the store returned no sellable offering. Deliberately calm and
     // non-technical: the underlying reason is recorded in subscription
@@ -1228,7 +1231,7 @@ const en = {
       specialist: 'Specialist',
       guru: 'Gut Guru',
     },
-    premiumTriggerTeaser: 'See all your trigger foods and safe foods with Premium',
+    premiumTriggerTeaser: 'See all your possible trigger foods and well-tolerated foods with Premium',
     premiumFoodInsights: 'Unlock food-symptom insights with Premium',
     windowLabels: { '3': '3 days', '7': '7 days', '14': '14 days', '30': '30 days', '90': '90 days', null: 'All Time' },
     currentGutScore: 'Current Gut Score',
@@ -1772,13 +1775,16 @@ const en = {
       'Stack it onto an existing routine',
       'Check in daily to keep your streak going',
     ],
+    // Reframed from an elimination/reintroduction protocol to observation.
+    // A challenge must not read as a dietary programme: the point is to keep
+    // variables few enough that the user can see their own response.
     tasksReset: [
-      'Stick to the guided plan for the day',
+      'Keep today’s meals simple and familiar',
       'Log meals and how your gut responds',
-      'Avoid reintroducing foods until the window ends',
+      'Change one thing at a time, so you can tell what made the difference',
     ],
     tasksDefault: [
-      'Avoid your possible trigger foods today',
+      'Notice how you feel after a possible trigger — comparing days is what shows a pattern',
       'Log your meals so patterns stay visible',
       'Check in daily to extend your streak',
     ],
@@ -1871,6 +1877,10 @@ const en = {
     },
     checkinSuccess: {
       logged: 'Logged!',
+      // {n}/{score} are substituted at the render site. Both lines used to be
+      // hardcoded English, so the German overlay mixed languages mid-card.
+      dayStreak: 'Day {n}',
+      score: 'GutWell Score: {score}',
     },
     healthDisclaimer: {
       title: 'Health Disclaimer',
@@ -2210,7 +2220,7 @@ const de: Translations = {
     target: 'Ziel',
     supportingCopy: 'Deine Erkenntnisse werden persönlicher, je mehr Mahlzeiten und Check-ins du hinzufügst.',
     nowLabel: 'Jetzt',
-    targetGutScore: 'Ziel-Darm-Score',
+    targetGutScore: 'Ziel-GutWell-Score',
     accessGetStarted: 'Jetzt starten',
     symptomDays: 'Symptomtage / Woche',
     diet: 'Ernährung',
@@ -2443,7 +2453,7 @@ const de: Translations = {
     recentlyLogged: 'Zuletzt protokolliert',
     forFree: 'GutWell AI kostenlos',
     sampleMeal: 'Griechischer Joghurt + Beeren',
-    sampleScore: 'Darm 9/10',
+    sampleScore: 'Impact 9/10',
     comingSoonBody: 'Abonnements sind noch nicht verfügbar. Bitte versuche es später erneut.',
     unavailableTitle: 'Abos nicht verfügbar',
     unavailableBody:
@@ -2853,7 +2863,7 @@ const de: Translations = {
     labelCheckins: 'Check-ins',
     labelAvgStool: 'Ø Stuhltyp',
     labelMeals: 'Mahlzeiten',
-    gutScoreTrend: 'Darm-Score-Verlauf',
+    gutScoreTrend: 'GutWell-Score-Verlauf',
     moodTrends: 'Stimmungsverlauf',
     stoolTypeTrend: 'Stuhltyp-Verlauf',
     topSymptoms: 'Häufigste Symptome',
@@ -2908,7 +2918,7 @@ const de: Translations = {
       specialist: 'Spezialist',
       guru: 'Darm-Profi',
     },
-    premiumTriggerTeaser: 'Alle Trigger- und sichere Lebensmittel mit Premium ansehen',
+    premiumTriggerTeaser: 'Alle möglichen Auslöser und gut verträglichen Lebensmittel mit Premium ansehen',
     premiumFoodInsights: 'Ernährungs-Symptom-Einblicke mit Premium freischalten',
     windowLabels: { '3': '3 Tage', '7': '7 Tage', '14': '14 Tage', '30': '30 Tage', '90': '90 Tage', null: 'Gesamt' },
     currentGutScore: 'Aktueller Darm-Score',
@@ -3384,12 +3394,12 @@ const de: Translations = {
       'Mach täglich dein Check-in, damit deine Serie weiterläuft',
     ],
     tasksReset: [
-      'Halte dich für heute an den geführten Plan',
+      'Halte deine Mahlzeiten heute einfach und vertraut',
       'Erfasse Mahlzeiten und wie dein Darm reagiert',
-      'Führe Lebensmittel erst nach Ablauf des Zeitraums wieder ein',
+      'Ändere immer nur eine Sache, damit du erkennst, was den Unterschied gemacht hat',
     ],
     tasksDefault: [
-      'Meide heute deine möglichen Auslöser',
+      'Achte darauf, wie du dich nach einem möglichen Auslöser fühlst — der Vergleich über mehrere Tage zeigt das Muster',
       'Erfasse deine Mahlzeiten, damit Muster sichtbar bleiben',
       'Mach täglich dein Check-in, um deine Serie zu verlängern',
     ],
@@ -3475,6 +3485,8 @@ const de: Translations = {
     },
     checkinSuccess: {
       logged: 'Erfasst!',
+      dayStreak: 'Tag {n}',
+      score: 'GutWell-Score: {score}',
     },
     healthDisclaimer: {
       title: 'Gesundheitshinweis',
