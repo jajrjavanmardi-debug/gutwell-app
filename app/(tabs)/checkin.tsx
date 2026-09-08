@@ -309,6 +309,15 @@ export default function CheckinScreen() {
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
             }}
           />
+          {/* 1.4.1: the chart reproduces a published clinical scale, so its
+              source sits directly beneath it. */}
+          <Text
+            style={styles.sourcesLink}
+            onPress={() => router.push('/sources')}
+            accessibilityRole="link"
+          >
+            {t.sources.linkBristol}
+          </Text>
         </View>
 
         {/* Symptoms */}
@@ -523,6 +532,13 @@ const styles = StyleSheet.create({
   // Section
   section: {
     marginBottom: Spacing.lg,
+  },
+  sourcesLink: {
+    fontFamily: FontFamily.sansSemiBold,
+    fontSize: 11,
+    color: Colors.textSecondary,
+    textDecorationLine: 'underline',
+    marginTop: 8,
   },
   sectionTitle: {
     fontFamily: FontFamily.displayMedium,

@@ -530,6 +530,15 @@ export default function HomeScreen() {
                 <Text style={styles.scoreCardTitle}>{t.home.scoreTitle}</Text>
                 <Text style={styles.heroValue}>{gutScore}</Text>
                 <Text style={styles.scoreProvenance}>{t.home.scoreProvenance}</Text>
+                {/* 1.4.1: the score is a proprietary calculation; the
+                    methodology is one tap away. */}
+                <Text
+                  style={styles.sourcesLink}
+                  onPress={() => router.push('/sources')}
+                  accessibilityRole="link"
+                >
+                  {t.sources.linkScore}
+                </Text>
                 {trendDelta !== null && (
                   <View style={styles.trendRow}>
                     <Ionicons
@@ -882,6 +891,13 @@ const styles = StyleSheet.create({
     fontSize: FontSize.sm,
     color: Colors.textSecondary,
     marginBottom: 2,
+  },
+  sourcesLink: {
+    fontFamily: FontFamily.sansSemiBold,
+    fontSize: 11,
+    color: Colors.textSecondary,
+    textDecorationLine: 'underline',
+    marginTop: 8,
   },
   // Always rendered with the score. The number is a summary of one check-in,
   // and saying so is what keeps it from reading as a measurement.

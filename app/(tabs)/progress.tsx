@@ -505,6 +505,14 @@ export default function ProgressScreen() {
                 is from — the card no longer calls a four-day-old score
                 "current". */}
             <Text style={styles.statusProvenance}>{scoreProvenance}</Text>
+            {/* 1.4.1: proprietary calculation — methodology one tap away. */}
+            <Text
+              style={styles.sourcesLink}
+              onPress={() => router.push('/sources')}
+              accessibilityRole="link"
+            >
+              {t.sources.linkScore}
+            </Text>
           </Card>
         ) : (
           <Card style={styles.statusCard}>
@@ -822,6 +830,18 @@ export default function ProgressScreen() {
           </>
         )}
 
+        {/* 1.4.1: patterns come from our own correlation method, not from
+            published research. The link explains how they are derived and why
+            they are observations rather than proof. Outside the premium branch
+            so it is present in both states. */}
+        <Text
+          style={styles.sourcesLink}
+          onPress={() => router.push('/sources')}
+          accessibilityRole="link"
+        >
+          {t.sources.linkPatterns}
+        </Text>
+
         {/* ── E. MILESTONES ──────────────────────────────────────────────
             The Gut Health Index card used to sit here. It rendered
             `currentScore` — the same number already shown at the top of the
@@ -900,6 +920,13 @@ function formatShortDate(dateStr: string, locale: string): string {
 
 const styles = StyleSheet.create({
   // ── A. Current summary ───────────────────────────────────
+  sourcesLink: {
+    fontFamily: FontFamily.sansSemiBold,
+    fontSize: 11,
+    color: Colors.textSecondary,
+    textDecorationLine: 'underline',
+    marginTop: 8,
+  },
   // Always rendered beneath the number. The score is a summary of one
   // check-in, and saying so — including WHICH day's check-in — is what stops
   // it reading as a measurement.

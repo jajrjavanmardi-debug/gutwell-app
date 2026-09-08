@@ -311,6 +311,12 @@ export default function ProfileScreen() {
           />
           <Divider />
           <ListRow
+            icon="book-outline"
+            label={t.sources.linkProfile}
+            onPress={() => router.push('/sources')}
+          />
+          <Divider />
+          <ListRow
             icon="shield-checkmark-outline"
             label={t.profile.privacyPolicy}
             onPress={() => router.push('/privacy-policy')}

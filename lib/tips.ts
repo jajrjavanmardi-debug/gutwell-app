@@ -1,10 +1,18 @@
 import type { AppLanguage } from './language';
+import type { SourceId } from './sources';
 
 export type TipTag = 'bloating' | 'energy' | 'digestion' | 'general' | 'hydration' | 'inflammation' | 'stress' | 'sleep';
 
 export type WellnessTip = {
   title: string;
   body: string;
+  /**
+   * Curated source backing a tip that states a research finding (1.4.1).
+   * Set ONLY where a real, checked reference exists in lib/sources.ts — this is
+   * never inferred and never AI-generated. Tips that are general wellness
+   * habits carry no id, because inventing one would be worse than none.
+   */
+  sourceId?: SourceId;
   category: 'nutrition' | 'lifestyle' | 'science' | 'mindfulness';
   icon: string;
   tags: TipTag[];
@@ -20,7 +28,7 @@ const TIPS: WellnessTip[] = [
   },
   {
     title: 'Morning hydration',
-    body: 'Drinking a glass of warm water first thing in the morning is a gentle way to wake up your digestive system.',
+    body: 'A glass of water first thing is an easy habit to start the day with, and an easy one to remember.',
     category: 'lifestyle',
     icon: 'water',
     tags: ['hydration', 'digestion', 'general'],
@@ -28,6 +36,7 @@ const TIPS: WellnessTip[] = [
   {
     title: 'Fiber diversity',
     body: 'Eating a wide variety of plant foods across the week — around 30 different ones — is associated with greater gut microbiome diversity.',
+    sourceId: 'american-gut-2018',
     category: 'nutrition',
     icon: 'nutrition',
     tags: ['digestion', 'general'],
@@ -41,14 +50,15 @@ const TIPS: WellnessTip[] = [
   },
   {
     title: 'Fermented foods',
-    body: 'Yogurt, kimchi, sauerkraut, and kefir introduce beneficial bacteria that strengthen your gut lining.',
+    body: 'Yogurt, kimchi, sauerkraut and kefir are fermented foods eaten across many food cultures. Some people enjoy including them regularly.',
     category: 'nutrition',
     icon: 'flask',
     tags: ['digestion', 'bloating', 'inflammation'],
   },
   {
     title: 'Sleep quality matters',
-    body: 'Poor sleep disrupts your gut microbiome within 48 hours. Aim for 7-9 hours of consistent sleep.',
+    body: 'Sleep and digestion are often discussed together, and studies have reported an association between sleep quality and gut microbiome diversity. Most adults are advised to aim for 7-9 hours.',
+    sourceId: 'sleep-microbiome-2019',
     category: 'lifestyle',
     icon: 'moon',
     tags: ['sleep', 'energy', 'general'],
@@ -75,13 +85,6 @@ const TIPS: WellnessTip[] = [
     tags: ['bloating', 'digestion', 'stress'],
   },
   {
-    title: 'Gut barrier health',
-    body: 'Zinc, vitamin D, and glutamine are nutrients associated with intestinal lining health. Bone broth is one natural source.',
-    category: 'science',
-    icon: 'shield',
-    tags: ['inflammation', 'digestion', 'general'],
-  },
-  {
     title: 'Consistency is key',
     body: 'Regular meal times train your digestive system. Try to eat at roughly the same times each day.',
     category: 'lifestyle',
@@ -98,6 +101,7 @@ const TIPS: WellnessTip[] = [
   {
     title: 'Exercise helps',
     body: 'Regular moderate exercise is also linked to greater gut microbiome diversity.',
+    sourceId: 'exercise-microbiome-2014',
     category: 'lifestyle',
     icon: 'fitness',
     tags: ['energy', 'digestion', 'general'],
@@ -132,7 +136,8 @@ const TIPS: WellnessTip[] = [
   },
   {
     title: 'Reduce sugar intake',
-    body: 'Diets high in added sugar are associated with shifts in gut microbial balance.',
+    body: 'General healthy-eating guidance suggests keeping added sugar low. How any individual feels after sugary foods varies from person to person.',
+    sourceId: 'nhs-eat-well',
     category: 'nutrition',
     icon: 'alert-circle',
     tags: ['inflammation', 'bloating', 'energy'],
@@ -320,7 +325,7 @@ const TIPS_DE: TipCopy[] = [
   },
   {
     title: 'Wasser am Morgen',
-    body: 'Ein Glas warmes Wasser direkt nach dem Aufstehen ist eine sanfte Art, deine Verdauung in Gang zu bringen.',
+    body: 'Ein Glas Wasser direkt nach dem Aufstehen ist eine einfache Gewohnheit für den Start in den Tag — und eine, die man sich gut merken kann.',
   },
   {
     title: 'Ballaststoff-Vielfalt',
@@ -332,11 +337,11 @@ const TIPS_DE: TipCopy[] = [
   },
   {
     title: 'Fermentierte Lebensmittel',
-    body: 'Joghurt, Kimchi, Sauerkraut und Kefir bringen nützliche Bakterien mit, die deine Darmschleimhaut stärken.',
+    body: 'Joghurt, Kimchi, Sauerkraut und Kefir sind fermentierte Lebensmittel, die in vielen Esskulturen vorkommen. Manche Menschen nehmen sie gern regelmäßig zu sich.',
   },
   {
     title: 'Schlafqualität zählt',
-    body: 'Schlechter Schlaf bringt die Darmflora schon innerhalb von 48 Stunden aus dem Gleichgewicht. Ziel sind 7–9 Stunden regelmäßiger Schlaf.',
+    body: 'Schlaf und Verdauung werden oft zusammen betrachtet; Studien berichten von einem Zusammenhang zwischen Schlafqualität und der Vielfalt der Darmflora. Für Erwachsene werden meist 7–9 Stunden empfohlen.',
   },
   {
     title: 'Nach dem Essen gehen',
@@ -349,10 +354,6 @@ const TIPS_DE: TipCopy[] = [
   {
     title: 'Achtsam essen',
     body: 'Essen ohne Ablenkung kann es leichter machen, Sättigung wahrzunehmen — manche Menschen vertragen Mahlzeiten so besser.',
-  },
-  {
-    title: 'Gesunde Darmbarriere',
-    body: 'Zink, Vitamin D und Glutamin sind Nährstoffe, die mit der Gesundheit der Darmschleimhaut in Verbindung gebracht werden. Knochenbrühe ist eine natürliche Quelle.',
   },
   {
     title: 'Regelmäßigkeit hilft',
@@ -384,7 +385,7 @@ const TIPS_DE: TipCopy[] = [
   },
   {
     title: 'Weniger Zucker',
-    body: 'Eine Ernährung mit viel zugesetztem Zucker wird mit Veränderungen im mikrobiellen Gleichgewicht des Darms in Verbindung gebracht.',
+    body: 'Allgemeine Ernährungsempfehlungen raten dazu, zugesetzten Zucker gering zu halten. Wie sich zuckerreiche Lebensmittel anfühlen, ist von Mensch zu Mensch verschieden.',
   },
   {
     title: 'Kältereize',

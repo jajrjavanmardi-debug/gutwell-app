@@ -17,8 +17,11 @@ import { BANNED_CLAIMS as SHARED_BANNED_CLAIMS } from './banned-claims';
 const TIPS = getAllTips();
 
 describe('structure is untouched by localization', () => {
-  test('there are exactly 20 tips', () => {
-    expect(TIPS).toHaveLength(20);
+  test('there are exactly 19 tips', () => {
+    // Was 20. "Gut barrier health" (zinc / vitamin D / glutamine / bone broth)
+    // was removed in the Guideline 1.4.1 pass: a nutrient-health claim that
+    // cannot be softened and is separately regulated in the EU.
+    expect(TIPS).toHaveLength(19);
   });
 
   test('the structural fingerprint of every tip is unchanged', () => {
@@ -35,7 +38,6 @@ describe('structure is untouched by localization', () => {
       'lifestyle|walk|digestion,bloating,energy',
       'nutrition|leaf|digestion,general',
       'mindfulness|eye|bloating,digestion,stress',
-      'science|shield|inflammation,digestion,general',
       'lifestyle|calendar|digestion,bloating,general',
       'nutrition|warning|inflammation,digestion,bloating',
       'lifestyle|fitness|energy,digestion,general',
@@ -60,9 +62,9 @@ describe('structure is untouched by localization', () => {
 });
 
 describe('copy tables', () => {
-  test('both languages have exactly 20 entries', () => {
-    expect(TIP_COPY.en).toHaveLength(20);
-    expect(TIP_COPY.de).toHaveLength(20);
+  test('both languages have exactly 19 entries', () => {
+    expect(TIP_COPY.en).toHaveLength(19);
+    expect(TIP_COPY.de).toHaveLength(19);
   });
 
   test('English copy is the copy carried on TIPS, index for index', () => {
@@ -81,8 +83,8 @@ describe('copy tables', () => {
     expect(TIP_COPY.en[0].body).toBe(
       'Eating slowly and chewing thoroughly may help some people feel more comfortable after meals. Aim for 20-30 chews per bite.',
     );
-    expect(TIP_COPY.en[19].title).toBe('Omega-3 fatty acids');
-    expect(TIP_COPY.en[19].body).toBe(
+    expect(TIP_COPY.en[18].title).toBe('Omega-3 fatty acids');
+    expect(TIP_COPY.en[18].body).toBe(
       'Fish, walnuts, and flaxseeds contain omega-3s, which may support a healthy inflammatory balance.',
     );
   });
@@ -138,13 +140,15 @@ describe('order alignment between languages', () => {
     // A swap is the failure this catches: same length, same content set,
     // wrong pairing. Topic anchors tie each index to its subject.
     const anchors: Array<[number, RegExp]> = [
+      // Indices below 9 are unchanged. Everything above shifted down by one
+      // when the "Gut barrier health" tip was removed in the 1.4.1 pass.
       [0, /kauen/i],
       [1, /wasser/i],
       [4, /kimchi|fermentiert/i],
       [6, /spaziergang|gehen/i],
-      [12, /bewegung/i],
-      [15, /antibiotika/i],
-      [19, /omega-3/i],
+      [11, /bewegung/i],
+      [14, /antibiotika/i],
+      [18, /omega-3/i],
     ];
     for (const [index, pattern] of anchors) {
       const de = `${TIP_COPY.de[index].title} ${TIP_COPY.de[index].body}`;
@@ -153,7 +157,7 @@ describe('order alignment between languages', () => {
   });
 
   test('German titles are all distinct, so no entry was duplicated over another', () => {
-    expect(new Set(TIP_COPY.de.map((c) => c.title)).size).toBe(20);
+    expect(new Set(TIP_COPY.de.map((c) => c.title)).size).toBe(19);
   });
 });
 
@@ -236,17 +240,18 @@ describe('claim safety survives translation', () => {
     expect(TIP_COPY.en[6].body).toMatch(/many people find/i);
     expect(TIP_COPY.de[6].body).toMatch(/viele Menschen/i);
 
-    expect(TIP_COPY.en[18].body).toMatch(/some people find/i);
-    expect(TIP_COPY.en[18].body).toMatch(/listen to your body/i);
-    expect(TIP_COPY.de[18].body).toMatch(/manche Menschen/i);
-    expect(TIP_COPY.de[18].body).toMatch(/höre auf deinen Körper/i);
+    expect(TIP_COPY.en[17].body).toMatch(/some people find/i);
+    expect(TIP_COPY.en[17].body).toMatch(/listen to your body/i);
+    expect(TIP_COPY.de[17].body).toMatch(/manche Menschen/i);
+    expect(TIP_COPY.de[17].body).toMatch(/höre auf deinen Körper/i);
   });
 
   test('association wording is preserved, not upgraded to causation', () => {
     expect(TIP_COPY.en[2].body).toMatch(/associated with/i);
     expect(TIP_COPY.de[2].body).toMatch(/in Verbindung gebracht/i);
-    expect(TIP_COPY.en[12].body).toMatch(/linked to/i);
-    expect(TIP_COPY.de[12].body).toMatch(/in Verbindung gebracht/i);
+    // Index 2 is below the removal point and is unchanged; exercise moved 12->11.
+    expect(TIP_COPY.en[11].body).toMatch(/linked to/i);
+    expect(TIP_COPY.de[11].body).toMatch(/in Verbindung gebracht/i);
   });
 
   /**

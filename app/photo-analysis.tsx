@@ -2350,6 +2350,7 @@ export default function PhotoAnalysisScreen() {
                 </View>
               ) : null}
               <AnalysisResult
+                onOpenSources={() => router.push('/sources')}
                 photoUri={photoUri}
                 scoreLabel={t.analysisResult.scoreLabel}
                 scoreNote={t.analysisResult.scoreNote}
@@ -2450,6 +2451,7 @@ export default function PhotoAnalysisScreen() {
                       </View>
                     ) : null}
                     <AnalysisResult
+                      onOpenSources={() => router.push('/sources')}
                       photoUri={photoUri}
                       mealName={mealIdentity || t.photoAnalysis.mealTitleFallback}
                       score={mealImpactScore}

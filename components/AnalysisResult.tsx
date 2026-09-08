@@ -67,6 +67,12 @@ export type AnalysisResultProps = {
   scoreLabel?: string;
   scoreNote?: string;
   /**
+   * Opens Sources & Methodology (Guideline 1.4.1). Supplied by the caller so
+   * this component stays purely presentational — it must not navigate itself.
+   * When omitted, the link is not rendered.
+   */
+  onOpenSources?: () => void;
+  /**
    * Whether to render the built-in disclaimer.
    *
    * Defaults to true, so every existing caller is unchanged. The in-app
@@ -90,6 +96,7 @@ export default function AnalysisResult({
   contextSummary,
   scoreLabel,
   scoreNote,
+  onOpenSources,
   showDisclaimer = true,
 }: AnalysisResultProps) {
   const t = useTranslation();
@@ -239,7 +246,18 @@ export default function AnalysisResult({
       {showDisclaimer ? (
       <View style={styles.disclaimerRow}>
         <Ionicons name="shield-checkmark-outline" size={15} color="rgba(255,255,255,0.5)" />
-        <Text style={styles.disclaimer}>{t.analysisResult.disclaimer}</Text>
+        <View style={styles.disclaimerTextWrap}>
+          <Text style={styles.disclaimer}>{t.analysisResult.disclaimer}</Text>
+          {onOpenSources ? (
+            <Text
+              style={styles.sourcesLink}
+              onPress={onOpenSources}
+              accessibilityRole="link"
+            >
+              {t.sources.linkAnalysis}
+            </Text>
+          ) : null}
+        </View>
       </View>
       ) : null}
     </View>
@@ -318,6 +336,16 @@ const styles = StyleSheet.create({
   },
   pressed: { opacity: 0.7 },
 
+  disclaimerTextWrap: {
+    flex: 1,
+  },
+  sourcesLink: {
+    fontFamily: FontFamily.sansSemiBold,
+    fontSize: 11,
+    color: 'rgba(255,255,255,0.75)',
+    textDecorationLine: 'underline',
+    marginTop: 4,
+  },
   disclaimerRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 8 },
   disclaimer: {
     fontFamily: FontFamily.sansRegular,
