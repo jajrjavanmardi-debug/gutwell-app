@@ -62,10 +62,11 @@ const NEGATED =
 
 describe('the parser sees every bullet', () => {
   test('both quote styles are captured, and the total is pinned', () => {
-    // 35 double-quoted + 3 single-quoted + 1 new meal_revise rule.
-    // A drop here means bullets stopped being inspected, not that the prompt
-    // got safer. Changing this number is a review decision, never a fix.
-    expect(BULLETS).toHaveLength(39);
+    // 35 double-quoted + 3 single-quoted + 1 meal_revise rule + 1 global
+    // output constraint in FIVE_SECTION_FORMAT_RULES. Rose from 39 because a
+    // rule was ADDED. A drop here means bullets stopped being inspected, not
+    // that the prompt got safer. Changing this number is a review decision.
+    expect(BULLETS).toHaveLength(40);
     expect(BULLETS.filter((b) => b.startsWith("'")).length).toBeGreaterThanOrEqual(3);
   });
 });
@@ -211,6 +212,23 @@ describe('the model may not put the condition or a protocol name in its reply', 
     const rule =
       EDGE.match(/Do not state a causal claim with words such as likely, caused, or triggered/g) ?? [];
     expect(rule).toHaveLength(3);
+  });
+
+  test('the no-condition-in-output rule is global, not path-specific', () => {
+    // Both leaks were inside section BODY text — v38 in SCORE, v39 in POSSIBLE
+    // SENSITIVITY — so the constraint belongs with the section contract, not in
+    // a dietary bullet the model may read as topic-scoped. Defined once and
+    // spread into every generation path, it cannot be present on one path and
+    // missing on another the way three hand-copied bullets can.
+    const rules = EDGE.slice(
+      EDGE.indexOf('const FIVE_SECTION_FORMAT_RULES'),
+      EDGE.indexOf('function fiveSectionStructure'),
+    );
+    expect(rules).toMatch(/GLOBAL OUTPUT CONSTRAINT/);
+    expect(rules).toMatch(/Never mention or repeat a user's condition or diagnosis label/);
+    expect(rules).toMatch(/must never appear in your words/);
+    expect(EDGE.match(/GLOBAL OUTPUT CONSTRAINT/g) ?? []).toHaveLength(1);
+    expect(EDGE.match(/\.\.\.FIVE_SECTION_FORMAT_RULES,/g) ?? []).toHaveLength(3);
   });
 
   test('meal_revise carries the condition-label rule too', () => {

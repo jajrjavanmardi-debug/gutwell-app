@@ -926,6 +926,11 @@ const MEAL_COACH_PERSONA = [
 // so the two screens look identical. Keep these in sync — do not fork.
 const FIVE_SECTION_FORMAT_RULES = [
   "Output format rules:",
+  // First on purpose. Both observed leaks were inside section BODY text — a
+  // condition named as the reason for the score, and again as the basis for a
+  // sensitivity — so the constraint sits with the section contract every path
+  // spreads, not in a dietary bullet the model may read as topic-scoped.
+  "- GLOBAL OUTPUT CONSTRAINT: Never mention or repeat a user's condition or diagnosis label in the generated analysis, in any section. Use the meal, the reported symptoms, their notes, their activity and other non-diagnostic context when explaining the score, the sensitivity, the suggestion and the next step. A condition may inform your reasoning; it must never appear in your words.",
   "- Use plain text only.",
   "- Do not use any markdown syntax. Forbidden: #, ##, ###, *, **, _.",
   "- Emojis are allowed because they are plain text.",
