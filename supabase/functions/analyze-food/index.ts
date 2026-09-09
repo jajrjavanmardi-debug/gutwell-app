@@ -951,7 +951,7 @@ function fiveSectionStructure(opts: { mealLine: string; disclaimer: string; apol
     "🍽️ MEAL",
     opts.mealLine,
     "📊 SCORE",
-    "Give a Meal Impact Score as a personal estimate based on this entry and the user's gut profile. State it in the exact form X/10 (for example 6/10). Briefly explain the main factor. Clarify that this is a personal reflection score, not a clinical measurement.",
+    "Give a Meal Impact Score as a personal estimate based on this entry and the user's gut profile. State it in the exact form X/10 (for example 6/10). This number is YOUR judgement of THIS meal. The profile's gut score is background only: never repeat, quote, or name that profile score in the reply, and never use it as the Meal Impact Score. Briefly explain the main factor. Clarify that this is a personal reflection score, not a clinical measurement.",
     "⚠️ POSSIBLE SENSITIVITY",
     "Identify a possible comfort consideration in plain language. If uncertain, say so clearly and use language such as 'may', 'might', or 'possible'.",
     "✅ BETTER OPTION",

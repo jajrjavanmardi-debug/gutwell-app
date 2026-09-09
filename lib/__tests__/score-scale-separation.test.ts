@@ -113,6 +113,25 @@ describe('the two scores read as different metrics', () => {
     expect(EDGE).toContain('State it in the exact form X/10');
   });
 
+  test('the prompt forbids echoing the profile gut score as the meal score', () => {
+    /**
+     * German v40 returned "Dein Gut Score von 4/10" in the SCORE section — the
+     * 1-10 profile value we send as context, echoed back as if it were the
+     * meal's score, under the name the app retired. The prompt handed the model
+     * a 1-10 number and asked it for a 1-10 number without distinguishing them.
+     *
+     * Narrow by design: it forbids repeating THE PROFILE SCORE, not naming a
+     * score at all — the Meal Impact Score is a legitimate thing to name.
+     */
+    expect(EDGE).toMatch(/This number is YOUR judgement of THIS meal/);
+    expect(EDGE).toMatch(/The profile's gut score is background only/);
+    expect(EDGE).toMatch(/never repeat, quote, or name that profile score in the reply/);
+    expect(EDGE).toMatch(/never use it as the Meal Impact Score/);
+    // Defined once in the shared five-section structure, so text, vision and
+    // revise inherit it rather than carrying three copies that can drift.
+    expect(EDGE.match(/This number is YOUR judgement of THIS meal/g) ?? []).toHaveLength(1);
+  });
+
   test('the composed line names the GutWell Score and its own scale, in both languages', () => {
     const en = translations.en.photoAnalysis;
     const de = translations.de.photoAnalysis;
