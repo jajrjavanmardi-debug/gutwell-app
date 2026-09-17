@@ -1,14 +1,14 @@
 # GutWell Website
 
 Static site for GutWell AI. Plain HTML with inline CSS — no framework, no build
-step, no dependencies. Deployed on Vercel and live at https://getgutwell.app
-(the apex 308-redirects to `www.getgutwell.app`).
+step, no dependencies. Deployed on Vercel. The canonical host is
+https://www.getgutwell.app; the apex `getgutwell.app` 308-redirects to it.
 
 ## Structure
 
     website/
       public/
-        index.html             # Landing page (currently waitlist / pre-launch)
+        index.html             # Landing page — live App Store download
         support/index.html     # /support     — App Store Support URL target
         privacy/index.html     # /privacy     — Privacy Policy (EN)
         privacy/de/index.html  # /privacy/de  — Privacy Policy (DE)
@@ -19,6 +19,7 @@ step, no dependencies. Deployed on Vercel and live at https://getgutwell.app
         sitemap.xml
         favicon.png         # copied from assets
         icon.png            # copied from assets
+        app-store-badge.svg # Apple's official badge, unmodified — do not redraw
       README.md
 
 There is no `vercel.json`. The apex-to-www redirect and HTTPS are handled by
@@ -43,10 +44,10 @@ All five are in `sitemap.xml` and none carries `noindex`.
 
 **These pages must not contradict the in-app legal screens.** The app ships its
 own Privacy and Terms screens (`lib/i18n.ts` -> `legalScreens`), and those are
-what users accept at sign-up. The website may add website-only detail — the
-waitlist, hosting logs, cookies — but every shared factual statement (operator,
-minimum age 16, processors, CSV export, no analytics in this version) has to
-match. Change both or neither.
+what users accept at sign-up. The website may add website-only detail — hosting
+logs, cookies — but every shared factual statement (operator, minimum age 16,
+processors, CSV export, no analytics in this version) has to match. Change both
+or neither.
 
 Statements deliberately NOT made, because they could not be verified: retention
 periods in days, transfer mechanisms such as SCCs, whether a DPO is required,
@@ -63,28 +64,43 @@ Vercel is connected to this repository. Deployment settings (production branch,
 Root Directory) live in the Vercel dashboard, not in this repo — verify the Root
 Directory is `website/public` before relying on the subdirectory routes.
 
-Pushing the branch produces a preview deployment; production promotion is a
-dashboard action.
+**Production deploys from `main`.** Pushing any other branch — including the
+long-lived release branch — produces a preview deployment only. To ship a
+website change, cherry-pick the website-only commit onto `main` and push that;
+do not merge a release branch into `main` just to deploy the site.
 
-## Waitlist backend
+## Waitlist backend (retired)
 
-The form posts to a Supabase Edge Function:
+The pre-launch homepage carried an email form that posted to a Supabase Edge
+Function:
 
     https://peipdakrqtgabnvpazrc.supabase.co/functions/v1/waitlist-signup
 
-Setup:
-1. Run migration `supabase/migrations/020_waitlist.sql`
-2. Deploy: `supabase functions deploy waitlist-signup`
-3. The endpoint is set in `ENDPOINT` in `index.html`
+The form and its `ENDPOINT` constant are gone from `index.html`, but **the
+backend was never removed**: `supabase/migrations/020_waitlist.sql` created
+`public.waitlist` and no later migration drops it, so addresses collected before
+launch may still be stored. That is why the Privacy Policy still discloses their
+retention. To finish retiring this, delete the rows and drop the table, then
+remove the retention clause from `/privacy` and `/privacy/de`.
 
 The function uses `SUPABASE_SERVICE_ROLE_KEY` from Supabase secrets. That key is
 server-side only and must never appear in this directory.
 
-## Pending before launch
+## Launch status
 
-- Swap the waitlist CTA for an App Store download link once the app is live
-- Replace the "SCREENSHOTS COMING SOON" panel with real screenshots
+GutWell AI is live on the App Store (app ID `6796702004`) and the homepage links
+to it. Completed:
+
+- Waitlist CTA replaced with the App Store download link. Every CTA (nav, hero,
+  launch section, footer) reads its URL from the single `APP_STORE_URL` constant
+  and also carries it in the markup, so the page works without JavaScript
+- "Coming soon to iOS" removed from the hero
+- Apple's official "Download on the App Store" badge added to the hero and the
+  launch section
+
+Still pending:
+
+- Replace the empty screenshot placeholder panel with real screenshots
   (`website/public/screenshots/screen-N.png`)
-- Remove "Coming soon to iOS" from the hero
 - Confirm the App Store Connect Privacy Policy URL is
   `https://www.getgutwell.app/privacy`
