@@ -42,7 +42,7 @@ button{cursor:pointer;border:none;font-family:inherit}
 /* ── Focus visibility ── */
 /* Keyboard users had almost no focus affordance on this dark theme. */
 :focus-visible{outline:2px solid var(--green-300);outline-offset:3px;border-radius:6px}
-.nav-cta:focus-visible,.nav-status:focus-visible,.btn-primary:focus-visible,.btn-secondary:focus-visible{outline-offset:4px}
+.nav-cta:focus-visible,.nav-status:focus-visible,.btn-primary:focus-visible,.btn-secondary:focus-visible,.app-store-badge:focus-visible{outline-offset:4px}
 .faq-question:focus-visible{outline:2px solid var(--green-300);outline-offset:-3px;border-radius:0}
 
 /* ── Tokens ── */
@@ -108,6 +108,12 @@ nav{position:sticky;top:0;z-index:100;background:rgba(11,31,20,0.85);backdrop-fi
 .btn-primary:hover{opacity:.9;transform:translateY(-1px)}
 .btn-secondary{display:inline-block;background:rgba(255,255,255,0.06);color:#fff;font-weight:600;font-size:16px;padding:15px 32px;border-radius:var(--radius-full);border:1px solid rgba(255,255,255,0.22);transition:background .2s}
 .btn-secondary:hover{background:rgba(255,255,255,0.1)}
+/* Official Apple badge. Height is set and width left auto so the artwork keeps
+   its exact proportions, as Apple's marketing guidelines require. */
+.app-store-badge{display:inline-block;border-radius:8px;transition:opacity .2s}
+.app-store-badge:hover{opacity:.85}
+.app-store-badge img{display:block;height:54px;width:auto}
+@media(max-width:600px){.app-store-badge img{height:48px}}
 .hero-trust{font-size:13px;color:var(--text-tertiary)}
 .hero-icon-wrap{margin:64px auto 0;width:120px;height:120px;border-radius:28px;overflow:hidden;box-shadow:0 24px 60px rgba(0,0,0,0.4),0 0 0 1px rgba(82,183,136,0.2)}
 .hero-icon-wrap img{width:100%;height:100%}
@@ -234,8 +240,7 @@ footer{position:relative;z-index:1;border-top:1px solid var(--card-border);paddi
       <img src="icon.png" alt="GutWell AI app icon">
       <span class="nav-logo-text">GutWell AI</span>
     </a>
-    <a class="nav-status" href="#launch"
-       data-cta data-cta-live="Download on the App Store" data-cta-live-class="nav-cta">Launch in progress</a>
+    <a class="nav-cta" href="https://apps.apple.com/app/id6796702004" rel="noopener" data-cta>Download</a>
   </div>
 </nav>
 
@@ -256,9 +261,8 @@ footer{position:relative;z-index:1;border-top:1px solid var(--card-border);paddi
       day at a time.
     </p>
     <div class="hero-actions fade-in">
-      <a class="btn-secondary" href="#launch" id="hero-cta"
-         data-cta data-cta-live="Download on the App Store" data-cta-live-class="btn-primary">
-        App Store launch in progress
+      <a class="app-store-badge" href="https://apps.apple.com/app/id6796702004" rel="noopener" id="hero-cta" data-cta>
+        <img src="app-store-badge.svg" alt="Download GutWell AI on the App Store" width="359" height="120">
       </a>
       <p class="hero-trust">Built for iPhone &nbsp;·&nbsp; Free core features &nbsp;·&nbsp; Optional GutWell Premium</p>
     </div>
@@ -474,11 +478,12 @@ footer{position:relative;z-index:1;border-top:1px solid var(--card-border);paddi
     <div class="launch-box fade-in">
       <h2 class="launch-headline">GutWell AI for iPhone.</h2>
       <p class="launch-sub">
-        The iOS app is being prepared for its App Store release. This page will link
-        straight to the App Store as soon as GutWell AI is live there.
+        GutWell AI is now available on the App Store. Download GutWell AI for iPhone
+        and start tracking today.
       </p>
-      <p class="launch-status" data-when="pending">App Store release being finalized</p>
-      <a class="btn-primary" href="#" hidden data-when="live" data-cta>Download on the App Store</a>
+      <a class="app-store-badge" href="https://apps.apple.com/app/id6796702004" rel="noopener" data-cta>
+        <img src="app-store-badge.svg" alt="Download GutWell AI on the App Store" width="359" height="120">
+      </a>
       <p class="launch-trust">Built for iPhone · Free core features · Optional GutWell Premium</p>
     </div>
   </div>
@@ -571,7 +576,7 @@ footer{position:relative;z-index:1;border-top:1px solid var(--card-border);paddi
       <a href="/privacy">Privacy Policy</a>
       <a href="/terms">Terms of Service</a>
       <a href="/impressum">Legal Notice</a>
-      <a href="#launch" data-cta data-cta-live="Download on the App Store">Launch status</a>
+      <a href="https://apps.apple.com/app/id6796702004" rel="noopener" data-cta>Download on the App Store</a>
     </div>
     <p class="footer-legal">&copy; 2026 GutWell AI. All rights reserved.</p>
   </div>
@@ -638,17 +643,14 @@ document.querySelectorAll('.faq-question').forEach(function(btn){
 });
 
 // ── App Store CTA ───────────────────────────────────────────────────────────
-// SINGLE SOURCE OF TRUTH for the App Store link. It is intentionally empty
-// until the GutWell AI App Store page is actually live — an inactive store URL
-// is worse than none.
-//
-// The markup renders the pending state statically, so the page is correct with
-// JavaScript disabled. Filling in this one string is the whole launch switch:
-// every CTA (nav, hero, final section, footer) then points at the App Store.
-var APP_STORE_URL = '';
+// SINGLE SOURCE OF TRUTH for the App Store link. GutWell AI is live, so every
+// [data-cta] element carries this URL in its markup too — the page works with
+// JavaScript disabled. This block re-applies the constant so the link only ever
+// has to change in one place at runtime; keep the markup hrefs in step with it.
+var APP_STORE_URL = 'https://apps.apple.com/app/id6796702004';
 
 (function(){
-  if(!APP_STORE_URL) return; // Pending state is already in the markup.
+  if(!APP_STORE_URL) return; // Markup hrefs already carry the live URL.
 
   document.querySelectorAll('[data-cta]').forEach(function(el){
     el.setAttribute('href', APP_STORE_URL);
