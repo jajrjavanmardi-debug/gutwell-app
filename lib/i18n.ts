@@ -1360,6 +1360,32 @@ const en = {
     // points at what still works — never an error, never a backend reason.
     dailyLimitFallbackMessage:
       "You've used today's 5 photo analyses. You can still describe your meal.",
+    // ── Free-window quota states (Batch 3) ──────────────────────────────────
+    // Copy only. The server still allows 5/day and the 14-day window is inert;
+    // these strings exist so activating it later needs no client release.
+    //
+    // Never "X analyses remaining": missed days do not accumulate, so a balance
+    // is a promise the user cannot spend. The honest unit is the day.
+    freeWindowStatus: 'Free AI analysis · Day {day} of {total}',
+    freeDailyUsedTitle: "Today's free analysis is used",
+    freeDailyUsedMessage:
+      'Your next one is available tomorrow. You can still log this meal — meal logging stays free.',
+    freeWindowEndedTitle: 'Your free AI analysis has ended',
+    freeWindowEndedMessage:
+      'Your 14 days of free AI analysis have ended. Meal logging, check-ins and your history stay free. AI meal analysis is part of GutWell Premium.',
+    revisionUsedTitle: "Today's correction is used",
+    revisionUsedMessage: "You've used today's correction. The analysis above is saved.",
+    // Premium hit the abuse ceiling. They already pay: no paywall, no upsell,
+    // and none of the Free-window wording.
+    premiumCeilingTitle: 'Daily analysis limit reached',
+    premiumCeilingMessage: "You've reached today's analysis limit. Please try again tomorrow.",
+    // The PROVIDER failed. Saying the user exceeded their own limit would be
+    // untrue — they did not.
+    providerBusyTitle: 'Analysis service is busy',
+    providerBusyMessage:
+      'The analysis service could not be reached just now. Please try again in a moment. You can still log this meal.',
+    logMealWithoutAnalysis: 'Log meal',
+    seePremiumCta: 'See Premium',
     textLimitTitle: 'Daily limit reached',
     textLimitMessage: "You've described 5 meals today, which is the daily maximum.",
     // Photo mode. This asked "What is this food?" while the field was
@@ -3040,6 +3066,24 @@ const de: Translations = {
     notNow: 'Jetzt nicht',
     dailyLimitFallbackMessage:
       'Du hast heute deine 5 Fotoanalysen genutzt. Du kannst deine Mahlzeit weiterhin beschreiben.',
+    freeWindowStatus: 'Kostenlose KI-Analyse · Tag {day} von {total}',
+    freeDailyUsedTitle: 'Deine kostenlose Analyse für heute ist aufgebraucht',
+    freeDailyUsedMessage:
+      'Morgen steht dir wieder eine zur Verfügung. Du kannst diese Mahlzeit trotzdem eintragen — das Eintragen bleibt kostenlos.',
+    freeWindowEndedTitle: 'Deine kostenlose KI-Analyse ist beendet',
+    freeWindowEndedMessage:
+      'Deine 14 Tage mit kostenloser KI-Analyse sind vorbei. Mahlzeiten eintragen, Check-ins und dein Verlauf bleiben kostenlos. Die KI-Mahlzeitenanalyse gehört zu GutWell Premium.',
+    revisionUsedTitle: 'Deine Korrektur für heute ist aufgebraucht',
+    revisionUsedMessage:
+      'Du hast die heutige Korrektur bereits genutzt. Die Analyse oben ist gespeichert.',
+    premiumCeilingTitle: 'Tageslimit für Analysen erreicht',
+    premiumCeilingMessage:
+      'Du hast das heutige Analyse-Limit erreicht. Bitte versuche es morgen wieder.',
+    providerBusyTitle: 'Analysedienst ist ausgelastet',
+    providerBusyMessage:
+      'Der Analysedienst war gerade nicht erreichbar. Bitte versuche es gleich noch einmal. Du kannst die Mahlzeit trotzdem eintragen.',
+    logMealWithoutAnalysis: 'Mahlzeit eintragen',
+    seePremiumCta: 'Premium ansehen',
     textLimitTitle: 'Tageslimit erreicht',
     textLimitMessage: 'Du hast heute 5 Mahlzeiten beschrieben — das ist das Tagesmaximum.',
     step2Prompt: 'Optional: Ergänze Kontext, den das Foto nicht zeigen kann',

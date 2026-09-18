@@ -44,6 +44,11 @@ import {
   MAX_CORRECTION_LENGTH,
   MAX_MEAL_DESCRIPTION_LENGTH,
   newAnalysisRequestId,
+  AnalysisError,
+  quotaStateForError,
+  freeWindowProgress,
+  type AnalysisQuotaState,
+  type QuotaMeta,
 } from '../lib/ai-quota';
 import { completeOnboarding, persistStage } from '../lib/onboarding-stage';
 import * as Sentry from '@sentry/react-native';
@@ -363,6 +368,12 @@ export default function PhotoAnalysisScreen() {
   const [textOnlyMode, setTextOnlyMode] = useState(false);
   /** Set once the server reports the photo ceiling, so step 1 can promote the text path. */
   const [photoQuotaExhausted, setPhotoQuotaExhausted] = useState(false);
+  /**
+   * The last quota metadata the SERVER sent. Never computed here: the free
+   * window is anchored on a timestamp the client cannot see, so a local guess
+   * would drift from the only copy that decides anything.
+   */
+  const [quotaMeta, setQuotaMeta] = useState<QuotaMeta | undefined>(undefined);
   const [analysis, setAnalysis] = useState('');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [isCorrecting, setIsCorrecting] = useState(false);
@@ -851,6 +862,125 @@ export default function PhotoAnalysisScreen() {
   };
 
   /**
+   * Save the meal the user described, with NO analysis attached.
+   *
+   * Requirement 6: a quota state must never cost someone their meal log. The
+   * normal Log meal button derives its name and note from `analysis`, so it is
+   * unusable in exactly the states where the analysis was refused. This path is
+   * built from what the user typed instead.
+   *
+   * Nothing about quota is consulted: logging does not call the edge function,
+   * reserves no slot, and cannot be refused by an allowance.
+   */
+  const logMealWithoutAnalysis = async () => {
+    if (!user) {
+      setToast({ visible: true, message: t.photoAnalysis.loginRequired, type: 'error' });
+      return;
+    }
+    const described = mealDescription.trim();
+    if (!described) return;
+
+    setIsLoggingMeal(true);
+    const result = await saveMealLog({
+      userId: user.id,
+      mealName: described.slice(0, 120),
+      mealType: getMealTypeForClock(),
+      note: described,
+    });
+    setIsLoggingMeal(false);
+
+    if (result.status === 'queued') {
+      setToast({ visible: true, message: t.photoAnalysis.logMealOffline, type: 'info' });
+      return;
+    }
+    if (result.status === 'failed') {
+      setToast({ visible: true, message: t.photoAnalysis.logMealFailed, type: 'error' });
+      return;
+    }
+    setToast({ visible: true, message: t.photoAnalysis.logMealSuccess, type: 'success' });
+  };
+
+  /**
+   * Render the states the server does not emit YET.
+   *
+   * This sits IN FRONT of the existing limit branches and returns false unless
+   * the server actually signalled a new state, so today it never fires and the
+   * current behaviour — including the photo path's "describe a meal instead"
+   * fallback and its promoted-button flag — is untouched. When the server
+   * starts sending FREE_WINDOW_ENDED, a tier, or the window fields, these
+   * branches take over without a client release.
+   *
+   * The two states that look alike are deliberately separate: free_daily_used
+   * has a tomorrow, free_window_ended does not, and rendering the first for the
+   * second would promise a tomorrow that never comes. A subscriber at their
+   * ceiling gets neutral copy — never Free-window wording, never a paywall for
+   * something they already pay for.
+   */
+  const showNewQuotaState = (error: unknown): boolean => {
+    if (!(error instanceof AnalysisError)) return false;
+    setQuotaMeta(error.meta);
+
+    // A presentation hint, never a claim. It only picks which copy a
+    // daily-limit error gets; the server already made the real decision, and
+    // nothing here is sent anywhere.
+    const state: AnalysisQuotaState = quotaStateForError(error, {
+      localPremiumHint: isPremiumFeature('photo_analysis'),
+    });
+    const serverSignalledWindow =
+      error.meta.tier !== undefined || freeWindowProgress(error.meta) !== null;
+
+    const logAction = {
+      text: t.photoAnalysis.logMealWithoutAnalysis,
+      onPress: () => void logMealWithoutAnalysis(),
+    };
+    const premiumAction = {
+      text: t.photoAnalysis.seePremiumCta,
+      onPress: () => router.push({ pathname: '/paywall', params: { source: 'quota' } }),
+    };
+    const withReset = (body: string, resetAt?: string) => {
+      const at = formatQuotaResetTime(resetAt, language);
+      return at ? `${body} ${t.photoAnalysis.dailyLimitResetsAt.replace('{time}', at)}` : body;
+    };
+
+    if (state.kind === 'free_window_ended') {
+      Alert.alert(
+        t.photoAnalysis.freeWindowEndedTitle,
+        t.photoAnalysis.freeWindowEndedMessage,
+        [premiumAction, logAction, { text: t.common.cancel, style: 'cancel' }],
+      );
+      return true;
+    }
+    if (state.kind === 'premium_ceiling') {
+      Alert.alert(
+        t.photoAnalysis.premiumCeilingTitle,
+        withReset(t.photoAnalysis.premiumCeilingMessage, state.resetAt),
+        [{ text: t.common.ok }],
+      );
+      return true;
+    }
+    if (state.kind === 'free_daily_used' && serverSignalledWindow) {
+      Alert.alert(
+        t.photoAnalysis.freeDailyUsedTitle,
+        withReset(t.photoAnalysis.freeDailyUsedMessage, state.resetAt),
+        [logAction, premiumAction, { text: t.common.cancel, style: 'cancel' }],
+      );
+      return true;
+    }
+    if (state.kind === 'revision_used' && serverSignalledWindow) {
+      Alert.alert(
+        t.photoAnalysis.revisionUsedTitle,
+        withReset(t.photoAnalysis.revisionUsedMessage, state.resetAt),
+        [{ text: t.common.ok }],
+      );
+      return true;
+    }
+    // provider_unavailable is deliberately NOT handled here: the existing
+    // generic branch already renders "The analysis service is busy", which is
+    // what actually happened and never blames the user's allowance.
+    return false;
+  };
+
+  /**
    * ONBOARDING (4/4): the two ways out of the onboarding run. Both live here so
    * the mode's navigation and completion rules are in one place rather than
    * spread through the render tree.
@@ -979,6 +1109,7 @@ export default function PhotoAnalysisScreen() {
       setWizardStep(3);
     } catch (error) {
       console.error('Meal text analysis failed:', error);
+      if (showNewQuotaState(error)) return;
       if (isDailyTextLimitError(error)) {
         const at = formatQuotaResetTime(error.meta.resetAt, language);
         Alert.alert(
@@ -1084,6 +1215,7 @@ export default function PhotoAnalysisScreen() {
       // the onboarding escape hatch, which exists for genuine breakage.
       // The server reached the same conclusion the client gate did — normally
       // because entitlement lapsed mid-session. Same message, no error framing.
+      if (showNewQuotaState(error)) return;
       if (isPremiumRequiredError(error)) {
         Alert.alert(
           t.paywall.premiumRequiredTitle,
@@ -1386,6 +1518,7 @@ export default function PhotoAnalysisScreen() {
       // A reached limit is not breakage: no retry prompt, because nothing the
       // user does before reset can succeed. The draft is left in the box so
       // their words are not thrown away.
+      if (showNewQuotaState(error)) return;
       if (isDailyRevisionLimitError(error)) {
         const at = formatQuotaResetTime(error.meta.resetAt, language);
         Alert.alert(
@@ -2119,6 +2252,26 @@ export default function PhotoAnalysisScreen() {
                   </>
                 )}
               </Pressable>
+
+              {/* Free-window status. Non-blocking, and shown ONLY when the
+                  server has sent both numbers — freeWindowProgress returns null
+                  otherwise, so an absent field renders nothing rather than a
+                  guessed day. Never a count of remaining analyses: missed days
+                  do not accumulate, so a balance would promise something the
+                  user cannot spend. The server does not send these fields yet,
+                  so today this renders nothing at all. */}
+              {(() => {
+                if (quotaMeta?.tier === 'premium') return null; // subscribers never see Free copy
+                const progress = freeWindowProgress(quotaMeta);
+                if (!progress) return null;
+                return (
+                  <Text style={styles.analyzeHint}>
+                    {t.photoAnalysis.freeWindowStatus
+                      .replace('{day}', String(progress.day))
+                      .replace('{total}', String(progress.total))}
+                  </Text>
+                );
+              })()}
 
               {/* Says why the button is inert. Only for the missing-description
                   case — the other reasons (no photo yet, already analysing) are

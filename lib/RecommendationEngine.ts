@@ -11,6 +11,7 @@
 import { supabase } from './supabase';
 import {
   AnalysisError,
+  FREE_WINDOW_ENDED,
   DAILY_PHOTO_LIMIT_REACHED,
   DAILY_REVISION_LIMIT_REACHED,
   DAILY_TEXT_LIMIT_REACHED,
@@ -98,11 +99,22 @@ const REQUEST_TIMEOUT_MS = 55000;
 function readQuotaMeta(body: unknown): QuotaMeta {
   const b = body as Record<string, unknown>;
   const num = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) ? v : undefined);
+  const str = (v: unknown) => (typeof v === 'string' ? v : undefined);
+  const tier = b?.tier === 'free' || b?.tier === 'premium' ? b.tier : undefined;
   return {
     limit: num(b?.limit),
     used: num(b?.used),
     remaining: num(b?.remaining),
-    resetAt: typeof b?.resetAt === 'string' ? b.resetAt : undefined,
+    resetAt: str(b?.resetAt),
+    // Free-window fields. The server does not send these yet; each is read
+    // through the same narrowing as the rest, so an absent field stays
+    // undefined and the UI omits what it cannot state truthfully. Nothing here
+    // substitutes a default.
+    windowEndsAt: str(b?.windowEndsAt),
+    daysRemaining: num(b?.daysRemaining),
+    dayOfWindow: num(b?.dayOfWindow),
+    windowTotalDays: num(b?.windowTotalDays),
+    tier,
   };
 }
 
@@ -120,6 +132,9 @@ function messageForErrorCode(code: string | undefined, fallback: string): string
       return 'Photo analysis is a Premium feature.';
     case DAILY_TEXT_LIMIT_REACHED:
       return "You've reached today's meal description limit.";
+    case FREE_WINDOW_ENDED:
+      // Deliberately NOT the daily-limit wording: this one has no tomorrow.
+      return 'Your free AI analysis period has ended.';
     case 'QUOTA_UNAVAILABLE':
       return 'Analysis is temporarily unavailable. Please try again shortly.';
     case 'RATE_LIMITED':
