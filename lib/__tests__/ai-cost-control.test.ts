@@ -1072,3 +1072,152 @@ describe('the provider call has a deadline inside the platform budget', () => {
     expect(EDGE).toContain('const MAX_BODY_BYTES = 12 * 1024 * 1024;');
   });
 });
+
+/**
+ * Tier-aware quota infrastructure — batches 1 and 2.
+ *
+ * The SQL half (real tier resolution, policy D arithmetic, concurrency and the
+ * grant posture) is executed against a real PostgreSQL server by
+ * scripts/verify-quota.sh, for the reason stated at the top of this file:
+ * asserting database behaviour from source inspection would prove nothing.
+ * What IS worth pinning here is the ORDERING inside the edge function and the
+ * shape of the migration, because those are source facts.
+ */
+const TIERING = read('supabase', 'migrations', '20260918100000_ai_quota_tiering.sql');
+
+describe('quota tiering migration (batch 1)', () => {
+  test('the allowance takes a user and resolves the tier itself', () => {
+    // A tier argument would be a limit the caller could choose.
+    expect(TIERING).toContain('create or replace function public.ai_quota_limit(p_kind text, p_user_id uuid)');
+    expect(TIERING).toContain("public.get_premium_state(p_user_id) ->> 'active'");
+    expect(TIERING).not.toMatch(/p_(is_)?premium|p_tier|p_plan/);
+  });
+
+  test('the untiered 1-arg allowance is dropped, not left alongside', () => {
+    // An overload would leave a path that still returns the flat number.
+    expect(TIERING).toContain('drop function if exists public.ai_quota_limit(text);');
+    expect(TIERING).toContain('drop function if exists public.ai_photo_daily_limit();');
+  });
+
+  test('Premium ceiling is 20 for every kind', () => {
+    expect(TIERING).toContain('PREMIUM_LIMIT   constant integer := 20;');
+    // One ceiling, returned before any per-kind branching.
+    expect(TIERING).toContain('return PREMIUM_LIMIT;');
+  });
+
+  test('BATCH 1 reduces and expires nothing: both free branches are 5', () => {
+    // This is the whole safety property of batch 1. Batch 4 edits exactly
+    // these constants; until then in-window and expired must be identical.
+    expect(TIERING).toContain('FREE_TEXT_IN_WINDOW     constant integer := 5;');
+    expect(TIERING).toContain('FREE_TEXT_EXPIRED       constant integer := 5;');
+    expect(TIERING).toContain('FREE_REVISION_IN_WINDOW constant integer := 5;');
+    expect(TIERING).toContain('FREE_REVISION_EXPIRED   constant integer := 5;');
+    expect(TIERING).toContain('FREE_PHOTO              constant integer := 5;');
+  });
+
+  test('policy D anchors on auth.users, never on the client-writable profile', () => {
+    expect(TIERING).toContain('from auth.users u');
+    // public.profiles has a user-facing UPDATE policy, so it cannot be the
+    // source of truth for an anti-abuse window.
+    const fn = TIERING.slice(
+      TIERING.indexOf('function public.ai_free_window_start'),
+      TIERING.indexOf('comment on function public.ai_free_window_start'),
+    );
+    expect(fn).not.toContain('public.profiles');
+  });
+
+  test('the window constants are literals, so the rule is reproducible', () => {
+    // now() here would move every pre-launch user's window on each re-run.
+    expect(TIERING).toContain("timestamptz '2026-09-16 00:00:00+00'");
+    expect(TIERING).toContain("timestamptz '2026-09-18 00:00:00+00'");
+    const consts = TIERING.slice(
+      TIERING.indexOf('function public.ai_public_launch_at'),
+      TIERING.indexOf('function public.ai_free_window_start'),
+    );
+    expect(consts).not.toMatch(/\bnow\(\)/);
+  });
+
+  test('every new function is revoked from the user roles BY NAME', () => {
+    // Supabase default privileges grant EXECUTE to anon/authenticated on
+    // creation, and `revoke ... from public` does not remove an explicit
+    // grant. That is what left the 20260808120000 revokes inert.
+    for (const fn of [
+      'public.ai_quota_limit(text, uuid)',
+      'public.ai_free_window_start(uuid)',
+      'public.ai_free_window_active(uuid)',
+      'public.ai_free_window_days()',
+      'public.ai_public_launch_at()',
+      'public.ai_tiering_activated_at()',
+    ]) {
+      const line = TIERING.split('\n').find((l) => l.includes(`revoke all on function ${fn}`));
+      expect(line).toBeDefined();
+      expect(line).toContain('from public, anon, authenticated');
+    }
+  });
+
+  test('the reservation keeps its idempotency key and atomic claim', () => {
+    expect(TIERING).toContain('on conflict (user_id, request_id, usage_date, kind) do nothing');
+    expect(TIERING).toContain('where ai_daily_usage.used < v_limit');
+  });
+
+  test('the limit is resolved after the authentication check, not in DECLARE', () => {
+    // Resolving it in DECLARE would report UNKNOWN_QUOTA_KIND to an
+    // unauthenticated caller instead of UNAUTHENTICATED.
+    const fn = TIERING.slice(TIERING.indexOf('function public._ai_reserve_quota'));
+    expect(fn).toContain('v_limit    integer;');
+    expect(fn.indexOf("raise exception 'UNAUTHENTICATED'"))
+      .toBeLessThan(fn.indexOf('v_limit := public.ai_quota_limit(p_kind, v_user);'));
+  });
+
+  test('refunds stay server-only and keep the explicit user id', () => {
+    expect(TIERING).toContain('create or replace function public._ai_release_quota(\n  p_user_id uuid,');
+    expect(TIERING).toContain('revoke all on function public._ai_release_quota(uuid, uuid, text) from public, anon, authenticated;');
+  });
+});
+
+describe('entitlement ordering before quota (batch 2)', () => {
+  const site = (kind: string) => {
+    const at = HANDLER.indexOf(`reserveDailyQuota(supabase, requestId as string, "${kind}")`);
+    expect(at).toBeGreaterThan(-1);
+    return at;
+  };
+  const hydrationBefore = (kind: string, call: string) => {
+    const reserveAt = site(kind);
+    const block = HANDLER.slice(0, reserveAt);
+    const lastCall = block.lastIndexOf(call);
+    expect(lastCall).toBeGreaterThan(-1);
+    return lastCall < reserveAt;
+  };
+
+  test('the text path refreshes entitlement before reserving', () => {
+    expect(hydrationBefore('text_analysis', 'refreshEntitlementBeforeQuota(supabase, user.id)')).toBe(true);
+  });
+
+  test('the revision path refreshes entitlement before reserving', () => {
+    expect(hydrationBefore('meal_revision', 'refreshEntitlementBeforeQuota(supabase, user.id)')).toBe(true);
+  });
+
+  test('the photo path still gates on entitlement before reserving', () => {
+    expect(hydrationBefore('photo_analysis', 'hasActivePremium(supabase, user.id)')).toBe(true);
+  });
+
+  test('hydration goes through RevenueCat, not the request body', () => {
+    const fn = EDGE.slice(
+      EDGE.indexOf('async function refreshEntitlementBeforeQuota'),
+      EDGE.indexOf('async function reserveDailyQuota'),
+    );
+    expect(fn).toContain('await hasActivePremium(supabase, userId)');
+    // No entitlement may ever be read from the caller.
+    expect(fn).not.toMatch(/body\.|isPremium|req\.headers/);
+  });
+
+  test('a hydration failure does not cost the user their analysis', () => {
+    const fn = EDGE.slice(
+      EDGE.indexOf('async function refreshEntitlementBeforeQuota'),
+      EDGE.indexOf('async function reserveDailyQuota'),
+    );
+    expect(fn).toContain('catch');
+    // It must not rethrow, and must not return a response.
+    expect(fn).not.toMatch(/throw |return jsonResponse/);
+  });
+});

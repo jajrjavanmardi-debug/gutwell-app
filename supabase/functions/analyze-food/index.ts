@@ -747,6 +747,45 @@ const QUOTA_RPC = {
   },
 } as const;
 
+/**
+ * Make the caller's entitlement current BEFORE any quota is reserved.
+ *
+ * The daily allowance is resolved inside ai_quota_limit() from
+ * public.user_entitlements. That row can be missing or stale — a subscriber
+ * whose webhook never arrived, or whose first request this is — and
+ * get_premium_state answers such an account as NOT active. Reserving first
+ * would therefore hand a genuine subscriber the Free ceiling and then cache
+ * that outcome for the rest of the UTC day, because the counter has already
+ * moved.
+ *
+ * hasActivePremium is the only thing that can fix that: on `needs_refresh` it
+ * asks RevenueCat and writes the answer back through apply_entitlement_event,
+ * so the row the SQL then reads is current. Calling it first is the whole
+ * ordering guarantee.
+ *
+ * The return value is deliberately DISCARDED on the text and revision paths.
+ * Those modes are not entitlement-gated — every plan may describe a meal — so
+ * the only thing this call is for is hydration. The photo path keeps its own
+ * explicit check, because there the answer is a gate as well.
+ *
+ * Nothing in the request body is consulted, here or downstream.
+ */
+async function refreshEntitlementBeforeQuota(
+  supabase: SupabaseClient,
+  userId: string,
+): Promise<void> {
+  try {
+    await hasActivePremium(supabase, userId);
+  } catch (error) {
+    // Hydration is best effort. A failure here must not cost the user their
+    // analysis: ai_quota_limit still resolves, falling back to the Free
+    // allowance, which is the same outcome as before this call existed.
+    console.error("Entitlement hydration failed", {
+      detail: error instanceof Error ? error.message : "unknown",
+    });
+  }
+}
+
 async function reserveDailyQuota(
   supabase: SupabaseClient,
   requestId: string,
@@ -1542,6 +1581,12 @@ Deno.serve(async (req: Request) => {
         // a consumed slot.
         const prompt = buildMealTextOnlyPrompt(body as MealTextBody & { mealDescription?: string });
 
+        // ENTITLEMENT ORDERING — must precede the reservation. See
+        // refreshEntitlementBeforeQuota: the text allowance is tier-dependent,
+        // so a Premium subscriber with an unhydrated row would otherwise be
+        // metered as Free for the rest of the day.
+        await refreshEntitlementBeforeQuota(supabase, user.id);
+
         // Its OWN counter: a typed meal must not spend a photo slot, and once
         // photo is Premium-gated this is the counter a Free user draws on.
         const reservation = await reserveDailyQuota(supabase, requestId as string, "text_analysis");
@@ -1607,6 +1652,10 @@ Deno.serve(async (req: Request) => {
         // Built before reserving so a prompt-construction failure cannot strand
         // a consumed slot.
         const { persona, prompt } = buildMealRevisePrompt(body as MealReviseBody);
+
+        // ENTITLEMENT ORDERING — must precede the reservation, for the same
+        // reason as the text path above.
+        await refreshEntitlementBeforeQuota(supabase, user.id);
 
         // Its OWN counter, not the photo one: no new image inference happens
         // here, so a correction must not cost a meal scan.

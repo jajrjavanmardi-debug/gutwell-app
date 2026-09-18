@@ -23,6 +23,8 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 MIGRATIONS=(
   "$ROOT/supabase/migrations/20260808120000_ai_cost_control.sql"
   "$ROOT/supabase/migrations/20260809100000_ai_quota_lock_down_refunds.sql"
+  "$ROOT/supabase/migrations/20260809140000_user_entitlements.sql"
+  "$ROOT/supabase/migrations/20260918100000_ai_quota_tiering.sql"
 )
 DB="gutwell_quota_verify_$$"
 PSQL=(psql -v ON_ERROR_STOP=1 -qtA)
@@ -42,7 +44,9 @@ Q=("${PSQL[@]}" -d "$DB")
 # Minimal stand-ins for the Supabase surface the migration depends on.
 "${Q[@]}" <<'SQL' >/dev/null
 create schema if not exists auth;
-create table auth.users (id uuid primary key);
+-- created_at is the source of truth for the Free window (policy D), so the
+-- stub must carry it. Default now() matches GoTrue.
+create table auth.users (id uuid primary key, created_at timestamptz not null default now());
 create or replace function auth.uid() returns uuid language sql stable as $$
   select nullif(current_setting('test.uid', true), '')::uuid
 $$;
@@ -77,11 +81,12 @@ res() { "${Q[@]}" -c "set test.uid='$1'; select public.reserve_ai_${2}_quota('$3
 field() { python3 -c "import json,sys;print(json.loads(sys.stdin.read())['$1'])"; }
 
 echo "=== 1. limits are the approved v1 safety defaults ==="
+# Free (no entitlement row) is unchanged by the tiering migration.
 for pair in photo_analysis:5 text_analysis:5 meal_revision:5; do
   k="${pair%%:*}"; v="${pair##*:}"
-  check "$k limit is $v" "$("${Q[@]}" -c "select public.ai_quota_limit('$k');")" "$v"
+  check "$k Free limit is $v" "$("${Q[@]}" -c "select public.ai_quota_limit('$k','$A');")" "$v"
 done
-check "unknown kind returns null" "$("${Q[@]}" -c "select coalesce(public.ai_quota_limit('free_money')::text,'NULL');")" "NULL"
+check "unknown kind returns null" "$("${Q[@]}" -c "select coalesce(public.ai_quota_limit('free_money','$A')::text,'NULL');")" "NULL"
 
 echo
 echo "=== 2. each kind exhausts independently at its own limit ==="
@@ -223,6 +228,116 @@ check "arbitrary failure text is discarded, not stored" \
   "$("${Q[@]}" -c "select coalesce(failure_kind,'NULL') from public.ai_usage_events order by id desc limit 1;")" "NULL"
 check "token counts are stored" \
   "$("${Q[@]}" -c "select prompt_tokens||'/'||output_tokens||'/'||thoughts_tokens from public.ai_usage_events order by id desc limit 1;")" "10/20/5"
+
+
+echo
+echo "=== 6. TIERING: the limit follows server-owned entitlement, never the client ==="
+# A Premium account is one with an active row in user_entitlements. Nothing the
+# caller sends can produce this state.
+P=33333333-3333-3333-3333-333333333333
+"${Q[@]}" -c "insert into auth.users (id) values ('$P');" >/dev/null
+"${Q[@]}" -c "select public.apply_entitlement_event('$P',true,now()+interval '30 days',null,null,null,null);" >/dev/null
+for k in photo_analysis text_analysis meal_revision; do
+  check "Premium $k ceiling is 20" "$("${Q[@]}" -c "select public.ai_quota_limit('$k','$P');")" "20"
+done
+check "Premium actually reserves past the Free ceiling (slot 6 allowed)" \
+  "$(for i in $(seq 1 6); do res "$P" text "$(rid $((7100+i)))" >/dev/null; done; \
+     "${Q[@]}" -c "select used from public.ai_daily_usage where user_id='$P' and kind='text_analysis';")" "6"
+# An EXPIRED entitlement is not Premium, however the row is flagged.
+E=44444444-4444-4444-4444-444444444444
+"${Q[@]}" -c "insert into auth.users (id) values ('$E');" >/dev/null
+"${Q[@]}" -c "select public.apply_entitlement_event('$E',true,now()-interval '1 day',null,null,null,null);" >/dev/null
+check "lapsed subscription falls back to the Free limit" \
+  "$("${Q[@]}" -c "select public.ai_quota_limit('text_analysis','$E');")" "5"
+
+echo
+echo "=== 7. POLICY D: the free window is deterministic and account-anchored ==="
+NEW=55555555-5555-5555-5555-555555555555   # signed up after public launch
+OLD=66666666-6666-6666-6666-666666666666   # pre-launch TestFlight account
+"${Q[@]}" -c "insert into auth.users (id,created_at) values ('$NEW', timestamptz '2026-09-17 12:00:00+00');" >/dev/null
+"${Q[@]}" -c "insert into auth.users (id,created_at) values ('$OLD', timestamptz '2026-08-01 12:00:00+00');" >/dev/null
+check "post-launch account measures from its own signup" \
+  "$("${Q[@]}" -c "select public.ai_free_window_start('$NEW') = timestamptz '2026-09-17 12:00:00+00';")" "t"
+check "pre-launch account measures from activation, not signup" \
+  "$("${Q[@]}" -c "select public.ai_free_window_start('$OLD') = public.ai_tiering_activated_at();")" "t"
+check "window start is stable across calls (no now() drift)" \
+  "$("${Q[@]}" -c "select public.ai_free_window_start('$OLD') = public.ai_free_window_start('$OLD');")" "t"
+check "unknown user is not inside a free window" \
+  "$("${Q[@]}" -c "select public.ai_free_window_active('77777777-7777-7777-7777-777777777777');")" "f"
+check "a post-launch account is currently inside its window" \
+  "$("${Q[@]}" -c "select public.ai_free_window_active('$NEW');")" "t"
+check "the window ends exactly start + ai_free_window_days()" \
+  "$("${Q[@]}" -c "select public.ai_free_window_start('$NEW') + (public.ai_free_window_days()||' days')::interval = timestamptz '2026-10-01 12:00:00+00';")" "t"
+# An expired window CANNOT be produced with real time yet: policy D puts every
+# pre-launch account's start at activation, and the earliest post-launch signup
+# was 2026-09-16, so the first possible expiry is 2026-09-30. The expired branch
+# is therefore pinned at the source instead of simulated with a fake date.
+check "BATCH 1 GUARANTEE: in-window and expired free text limits are identical" \
+  "$("${Q[@]}" -c "select (pg_get_functiondef(p.oid) ~ 'FREE_TEXT_IN_WINDOW\s+constant integer := 5;')
+                       and (pg_get_functiondef(p.oid) ~ 'FREE_TEXT_EXPIRED\s+constant integer := 5;')
+                     from pg_proc p join pg_namespace n on n.oid=p.pronamespace
+                    where n.nspname='public' and p.proname='ai_quota_limit';")" "t"
+check "BATCH 1 GUARANTEE: in-window and expired free revision limits are identical" \
+  "$("${Q[@]}" -c "select (pg_get_functiondef(p.oid) ~ 'FREE_REVISION_IN_WINDOW\s+constant integer := 5;')
+                       and (pg_get_functiondef(p.oid) ~ 'FREE_REVISION_EXPIRED\s+constant integer := 5;')
+                     from pg_proc p join pg_namespace n on n.oid=p.pronamespace
+                    where n.nspname='public' and p.proname='ai_quota_limit';")" "t"
+check "a pre-launch account is also in-window (policy D protects testers)" \
+  "$("${Q[@]}" -c "select public.ai_free_window_active('$OLD');")" "t"
+
+echo
+echo "=== 8. the new helpers are not reachable by any user role ==="
+for role in anon authenticated; do
+  for fn in "public.ai_quota_limit(text,uuid)" "public.ai_free_window_start(uuid)" \
+            "public.ai_free_window_active(uuid)" "public.ai_tiering_activated_at()" \
+            "public.ai_public_launch_at()" "public.ai_free_window_days()"; do
+    check "$role cannot execute $fn" \
+      "$("${Q[@]}" -c "select has_function_privilege('$role','$fn','execute');")" "f"
+  done
+done
+check "the 1-arg ai_quota_limit is gone (no untiered path survives)" \
+  "$("${Q[@]}" -c "select count(*) from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and p.proname='ai_quota_limit' and p.pronargs=1;")" "0"
+check "ai_photo_daily_limit is gone (it hardcoded the untiered number)" \
+  "$("${Q[@]}" -c "select count(*) from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and p.proname='ai_photo_daily_limit';")" "0"
+check "reserve wrappers kept their grant through the dependency rebuild" \
+  "$("${Q[@]}" -c "select has_function_privilege('authenticated','public.reserve_ai_revision_quota(uuid)','execute');")" "t"
+
+
+echo
+echo "=== 9. ACCOUNT DELETION: auth.users cascade leaves zero user rows ==="
+# delete_user_account() explicitly deletes the older tables and then removes the
+# auth.users row; everything added since relies on ON DELETE CASCADE. This
+# proves the cascade half — the half no migration re-states and no test covered.
+D=88888888-8888-8888-8888-888888888888
+"${Q[@]}" -c "insert into auth.users (id) values ('$D');" >/dev/null
+"${Q[@]}" -c "select public.apply_entitlement_event('$D',true,now()+interval '30 days',null,null,null,null);" >/dev/null
+"${Q[@]}" -c "set test.uid='$D'; select public.reserve_ai_text_quota('$(rid 9100)');" >/dev/null
+"${Q[@]}" -c "set test.uid='$D'; select public.reserve_ai_photo_quota('$(rid 9101)');" >/dev/null
+"${Q[@]}" -c "select public.record_ai_usage('$D','$(rid 9102)','meal_text_only','gemini-2.5-flash',true,null,10,20,5,0,35);" >/dev/null
+for tbl in ai_quota_reservations ai_daily_usage ai_usage_events user_entitlements; do
+  check "$tbl has rows before deletion" \
+    "$("${Q[@]}" -c "select (count(*) > 0) from public.$tbl where user_id='$D';")" "t"
+done
+"${Q[@]}" -c "delete from auth.users where id='$D';" >/dev/null
+for tbl in ai_quota_reservations ai_daily_usage ai_usage_events user_entitlements; do
+  check "$tbl is EMPTY after the auth.users delete" \
+    "$("${Q[@]}" -c "select count(*) from public.$tbl where user_id='$D';")" "0"
+done
+check "no user-owned table still references the deleted account" \
+  "$("${Q[@]}" -c "select count(*) from (
+        select 1 from public.ai_quota_reservations where user_id='$D'
+        union all select 1 from public.ai_daily_usage        where user_id='$D'
+        union all select 1 from public.ai_usage_events       where user_id='$D'
+        union all select 1 from public.user_entitlements     where user_id='$D') x;")" "0"
+# Every FK pointing at auth.users must cascade, or a future table silently
+# blocks deletion (FK violation) or orphans rows (SET NULL / NO ACTION).
+check "every FK to auth.users is ON DELETE CASCADE" \
+  "$("${Q[@]}" -c "select count(*) from pg_constraint c
+                     join pg_class t on t.oid = c.conrelid
+                     join pg_class rt on rt.oid = c.confrelid
+                     join pg_namespace rn on rn.oid = rt.relnamespace
+                    where c.contype='f' and rn.nspname='auth' and rt.relname='users'
+                      and c.confdeltype <> 'c';")" "0"
 
 echo
 echo "$pass passed, $fail failed"
