@@ -273,6 +273,45 @@ async function identifyUser(userId?: string): Promise<void> {
 }
 
 /**
+ * Detach this device's RevenueCat identity from the deleted account.
+ *
+ * Called by AuthContext.deleteAccount() AFTER the server confirms deletion.
+ * Purchases.logOut() drops the aliased app-user id and returns the SDK to an
+ * anonymous id, so the next account created on this device does not inherit the
+ * previous user's RevenueCat customer.
+ *
+ * WHAT THIS DOES NOT DO — deliberately:
+ * It does not cancel, refund or revoke the subscription. The purchase belongs
+ * to the Apple ID, not to the GutWell account, and Apple requires Restore
+ * Purchases to keep working. A user who deletes their account and signs up
+ * again can still restore Premium onto the new account, which is correct and is
+ * the ONLY state that may legitimately come back after a deletion.
+ *
+ * The cached CustomerInfo is cleared regardless of the outcome: continuing to
+ * answer entitlement questions from the deleted account's cached info would
+ * grant the next account Premium it never bought.
+ */
+export async function logOutSubscriptionUser(): Promise<boolean> {
+  // Cleared FIRST and unconditionally: a deleted account's cached CustomerInfo
+  // answering the next account's entitlement questions would grant Premium
+  // nobody bought. This happens even when the SDK is unavailable.
+  cachedCustomerInfo = null;
+
+  // Nothing to detach when Purchases was never configured. That is a clean
+  // outcome, not a cleanup failure.
+  if (!isReady()) return true;
+
+  try {
+    await Purchases.logOut();
+    return true;
+  } catch {
+    // The SDK kept the old app-user id. The server deletion still succeeded,
+    // so this is a STATE C cleanup failure, never a deletion failure.
+    return false;
+  }
+}
+
+/**
  * Whether the user currently has access to premium features. Reads the cached
  * CustomerInfo (kept fresh by the update listener + refreshPremiumStatus).
  * Always TRUE in free-launch mode (monetization unconfigured) — features are

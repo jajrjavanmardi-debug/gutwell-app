@@ -35,7 +35,7 @@ const AVATAR_COLORS = ['#1B4332', '#2D6A4F', '#40916C', '#52B788', '#74C69D'];
 
 export default function ProfileScreen() {
   const t = useTranslation();
-  const { user, profile, signOut } = useAuth();
+  const { user, profile, signOut, deleteAccount } = useAuth();
   const [toast, setToast] = useState({
     visible: false,
     message: '',
@@ -111,6 +111,57 @@ export default function ProfileScreen() {
     ]);
   };
 
+  /**
+   * Run the deletion and react to the REAL outcome — three of them, not two.
+   *
+   * A  server refused            -> blocking "not deleted", stay signed in
+   * B  deleted, device clean     -> route to Welcome, no notice
+   * C  deleted, cleanup partial  -> route to Welcome, then a CLEANUP notice
+   *
+   * The distinction matters because a cleanup failure must never be reported
+   * as a failed deletion: in state C the account really is gone, and telling
+   * the user otherwise would send them back to delete an account that no
+   * longer exists. Only state A may say "your account was not deleted".
+   */
+  const runDeleteAccount = async () => {
+    setDeleting(true);
+    const result = await deleteAccount();
+    setDeleting(false);
+
+    // ── STATE A — the server refused. The account still exists. ─────────────
+    // The ONLY branch allowed to say the account was not deleted.
+    if (!result.serverDeleted) {
+      Alert.alert(
+        t.profile.deleteFailedTitle,
+        t.profile.deleteFailedBody,
+        [
+          { text: t.profile.deleteFailedRetry, onPress: () => void runDeleteAccount() },
+          { text: t.profile.deleteFailedSupport, onPress: handleSupport },
+          { text: t.profile.deleteFailedDismiss, style: 'cancel' },
+        ],
+        { cancelable: false },
+      );
+      return;
+    }
+
+    // ── STATES B and C — the account IS gone either way. ────────────────────
+    // Routing happens BEFORE any state-C notice, so the user is never left on
+    // Profile looking at a screen for an account that no longer exists.
+    router.replace('/(onboarding)/welcome');
+
+    // ── STATE C — deleted, but this device was not fully tidied. ────────────
+    if (!result.cleanupComplete) {
+      Alert.alert(
+        t.profile.deleteCleanupTitle,
+        t.profile.deleteCleanupBody,
+        [
+          { text: t.profile.deleteCleanupSupport, onPress: handleSupport },
+          { text: t.profile.deleteCleanupDismiss, style: 'cancel' },
+        ],
+      );
+    }
+  };
+
   const handleDeleteAccount = () => {
     Alert.alert(
       t.profile.deleteTitle,
@@ -120,20 +171,7 @@ export default function ProfileScreen() {
         {
           text: t.profile.deleteConfirm,
           style: 'destructive',
-          onPress: async () => {
-            setDeleting(true);
-            const { error } = await supabase.rpc('delete_user_account');
-            setDeleting(false);
-            if (error) {
-              setToast({
-                visible: true,
-                message: t.profile.deleteFailed,
-                type: 'error',
-              });
-            } else {
-              await signOut();
-            }
-          },
+          onPress: () => void runDeleteAccount(),
         },
       ],
     );
