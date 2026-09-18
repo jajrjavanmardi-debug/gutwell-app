@@ -416,7 +416,7 @@ export default function ProfileScreen() {
           />
         </View>
 
-        <Text style={styles.versionText}>{t.common.version} 1.0.0</Text>
+        <Text style={styles.versionText}>{t.common.version} 1.0.1</Text>
 
         <View style={{ height: Spacing.xxl }} />
       </ScrollView>

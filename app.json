@@ -3,7 +3,7 @@
     "name": "GutWell AI",
     "slug": "gutwell",
     "owner": "rusban1970",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "sdkVersion": "54.0.0",
     "platforms": ["android", "ios", "web"],
     "orientation": "portrait",
