@@ -75,7 +75,24 @@ export default function NotificationsScreen() {
 
     try {
       const rawAnswers = await AsyncStorage.getItem('onboarding_answers');
-      const answers: Record<string, string> = rawAnswers ? JSON.parse(rawAnswers) : {};
+      const answers: Record<string, unknown> = rawAnswers ? JSON.parse(rawAnswers) : {};
+
+      /**
+       * meal_feeling is an array since the feeling step became multi-select,
+       * but legacy blobs hold a single string. Both collapse to the same
+       * comma-separated TEXT that profiles.gut_concern has always stored, so no
+       * migration is needed and existing rows stay valid.
+       *
+       * The stored values are the stable option identifiers (e.g. 'Heavy'),
+       * never the translated labels — so this string means the same thing
+       * whichever language the user answered in.
+       */
+      const feelings = Array.isArray(answers.meal_feeling)
+        ? answers.meal_feeling.filter((v): v is string => typeof v === 'string' && v.length > 0)
+        : typeof answers.meal_feeling === 'string' && answers.meal_feeling.length > 0
+          ? [answers.meal_feeling]
+          : [];
+      const gutConcern = feelings.length > 0 ? feelings.join(', ') : null;
 
       // One write, so completion and the legacy answers can never disagree.
       //
@@ -92,9 +109,9 @@ export default function NotificationsScreen() {
         .update({
           onboarding_completed: true,
           onboarding_stage: 'completed',
-          gut_concern: answers.meal_feeling ?? null,
-          symptom_frequency: answers.bloating_frequency ?? null,
-          goal: answers.goal ?? null,
+          gut_concern: gutConcern,
+          symptom_frequency: (answers.bloating_frequency as string | undefined) ?? null,
+          goal: (answers.goal as string | undefined) ?? null,
           // answers.avoid stays local on purpose — no column, no AI payload.
         })
         .eq('id', user.id);

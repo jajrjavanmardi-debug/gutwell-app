@@ -189,7 +189,7 @@ export default function ResultsScreen() {
             <View style={styles.ringWrap}>
               <ProgressRing progress={ringProgress} size={200} strokeWidth={16}>
                 <Text style={styles.ringValue}>{targetScore}</Text>
-                <Text style={styles.ringLabel}>{t.results.targetGutScore}{'\n'}Gut Score</Text>
+                <Text style={styles.ringLabel}>{t.results.targetGutScore}</Text>
               </ProgressRing>
             </View>
 

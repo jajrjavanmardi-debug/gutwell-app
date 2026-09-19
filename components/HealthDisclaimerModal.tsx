@@ -116,24 +116,16 @@ export function HealthDisclaimerModal({ visible, onAccept, userId }: Props) {
             <Text style={styles.title}>{t.components.healthDisclaimer.title}</Text>
 
             {/* Body */}
-            <Text style={styles.body}>
-              GutWell AI is a wellness tracking app, not a medical device. The
-              information provided is for personal tracking purposes only and
-              does not constitute medical advice.
-            </Text>
+            <Text style={styles.body}>{t.components.healthDisclaimer.body1}</Text>
 
-            <Text style={styles.body}>
-              Always consult a qualified healthcare professional for medical
-              concerns.
-            </Text>
+            <Text style={styles.body}>{t.components.healthDisclaimer.body2}</Text>
 
             {/* Divider */}
             <View style={styles.divider} />
 
             {/* Legal note */}
             <Text style={styles.legalNote}>
-              By continuing, you acknowledge that GutWell AI does not diagnose,
-              treat, cure, or prevent any disease or medical condition.
+              {t.components.healthDisclaimer.legalNote}
             </Text>
             </ScrollView>
           </Animated.View>

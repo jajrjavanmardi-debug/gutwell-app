@@ -33,12 +33,40 @@ import { flush } from '../lib/offline-queue';
 import * as SplashScreen from 'expo-splash-screen';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-// Initialize Sentry for crash reporting
-Sentry.init({
-  dsn: process.env.EXPO_PUBLIC_SENTRY_DSN,
-  tracesSampleRate: 0.2,
-  enabled: !__DEV__,
-});
+// Crash reporting is OFF for 1.0, and has to be off by construction.
+//
+// init() used to run unconditionally with `enabled: !__DEV__`, which is TRUE in
+// a release build. Every shipped binary therefore started an initialized
+// crash-reporting SDK whose only reason for sending nothing was that no DSN had
+// been configured — the absence of a transport target, not a decision. That is
+// a fragile place to rest a privacy guarantee: the Privacy Policy states in
+// both languages that this version uses no crash-reporting service, and
+// app.json's privacy manifest omits CrashData and PerformanceData to match. A
+// DSN arriving from any environment would have made all three false at once,
+// silently, with no code change to notice.
+//
+// The DSN is read once and init runs only when it is non-empty, which is the
+// same shape lib/analytics.ts already uses for PostHog.
+//
+// IF A FUTURE RELEASE SETS EXPO_PUBLIC_SENTRY_DSN, THAT SAME RELEASE MUST ALSO:
+//   1. update the Privacy Policy — EN and DE — to disclose crash reporting;
+//   2. update the App Privacy questionnaire in App Store Connect;
+//   3. add NSPrivacyCollectedDataTypeCrashData to app.json ios.privacyManifests,
+//      and PerformanceData too while tracesSampleRate stays non-zero.
+// lib/__tests__/privacy-manifest.test.ts pins 1 and 3.
+//
+// Sentry.wrap() and the captureException call sites stay as they are: with no
+// client bound they are no-ops, and unwinding them would be a far wider change
+// than this guarantee needs.
+const SENTRY_DSN = process.env.EXPO_PUBLIC_SENTRY_DSN;
+
+if (SENTRY_DSN) {
+  Sentry.init({
+    dsn: SENTRY_DSN,
+    tracesSampleRate: 0.2,
+    enabled: !__DEV__,
+  });
+}
 
 SplashScreen.preventAutoHideAsync().catch(() => {
   // The splash may already be hidden during fast refresh.
