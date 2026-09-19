@@ -87,7 +87,11 @@ a{text-decoration:none}
   --dur-entrance:600ms;
   --dur-micro:200ms;
   --reveal-y:20px;
+  --reveal-y-sm:12px;
   --stagger:80ms;
+  /* Ambient drift is meant to be noticed only if you look for it. */
+  --dur-ambient:46s;
+  --dur-hover:320ms;
 }
 
 /* ── Colour ────────────────────────────────────────────────────────────── */
@@ -155,12 +159,30 @@ section{position:relative;padding-block:clamp(72px,10vw,132px)}
 .layer-deep{background:var(--green-950)}
 
 /* Soft organic gradients. Two radials, no images, no DOM nodes. */
-.glow{position:relative;isolation:isolate}
+/* overflow:hidden is load-bearing: the ambient gradients scale past the
+   section box, and without this they widen the document and produce a
+   horizontal scrollbar. */
+.glow{position:relative;isolation:isolate;overflow:hidden}
 .glow::before{
   content:'';position:absolute;inset:0;z-index:-1;pointer-events:none;
   background:
     radial-gradient(60% 50% at 15% 0%,rgba(45,106,79,0.30),transparent 70%),
     radial-gradient(50% 45% at 90% 25%,rgba(82,183,136,0.13),transparent 70%);
+  animation:glowA var(--dur-ambient) ease-in-out infinite alternate;
+}
+/* A second, slower field so the two never line up into a visible pulse. */
+.glow::after{
+  content:'';position:absolute;inset:0;z-index:-1;pointer-events:none;
+  background:radial-gradient(42% 38% at 76% 6%,rgba(116,198,157,0.10),transparent 72%);
+  animation:glowB calc(var(--dur-ambient)*1.45) ease-in-out infinite alternate;
+}
+@keyframes glowA{
+  from{transform:translate3d(0,0,0) scale(1)}
+  to{transform:translate3d(2.5%,1.5%,0) scale(1.07)}
+}
+@keyframes glowB{
+  from{transform:translate3d(0,0,0) scale(1.06);opacity:.7}
+  to{transform:translate3d(-3%,2%,0) scale(1);opacity:1}
 }
 
 /* ── Reveal ─────────────────────────────────────────────────────────────
@@ -172,6 +194,24 @@ section{position:relative;padding-block:clamp(72px,10vw,132px)}
 .reveal[data-d="2"]{transition-delay:calc(var(--stagger)*2)}
 .reveal[data-d="3"]{transition-delay:calc(var(--stagger)*3)}
 .reveal[data-d="4"]{transition-delay:calc(var(--stagger)*4)}
+.reveal[data-d="5"]{transition-delay:calc(var(--stagger)*5)}
+.reveal[data-d="6"]{transition-delay:calc(var(--stagger)*6)}
+/* Variants, all inside the agreed envelope: <=24px, >=0.97, one easing. */
+.js-reveal .reveal[data-r="scale"]{transform:translateY(var(--reveal-y-sm)) scale(.978)}
+.js-reveal .reveal[data-r="left"]{transform:translateX(-18px)}
+.js-reveal .reveal[data-r="right"]{transform:translateX(18px)}
+.js-reveal .reveal[data-r="calm"]{transform:translateY(10px)}
+
+/* ── Hero entrance ──────────────────────────────────────────────────────
+   CSS animation, not IntersectionObserver: it starts at parse time, so the
+   hero never waits on an observer. The H1 is deliberately excluded — it is
+   the LCP element and must paint with nothing in front of it. */
+.js-reveal .hero-rise{animation:heroRise var(--dur-entrance) var(--ease) both}
+.js-reveal .hero-rise[data-d="1"]{animation-delay:calc(var(--stagger)*1)}
+.js-reveal .hero-rise[data-d="2"]{animation-delay:calc(var(--stagger)*2)}
+.js-reveal .hero-lift{animation:heroLift 760ms var(--ease) both;animation-delay:calc(var(--stagger)*2)}
+@keyframes heroRise{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:none}}
+@keyframes heroLift{from{opacity:0;transform:translateY(22px) scale(.975)}to{opacity:1;transform:none}}
 
 /* ── Nav ───────────────────────────────────────────────────────────────── */
 nav{position:sticky;top:0;z-index:100;background:rgba(7,21,16,0.82);
@@ -184,10 +224,16 @@ nav{position:sticky;top:0;z-index:100;background:rgba(7,21,16,0.82);
   padding:11px 20px;border-radius:var(--radius-full);transition:opacity var(--dur-micro) var(--ease);
   min-height:44px;display:inline-flex;align-items:center}
 .nav-cta:hover{opacity:.88}
+nav{transition:background-color var(--dur-hover) var(--ease),box-shadow var(--dur-hover) var(--ease)}
+nav.is-scrolled{background:rgba(7,21,16,0.93);box-shadow:0 14px 34px -26px rgba(0,0,0,0.9)}
 
 /* ── Buttons / badge ───────────────────────────────────────────────────── */
-.app-store-badge{display:inline-block;border-radius:9px;transition:transform var(--dur-micro) var(--ease),opacity var(--dur-micro) var(--ease)}
-.app-store-badge:hover{opacity:.9;transform:translateY(-1px)}
+.app-store-badge{display:inline-block;border-radius:9px;
+  transition:transform var(--dur-micro) var(--ease),opacity var(--dur-micro) var(--ease),filter var(--dur-micro) var(--ease)}
+/* translateY only — Apple's artwork is never scaled or skewed. */
+.app-store-badge:hover{opacity:.95;transform:translateY(-2px);filter:drop-shadow(0 12px 22px rgba(0,0,0,0.45))}
+.app-store-badge:active{transform:translateY(0)}
+.nav-cta:active{transform:translateY(1px)}
 /* Height fixed, width auto — Apple's artwork keeps its exact proportions. */
 .app-store-badge img{display:block;height:56px;width:auto}
 @media(max-width:600px){.app-store-badge img{height:50px}}
@@ -238,12 +284,22 @@ nav{position:sticky;top:0;z-index:100;background:rgba(7,21,16,0.82);
 
 /* ── How to get started ────────────────────────────────────── */
 .journey{list-style:none;display:grid;gap:34px;margin-top:48px}
-.journey-step{display:grid;gap:8px;align-content:start}
+.journey-step{display:grid;gap:8px;align-content:start;position:relative}
 .step-num{font-family:var(--font-serif);font-size:15px;font-weight:700;color:var(--green-300);letter-spacing:1px}
 .journey-step h3{color:#fff;font-size:20px}
 .journey-step p{color:var(--text-secondary);font-size:16px;max-width:38ch}
 @media(min-width:720px){.journey{grid-template-columns:1fr 1fr;gap:36px 48px}}
-@media(min-width:1080px){.journey{grid-template-columns:repeat(5,minmax(0,1fr));gap:32px}}
+@media(min-width:1080px){
+  .journey{grid-template-columns:repeat(5,minmax(0,1fr));gap:32px;padding-top:26px}
+  .journey-step::after{content:'';position:absolute;top:-26px;left:0;width:7px;height:7px;border-radius:50%;
+    background:var(--green-700);transition:background var(--dur-entrance) var(--ease),box-shadow var(--dur-entrance) var(--ease)}
+  .journey-step.in::after{background:var(--green-300);box-shadow:0 0 0 4px rgba(116,198,157,0.12)}
+  .journey-step::before{content:'';position:absolute;top:-23px;left:11px;right:-32px;height:1px;
+    background:linear-gradient(90deg,rgba(116,198,157,0.32),rgba(116,198,157,0.05));
+    transform:scaleX(0);transform-origin:0 50%;transition:transform 700ms var(--ease)}
+  .journey-step.in::before{transform:scaleX(1)}
+  .journey-step:last-child::before{display:none}
+}
 .journey-cta{margin-top:48px;display:grid;justify-items:start;gap:12px}
 
 /* ── Product gallery ─────────────────────────────────────────
@@ -256,6 +312,35 @@ nav{position:sticky;top:0;z-index:100;background:rgba(7,21,16,0.82);
 @media(min-width:760px){
   .gallery{grid-template-columns:repeat(3,minmax(0,1fr));gap:28px;align-items:start}
   .shot .device{max-width:100%}
+}
+/* One composited transform per frame: hover sets --lift, the pointer handler
+   sets --tx/--ty. Nothing here changes layout. */
+@media(min-width:760px) and (pointer:fine){
+  .shot{perspective:1100px}
+  .shot .device{
+    transform:translateY(var(--lift,0px)) rotateX(var(--tx,0deg)) rotateY(var(--ty,0deg));
+    transform-style:preserve-3d;
+    transition:transform 420ms var(--ease),box-shadow 420ms var(--ease)
+  }
+  .shot:hover .device{--lift:-6px;box-shadow:0 46px 92px -26px rgba(0,0,0,0.88),0 0 0 1px rgba(255,255,255,0.09)}
+}
+
+/* ── Hover surfaces ─────────────────────────────────────────────────────
+   Pointer-capable devices only, so nothing here can trap a touch user in a
+   sticky :hover state. transform + shadow + border, never layout. */
+@media(hover:hover) and (pointer:fine){
+  .card,.score-card{transition:transform var(--dur-hover) var(--ease),border-color var(--dur-hover) var(--ease),
+    box-shadow var(--dur-hover) var(--ease),background-color var(--dur-hover) var(--ease)}
+  .card:hover,.score-card:hover{transform:translateY(-3px);border-color:var(--border-strong);
+    box-shadow:0 26px 54px -30px rgba(0,0,0,0.85)}
+  .nav-cta{transition:opacity var(--dur-micro) var(--ease),transform var(--dur-micro) var(--ease),box-shadow var(--dur-micro) var(--ease)}
+  .nav-cta:hover{transform:translateY(-1px);box-shadow:0 12px 26px -14px rgba(255,255,255,0.45)}
+  .footer-links a{position:relative}
+  .footer-links a::after{content:'';position:absolute;left:0;right:0;bottom:11px;height:1px;
+    background:currentColor;opacity:.6;transform:scaleX(0);transform-origin:0 50%;
+    transition:transform 260ms var(--ease)}
+  .footer-links a:hover::after{transform:scaleX(1)}
+  .trust-link{transition:color var(--dur-micro) var(--ease)}
 }
 
 /* ── Scores ────────────────────────────────────────────────────────────── */
@@ -271,6 +356,15 @@ nav{position:sticky;top:0;z-index:100;background:rgba(7,21,16,0.82);
   line-height:1;font-weight:700;letter-spacing:-0.03em;margin-top:0;color:var(--text)}
 .score-scale{font-size:15px;color:var(--text-tertiary);margin-left:6px;font-family:var(--font-sans);font-weight:400}
 .score-card p{margin-top:14px;color:var(--text-secondary);font-size:15px}
+/* A visual scale for the number already printed above it. Nothing is
+   computed, nothing is implied beyond "these two scales differ". */
+.score-bar{margin-top:18px;height:3px;border-radius:2px;background:rgba(255,255,255,0.08);overflow:hidden}
+.score-bar span{display:block;height:100%;border-radius:2px;transform-origin:0 50%;
+  transform:scaleX(var(--v,1));
+  background:linear-gradient(90deg,var(--green-600),var(--green-300));
+  transition:transform 900ms var(--ease) 140ms}
+/* Fail visible: only a page that can animate it is allowed to start it at 0. */
+.js-reveal .score-card:not(.in) .score-bar span{transform:scaleX(0)}
 .score-note{margin-top:28px;text-align:center}
 
 /* ── Cards / lists ─────────────────────────────────────────────────────── */
@@ -291,6 +385,8 @@ nav{position:sticky;top:0;z-index:100;background:rgba(7,21,16,0.82);
 /* ── Trust: deliberately the calmest section on the page ───────────────── */
 .trust{background:var(--green-900)}
 .trust-body{max-width:660px}
+/* The page slows down here on purpose. Same easing, longer duration. */
+.trust .reveal{transition-duration:780ms}
 .trust-body p{margin-top:18px;color:var(--text-secondary);font-size:16.5px}
 .trust-link{display:inline-flex;align-items:center;gap:8px;margin-top:28px;
   color:var(--green-300);font-weight:600;border-bottom:1px solid rgba(116,198,157,0.35);
@@ -298,7 +394,12 @@ nav{position:sticky;top:0;z-index:100;background:rgba(7,21,16,0.82);
 
 /* ── FAQ ───────────────────────────────────────────────────────────────── */
 .faq-list{max-width:760px;margin:44px auto 0;border-top:1px solid var(--border)}
-.faq-item{border-bottom:1px solid var(--border)}
+.faq-item{border-bottom:1px solid var(--border);
+  transition:box-shadow 280ms var(--ease),background-color 280ms var(--ease)}
+/* Decorative only; browsers without :has() simply skip the accent. */
+.faq-item:has(> .faq-question[aria-expanded="true"]){
+  box-shadow:inset 2px 0 0 var(--green-400);background:rgba(255,255,255,0.018)}
+.faq-question[aria-expanded="true"]{color:var(--green-300)}
 .faq-question{width:100%;text-align:left;padding:22px 8px;font-weight:600;font-size:16.5px;
   color:#fff;background:none;display:flex;justify-content:space-between;align-items:center;gap:16px;
   transition:color var(--dur-micro) var(--ease);min-height:44px}
@@ -343,7 +444,11 @@ footer{border-top:1px solid var(--border);padding-block:44px 56px;background:var
     transition-duration:.01ms!important;scroll-behavior:auto!important}
   .reveal{opacity:1;transform:none}
   .story-media img{transform:none}
-  .hero-visual .device{transform:none!important}
+  .hero-visual .device,.shot .device{transform:none!important}
+  .glow::before,.glow::after{animation:none!important}
+  .hero-rise,.hero-lift{animation:none!important;opacity:1!important;transform:none!important}
+  .journey-step::before{transform:scaleX(1)!important}
+  .score-bar span{transform:scaleX(var(--v,1))!important}
 }
 </style>
 </head>
@@ -367,15 +472,15 @@ footer{border-top:1px solid var(--border);padding-block:44px 56px;background:var
   <div class="container hero-grid">
     <div>
       <h1 class="display">Your gut, tracked daily.</h1>
-      <p class="lede">One check-in, one meal, one clearer picture.</p>
-      <div class="hero-cta">
+      <p class="lede hero-rise" data-d="1">One check-in, one meal, one clearer picture.</p>
+      <div class="hero-cta hero-rise" data-d="2">
         <a class="app-store-badge" href="https://apps.apple.com/app/id6796702004" rel="noopener" data-cta>
           <img src="app-store-badge.svg" alt="Download GutWell AI on the App Store" width="359" height="120">
         </a>
         <p class="free-line">Optional GutWell Premium subscription</p>
       </div>
     </div>
-    <div class="hero-visual reveal" data-d="3" id="heroVisual">
+    <div class="hero-visual hero-lift" id="heroVisual">
       <div class="device">
         <!-- The only eagerly-loaded image on the page. -->
         <img src="assets/screenshots/meal-capture.webp" width="900" height="1957" fetchpriority="high" decoding="async"
@@ -460,7 +565,7 @@ footer{border-top:1px solid var(--border);padding-block:44px 56px;background:var
     </div>
 
     <div class="gallery">
-      <figure class="shot reveal" data-d="1">
+      <figure class="shot reveal" data-r="scale" data-d="1">
         <div class="device">
           <img src="assets/screenshots/personalization.webp" width="900" height="1957" loading="lazy" decoding="async"
                alt="A GutWell AI setup question, &quot;How do you usually feel after meals?&quot;, with selectable options for comfortable, bloated, heavy or sluggish, pain or cramping, and it varies.">
@@ -468,7 +573,7 @@ footer{border-top:1px solid var(--border);padding-block:44px 56px;background:var
         <figcaption>Start by telling GutWell how you usually feel, so your history begins from your own baseline.</figcaption>
       </figure>
 
-      <figure class="shot reveal" data-d="2">
+      <figure class="shot reveal" data-r="scale" data-d="2">
         <div class="device">
           <img src="assets/screenshots/meal-capture.webp" width="900" height="1957" loading="lazy" decoding="async"
                alt="The GutWell AI meal capture screen, offering three ways to log a meal: take a photo, choose one from your gallery, or describe the meal instead.">
@@ -476,7 +581,7 @@ footer{border-top:1px solid var(--border);padding-block:44px 56px;background:var
         <figcaption>Log a meal three ways &mdash; photo, gallery, or your own words. Photo analysis is part of GutWell Premium; describing a meal is free.</figcaption>
       </figure>
 
-      <figure class="shot reveal" data-d="3">
+      <figure class="shot reveal" data-r="scale" data-d="3">
         <div class="device">
           <img src="assets/screenshots/progress.webp" width="900" height="1957" loading="lazy" decoding="async"
                alt="The GutWell AI Progress screen: a GutWell Score of 60 out of 100 from the latest check-in, a steady weekly average, and trend tiles for check-ins, average stool type and meals.">
@@ -499,11 +604,13 @@ footer{border-top:1px solid var(--border);padding-block:44px 56px;background:var
       <div class="score-card reveal" data-d="1">
         <p class="eyebrow">GutWell Score</p>
         <p class="score-figure"><span data-count="44">44</span><span class="score-scale">/ 100</span></p>
+        <div class="score-bar" aria-hidden="true" style="--v:.44"><span></span></div>
         <p>Your day, summarised. A daily number built from your own check-ins — stool type, symptoms like bloating, energy and mood. It becomes more useful the more consistently you log.</p>
       </div>
       <div class="score-card reveal" data-d="2">
         <p class="eyebrow">Meal Impact Score</p>
         <p class="score-figure"><span data-count="6">6</span><span class="score-scale">/ 10</span></p>
+        <div class="score-bar" aria-hidden="true" style="--v:.6"><span></span></div>
         <p>One meal, reflected back. GutWell AI's read on how a single meal may sit with you, given the symptoms, timing and context you shared.</p>
       </div>
     </div>
@@ -522,10 +629,10 @@ footer{border-top:1px solid var(--border);padding-block:44px 56px;background:var
     </div>
     <div class="card reveal" data-d="3" style="margin-top:44px;max-width:760px">
       <ul class="tier" style="list-style:none">
-        <li class="muted">Your GutWell Score history, day by day</li>
-        <li class="muted">Check-in consistency, so you can see the gaps</li>
-        <li class="muted">Mood and stool trends across the weeks</li>
-        <li class="muted">Possible patterns between meals and how you felt — surfaced for you to review, never as a verdict</li>
+        <li class="muted reveal" data-d="3">Your GutWell Score history, day by day</li>
+        <li class="muted reveal" data-d="4">Check-in consistency, so you can see the gaps</li>
+        <li class="muted reveal" data-d="5">Mood and stool trends across the weeks</li>
+        <li class="muted reveal" data-d="6">Possible patterns between meals and how you felt — surfaced for you to review, never as a verdict</li>
       </ul>
     </div>
   </div>
@@ -570,8 +677,8 @@ footer{border-top:1px solid var(--border);padding-block:44px 56px;background:var
 <section class="trust" id="trust">
   <div class="container">
     <div class="trust-body">
-      <p class="eyebrow reveal">Where AI stops</p>
-      <h2 class="display reveal" data-d="1">AI is the interface.<br>Not the authority.</h2>
+      <p class="eyebrow reveal" data-r="calm">Where AI stops</p>
+      <h2 class="display reveal" data-r="calm" data-d="1">AI is the interface.<br>Not the authority.</h2>
       <p class="reveal" data-d="2">GutWell AI is a personal tracking and awareness tool. It does not provide medical diagnosis, treatment, or advice, and does not replace professional healthcare.</p>
       <p class="reveal" data-d="2">Every reflection is built from what you logged — your meals, your symptoms, the context you chose to share. When something looks wrong, Refine Analysis lets you correct it, and GutWell revises based on what you tell it. You are talking to your own health data.</p>
       <p class="reveal" data-d="3">The health information behind our guidance is published, with its sources named. If something about your gut health concerns you, that is a conversation for a healthcare professional — not an app.</p>
@@ -760,18 +867,67 @@ if (counters.length && !reduce && 'IntersectionObserver' in window) {
   counters.forEach(function(el){ cIo.observe(el); });
 }
 
-/* ── 4. Hero pointer tilt ─────────────────────────────────────────────────
-   Desktop, fine pointer, transform only, ±4deg. Skipped entirely on touch
-   so it can never interfere with scrolling. */
-var hero = document.getElementById('heroVisual');
-if (hero && !reduce && window.matchMedia('(min-width:900px) and (pointer:fine)').matches) {
-  var frame = hero.querySelector('.device');
+/* ── 4. Pointer tilt ──────────────────────────────────────────────────────
+   ONE listener for every tilt target on the page. Pointer moves only store
+   coordinates; a single rAF frame then reads every rect and afterwards
+   writes every custom property, so reads and writes never interleave.
+   Desktop, fine pointer, transform only. Skipped entirely on touch. */
+var tilts = [];
+if (!reduce && window.matchMedia('(min-width:900px) and (pointer:fine)').matches) {
+  var heroHost = document.getElementById('heroVisual');
+  if (heroHost && heroHost.querySelector('.device')) {
+    // The hero reacts to the whole viewport: ambient, never "hover me".
+    tilts.push({ host: heroHost, el: heroHost.querySelector('.device'), viewport: true, max: 4 });
+  }
+  document.querySelectorAll('.shot').forEach(function(shot){
+    var d = shot.querySelector('.device');
+    if (d) tilts.push({ host: shot, el: d, viewport: false, max: 3 });
+  });
+}
+if (tilts.length) {
+  var px = 0, py = 0, queued = false;
+  var clamp = function(v){ return v < -1 ? -1 : v > 1 ? 1 : v; };
+  var frame = function(){
+    queued = false;
+    var i, t, r, rects = [];
+    for (i = 0; i < tilts.length; i++) rects.push(tilts[i].host.getBoundingClientRect());  // read
+    for (i = 0; i < tilts.length; i++) {                                                   // then write
+      t = tilts[i]; r = rects[i];
+      var dx, dy;
+      if (t.viewport) {
+        dx = (px - (r.left + r.width / 2)) / (window.innerWidth / 2);
+        dy = (py - (r.top + r.height / 2)) / (window.innerHeight / 2);
+      } else if (px >= r.left && px <= r.right && py >= r.top && py <= r.bottom) {
+        dx = (px - (r.left + r.width / 2)) / (r.width / 2);
+        dy = (py - (r.top + r.height / 2)) / (r.height / 2);
+      } else {
+        t.el.style.setProperty('--ty', '0deg');
+        t.el.style.setProperty('--tx', '0deg');
+        continue;
+      }
+      t.el.style.setProperty('--ty', (clamp(dx) * t.max).toFixed(2) + 'deg');
+      t.el.style.setProperty('--tx', (clamp(-dy) * t.max * 0.75).toFixed(2) + 'deg');
+    }
+  };
   window.addEventListener('pointermove', function(ev){
-    var r = hero.getBoundingClientRect();
-    var dx = (ev.clientX - (r.left + r.width / 2)) / (window.innerWidth / 2);
-    var dy = (ev.clientY - (r.top + r.height / 2)) / (window.innerHeight / 2);
-    frame.style.setProperty('--ty', (Math.max(-1, Math.min(1, dx)) * 4).toFixed(2) + 'deg');
-    frame.style.setProperty('--tx', (Math.max(-1, Math.min(1, -dy)) * 3).toFixed(2) + 'deg');
+    px = ev.clientX; py = ev.clientY;
+    if (!queued) { queued = true; requestAnimationFrame(frame); }
+  }, { passive: true });
+}
+
+/* ── 4b. Nav scrolled state ───────────────────────────────────────────────
+   One passive listener, rAF-coalesced. It only toggles a class, so there is
+   no layout read on scroll at all. */
+var navEl = document.querySelector('nav');
+if (navEl) {
+  var pending = false;
+  var paint = function(){
+    pending = false;
+    navEl.classList.toggle('is-scrolled', (window.pageYOffset || 0) > 8);
+  };
+  paint();
+  window.addEventListener('scroll', function(){
+    if (!pending) { pending = true; requestAnimationFrame(paint); }
   }, { passive: true });
 }
 
