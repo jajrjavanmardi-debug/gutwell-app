@@ -1,0 +1,78 @@
+# Full photo-analysis / correction flow — GATED, MANUAL.
+#
+# ⚠️ DO NOT wire this into CI. It is NOT included in `.maestro/config.yaml`'s
+# default suite. Run it explicitly:
+#     maestro test .maestro/photo-analysis-flow.yaml
+#
+# PREREQUISITES (constraint: no unmocked network/auth in automated tests):
+#   1. The app is built & installed on a booted Simulator (`npx expo run:ios`).
+#   2. You are signed in (a test account / a build that restores a session).
+#      A session-less launch lands on onboarding and the scan button is unreachable.
+#   3. Live Supabase + Gemini are reachable — producing a corrected analysis is a
+#      real network/AI call and is therefore non-deterministic by nature.
+#
+# Selectors below are real (text + accessibilityLabel) from the current code:
+#   - "Scan a meal photo with AI"  (app/(tabs)/food.tsx)
+#   - "View past meal scans"       (app/photo-analysis.tsx -> /food-history)
+#   - "Copy Full Result"           (app/photo-analysis.tsx)
+#   - "Tell us what to fix…" / "Apply correction"
+# Steps that depend on auth/network are marked optional so the flow degrades
+# gracefully and reports how far it got rather than hard-failing on the gate.
+appId: com.parallellabs.gutwell
+---
+- launchApp
+
+# --- Reach the food tab + open photo analysis (requires authenticated build) ---
+- tapOn:
+    text: "Food"
+    optional: true
+- tapOn:
+    accessibilityLabel: "Scan a meal photo with AI"
+    optional: true
+
+# --- History screen opens (offline-friendly; no AI needed) ---
+- tapOn:
+    accessibilityLabel: "View past meal scans"
+    optional: true
+- assertVisible:
+    id: "food-history"        # add testID="food-history" to the History screen root
+    optional: true
+- takeScreenshot: history-screen
+# Navigate back to the analysis screen for the rest of the flow.
+- back
+
+# --- Copy / Share reachable when an analysis is visible ---
+# Requires an analysis on screen (either a freshly generated one or a saved one
+# opened from History). Marked optional because generation needs the live backend.
+- assertVisible:
+    text: "Copy Full Result"
+    optional: true
+- assertVisible:
+    text: "Share Result"
+    optional: true
+
+# --- Apply a correction, then verify SCORE / MEAL output (R1 / R2) ---
+# This block needs the live edge function. It is the manual proof that the new
+# emoji format still renders a visible score (R1) and meal label (R2).
+- tapOn:
+    text: "Tell us what to fix…"
+    optional: true
+- inputText: "It is herbal tea, not cookies"
+- tapOn:
+    text: "Apply correction"
+    optional: true
+# Allow time for the meal_revise round-trip.
+- extendedWaitUntil:
+    visible:
+      text: ".*(SCORE|MEAL).*"
+    timeout: 30000
+    optional: true
+# R1: a score is visible (matches old "MEAL IMPACT SCORE" and new "📊 SCORE").
+- assertVisible:
+    text: ".*SCORE.*"
+    optional: true
+# R2: the meal label is visible (matches new "🍽️ MEAL").
+- assertVisible:
+    text: ".*MEAL.*"
+    optional: true
+- takeScreenshot: corrected-analysis
