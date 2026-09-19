@@ -89,8 +89,6 @@ a{text-decoration:none}
   --reveal-y:20px;
   --reveal-y-sm:12px;
   --stagger:80ms;
-  /* Ambient drift is meant to be noticed only if you look for it. */
-  --dur-ambient:46s;
   --dur-hover:320ms;
 }
 
@@ -98,8 +96,13 @@ a{text-decoration:none}
 :root{
   /* Deeper floor than before, so sections can sit at different depths
      instead of every surface being one flat green. */
+  /* The dark ramp now spans L* 1.8 -> 13.5 instead of 5.6 -> 9.8, so
+     consecutive sections are actually distinguishable. */
+  --ink-950:#030A07;   /* Trust: the deepest tone on the page */
+  --ink-900:#050F0B;   /* Hero and final CTA */
   --green-950:#071510;
   --green-900:#0B1F14;
+  --green-850:#10291B;  /* elevated: separates Scores from its neighbours */
   --green-800:#0B2618;
   --green-700:#1B4332;
   --green-600:#2D6A4F;
@@ -120,6 +123,17 @@ a{text-decoration:none}
   --radius-full:999px;
   --gutter:24px;
   --maxw:1120px;
+
+  /* Light-surface tokens. .section-light re-points the generic tokens at
+     these, so every component inside flips without being restyled. */
+  --sand:#F2EFE9;
+  --on-sand:#07160E;
+  --on-sand-secondary:rgba(7,22,14,0.74);
+  --on-sand-tertiary:rgba(7,22,14,0.68);
+  --on-sand-surface:rgba(7,22,14,0.032);
+  --on-sand-border:rgba(7,22,14,0.14);
+  --on-sand-border-strong:rgba(7,22,14,0.26);
+  --on-sand-accent:#1B4332;
 }
 
 html{scroll-behavior:smooth}
@@ -128,15 +142,18 @@ body{
   background:var(--green-950);
   color:var(--text);
   -webkit-font-smoothing:antialiased;
-  overflow-x:hidden;
+  overflow-x:hidden;   /* fallback for browsers without `clip` */
+  overflow-x:clip;
   line-height:1.6;
 }
 
 /* ── Type scale ─────────────────────────────────────────────────────────
    Georgia for display, system sans for everything else. No remote fonts. */
 .display{font-family:var(--font-serif);font-weight:700;line-height:1.08;letter-spacing:-0.02em}
-h1.display{font-size:clamp(42px,6.4vw,76px)}
-h2.display{font-size:clamp(30px,4.2vw,50px)}
+/* Editorial scale. 76px in a 37%-wide column read as an ordinary heading;
+   140px across ~54% reads as a masthead. */
+h1.display{font-size:clamp(50px,7.6vw,112px);line-height:1.02;letter-spacing:-0.032em}
+h2.display{font-size:clamp(32px,4.9vw,66px);line-height:1.04;letter-spacing:-0.028em}
 h3{font-size:19px;font-weight:700;letter-spacing:-0.01em}
 .lede{font-size:clamp(17px,1.5vw,20px);color:var(--text-secondary);line-height:1.65}
 .eyebrow{
@@ -157,32 +174,42 @@ section{position:relative;padding-block:clamp(72px,10vw,132px)}
 /* Depth layering: alternating floors give rhythm without borders. */
 .layer-raised{background:var(--green-900)}
 .layer-deep{background:var(--green-950)}
+.layer-elevated{background:var(--green-850)}
+
+/* ── The one light section ──────────────────────────────────────────────
+   Nothing inside is restyled: the generic tokens are simply re-pointed at
+   the light set, so cards, borders, muted text and bullets all invert. */
+.section-light{
+  background:var(--sand);
+  color:var(--on-sand);
+  --text:var(--on-sand);
+  --text-secondary:var(--on-sand-secondary);
+  --text-tertiary:var(--on-sand-tertiary);
+  --surface:var(--on-sand-surface);
+  --surface-2:rgba(7,22,14,0.055);
+  --border:var(--on-sand-border);
+  --border-strong:var(--on-sand-border-strong);
+  --green-300:var(--on-sand-accent);   /* eyebrow + focus ring */
+  --green-400:#2D6A4F;                 /* bullet dots */
+}
+.section-light h2,.section-light h3{color:var(--on-sand)}
+.section-light .card{box-shadow:0 1px 2px rgba(7,22,14,0.04)}
+/* Warm, not a white SaaS pricing table. */
+.section-light .tier-premium{
+  background-image:radial-gradient(120% 90% at 100% 0%,rgba(212,163,115,0.22),transparent 62%);
+  border-color:rgba(7,22,14,0.22)}
 
 /* Soft organic gradients. Two radials, no images, no DOM nodes. */
-/* overflow:hidden is load-bearing: the ambient gradients scale past the
-   section box, and without this they widen the document and produce a
-   horizontal scrollbar. */
-.glow{position:relative;isolation:isolate;overflow:hidden}
+/* Static. The previous version drifted 2.5% over 46s — 0.013px per frame,
+   which is not a subtle effect, it is an absent one. No animation means no
+   scaling past the box, which is what let overflow:hidden come off; that
+   clip is what was preventing the hero device from breaking the fold. */
+.glow{position:relative;isolation:isolate}
 .glow::before{
   content:'';position:absolute;inset:0;z-index:-1;pointer-events:none;
   background:
-    radial-gradient(60% 50% at 15% 0%,rgba(45,106,79,0.30),transparent 70%),
-    radial-gradient(50% 45% at 90% 25%,rgba(82,183,136,0.13),transparent 70%);
-  animation:glowA var(--dur-ambient) ease-in-out infinite alternate;
-}
-/* A second, slower field so the two never line up into a visible pulse. */
-.glow::after{
-  content:'';position:absolute;inset:0;z-index:-1;pointer-events:none;
-  background:radial-gradient(42% 38% at 76% 6%,rgba(116,198,157,0.10),transparent 72%);
-  animation:glowB calc(var(--dur-ambient)*1.45) ease-in-out infinite alternate;
-}
-@keyframes glowA{
-  from{transform:translate3d(0,0,0) scale(1)}
-  to{transform:translate3d(2.5%,1.5%,0) scale(1.07)}
-}
-@keyframes glowB{
-  from{transform:translate3d(0,0,0) scale(1.06);opacity:.7}
-  to{transform:translate3d(-3%,2%,0) scale(1);opacity:1}
+    radial-gradient(58% 50% at 14% 0%,rgba(45,106,79,0.42),transparent 68%),
+    radial-gradient(48% 44% at 90% 18%,rgba(82,183,136,0.16),transparent 70%);
 }
 
 /* ── Reveal ─────────────────────────────────────────────────────────────
@@ -250,21 +277,59 @@ nav.is-scrolled{background:rgba(7,21,16,0.93);box-shadow:0 14px 34px -26px rgba(
 }
 .device img{border-radius:27px;width:100%;height:auto;display:block}
 
-/* ── Hero ──────────────────────────────────────────────────────────────── */
-.hero{padding-block:clamp(56px,7vw,104px) clamp(72px,9vw,120px)}
-.hero-grid{display:grid;grid-template-columns:1fr;gap:48px;align-items:center}
-.hero h1{margin-bottom:20px}
-.hero .lede{max-width:34ch}
-.hero-cta{margin-top:32px}
-.hero-visual{justify-self:center;max-width:300px;width:100%}
+/* ── Hero ───────────────────────────────────────────────────────────────
+   Three layers: the light field (z0), the device (z1), the type (z2).
+   The device is deliberately taller than the space it is given and fades
+   out near the fold, so the product reads as continuing past the screen
+   instead of being guillotined by a section edge. */
+.hero{
+  background:var(--ink-900);
+  position:relative;isolation:isolate;
+  padding-block:clamp(40px,5.5vw,76px) 0;
+  overflow:visible;
+}
+.hero::before{
+  content:'';position:absolute;inset:0;z-index:0;pointer-events:none;
+  background:
+    radial-gradient(70% 55% at 16% 10%,rgba(45,106,79,0.62),transparent 68%),
+    radial-gradient(55% 45% at 88% -4%,rgba(82,183,136,0.28),transparent 70%),
+    radial-gradient(50% 40% at 56% 82%,rgba(212,163,115,0.12),transparent 74%);
+}
+.hero-grid{display:grid;grid-template-columns:1fr;gap:clamp(28px,5vw,48px);align-items:center;position:relative;z-index:1}
+.hero-copy{position:relative;z-index:2}
+.hero h1{margin-bottom:22px}
+.hero .lede{max-width:34ch;font-size:clamp(17px,1.62vw,23px)}
+.hero-cta{margin-top:30px}
+.hero-visual{justify-self:center;width:100%;max-width:300px;position:relative;z-index:1}
+/* The fade is the fold break. Solid to roughly the viewport edge, then gone. */
+.hero-visual{
+  -webkit-mask-image:linear-gradient(to bottom,#000 0 74%,rgba(0,0,0,0) 90%);
+  mask-image:linear-gradient(to bottom,#000 0 74%,rgba(0,0,0,0) 90%);
+}
 @media(min-width:900px){
-  .hero-grid{grid-template-columns:1.05fr 0.95fr;gap:64px}
-  .hero-visual{justify-self:end;max-width:320px}
+  .hero{min-height:112vh}
+  .hero-grid{display:block;position:relative}
+  .hero-copy{padding-top:clamp(32px,7vh,104px);max-width:min(560px,52%)}
+  /* Out of flow on purpose: in flow, a 1070px-tall device forced the hero to
+     128vh. Absolute keeps the hero at 112vh and lets the device overrun it. */
+  .hero-visual{position:absolute;right:0;top:8px;width:min(524px,46.5%);max-width:524px;justify-self:auto}
   /* Pointer tilt. transform only — never layout. */
   .hero-visual .device{
     transform:rotateX(var(--tx,0deg)) rotateY(var(--ty,0deg));
     transform-style:preserve-3d;transition:transform 400ms var(--ease)
   }
+  .hero-visual .device{border-radius:46px;padding:11px;box-shadow:0 60px 120px -34px rgba(0,0,0,0.9),0 0 0 1px rgba(255,255,255,0.06)}
+  .hero-visual .device img{border-radius:36px}
+}
+@media(max-width:899px){
+  /* Full container width ~= 88vw at 390. The fold break comes from height,
+     not from bleeding past the gutter, so no clipping is relied on. */
+  .hero-visual{max-width:none;width:100%;justify-self:stretch}
+}
+/* Tablet: 88vw of 768 is a 705px phone, which reads as a zoomed screenshot
+   rather than a device. Cap it and centre it. */
+@media(min-width:600px) and (max-width:899px){
+  .hero-visual{max-width:430px;width:100%;justify-self:center}
 }
 
 /* ── Story band ────────────────────────────────────────────────────────── */
@@ -383,7 +448,8 @@ nav.is-scrolled{background:rgba(7,21,16,0.93);box-shadow:0 14px 34px -26px rgba(
 .tier-premium li::before{background:var(--accent)}
 
 /* ── Trust: deliberately the calmest section on the page ───────────────── */
-.trust{background:var(--green-900)}
+.trust{background:var(--ink-950)}
+.trust{padding-block:clamp(104px,13vw,176px)}
 .trust-body{max-width:660px}
 /* The page slows down here on purpose. Same easing, longer duration. */
 .trust .reveal{transition-duration:780ms}
@@ -415,7 +481,7 @@ nav.is-scrolled{background:rgba(7,21,16,0.93);box-shadow:0 14px 34px -26px rgba(
 .faq-answer p{padding:0 8px 22px;color:var(--text-secondary);font-size:15.5px}
 
 /* ── Final CTA ─────────────────────────────────────────────────────────── */
-.final{text-align:center}
+.final{text-align:center;background:var(--ink-900)}
 .final h2{max-width:16ch;margin-inline:auto}
 .final .lede{max-width:46ch;margin:16px auto 0}
 .final-cta{margin-top:34px;display:flex;flex-direction:column;align-items:center;gap:10px}
@@ -445,7 +511,6 @@ footer{border-top:1px solid var(--border);padding-block:44px 56px;background:var
   .reveal{opacity:1;transform:none}
   .story-media img{transform:none}
   .hero-visual .device,.shot .device{transform:none!important}
-  .glow::before,.glow::after{animation:none!important}
   .hero-rise,.hero-lift{animation:none!important;opacity:1!important;transform:none!important}
   .journey-step::before{transform:scaleX(1)!important}
   .score-bar span{transform:scaleX(var(--v,1))!important}
@@ -468,9 +533,9 @@ footer{border-top:1px solid var(--border);padding-block:44px 56px;background:var
 <main>
 
 <!-- 1. HERO — product recognition + CTA above the fold -->
-<section class="hero glow">
+<section class="hero">
   <div class="container hero-grid">
-    <div>
+    <div class="hero-copy">
       <h1 class="display">Your gut, tracked daily.</h1>
       <p class="lede hero-rise" data-d="1">One check-in, one meal, one clearer picture.</p>
       <div class="hero-cta hero-rise" data-d="2">
@@ -593,7 +658,7 @@ footer{border-top:1px solid var(--border);padding-block:44px 56px;background:var
 </section>
 
 <!-- 5. TWO SCORES — the distinction, made unmissable -->
-<section class="layer-raised glow" id="scores">
+<section class="layer-elevated glow" id="scores">
   <div class="container">
     <div class="section-head center">
       <p class="eyebrow reveal">Two numbers, two questions</p>
@@ -639,7 +704,7 @@ footer{border-top:1px solid var(--border);padding-block:44px 56px;background:var
 </section>
 
 <!-- 7. FREE / PREMIUM — only features that are actually enforced -->
-<section class="layer-raised glow" id="premium">
+<section class="section-light" id="premium">
   <div class="container">
     <div class="section-head center">
       <p class="eyebrow reveal">Plans</p>
