@@ -3,22 +3,59 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>GutWell AI — Your Personal Gut Health Coach</title>
-<meta name="description" content="GutWell AI helps you track daily gut symptoms, analyse meals by photo or text, and review your personal patterns over time.">
+<title>GutWell AI — Gut Health &amp; Food Symptom Tracker</title>
+<meta name="description" content="A gut health and food symptom tracker for iPhone. Log meals and daily check-ins, then notice possible patterns in your own history. Free on the App Store.">
 <meta name="theme-color" content="#071510">
 <link rel="icon" type="image/png" href="favicon.png">
 <link rel="apple-touch-icon" href="icon.png">
-<meta property="og:title" content="GutWell AI — Your Personal Gut Health Coach">
-<meta property="og:description" content="Track daily gut symptoms, review personal patterns, and make more confident food choices.">
-<meta property="og:image" content="https://www.getgutwell.app/icon.png">
+<meta property="og:site_name" content="GutWell AI">
+<meta property="og:locale" content="en">
+<meta property="og:title" content="GutWell AI — Gut Health &amp; Food Symptom Tracker">
+<meta property="og:description" content="A gut health and food symptom tracker for iPhone. Log meals and daily check-ins, then notice possible patterns in your own history. Free on the App Store.">
+<meta property="og:image" content="https://www.getgutwell.app/og-image.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="GutWell AI: your gut, tracked daily. Gut health, food and symptom tracking for iPhone. Free on the App Store.">
 <meta property="og:url" content="https://www.getgutwell.app/">
 <!-- www, not the apex: getgutwell.app 308-redirects to www.getgutwell.app, and
      a canonical URL should be the address that actually serves the page. -->
 <link rel="canonical" href="https://www.getgutwell.app/">
-<meta name="twitter:card" content="summary">
-<meta name="twitter:title" content="GutWell AI — Your Personal Gut Health Coach">
-<meta name="twitter:description" content="Track daily gut symptoms, analyse meals by photo or text, and review your personal patterns over time.">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="GutWell AI — Gut Health &amp; Food Symptom Tracker">
+<meta name="twitter:description" content="A gut health and food symptom tracker for iPhone. Log meals and daily check-ins, then notice possible patterns in your own history. Free on the App Store.">
+<meta name="twitter:image" content="https://www.getgutwell.app/og-image.png">
+<meta name="twitter:image:alt" content="GutWell AI: your gut, tracked daily. Gut health, food and symptom tracking for iPhone. Free on the App Store.">
 <meta property="og:type" content="website">
+<!-- Organization + WebSite only. No SoftwareApplication, no FAQPage, no
+     ratings, no sameAs: there is no verified public social profile to point
+     at, and schema must never assert more than the site can back up. -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "Organization",
+      "@id": "https://www.getgutwell.app/#organization",
+      "name": "GutWell AI",
+      "url": "https://www.getgutwell.app/",
+      "logo": {
+        "@type": "ImageObject",
+        "url": "https://www.getgutwell.app/icon.png",
+        "width": 1024,
+        "height": 1024
+      }
+    },
+    {
+      "@type": "WebSite",
+      "@id": "https://www.getgutwell.app/#website",
+      "name": "GutWell AI",
+      "url": "https://www.getgutwell.app/",
+      "inLanguage": "en",
+      "publisher": { "@id": "https://www.getgutwell.app/#organization" }
+    }
+  ]
+}
+</script>
 <!-- The only above-the-fold image. Preloaded so the hero product visual is not
      discovered late by the parser. -->
 <link rel="preload" as="image" href="assets/screenshots/meal-capture.webp" type="image/webp">
@@ -268,8 +305,12 @@ nav{position:sticky;top:0;z-index:100;background:rgba(7,21,16,0.82);
 .faq-question:hover{color:var(--green-300)}
 .faq-chevron{flex-shrink:0;transition:transform 250ms var(--ease);font-style:normal;color:var(--green-300)}
 .faq-question[aria-expanded="true"] .faq-chevron{transform:rotate(45deg)}
-.faq-answer{max-height:0;overflow:hidden;transition:max-height 320ms var(--ease)}
-.faq-answer.open{max-height:460px}
+/* Collapsing is scoped to .js-faq, which the FAQ script adds once it has
+   wired the buttons. Without JavaScript there is no max-height and every
+   answer renders open. */
+.faq-answer{overflow:hidden}
+.js-faq .faq-answer{max-height:0;transition:max-height 320ms var(--ease)}
+.js-faq .faq-answer.open{max-height:460px}
 .faq-answer p{padding:0 8px 22px;color:var(--text-secondary);font-size:15.5px}
 
 /* ── Final CTA ─────────────────────────────────────────────────────────── */
@@ -325,9 +366,9 @@ footer{border-top:1px solid var(--border);padding-block:44px 56px;background:var
 <section class="hero glow">
   <div class="container hero-grid">
     <div>
-      <h1 class="display reveal">Your gut, tracked daily.</h1>
-      <p class="lede reveal" data-d="1">One check-in, one meal, one clearer picture.</p>
-      <div class="hero-cta reveal" data-d="2">
+      <h1 class="display">Your gut, tracked daily.</h1>
+      <p class="lede">One check-in, one meal, one clearer picture.</p>
+      <div class="hero-cta">
         <a class="app-store-badge" href="https://apps.apple.com/app/id6796702004" rel="noopener" data-cta>
           <img src="app-store-badge.svg" alt="Download GutWell AI on the App Store" width="359" height="120">
         </a>
@@ -366,7 +407,7 @@ footer{border-top:1px solid var(--border);padding-block:44px 56px;background:var
     <div class="section-head">
       <p class="eyebrow reveal">How to get started</p>
       <h2 class="display reveal" data-d="1">On the App Store now.<br>Useful from day one.</h2>
-      <p class="lede reveal" data-d="2">Five steps from download to your first reflection.</p>
+      <p class="lede reveal" data-d="2">Five steps from download to your first reflection. Food and symptom tracking, in about a minute a day.</p>
     </div>
 
     <ol class="journey">
@@ -458,7 +499,7 @@ footer{border-top:1px solid var(--border);padding-block:44px 56px;background:var
       <div class="score-card reveal" data-d="1">
         <p class="eyebrow">GutWell Score</p>
         <p class="score-figure"><span data-count="44">44</span><span class="score-scale">/ 100</span></p>
-        <p>Your day, summarised. A daily number built from your own check-ins — stool type, symptoms, energy and mood. It becomes more useful the more consistently you log.</p>
+        <p>Your day, summarised. A daily number built from your own check-ins — stool type, symptoms like bloating, energy and mood. It becomes more useful the more consistently you log.</p>
       </div>
       <div class="score-card reveal" data-d="2">
         <p class="eyebrow">Meal Impact Score</p>
@@ -477,7 +518,7 @@ footer{border-top:1px solid var(--border);padding-block:44px 56px;background:var
     <div class="section-head">
       <p class="eyebrow reveal">Over time</p>
       <h2 class="display reveal" data-d="1">Your logs become a picture.</h2>
-      <p class="lede reveal" data-d="2">A single check-in is a data point. A few weeks of them is a history you can actually look back on.</p>
+      <p class="lede reveal" data-d="2">A single check-in is a data point. A few weeks of them is a personal record of your digestion you can actually look back on.</p>
     </div>
     <div class="card reveal" data-d="3" style="margin-top:44px;max-width:760px">
       <ul class="tier" style="list-style:none">
@@ -500,7 +541,7 @@ footer{border-top:1px solid var(--border);padding-block:44px 56px;background:var
     <div class="tiers">
       <div class="card tier reveal" data-d="1">
         <h3>Free</h3>
-        <p class="fine">Everything you need to start tracking.</p>
+        <p class="fine">Everything you need to keep a food and symptom diary.</p>
         <ul>
           <li>Daily check-ins — stool type, symptoms, mood, energy</li>
           <li>Describe a meal in your own words or by voice</li>
@@ -549,7 +590,84 @@ footer{border-top:1px solid var(--border);padding-block:44px 56px;background:var
       <p class="eyebrow reveal">Questions</p>
       <h2 class="display reveal" data-d="1">Frequently asked</h2>
     </div>
-    <div class="faq-list reveal" data-d="2" id="faq-list"></div>
+    <!-- Questions and answers live here, not in JavaScript. The accordion is
+         an enhancement: with no JS the panels simply stay open and readable,
+         which is why aria-expanded ships as "true" and the script sets it to
+         "false" when it collapses them. -->
+    <div class="faq-list reveal" data-d="2" id="faq-list">
+      <div class="faq-item">
+        <button class="faq-question" type="button" id="faq-q-0" aria-expanded="true" aria-controls="faq-a-0">
+          <span>What is GutWell AI?</span><i class="faq-chevron" aria-hidden="true">+</i>
+        </button>
+        <div class="faq-answer" id="faq-a-0" role="region" aria-labelledby="faq-q-0">
+          <p>A personal gut-health tracker. You check in daily, describe your meals, and GutWell AI reflects your own logged data back to you — a score for the day, a read on individual meals, and possible patterns over time.</p>
+        </div>
+      </div>
+      <div class="faq-item">
+        <button class="faq-question" type="button" id="faq-q-1" aria-expanded="true" aria-controls="faq-a-1">
+          <span>Is GutWell AI a medical device?</span><i class="faq-chevron" aria-hidden="true">+</i>
+        </button>
+        <div class="faq-answer" id="faq-a-1" role="region" aria-labelledby="faq-q-1">
+          <p>No. It is a tracking and awareness tool. It does not diagnose, treat, cure or prevent anything, and it does not replace professional healthcare.</p>
+        </div>
+      </div>
+      <div class="faq-item">
+        <button class="faq-question" type="button" id="faq-q-2" aria-expanded="true" aria-controls="faq-a-2">
+          <span>What is the GutWell Score?</span><i class="faq-chevron" aria-hidden="true">+</i>
+        </button>
+        <div class="faq-answer" id="faq-a-2" role="region" aria-labelledby="faq-q-2">
+          <p>A 0–100 summary of your day, calculated from your own check-ins — stool type, symptoms, energy and mood. It is a reflection tool, not a medical measurement.</p>
+        </div>
+      </div>
+      <div class="faq-item">
+        <button class="faq-question" type="button" id="faq-q-3" aria-expanded="true" aria-controls="faq-a-3">
+          <span>What is the Meal Impact Score?</span><i class="faq-chevron" aria-hidden="true">+</i>
+        </button>
+        <div class="faq-answer" id="faq-a-3" role="region" aria-labelledby="faq-q-3">
+          <p>A 1–10 read on a single meal, based on what you ate and the symptoms, timing and context you shared. Different question, different scale — it is not the same number as your GutWell Score.</p>
+        </div>
+      </div>
+      <div class="faq-item">
+        <button class="faq-question" type="button" id="faq-q-4" aria-expanded="true" aria-controls="faq-a-4">
+          <span>Do I need to take photos of my food?</span><i class="faq-chevron" aria-hidden="true">+</i>
+        </button>
+        <div class="faq-answer" id="faq-a-4" role="region" aria-labelledby="faq-q-4">
+          <p>No. Describing a meal in your own words, or by voice, works on every plan. Analysing a meal from a photo is part of GutWell Premium.</p>
+        </div>
+      </div>
+      <div class="faq-item">
+        <button class="faq-question" type="button" id="faq-q-5" aria-expanded="true" aria-controls="faq-a-5">
+          <span>What stays free?</span><i class="faq-chevron" aria-hidden="true">+</i>
+        </button>
+        <div class="faq-answer" id="faq-a-5" role="region" aria-labelledby="faq-q-5">
+          <p>Daily check-ins, describing meals in text or by voice, your Meal Impact Score and reflection, your GutWell Score and its history, mood and stool trends, and exporting your data.</p>
+        </div>
+      </div>
+      <div class="faq-item">
+        <button class="faq-question" type="button" id="faq-q-6" aria-expanded="true" aria-controls="faq-a-6">
+          <span>What does Premium add?</span><i class="faq-chevron" aria-hidden="true">+</i>
+        </button>
+        <div class="faq-answer" id="faq-a-6" role="region" aria-labelledby="faq-q-6">
+          <p>Meal analysis from a photo, the full food-pattern review rather than just the strongest one, your personal Well-Tolerated Foods list, and a weekly digest.</p>
+        </div>
+      </div>
+      <div class="faq-item">
+        <button class="faq-question" type="button" id="faq-q-7" aria-expanded="true" aria-controls="faq-a-7">
+          <span>Does GutWell AI detect food intolerances?</span><i class="faq-chevron" aria-hidden="true">+</i>
+        </button>
+        <div class="faq-answer" id="faq-a-7" role="region" aria-labelledby="faq-q-7">
+          <p>No. It surfaces possible patterns between what you logged and how you felt, for you to review and reflect on. It cannot confirm an intolerance, and a suspected one is a conversation for a healthcare professional.</p>
+        </div>
+      </div>
+      <div class="faq-item">
+        <button class="faq-question" type="button" id="faq-q-8" aria-expanded="true" aria-controls="faq-a-8">
+          <span>How is my data handled?</span><i class="faq-chevron" aria-hidden="true">+</i>
+        </button>
+        <div class="faq-answer" id="faq-a-8" role="region" aria-labelledby="faq-q-8">
+          <p>Your logs are yours. You can export everything as a CSV file, and you can permanently delete your account and its data from inside the app. Meal photos are not retained once an analysis has completed. Full detail is in the Privacy Policy.</p>
+        </div>
+      </div>
+    </div>
   </div>
 </section>
 
@@ -657,58 +775,28 @@ if (hero && !reduce && window.matchMedia('(min-width:900px) and (pointer:fine)')
   }, { passive: true });
 }
 
-/* ── 5. FAQ ───────────────────────────────────────────────────────────────
-   Built from data so the markup stays small. Native <button> elements, so
-   keyboard and screen-reader behaviour is the platform's, not ours. */
-var FAQ = [
-  ['What is GutWell AI?',
-   'A personal gut-health tracker. You check in daily, describe your meals, and GutWell AI reflects your own logged data back to you — a score for the day, a read on individual meals, and possible patterns over time.'],
-  ['Is GutWell AI a medical device?',
-   'No. It is a tracking and awareness tool. It does not diagnose, treat, cure or prevent anything, and it does not replace professional healthcare.'],
-  ['What is the GutWell Score?',
-   'A 0–100 summary of your day, calculated from your own check-ins — stool type, symptoms, energy and mood. It is a reflection tool, not a medical measurement.'],
-  ['What is the Meal Impact Score?',
-   'A 1–10 read on a single meal, based on what you ate and the symptoms, timing and context you shared. Different question, different scale — it is not the same number as your GutWell Score.'],
-  ['Do I need to take photos of my food?',
-   'No. Describing a meal in your own words, or by voice, works on every plan. Analysing a meal from a photo is part of GutWell Premium.'],
-  ['What stays free?',
-   'Daily check-ins, describing meals in text or by voice, your Meal Impact Score and reflection, your GutWell Score and its history, mood and stool trends, and exporting your data.'],
-  ['What does Premium add?',
-   'Meal analysis from a photo, the full food-pattern review rather than just the strongest one, your personal Well-Tolerated Foods list, and a weekly digest.'],
-  ['Does GutWell AI detect food intolerances?',
-   'No. It surfaces possible patterns between what you logged and how you felt, for you to review and reflect on. It cannot confirm an intolerance, and a suspected one is a conversation for a healthcare professional.'],
-  ['How is my data handled?',
-   'Your logs are yours. You can export everything as a CSV file, and you can permanently delete your account and its data from inside the app. Meal photos are not retained once an analysis has completed. Full detail is in the Privacy Policy.']
-];
+/* ── 5. FAQ ───────────────────────────────────────────────────
+   Progressive enhancement. The content is already in the HTML; this adds the
+   collapsing behaviour and nothing else. It flags the document as JS-capable
+   only once it has found real questions to wire, so a failure anywhere above
+   leaves every answer open rather than collapsed and unopenable. */
 var list = document.getElementById('faq-list');
 if (list) {
-  FAQ.forEach(function(row, i){
-    var id = 'faq-a-' + i;
-    var item = document.createElement('div');
-    item.className = 'faq-item';
-    var btn = document.createElement('button');
-    btn.className = 'faq-question';
-    btn.type = 'button';
-    btn.setAttribute('aria-expanded', 'false');
-    btn.setAttribute('aria-controls', id);
-    btn.innerHTML = '<span></span><i class="faq-chevron" aria-hidden="true">+</i>';
-    btn.firstChild.textContent = row[0];
-    var ans = document.createElement('div');
-    ans.className = 'faq-answer';
-    ans.id = id;
-    ans.setAttribute('role', 'region');
-    var p = document.createElement('p');
-    p.textContent = row[1];
-    ans.appendChild(p);
-    btn.addEventListener('click', function(){
-      var open = btn.getAttribute('aria-expanded') === 'true';
-      // Accordion: only one panel open, so the section never becomes a wall.
-      list.querySelectorAll('.faq-question').forEach(function(b){ b.setAttribute('aria-expanded','false'); });
-      list.querySelectorAll('.faq-answer').forEach(function(a){ a.classList.remove('open'); });
-      if (!open) { btn.setAttribute('aria-expanded','true'); ans.classList.add('open'); }
+  var questions = list.querySelectorAll('.faq-question');
+  if (questions.length) {
+    document.documentElement.classList.add('js-faq');
+    questions.forEach(function(btn){
+      var ans = document.getElementById(btn.getAttribute('aria-controls'));
+      btn.setAttribute('aria-expanded', 'false');
+      btn.addEventListener('click', function(){
+        var open = btn.getAttribute('aria-expanded') === 'true';
+        // Accordion: only one panel open, so the section never becomes a wall.
+        questions.forEach(function(b){ b.setAttribute('aria-expanded','false'); });
+        list.querySelectorAll('.faq-answer').forEach(function(a){ a.classList.remove('open'); });
+        if (!open && ans) { btn.setAttribute('aria-expanded','true'); ans.classList.add('open'); }
+      });
     });
-    item.appendChild(btn); item.appendChild(ans); list.appendChild(item);
-  });
+  }
 }
 
 /* ── 6. App Store link ────────────────────────────────────────────────────
