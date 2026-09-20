@@ -386,9 +386,29 @@ const FAQ = SITE.slice(SITE.indexOf('id="faq"'), SITE.indexOf('id="get"'));
 
 describe('the website states the final Free allowance', () => {
   test('the plans section gives the number, not a vague "free analysis"', () => {
-    expect(PLANS).toContain('1 text-based meal analysis per day');
-    expect(PLANS).toContain('describe your meal in your own words or by voice');
-    expect(PLANS).toContain('Meal Impact Score and a personalized reflection for your daily analysis');
+    expect(PLANS).toContain('1 text-based meal analysis per day — including your Meal Impact Score and personalized reflection');
+    // The score is part of the analysis bullet on purpose. A separate bullet
+    // read as a second, independent free feature that survives the window.
+    expect(PLANS).not.toMatch(/<li>Meal Impact Score/);
+  });
+
+  test('Premium does not imply unlimited usage', () => {
+    expect(PLANS).toContain('<li>Expanded daily AI meal analysis</li>');
+    expect(PLANS).not.toContain('without the one-a-day limit');
+    // The 20/day Premium ceiling is an internal abuse limit, not a product
+    // promise, and must never be advertised.
+    expect(SITE).not.toMatch(/\b20\s*(\/|per )\s*day\b/i);
+  });
+
+  test('the free plan never implies a one-meal-a-day diary', () => {
+    expect(PLANS).toContain('Log as many meals a day as you like');
+    expect(SITE).not.toMatch(/one meal per day|1 meal per day|one meal a day/i);
+  });
+
+  test('no stale 5/day wording survives anywhere on the site', () => {
+    for (const stale of [/5 text/i, /5 meal/i, /5 analys/i, /five analys/i]) {
+      expect(SITE).not.toMatch(stale);
+    }
   });
 
   test('the 14-day window is disclosed in the plans section itself', () => {
@@ -405,7 +425,9 @@ describe('the website states the final Free allowance', () => {
   });
 
   test('nothing on the page implies unlimited free analysis any more', () => {
-    expect(SITE).not.toMatch(/unlimited (ai |meal )?analys/i);
+    // "unlimited" is gone from the page entirely: even applied to the diary it
+    // sat one clause away from the analysis allowance and invited the wrong read.
+    expect(SITE).not.toMatch(/unlimited/i);
     // The old wording promised describing a meal was simply "free".
     expect(SITE).not.toContain('describing a meal is free');
   });
