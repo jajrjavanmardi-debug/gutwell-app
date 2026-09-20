@@ -446,6 +446,10 @@ nav.is-scrolled{background:rgba(7,21,16,0.93);box-shadow:0 14px 34px -26px rgba(
 .tier-premium{border-color:var(--border-strong);
   background-image:radial-gradient(120% 90% at 100% 0%,rgba(212,163,115,0.12),transparent 60%)}
 .tier-premium li::before{background:var(--accent)}
+/* The free plan's one material limitation, set where the plan is actually
+   read rather than left to the FAQ. Ruled off so it reads as a condition of
+   the list above it, not as a seventh feature. */
+.tier-note{margin-top:20px;margin-bottom:0;padding-top:16px;border-top:1px solid var(--border)}
 
 /* ── Trust: deliberately the calmest section on the page ───────────────── */
 .trust{background:var(--ink-950)}
@@ -501,6 +505,72 @@ footer{border-top:1px solid var(--border);padding-block:44px 56px;background:var
 .nav-cta:focus-visible,.app-store-badge:focus-visible{outline-offset:4px}
 .faq-question:focus-visible{outline-offset:-3px;border-radius:0}
 
+/* ── Mobile motion ──────────────────────────────────────────────────────
+   Touch devices get none of the pointer work, and the shared amplitudes
+   (20px over an 844px screen, ~2.4%) sit below what anyone notices on a
+   phone. Everything below is scoped to <=899px and to .js-reveal, so the
+   no-JS and reduced-motion paths are untouched. transform + opacity only.
+   No JavaScript was added for any of it. */
+@media(max-width:899px){
+  /* Slightly larger travel for the shared reveal. */
+  :root{--reveal-y:28px}
+
+  /* 1. HERO DEVICE ENTRANCE
+     Starts at 300ms — after the lede (80ms) and the CTA (160ms) are already
+     on screen — so nothing LCP-critical waits on it. The H1 still carries
+     no animation at all. */
+  .js-reveal .hero-lift{animation:heroLiftMobile 900ms var(--ease) both;animation-delay:300ms}
+  @keyframes heroLiftMobile{
+    from{opacity:0;transform:translateY(52px) scale(.955)}
+    to{opacity:1;transform:none}
+  }
+
+  /* 2. IDLE DRIFT
+     On the inner .device, not the wrapper, so it can never fight the
+     entrance transform. 5px over 6.5s, starting once the entrance is done. */
+  /* No will-change: a transform animation is composited anyway, and pinning
+     a layer for the life of the page is exactly the permanent will-change
+     that costs battery on the mid-range Android this pass is aimed at. */
+  .js-reveal .hero-visual .device{animation:heroDrift 6.5s ease-in-out 1.3s infinite}
+  @keyframes heroDrift{
+    0%,100%{transform:translateY(0)}
+    50%{transform:translateY(-5px)}
+  }
+
+  /* 3. GALLERY — three directions instead of one
+     22px of lateral travel, not 28px: the gutter is 24px, so 22px is
+     provably inside it and no clipping is relied on to prevent a
+     horizontal scrollbar. */
+  .js-reveal .shot.reveal[data-r="scale"]{transition-duration:760ms}
+  .js-reveal .shot.reveal[data-d="1"]{transform:translate3d(-22px,16px,0);transition-delay:0ms}
+  .js-reveal .shot.reveal[data-d="2"]{transform:translate3d(0,32px,0);transition-delay:120ms}
+  .js-reveal .shot.reveal[data-d="3"]{transform:translate3d(22px,16px,0);transition-delay:240ms}
+  .js-reveal .shot.reveal.in{transform:none}
+
+  /* 4. JOURNEY — the number lands, then the copy
+     The step itself stops animating; its two parts do, keyed off the .in
+     class the existing observer already sets. No extra observer. */
+  .js-reveal .journey-step{opacity:1;transform:none;transition:none}
+  .js-reveal .journey-step .step-num,
+  .js-reveal .journey-step h3,
+  .js-reveal .journey-step p{
+    opacity:0;transform:translateY(16px);
+    transition:opacity 640ms var(--ease),transform 640ms var(--ease)
+  }
+  .js-reveal .journey-step.in .step-num{opacity:1;transform:none}
+  .js-reveal .journey-step.in h3,
+  .js-reveal .journey-step.in p{opacity:1;transform:none;transition-delay:110ms}
+
+  /* 5. SCORE FIGURES — the one optional emphasis moment
+     The count-up and the bar already run; this gives the numeral itself a
+     visible arrival so the section reads as animated on a phone. */
+  .js-reveal .score-card .score-figure{
+    opacity:0;transform:translateY(20px);
+    transition:opacity 700ms var(--ease) 80ms,transform 700ms var(--ease) 80ms
+  }
+  .js-reveal .score-card.in .score-figure{opacity:1;transform:none}
+}
+
 /* ── Reduced motion ─────────────────────────────────────────────────────
    Nothing on this page needs motion to be understood. Everything below is
    decoration, so all of it is switched off rather than merely shortened. */
@@ -512,6 +582,9 @@ footer{border-top:1px solid var(--border);padding-block:44px 56px;background:var
   .story-media img{transform:none}
   .hero-visual .device,.shot .device{transform:none!important}
   .hero-rise,.hero-lift{animation:none!important;opacity:1!important;transform:none!important}
+  .hero-visual .device{animation:none!important;will-change:auto!important}
+  .journey-step .step-num,.journey-step h3,.journey-step p,
+  .score-card .score-figure{opacity:1!important;transform:none!important}
   .journey-step::before{transform:scaleX(1)!important}
   .score-bar span{transform:scaleX(var(--v,1))!important}
 }
@@ -643,7 +716,7 @@ footer{border-top:1px solid var(--border);padding-block:44px 56px;background:var
           <img src="assets/screenshots/meal-capture.webp" width="900" height="1957" loading="lazy" decoding="async"
                alt="The GutWell AI meal capture screen, offering three ways to log a meal: take a photo, choose one from your gallery, or describe the meal instead.">
         </div>
-        <figcaption>Log a meal three ways &mdash; photo, gallery, or your own words. Photo analysis is part of GutWell Premium; describing a meal is free.</figcaption>
+        <figcaption>Log a meal three ways &mdash; photo, gallery, or your own words. Logging is always free; photo analysis is part of GutWell Premium.</figcaption>
       </figure>
 
       <figure class="shot reveal" data-r="scale" data-d="3">
@@ -716,18 +789,21 @@ footer{border-top:1px solid var(--border);padding-block:44px 56px;background:var
         <p class="fine">Everything you need to keep a food and symptom diary.</p>
         <ul>
           <li>Daily check-ins — stool type, symptoms, mood, energy</li>
-          <li>Describe a meal in your own words or by voice</li>
-          <li>Meal Impact Score and a personalized reflection</li>
+          <li>Log as many meals a day as you like</li>
+          <li>1 text-based meal analysis per day — describe your meal in your own words or by voice</li>
+          <li>Meal Impact Score and a personalized reflection for your daily analysis</li>
           <li>Your GutWell Score and its history</li>
           <li>Mood, stool and check-in consistency trends</li>
           <li>Export your data as CSV</li>
         </ul>
+        <p class="fine tier-note">The daily AI analysis runs for your first 14 days. After that, logging meals, daily check-ins, your GutWell Score and your trends stay free — AI meal analysis continues with Premium.</p>
       </div>
       <div class="card tier tier-premium reveal" data-d="2">
         <h3>GutWell Premium</h3>
         <p class="fine">Optional subscription. Cancel anytime in App Store settings.</p>
         <ul>
           <li>Meal analysis from a photo</li>
+          <li>Describe-your-meal analysis without the one-a-day limit, for as long as you subscribe</li>
           <li>The full food-pattern review, not just the strongest one</li>
           <li>Your personal Well-Tolerated Foods list</li>
           <li>Weekly gut health digest</li>
@@ -804,7 +880,7 @@ footer{border-top:1px solid var(--border);padding-block:44px 56px;background:var
           <span>Do I need to take photos of my food?</span><i class="faq-chevron" aria-hidden="true">+</i>
         </button>
         <div class="faq-answer" id="faq-a-4" role="region" aria-labelledby="faq-q-4">
-          <p>No. Describing a meal in your own words, or by voice, works on every plan. Analysing a meal from a photo is part of GutWell Premium.</p>
+          <p>No. Describing a meal in your own words, or by voice, works on every plan — on the free plan that is one analysis a day, for your first 14 days. Analysing a meal from a photo is part of GutWell Premium.</p>
         </div>
       </div>
       <div class="faq-item">
@@ -812,7 +888,7 @@ footer{border-top:1px solid var(--border);padding-block:44px 56px;background:var
           <span>What stays free?</span><i class="faq-chevron" aria-hidden="true">+</i>
         </button>
         <div class="faq-answer" id="faq-a-5" role="region" aria-labelledby="faq-q-5">
-          <p>Daily check-ins, describing meals in text or by voice, your Meal Impact Score and reflection, your GutWell Score and its history, mood and stool trends, and exporting your data.</p>
+          <p>Logging meals and daily check-ins, your GutWell Score and its history, mood and stool trends, and exporting your data. Those have no daily limit and no time limit. AI meal analysis is counted separately: the free plan includes one text-based analysis a day — with its Meal Impact Score and reflection — for your first 14 days, and continues with Premium after that.</p>
         </div>
       </div>
       <div class="faq-item">
@@ -820,22 +896,30 @@ footer{border-top:1px solid var(--border);padding-block:44px 56px;background:var
           <span>What does Premium add?</span><i class="faq-chevron" aria-hidden="true">+</i>
         </button>
         <div class="faq-answer" id="faq-a-6" role="region" aria-labelledby="faq-q-6">
-          <p>Meal analysis from a photo, the full food-pattern review rather than just the strongest one, your personal Well-Tolerated Foods list, and a weekly digest.</p>
+          <p>Meal analysis from a photo, describe-your-meal analysis beyond the free one a day and beyond your first 14 days, the full food-pattern review rather than just the strongest one, your personal Well-Tolerated Foods list, and a weekly digest.</p>
         </div>
       </div>
       <div class="faq-item">
         <button class="faq-question" type="button" id="faq-q-7" aria-expanded="true" aria-controls="faq-a-7">
-          <span>Does GutWell AI detect food intolerances?</span><i class="faq-chevron" aria-hidden="true">+</i>
+          <span>How many meals can I log per day?</span><i class="faq-chevron" aria-hidden="true">+</i>
         </button>
         <div class="faq-answer" id="faq-a-7" role="region" aria-labelledby="faq-q-7">
-          <p>No. It surfaces possible patterns between what you logged and how you felt, for you to review and reflect on. It cannot confirm an intolerance, and a suspected one is a conversation for a healthcare professional.</p>
+          <p>As many as you like, on every plan. Logging a meal and analysing one are two different things: the diary is unlimited, while an AI analysis — the Meal Impact Score and the written reflection — is the part that is counted.</p>
         </div>
       </div>
       <div class="faq-item">
         <button class="faq-question" type="button" id="faq-q-8" aria-expanded="true" aria-controls="faq-a-8">
-          <span>How is my data handled?</span><i class="faq-chevron" aria-hidden="true">+</i>
+          <span>Does GutWell AI detect food intolerances?</span><i class="faq-chevron" aria-hidden="true">+</i>
         </button>
         <div class="faq-answer" id="faq-a-8" role="region" aria-labelledby="faq-q-8">
+          <p>No. It surfaces possible patterns between what you logged and how you felt, for you to review and reflect on. It cannot confirm an intolerance, and a suspected one is a conversation for a healthcare professional.</p>
+        </div>
+      </div>
+      <div class="faq-item">
+        <button class="faq-question" type="button" id="faq-q-9" aria-expanded="true" aria-controls="faq-a-9">
+          <span>How is my data handled?</span><i class="faq-chevron" aria-hidden="true">+</i>
+        </button>
+        <div class="faq-answer" id="faq-a-9" role="region" aria-labelledby="faq-q-9">
           <p>Your logs are yours. You can export everything as a CSV file, and you can permanently delete your account and its data from inside the app. Meal photos are not retained once an analysis has completed. Full detail is in the Privacy Policy.</p>
         </div>
       </div>
