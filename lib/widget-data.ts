@@ -31,6 +31,41 @@ export async function updateWidgetData(data: {
 }
 
 /**
+ * Remove every GutWell value from the widget's stores.
+ *
+ * Called by purgeAllLocalData() on account deletion. The App Group is a
+ * SEPARATE store from AsyncStorage: clearing AsyncStorage leaves the widget
+ * still rendering the deleted account's gut score and streak on the home
+ * screen, which is precisely the leak this fixes.
+ *
+ * The keys written by updateWidgetData are the keys cleared here — they are
+ * declared in WIDGET_APP_GROUP_KEYS so a test can prove the two stay in step.
+ * Values are reset rather than deleted: SharedGroupPreferences exposes no
+ * remove, and a zeroed widget reads as "no data" while a stale one reads as
+ * somebody's health record.
+ */
+export const WIDGET_APP_GROUP_KEYS = ['streak', 'gutScore', 'lastCheckIn'] as const;
+
+export async function clearWidgetData(): Promise<void> {
+  await AsyncStorage.removeItem('widget_data');
+
+  if (Platform.OS !== 'ios') return;
+
+  try {
+    const { SharedGroupPreferences } = NativeModules;
+    if (SharedGroupPreferences) {
+      await SharedGroupPreferences.setItem('streak', 0, GROUP_ID);
+      await SharedGroupPreferences.setItem('gutScore', 0, GROUP_ID);
+      await SharedGroupPreferences.setItem('lastCheckIn', '', GROUP_ID);
+    }
+  } catch {
+    // Best-effort, like the write path. purgeAllLocalData records the failure.
+  }
+
+  reloadWidget();
+}
+
+/**
  * Trigger widget timeline reload after data update.
  */
 export function reloadWidget(): void {

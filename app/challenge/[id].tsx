@@ -38,11 +38,6 @@ function dailyTasksFor(t: Translations, type: string): readonly string[] {
   }
 }
 
-function formatCount(n: number): string {
-  if (n >= 1000) return `${(n / 1000).toFixed(n >= 10000 ? 0 : 1)}k`;
-  return String(n);
-}
-
 export default function ChallengeDetailScreen() {
   const t = useTranslation();
   const { language } = useLanguage();
@@ -154,12 +149,6 @@ export default function ChallengeDetailScreen() {
                   <Ionicons name="time-outline" size={14} color={Colors.textSecondary} />
                   <Text style={styles.metaText}>
                     {challenge.durationDays} {t.challenges.daysSuffix}
-                  </Text>
-                </View>
-                <View style={styles.metaPill}>
-                  <Ionicons name="people-outline" size={14} color={Colors.textSecondary} />
-                  <Text style={styles.metaText}>
-                    {formatCount(challenge.participantsCount)} {t.challenges.joinedSuffix}
                   </Text>
                 </View>
               </View>

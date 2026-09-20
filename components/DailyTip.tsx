@@ -3,7 +3,8 @@ import { View, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors, Spacing, FontSize, BorderRadius, FontFamily, Shadows } from '../constants/theme';
 import { useTranslation } from '../lib/i18n';
-import { getTodaysTip, getPersonalizedTip } from '../lib/tips';
+import { useLanguage } from '../lib/LanguageContext';
+import { getTodaysTip, getPersonalizedTip, getTipCopy } from '../lib/tips';
 
 type DailyTipProps = {
   gutConcern?: string | null;
@@ -12,9 +13,13 @@ type DailyTipProps = {
 
 export function DailyTip({ gutConcern, goal }: DailyTipProps = {}) {
   const t = useTranslation();
+  const { language } = useLanguage();
+  // Selection is unchanged and stays language-independent: the same tip is
+  // chosen for a given day and profile, and only its wording is localized.
   const tip = gutConcern || goal
     ? getPersonalizedTip(gutConcern, goal)
     : getTodaysTip();
+  const copy = getTipCopy(tip, language);
 
   const categoryColors: Record<string, string> = {
     nutrition: Colors.secondary,
@@ -33,15 +38,15 @@ export function DailyTip({ gutConcern, goal }: DailyTipProps = {}) {
         </View>
         <View style={{ flex: 1 }}>
           <Text style={styles.label}>{t.components.dailyTip.title}</Text>
-          <Text style={styles.title}>{tip.title}</Text>
+          <Text style={styles.title}>{copy.title}</Text>
         </View>
         <View style={[styles.categoryPill, { backgroundColor: color + '15' }]}>
           <Text style={[styles.categoryText, { color }]}>
-            {tip.category}
+            {t.components.dailyTip.categories[tip.category]}
           </Text>
         </View>
       </View>
-      <Text style={styles.body}>{tip.body}</Text>
+      <Text style={styles.body}>{copy.body}</Text>
     </View>
   );
 }

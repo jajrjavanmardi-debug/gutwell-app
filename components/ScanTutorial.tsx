@@ -79,7 +79,14 @@ export function ScanTutorial({ onDone }: { onDone: () => void }) {
               <Text style={styles.heroCaption}>{slide.heroCaption}</Text>
             </View>
 
-            <View style={styles.copyBlock}>
+            {/* Vertically scrollable so longer translations (German runs ~30%
+                past English here) stay readable instead of being clipped by
+                the pager edge. Short copy still centres via flexGrow. */}
+            <ScrollView
+              style={styles.copyScroll}
+              contentContainerStyle={styles.copyBlock}
+              showsVerticalScrollIndicator={false}
+            >
               <Text style={styles.title}>{slide.title}</Text>
               <View style={styles.bulletList}>
                 {slide.bullets.map((text, bulletIndex) => (
@@ -93,7 +100,7 @@ export function ScanTutorial({ onDone }: { onDone: () => void }) {
                   </View>
                 ))}
               </View>
-            </View>
+            </ScrollView>
           </View>
         ))}
       </ScrollView>
@@ -108,7 +115,11 @@ export function ScanTutorial({ onDone }: { onDone: () => void }) {
           ))}
         </View>
         <Button
-          title={isLastSlide ? 'Scan now' : 'Next'}
+          title={
+            isLastSlide
+              ? t.components.scanTutorial.scanNow
+              : t.components.scanTutorial.next
+          }
           onPress={handleNext}
           variant="primary"
           size="lg"
@@ -145,9 +156,13 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.surfaceDark,
     borderBottomLeftRadius: BorderRadius.xl,
     borderBottomRightRadius: BorderRadius.xl,
-    flex: 1.25,
+    // Was 1.25. The hero is decorative; the bullets are the content, so on a
+    // short screen the copy area now wins the contested space rather than the
+    // artwork. Also capped so it cannot squeeze the copy on tall devices.
+    flex: 1,
     gap: Spacing.lg,
     justifyContent: 'center',
+    maxHeight: '46%',
     paddingHorizontal: Spacing.xl,
   },
   heroIconWrap: {
@@ -166,11 +181,16 @@ const styles = StyleSheet.create({
     fontSize: FontSize.md,
     textAlign: 'center',
   },
-  copyBlock: {
+  copyScroll: {
     flex: 1,
+  },
+  copyBlock: {
+    flexGrow: 1,
     gap: Spacing.lg,
     paddingHorizontal: Spacing.lg,
     paddingTop: Spacing.xl,
+    // Clears the footer so the last bullet is never flush against the dots.
+    paddingBottom: Spacing.lg,
   },
   title: {
     color: Colors.text,

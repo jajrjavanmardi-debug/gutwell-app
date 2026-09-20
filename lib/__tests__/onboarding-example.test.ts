@@ -59,7 +59,7 @@ describe('stage transition and navigation', () => {
   test('the CTA advances the stage to signup before routing', () => {
     expect(source).toContain("saveLocalStage('signup')");
     const stageAt = source.indexOf("saveLocalStage('signup')");
-    const routeAt = source.indexOf("router.push('/(auth)/signup')");
+    const routeAt = source.indexOf("router.push('/(onboarding)/profile-reveal')");
     expect(stageAt).toBeGreaterThan(-1);
     expect(routeAt).toBeGreaterThan(-1);
     // Order matters: a relaunch after a crash mid-navigation must resume at
@@ -67,8 +67,37 @@ describe('stage transition and navigation', () => {
     expect(stageAt).toBeLessThan(routeAt);
   });
 
-  test('the CTA routes to the existing signup screen', () => {
-    expect(source).toContain("router.push('/(auth)/signup')");
+  /**
+   * The example screen used to push straight to signup. The Gut Profile
+   * Reveal now sits between them, so this asserts the WHOLE chain rather than
+   * just this screen's next hop — a two-file assertion is what catches the
+   * reveal being bypassed or orphaned, which a single-file one would not.
+   *
+   * The stage deliberately stays 'signup' across both screens: it names the
+   * leg of the funnel, not the individual screen, and the reveal collects
+   * nothing that could need resuming into.
+   */
+  test('the CTA routes to the Gut Profile Reveal, which routes on to signup', () => {
+    expect(source).toContain("router.push('/(onboarding)/profile-reveal')");
+    // The example screen no longer reaches signup directly.
+    expect(source).not.toContain("router.push('/(auth)/signup')");
+
+    const reveal = readFileSync(
+      join(__dirname, '..', '..', 'app', '(onboarding)', 'profile-reveal.tsx'),
+      'utf8',
+    );
+    expect(reveal).toContain("router.push('/(auth)/signup')");
+  });
+
+  test('the reveal does not touch the stage model', () => {
+    // It is part of the 'signup' leg the example screen already wrote. A stage
+    // write here would mean the OnboardingStage union and lib/routing.ts had
+    // been widened for a screen that collects nothing.
+    const reveal = readFileSync(
+      join(__dirname, '..', '..', 'app', '(onboarding)', 'profile-reveal.tsx'),
+      'utf8',
+    );
+    expect(reveal).not.toContain('saveLocalStage');
   });
 
   test('the existing sign-in path is preserved for returning users', () => {

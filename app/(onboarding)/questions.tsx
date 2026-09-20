@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Animated,
+  Easing,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -27,6 +28,7 @@ import { WheelPicker, type WheelPickerOption } from '../../components/ui/WheelPi
 import { RulerSlider } from '../../components/ui/RulerSlider';
 import { useTranslation } from '../../lib/i18n';
 import LanguageSwitcher from '../../components/LanguageSwitcher';
+import { useReducedMotion } from '../../lib/useReducedMotion';
 import { saveLocalStage } from '../../lib/onboarding-stage';
 import {
   ONBOARDING_STEPS,
@@ -65,8 +67,30 @@ function optionCopy(
   }
   return { label: opt.label, description: opt.description };
 }
-const FADE_OUT_MS = 220;
-const FADE_IN_MS = 320;
+/**
+ * Motion budget for the stepper.
+ *
+ * Everything here is decorative. The screen must reach its next state at the
+ * same moment whether or not it animates, so no value below gates an
+ * interaction and nothing waits on a spring settling. Reduce Motion collapses
+ * the translations to zero and the stagger to a single instant fade — see
+ * `useReducedMotion` and the `reduce` branches at each call site.
+ *
+ * Durations are deliberately short of the 300ms most transitions reach for:
+ * a wellness questionnaire that glides feels slow by the third tap, and the
+ * user is answering, not watching.
+ */
+const FADE_OUT_MS = 160;
+const FADE_IN_MS = 240;
+/** How far the outgoing/incoming step slides, in px. Small on purpose. */
+const STEP_SLIDE_PX = 18;
+/** Per-option entrance. */
+const OPTION_ENTER_MS = 260;
+const OPTION_STAGGER_MS = 45;
+const OPTION_ENTER_PX = 14;
+/** Selection feedback. Scale is barely visible and that is the point. */
+const OPTION_SELECT_SCALE = 1.015;
+const OPTION_SELECT_MS = 140;
 
 type AnswerValue = string | number | string[];
 type Answers = Record<string, AnswerValue>;
@@ -79,12 +103,54 @@ const MONTHS = [
 const CURRENT_YEAR = new Date().getFullYear();
 
 /** Whether the current step has enough input to enable the Continue CTA. */
+/**
+ * Next selection for a multi-select tap, honouring mutually exclusive values.
+ *
+ * Rules, in order:
+ *   - tapping a SELECTED exclusive value does nothing. It is already the whole
+ *     answer, so deselecting it could only produce an empty selection and a
+ *     disabled CTA. An exclusive value is cleared by choosing something else,
+ *     never by unpicking it.
+ *   - tapping an unselected exclusive value replaces the selection with just it
+ *   - tapping any other value drops every exclusive value that was selected
+ *   - tapping a selected non-exclusive value toggles it off as usual
+ *
+ * Pure and exported so the interaction rules are tested directly rather than
+ * through the component.
+ */
+export function nextMultiSelect(
+  current: readonly string[],
+  tapped: string,
+  exclusiveValues: readonly string[] = [],
+): string[] {
+  const isExclusive = exclusiveValues.includes(tapped);
+  if (current.includes(tapped)) {
+    // No-op for an already-selected exclusive value; normal toggle otherwise.
+    return isExclusive ? [...current] : current.filter((v) => v !== tapped);
+  }
+  if (isExclusive) return [tapped];
+  return [...current.filter((v) => !exclusiveValues.includes(v)), tapped];
+}
+
+/**
+ * Legacy blobs stored meal_feeling as a single string. Coerce so an existing
+ * partially-completed onboarding hydrates into the multi-select without
+ * crashing, and so a resumed user keeps the answer they already gave.
+ */
+export function asSelectionArray(value: AnswerValue | undefined): string[] {
+  if (Array.isArray(value)) return value.filter((v): v is string => typeof v === 'string');
+  if (typeof value === 'string' && value.length > 0) return [value];
+  return [];
+}
+
 function canAdvance(step: OnboardingStep, value: AnswerValue | undefined): boolean {
   switch (step.type) {
     case 'single-select':
       return typeof value === 'string' && value.length > 0;
     case 'multi-select':
-      return step.optional || (Array.isArray(value) && value.length > 0);
+      // asSelectionArray so a legacy scalar counts as one answer rather than
+      // stranding a resuming user on a CTA that will not enable.
+      return step.optional || asSelectionArray(value).length > 0;
     case 'wheel':
     case 'ruler':
       return value !== undefined; // pickers always hold a value
@@ -99,9 +165,20 @@ function canAdvance(step: OnboardingStep, value: AnswerValue | undefined): boole
 
 export default function QuestionsScreen() {
   const t = useTranslation();
+  const reduceMotion = useReducedMotion();
   const [index, setIndex] = useState(0);
   const [answers, setAnswers] = useState<Answers>({});
   const contentOpacity = useRef(new Animated.Value(1)).current;
+  /**
+   * Horizontal offset for the step transition, in px.
+   *
+   * One value drives both halves: the outgoing step slides toward the edge it
+   * is leaving by, the incoming step is placed on the opposite edge and slides
+   * back to 0. Forward travel reads right-to-left, Back reads left-to-right,
+   * which is the direction the stack itself moves and the only thing that
+   * makes the two feel different rather than identical.
+   */
+  const contentShift = useRef(new Animated.Value(0)).current;
 
   const step = ONBOARDING_STEPS[index];
   const progress = (index + 1) / TOTAL_STEPS;
@@ -164,21 +241,71 @@ export default function QuestionsScreen() {
   );
 
   const goToStep = useCallback(
-    (nextIndex: number) => {
-      Animated.timing(contentOpacity, {
-        toValue: 0,
-        duration: FADE_OUT_MS,
-        useNativeDriver: true,
-      }).start(() => {
-        setIndex(nextIndex);
+    (nextIndex: number, direction: 'forward' | 'back' = 'forward') => {
+      // Reduce Motion: swap the content on a short cross-fade with no
+      // translation at all. The step still changes at the same moment, so
+      // nothing about the flow depends on which branch runs.
+      if (reduceMotion) {
+        contentShift.setValue(0);
         Animated.timing(contentOpacity, {
-          toValue: 1,
-          duration: FADE_IN_MS,
+          toValue: 0,
+          duration: 90,
           useNativeDriver: true,
-        }).start();
+        }).start(({ finished }) => {
+          // Same guard as the animated branch below: a cancelled fade — a fast
+          // double-tap, or Back landing mid-transition — must not commit the
+          // index or start the incoming half. Both branches behave identically
+          // here; only the duration and the absence of translation differ.
+          if (!finished) return;
+          setIndex(nextIndex);
+          Animated.timing(contentOpacity, {
+            toValue: 1,
+            duration: 90,
+            useNativeDriver: true,
+          }).start();
+        });
+        return;
+      }
+
+      const leaving = direction === 'forward' ? -STEP_SLIDE_PX : STEP_SLIDE_PX;
+      const entering = -leaving;
+
+      Animated.parallel([
+        Animated.timing(contentOpacity, {
+          toValue: 0,
+          duration: FADE_OUT_MS,
+          easing: Easing.in(Easing.quad),
+          useNativeDriver: true,
+        }),
+        Animated.timing(contentShift, {
+          toValue: leaving,
+          duration: FADE_OUT_MS,
+          easing: Easing.in(Easing.quad),
+          useNativeDriver: true,
+        }),
+      ]).start(({ finished }) => {
+        // A cancelled animation (a fast double-tap) must not leave the screen
+        // faded out and stranded: only the completing run owns the swap.
+        if (!finished) return;
+        setIndex(nextIndex);
+        contentShift.setValue(entering);
+        Animated.parallel([
+          Animated.timing(contentOpacity, {
+            toValue: 1,
+            duration: FADE_IN_MS,
+            easing: Easing.out(Easing.cubic),
+            useNativeDriver: true,
+          }),
+          Animated.timing(contentShift, {
+            toValue: 0,
+            duration: FADE_IN_MS,
+            easing: Easing.out(Easing.cubic),
+            useNativeDriver: true,
+          }),
+        ]).start();
       });
     },
-    [contentOpacity],
+    [contentOpacity, contentShift, reduceMotion],
   );
 
   const handleContinue = useCallback(() => {
@@ -194,8 +321,15 @@ export default function QuestionsScreen() {
       return;
     }
     // Advancing off the goal question means the feeling question is next.
+    //
+    // The stage stays 'feeling' for every non-final step, including the move
+    // onto the context interlude. That is deliberate and not a gap: the stage
+    // selects a SCREEN, not an index — routing sends both 'goal' and 'feeling'
+    // to this same stepper, which always opens at index 0 and rehydrates the
+    // saved answers. There is no stage value that could resume mid-stepper, so
+    // adding one for the interlude would change nothing except the enum.
     void saveLocalStage('feeling');
-    goToStep(index + 1);
+    goToStep(index + 1, 'forward');
   }, [goToStep, index, step.id]);
 
   const handleBack = useCallback(() => {
@@ -203,7 +337,7 @@ export default function QuestionsScreen() {
       router.back();
       return;
     }
-    goToStep(index - 1);
+    goToStep(index - 1, 'back');
   }, [goToStep, index]);
 
   const currentValue =
@@ -236,6 +370,7 @@ export default function QuestionsScreen() {
                 progress={progress}
                 trackColor="rgba(255,255,255,0.12)"
                 fillColor="#52B788"
+                reduceMotion={reduceMotion}
               />
             </View>
             {/* Covers BOTH question steps — this screen is the stepper, so the
@@ -245,12 +380,22 @@ export default function QuestionsScreen() {
           </View>
         </SafeAreaView>
 
-        <Animated.View style={[styles.body, { opacity: contentOpacity }]}>
+        <Animated.View
+          style={[
+            styles.body,
+            { opacity: contentOpacity, transform: [{ translateX: contentShift }] },
+          ]}
+        >
+          {/* Keyed on the step id so each step's options mount fresh and run
+              their entrance stagger. Without the key React reuses the rows and
+              only their props change, so the second question would appear
+              fully formed while the first animated in. */}
           <StepContent
+            key={step.id}
             step={step}
             value={currentValue}
             onSetField={setField}
-            answers={answers}
+            reduceMotion={reduceMotion}
           />
         </Animated.View>
 
@@ -297,27 +442,43 @@ type StepContentProps = {
   step: OnboardingStep;
   value: AnswerValue | undefined;
   onSetField: (field: string, value: AnswerValue) => void;
-  /** Full answer map — the chip row reads its own field, not `value`. */
-  answers?: Answers;
+  /** Threaded down so every animated surface reads one source, not its own. */
+  reduceMotion?: boolean;
 };
 
-function StepContent({ step, value, onSetField, answers }: StepContentProps) {
+function StepContent({ step, value, onSetField, reduceMotion }: StepContentProps) {
   switch (step.type) {
     case 'single-select':
     case 'multi-select':
     case 'referral':
-      return <ScrollableStep step={step} value={value} onSetField={onSetField} answers={answers} />;
+      return (
+        <ScrollableStep
+          step={step}
+          value={value}
+          onSetField={onSetField}
+          reduceMotion={reduceMotion}
+        />
+      );
     case 'wheel':
       return <WheelStepView step={step} value={value} onSetField={onSetField} />;
     case 'ruler':
       return <RulerStepView step={step} value={value} onSetField={onSetField} />;
     case 'info':
-      return <InfoStepView step={step} />;
+      return <InfoStepView step={step} reduceMotion={reduceMotion} />;
     default:
       return null;
   }
 }
 
+/**
+ * Question heading.
+ *
+ * Deliberately uncapped: no `maxFontSizeMultiplier` on either line. Both sit
+ * inside ScrollableStep's ScrollView, so at large Dynamic Type sizes the text
+ * wraps, the content grows and the user scrolls — nothing clips. Capping here
+ * would trim a user's chosen text size purely to keep the layout tidy, which
+ * is the wrong trade in an accessibility setting they opted into.
+ */
 function Header({ title, subtitle }: { title: string; subtitle?: string }) {
   return (
     <View style={styles.headerText}>
@@ -327,7 +488,138 @@ function Header({ title, subtitle }: { title: string; subtitle?: string }) {
   );
 }
 
-function ScrollableStep({ step, value, onSetField, answers }: StepContentProps) {
+/**
+ * Fade-and-rise entrance, shared by the option rows and the interlude.
+ *
+ * Returns a 0→1 driver. Callers read it for opacity and interpolate it for
+ * translateY, so both surfaces move identically rather than by two copies of
+ * the same timing that could drift apart.
+ *
+ * Under Reduce Motion the value starts AND stays at 1: the element is at its
+ * final state on the first frame, with no animation scheduled at all.
+ */
+function useEntrance(reduceMotion: boolean, delay = 0): Animated.Value {
+  const value = useRef(new Animated.Value(reduceMotion ? 1 : 0)).current;
+
+  useEffect(() => {
+    if (reduceMotion) {
+      value.setValue(1);
+      return;
+    }
+    const animation = Animated.timing(value, {
+      toValue: 1,
+      duration: OPTION_ENTER_MS,
+      delay,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: true,
+    });
+    animation.start();
+    return () => animation.stop();
+  }, [value, delay, reduceMotion]);
+
+  return value;
+}
+
+/** Opacity + rise, from a useEntrance driver. */
+function entranceStyle(driver: Animated.Value) {
+  return {
+    opacity: driver,
+    translateY: driver.interpolate({
+      inputRange: [0, 1],
+      outputRange: [OPTION_ENTER_PX, 0],
+    }),
+  };
+}
+
+/**
+ * Entrance + selection motion for one option row/card.
+ *
+ * Wraps the shared OptionRow/OptionCard rather than changing them: both are
+ * used only by this screen today, but they are generic UI components and a
+ * questionnaire's entrance choreography is not their business.
+ *
+ * Under Reduce Motion the item mounts at its final state and the selection
+ * scale is skipped entirely — the selected styling inside OptionRow/OptionCard
+ * still changes, so selection remains just as visible without moving anything.
+ */
+function AnimatedOption({
+  index,
+  selected,
+  reduceMotion,
+  children,
+}: {
+  index: number;
+  selected: boolean;
+  reduceMotion: boolean;
+  children: React.ReactNode;
+}) {
+  const enter = useEntrance(reduceMotion, index * OPTION_STAGGER_MS);
+  const scale = useRef(new Animated.Value(1)).current;
+
+  /**
+   * First-run guard for the selection pulse.
+   *
+   * Without it the effect fires on mount, and mount happens far more often
+   * than a user selecting something: `key={step.id}` remounts the whole step
+   * on every transition, so arriving at a question, resuming an onboarding
+   * with saved answers, or pressing Back to a question already answered would
+   * each replay the pulse. Worse, on arrival every option pulsed at once,
+   * on top of its own entrance.
+   *
+   * The pulse should acknowledge a user's tap and nothing else, so the first
+   * run — which is mount, never a tap — is skipped.
+   */
+  const selectionSettled = useRef(false);
+
+  useEffect(() => {
+    if (!selectionSettled.current) {
+      selectionSettled.current = true;
+      return;
+    }
+    if (reduceMotion) return;
+    // Driven by `selected` changing rather than by the touch, so a
+    // multi-select deselect gets the same acknowledgement as a select.
+    const animation = Animated.sequence([
+      Animated.timing(scale, {
+        toValue: OPTION_SELECT_SCALE,
+        duration: OPTION_SELECT_MS,
+        easing: Easing.out(Easing.quad),
+        useNativeDriver: true,
+      }),
+      Animated.timing(scale, {
+        toValue: 1,
+        duration: OPTION_SELECT_MS,
+        easing: Easing.out(Easing.quad),
+        useNativeDriver: true,
+      }),
+    ]);
+    animation.start();
+    return () => animation.stop();
+  }, [selected, scale, reduceMotion]);
+
+  const { opacity, translateY } = entranceStyle(enter);
+
+  return (
+    <Animated.View style={{ opacity, transform: [{ translateY }, { scale }] }}>
+      {children}
+    </Animated.View>
+  );
+}
+
+/**
+ * Selection haptic.
+ *
+ * `selectionAsync` is the light tick iOS uses for pickers and segmented
+ * controls — distinct from the `impactAsync(Light)` the Continue button
+ * already fires, so choosing an answer and advancing do not feel identical.
+ * Failures are swallowed: haptics are unavailable on the simulator and a
+ * rejected promise must never break a tap.
+ */
+function tapFeedback() {
+  Haptics.selectionAsync().catch(() => {});
+}
+
+function ScrollableStep({ step, value, onSetField, reduceMotion = false }: StepContentProps) {
   // Sub-components need their own hook — hooks do not cross function boundaries.
   const t = useTranslation();
   const copy = stepCopy(t.onboardingSteps as unknown as Record<string, unknown>, step.id);
@@ -342,92 +634,94 @@ function ScrollableStep({ step, value, onSetField, answers }: StepContentProps) 
 
       {step.type === 'single-select' ? (
         <View style={styles.options}>
-          {step.options.map((opt) => {
+          {step.options.map((opt, i) => {
             const selected = value === opt.value;
             const oc = optionCopy(copy, opt);
             const icon = opt.icon ? (
               <Ionicons name={opt.icon} size={22} color={selected ? '#52B788' : '#FFFFFF'} />
             ) : undefined;
-            return step.variant === 'card' ? (
-              <OptionCard
+            const onPress = () => {
+              tapFeedback();
+              onSetField(step.field, opt.value);
+            };
+            return (
+              <AnimatedOption
                 key={opt.value}
-                title={oc.label}
-                subtitle={oc.description}
-                icon={icon}
+                index={i}
                 selected={selected}
-                onPress={() => onSetField(step.field, opt.value)}
-              />
-            ) : (
-              <OptionRow
-                key={opt.value}
-                label={oc.label}
-                description={oc.description}
-                icon={icon}
-                selected={selected}
-                onPress={() => onSetField(step.field, opt.value)}
-              />
+                reduceMotion={reduceMotion}
+              >
+                {step.variant === 'card' ? (
+                  <OptionCard
+                    title={oc.label}
+                    subtitle={oc.description}
+                    icon={icon}
+                    selected={selected}
+                    onPress={onPress}
+                  />
+                ) : (
+                  <OptionRow
+                    label={oc.label}
+                    description={oc.description}
+                    icon={icon}
+                    selected={selected}
+                    onPress={onPress}
+                  />
+                )}
+              </AnimatedOption>
             );
           })}
         </View>
       ) : null}
 
-      {step.type === 'single-select' && step.chips ? (
-        <View style={styles.chipsBlock}>
-          <View style={styles.chipsHeaderRow}>
-            <Text style={styles.chipsTitle}>{copy?.chipsTitle ?? 'Anything you tend to avoid?'}</Text>
-            <Text style={styles.chipsOptional}>{copy?.chipsOptional ?? 'Optional'}</Text>
-          </View>
-          <View style={styles.chipsWrap}>
-            {step.chips.options.map((chip) => {
-              const chipField = step.chips!.field;
-              const raw = answers?.[chipField];
-              const list = Array.isArray(raw) ? raw : [];
-              const on = list.includes(chip.value);
-              const label = copy?.chips?.[chip.value] ?? chip.label;
-              return (
-                <TouchableOpacity
-                  key={chip.value}
-                  style={[styles.chip, on && styles.chipOn]}
-                  activeOpacity={0.8}
-                  accessibilityRole="checkbox"
-                  accessibilityState={{ checked: on }}
-                  accessibilityLabel={label}
-                  onPress={() => {
-                    const next = on ? list.filter((v) => v !== chip.value) : [...list, chip.value];
-                    onSetField(chipField, next);
-                  }}
-                >
-                  <Text style={[styles.chipText, on && styles.chipTextOn]}>{label}</Text>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-        </View>
-      ) : null}
+      {/* The optional "anything you tend to avoid?" chip row used to render
+          here. It wrote an `avoid` array that nothing ever read — no profile
+          column, no analyze-food field, no screen — so it asked for dietary
+          information and discarded it. Removed with its config entry and its
+          translations; see the note in lib/onboarding-config.ts. */}
 
       {step.type === 'multi-select' ? (
         <View style={styles.options}>
-          {step.options.map((opt) => {
-            const list = Array.isArray(value) ? value : [];
+          {step.options.map((opt, i) => {
+            const list = asSelectionArray(value);
             const selected = list.includes(opt.value);
+            const oc = optionCopy(copy, opt);
             const icon = opt.icon ? (
               <Ionicons name={opt.icon} size={22} color={selected ? '#52B788' : '#FFFFFF'} />
             ) : undefined;
+            const onPress = () => {
+              tapFeedback();
+              onSetField(step.field, nextMultiSelect(list, opt.value, step.exclusiveValues));
+            };
+            // Honours `variant` exactly as single-select does, so a step can be
+            // multi-select without losing the card design it was approved with.
             return (
-              <OptionRow
+              <AnimatedOption
                 key={opt.value}
-                label={opt.label}
-                description={opt.description}
-                icon={icon}
-                multiSelect
+                index={i}
                 selected={selected}
-                onPress={() => {
-                  const next = selected
-                    ? list.filter((v) => v !== opt.value)
-                    : [...list, opt.value];
-                  onSetField(step.field, next);
-                }}
-              />
+                reduceMotion={reduceMotion}
+              >
+                {step.variant === 'card' ? (
+                  <OptionCard
+                    title={oc.label}
+                    subtitle={oc.description}
+                    icon={icon}
+                    multiSelect
+                    selected={selected}
+                    onPress={onPress}
+                  />
+                ) : (
+                  <OptionRow
+                    label={oc.label}
+                    description={oc.description}
+                    icon={icon}
+                    multiSelect
+                    selected={selected}
+                    onPress={onPress}
+                  />
+                )}
+              </AnimatedOption>
             );
           })}
         </View>
@@ -584,28 +878,72 @@ function RulerStepView({ step, value, onSetField }: StepContentProps) {
   );
 }
 
-function InfoStepView({ step }: { step: Extract<OnboardingStep, { type: 'info' }> }) {
+/**
+ * Interstitial step.
+ *
+ * Resolves its copy through i18n exactly as ScrollableStep does. It previously
+ * read `step.title` / `step.body` straight from the config, which are English
+ * fallbacks — so an info step in the live flow would have rendered English to
+ * a German user while every question around it translated correctly. No info
+ * step was reachable when that was written; `context_interlude` is the first,
+ * and it would have shipped the bug.
+ */
+function InfoStepView({
+  step,
+  reduceMotion = false,
+}: {
+  step: Extract<OnboardingStep, { type: 'info' }>;
+  reduceMotion?: boolean;
+}) {
+  const t = useTranslation();
+  const copy = stepCopy(t.onboardingSteps as unknown as Record<string, unknown>, step.id);
+  const enter = useEntrance(reduceMotion);
+  const { opacity, translateY } = entranceStyle(enter);
+
+  /**
+   * A ScrollView, not a View — and the centring lives on the content
+   * container, not the outer element.
+   *
+   * `flexGrow: 1` + `justifyContent: 'center'` centres the content while it is
+   * shorter than the viewport, which is every normal text size. Once large
+   * Dynamic Type makes it taller, the container simply grows past the viewport
+   * and scrolls instead. Nothing is capped and nothing is truncated, so the
+   * user keeps the text size they chose.
+   *
+   * The alternative — capping the text with maxFontSizeMultiplier — trades a
+   * user's accessibility setting for a tidy layout. Scrolling costs nothing.
+   */
   return (
-    <View style={styles.infoBody}>
-      <InfoIllustration step={step} />
-      <Text style={styles.infoTitle}>{step.title}</Text>
-      {step.body ? <Text style={styles.infoText}>{step.body}</Text> : null}
+    <Animated.View style={{ flex: 1, opacity, transform: [{ translateY }] }}>
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={styles.infoBody}
+        showsVerticalScrollIndicator={false}
+      >
+        <InfoIllustration step={step} />
+        <Text style={styles.infoTitle}>{copy?.title ?? step.title}</Text>
+        {copy?.body ?? step.body ? (
+          <Text style={styles.infoText}>{copy?.body ?? step.body}</Text>
+        ) : null}
 
-      {step.bullets && step.bullets.length > 0 ? (
-        <View style={styles.bullets}>
-          {step.bullets.map((b, i) => (
-            <View key={i} style={styles.bulletRow}>
-              <View style={styles.bulletIcon}>
-                <Ionicons name={b.icon} size={16} color="#52B788" />
+        {step.bullets && step.bullets.length > 0 ? (
+          <View style={styles.bullets}>
+            {step.bullets.map((b, i) => (
+              <View key={i} style={styles.bulletRow}>
+                <View style={styles.bulletIcon}>
+                  <Ionicons name={b.icon} size={16} color="#52B788" />
+                </View>
+                <Text style={styles.bulletText}>{b.text}</Text>
               </View>
-              <Text style={styles.bulletText}>{b.text}</Text>
-            </View>
-          ))}
-        </View>
-      ) : null}
+            ))}
+          </View>
+        ) : null}
 
-      {step.caption ? <Text style={styles.infoCaption}>{step.caption}</Text> : null}
-    </View>
+        {copy?.caption ?? step.caption ? (
+          <Text style={styles.infoCaption}>{copy?.caption ?? step.caption}</Text>
+        ) : null}
+      </ScrollView>
+    </Animated.View>
   );
 }
 
@@ -672,42 +1010,8 @@ function InfoIllustration({ step }: { step: Extract<OnboardingStep, { type: 'inf
 }
 
 const styles = StyleSheet.create({
-  // ── Optional avoid-food chips (v1.0 after-meal-feeling step) ──────────────
-  // Local-only answers: never written to the database, never sent to
-  // analyze-food. Copy must not claim they personalise the analysis.
-  chipsBlock: { marginTop: 28 },
-  chipsHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'baseline',
-    justifyContent: 'space-between',
-    marginBottom: 12,
-    gap: 12,
-  },
-  chipsTitle: {
-    fontFamily: FontFamily.sansMedium,
-    fontSize: 15,
-    color: '#FFFFFF',
-    flexShrink: 1,
-  },
-  chipsOptional: {
-    fontFamily: FontFamily.sansRegular,
-    fontSize: 13,
-    color: 'rgba(255,255,255,0.55)',
-  },
-  // flexWrap + no fixed height: German labels and larger Dynamic Type sizes
-  // reflow onto more rows instead of clipping.
-  chipsWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-  chip: {
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    borderRadius: 22,
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.22)',
-    backgroundColor: 'rgba(255,255,255,0.06)',
-  },
-  chipOn: { borderColor: '#52B788', backgroundColor: 'rgba(82,183,136,0.18)' },
-  chipText: { fontFamily: FontFamily.sansRegular, fontSize: 15, color: 'rgba(255,255,255,0.85)' },
-  chipTextOn: { fontFamily: FontFamily.sansMedium, color: '#FFFFFF' },
+  // The avoid-food chip styles lived here. Removed with the chip row itself —
+  // the field had no consumer. See lib/onboarding-config.ts.
 
   flex: { flex: 1 },
   container: { flex: 1 },
@@ -744,26 +1048,39 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     paddingBottom: 24,
   },
+  // ── Question hierarchy ────────────────────────────────────────────────────
+  // Three tiers, separated by space rather than by rules or boxes: the
+  // question, the line that qualifies it, then the answers. Previously the
+  // subtitle sat 10pt under the title and the options 28pt under that, which
+  // read as one block of text with buttons attached. Widening the gap before
+  // the options and tightening the one after the title groups the two pieces
+  // of copy together and makes the answer list the next thing the eye lands
+  // on. No component changed — only spacing and weight.
   headerText: {
-    marginTop: 24,
+    marginTop: 28,
     marginBottom: 8,
   },
   title: {
     fontFamily: FontFamily.displayBold,
     fontSize: 32,
     color: '#FFFFFF',
-    lineHeight: 40,
+    // 1.2× rather than 1.25×: at 32pt the extra leading pushed a two-line
+    // German question far enough down to crowd the options on an SE.
+    lineHeight: 38,
+    letterSpacing: -0.4,
   },
   subtitle: {
     fontFamily: FontFamily.sansRegular,
     fontSize: 15,
-    color: 'rgba(255,255,255,0.6)',
-    marginTop: 10,
+    // Dimmer than before (0.6 → 0.55) so it reads as a qualifier rather than
+    // competing with the option labels, which sit at full white.
+    color: 'rgba(255,255,255,0.55)',
+    marginTop: 8,
     lineHeight: 22,
   },
   options: {
-    marginTop: 28,
-    gap: 10,
+    marginTop: 36,
+    gap: 12,
   },
   referralWrap: {
     marginTop: 40,
@@ -815,9 +1132,16 @@ const styles = StyleSheet.create({
   dateColMid: { flex: 1 },
 
   // Info / persuasion steps
+  // Used as a ScrollView contentContainerStyle, so this is flexGrow, NOT flex.
+  // `flex: 1` would pin the content to the viewport height and the view would
+  // never scroll — the text would clip at large Dynamic Type sizes instead,
+  // which is the exact failure this container exists to avoid. flexGrow lets
+  // it fill the screen when short (so centring still applies) and exceed it
+  // when tall.
   infoBody: {
-    flex: 1,
+    flexGrow: 1,
     paddingHorizontal: 24,
+    paddingVertical: 24,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -982,9 +1306,20 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     justifyContent: 'center',
     alignItems: 'center',
+    // Lifts the white pill off the dark gradient so it reads as the primary
+    // action rather than a flat panel. Shadow only — size, colour, radius and
+    // hit area are unchanged.
+    shadowColor: '#000000',
+    shadowOpacity: 0.28,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 6 },
   },
   ctaDisabled: {
-    opacity: 0.35,
+    // 0.35 read as "broken" rather than "not yet". At 0.45 with the shadow
+    // dropped, the button still clearly cannot be pressed but no longer looks
+    // like a rendering fault before the first answer is chosen.
+    opacity: 0.45,
+    shadowOpacity: 0,
   },
   ctaText: {
     fontFamily: FontFamily.sansBold,

@@ -86,12 +86,16 @@ export function CheckInSuccessOverlay({ visible, score, streak, onDone }: Props)
 
             {/* Streak */}
             {streak != null && streak > 0 && (
-              <Text style={styles.streakText}>🔥 Day {streak}</Text>
+              <Text style={styles.streakText}>
+                🔥 {t.components.checkinSuccess.dayStreak.replace('{n}', String(streak))}
+              </Text>
             )}
 
-            {/* Gut Score */}
+            {/* GutWell Score */}
             {score != null && (
-              <Text style={styles.scoreText}>Gut Score: {score}</Text>
+              <Text style={styles.scoreText}>
+                {t.components.checkinSuccess.score.replace('{score}', String(score))}
+              </Text>
             )}
           </LinearGradient>
         </View>
