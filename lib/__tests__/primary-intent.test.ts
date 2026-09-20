@@ -276,7 +276,7 @@ describe('no other mode moved', () => {
   test('16. quota, request id and retry logic unchanged', () => {
     for (const kind of ['photo_analysis', 'text_analysis', 'meal_revision']) {
       expect(
-        (CODE.match(new RegExp(`reserveDailyQuota\\(supabase, requestId as string, "${kind}"\\)`, 'g')) ?? []).length,
+        (CODE.match(new RegExp(`reserveDailyQuota\\(supabase, requestId as string, "${kind}"`, 'g')) ?? []).length,
       ).toBe(1);
     }
     expect((CODE.match(/if \(!err\.providerAttempted\) \{/g) ?? []).length).toBe(3);

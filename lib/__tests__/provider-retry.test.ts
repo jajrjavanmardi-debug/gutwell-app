@@ -222,7 +222,7 @@ describe('a retry is free, exactly like the manual one it replaces', () => {
     // callGemini owns the retry — so a second attempt cannot reach it.
     for (const kind of ['photo_analysis', 'text_analysis', 'meal_revision']) {
       const calls = CODE.match(
-        new RegExp(`reserveDailyQuota\\(supabase, requestId as string, "${kind}"\\)`, 'g'),
+        new RegExp(`reserveDailyQuota\\(supabase, requestId as string, "${kind}"`, 'g'),
       ) ?? [];
       expect(`${kind} reservations: ${calls.length}`).toBe(`${kind} reservations: 1`);
     }

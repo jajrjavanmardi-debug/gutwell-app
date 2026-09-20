@@ -763,19 +763,22 @@ const QUOTA_RPC = {
  * so the row the SQL then reads is current. Calling it first is the whole
  * ordering guarantee.
  *
- * The return value is deliberately DISCARDED on the text and revision paths.
- * Those modes are not entitlement-gated — every plan may describe a meal — so
- * the only thing this call is for is hydration. The photo path keeps its own
- * explicit check, because there the answer is a gate as well.
+ * The resolved entitlement is RETURNED, not discarded. These modes are still
+ * not entitlement-gated — every plan may describe a meal — but the 429 has to
+ * report which allowance answered the request, and this call has already made
+ * that decision against get_premium_state, the same source ai_quota_limit()
+ * reads. Returning it is what keeps the reported tier and the applied limit
+ * from being resolved twice and disagreeing.
  *
  * Nothing in the request body is consulted, here or downstream.
  */
 async function refreshEntitlementBeforeQuota(
   supabase: SupabaseClient,
   userId: string,
-): Promise<void> {
+): Promise<boolean> {
   try {
-    await hasActivePremium(supabase, userId);
+    const state = await hasActivePremium(supabase, userId);
+    return state.active;
   } catch (error) {
     // Hydration is best effort. A failure here must not cost the user their
     // analysis: ai_quota_limit still resolves, falling back to the Free
@@ -783,6 +786,10 @@ async function refreshEntitlementBeforeQuota(
     console.error("Entitlement hydration failed", {
       detail: error instanceof Error ? error.message : "unknown",
     });
+    // Fail closed, and identically to the SQL: when get_premium_state cannot
+    // answer, ai_quota_limit() falls back to the Free allowance, so reporting
+    // "free" here matches the limit that was actually applied.
+    return false;
   }
 }
 
@@ -790,6 +797,12 @@ async function reserveDailyQuota(
   supabase: SupabaseClient,
   requestId: string,
   kind: QuotaKind,
+  /**
+   * The entitlement that ALREADY decided this request's allowance, passed in
+   * rather than resolved again here. A second lookup could disagree with the
+   * one ai_quota_limit() used and report a tier that contradicts the limit.
+   */
+  premium: boolean,
 ): Promise<{ ok: true; quota: QuotaResult } | { ok: false; response: Response }> {
   const rpc = QUOTA_RPC[kind];
   const { data, error } = await supabase.rpc(rpc.reserve, {
@@ -813,12 +826,30 @@ async function reserveDailyQuota(
 
   const quota = data as QuotaResult;
   if (!quota.allowed) {
+    // A Free allowance of exactly 0 is not "today's is spent" — it is the free
+    // window being over, and there is no tomorrow in which it refills. Saying
+    // "try again tomorrow" for it would promise something that never arrives,
+    // which is why the client keeps the two states separate and why the
+    // distinction has to be made HERE, where the limit is known.
+    //
+    // Scoped to the two window-governed kinds. Photo is entitlement-gated and
+    // answers PREMIUM_REQUIRED long before it could reach this line.
+    //
+    // `=== 0` on purpose: an unknown kind yields a null limit, and null must
+    // not be read as an exhausted window.
+    const freeWindowOver =
+      !premium &&
+      quota.limit === 0 &&
+      (kind === "text_analysis" || kind === "meal_revision");
+
     return {
       ok: false,
       response: jsonResponse(
         {
-          code: rpc.code,
-          message: rpc.message,
+          code: freeWindowOver ? "FREE_WINDOW_ENDED" : rpc.code,
+          message: freeWindowOver
+            ? "Your free AI analysis window has ended."
+            : rpc.message,
           // Not retryable: nothing the user does before reset can succeed, so
           // the client must not offer a retry action.
           retryable: false,
@@ -827,6 +858,12 @@ async function reserveDailyQuota(
           used: quota.used,
           remaining: 0,
           resetAt: quota.reset_at,
+          // Which allowance answered this request. The released 1.0.1 client
+          // reads this top-level field (readQuotaMeta in RecommendationEngine)
+          // and will only show its number-agnostic quota copy once it is
+          // present; without it the client falls back to the older wording.
+          // It is a report, never an input: nothing upstream reads it back.
+          tier: premium ? "premium" : "free",
         },
         429,
       ),
@@ -1494,7 +1531,7 @@ Deno.serve(async (req: Request) => {
         // a consumed slot.
         const prompt = buildMealTextPrompt(body as MealTextBody);
 
-        const reservation = await reserveDailyQuota(supabase, requestId as string, "photo_analysis");
+        const reservation = await reserveDailyQuota(supabase, requestId as string, "photo_analysis", premium.active);
         if (!reservation.ok) return reservation.response;
 
         // Hoisted so the telemetry records the label actually SENT, not a
@@ -1585,11 +1622,11 @@ Deno.serve(async (req: Request) => {
         // refreshEntitlementBeforeQuota: the text allowance is tier-dependent,
         // so a Premium subscriber with an unhydrated row would otherwise be
         // metered as Free for the rest of the day.
-        await refreshEntitlementBeforeQuota(supabase, user.id);
+        const premium = await refreshEntitlementBeforeQuota(supabase, user.id);
 
         // Its OWN counter: a typed meal must not spend a photo slot, and once
         // photo is Premium-gated this is the counter a Free user draws on.
-        const reservation = await reserveDailyQuota(supabase, requestId as string, "text_analysis");
+        const reservation = await reserveDailyQuota(supabase, requestId as string, "text_analysis", premium);
         if (!reservation.ok) return reservation.response;
 
         try {
@@ -1655,11 +1692,11 @@ Deno.serve(async (req: Request) => {
 
         // ENTITLEMENT ORDERING — must precede the reservation, for the same
         // reason as the text path above.
-        await refreshEntitlementBeforeQuota(supabase, user.id);
+        const premium = await refreshEntitlementBeforeQuota(supabase, user.id);
 
         // Its OWN counter, not the photo one: no new image inference happens
         // here, so a correction must not cost a meal scan.
-        const reservation = await reserveDailyQuota(supabase, requestId as string, "meal_revision");
+        const reservation = await reserveDailyQuota(supabase, requestId as string, "meal_revision", premium);
         if (!reservation.ok) return reservation.response;
 
         try {

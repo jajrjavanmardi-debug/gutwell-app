@@ -143,7 +143,7 @@ describe('the edge function reserves before it spends', () => {
     };
     for (const [mode, [from, to]] of Object.entries(blocks)) {
       const block = EDGE.slice(from, to);
-      const kinds = [...block.matchAll(/DailyQuota\((?:supabase|user\.id), requestId as string, "(\w+)"\)/g)]
+      const kinds = [...block.matchAll(/DailyQuota\((?:supabase|user\.id), requestId as string, "(\w+)"/g)]
         .map((m) => m[1]);
       expect(`${mode}: ${[...new Set(kinds)].join(',')}`).toBe(`${mode}: ${expected[mode as keyof typeof expected]}`);
       // Reserve and release must target the same counter.
@@ -1057,7 +1057,7 @@ describe('the provider call has a deadline inside the platform budget', () => {
   test('quota ordering, idempotency and refund rules are unchanged', () => {
     const photo = EDGE.slice(EDGE.indexOf('case "meal_text": {'), EDGE.indexOf('case "meal_text_only": {'));
     // Reserve BEFORE the provider call.
-    expect(photo.indexOf('reserveDailyQuota(supabase, requestId as string, "photo_analysis")'))
+    expect(photo.indexOf('reserveDailyQuota(supabase, requestId as string, "photo_analysis"'))
       .toBeLessThan(photo.indexOf('await callGemini('));
     // Refund only when nothing reached the provider — a timeout did, so it
     // correctly does not refund.
@@ -1177,7 +1177,7 @@ describe('quota tiering migration (batch 1)', () => {
 
 describe('entitlement ordering before quota (batch 2)', () => {
   const site = (kind: string) => {
-    const at = HANDLER.indexOf(`reserveDailyQuota(supabase, requestId as string, "${kind}")`);
+    const at = HANDLER.indexOf(`reserveDailyQuota(supabase, requestId as string, "${kind}"`);
     expect(at).toBeGreaterThan(-1);
     return at;
   };
