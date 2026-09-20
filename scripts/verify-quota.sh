@@ -11,7 +11,7 @@
 # WHY A REAL SERVER
 # An in-process engine (PGlite) can prove the semantics but has a single
 # connection, so it can never demonstrate two transactions racing. The central
-# safety claim here — "two simultaneous requests cannot both become the fifth" —
+# safety claim here — "two simultaneous requests cannot both claim the same slot" —
 # is a claim about concurrent connections. The only honest way to support it is
 # to open concurrent connections, which is what phase 3 below does.
 #
@@ -25,6 +25,7 @@ MIGRATIONS=(
   "$ROOT/supabase/migrations/20260809100000_ai_quota_lock_down_refunds.sql"
   "$ROOT/supabase/migrations/20260809140000_user_entitlements.sql"
   "$ROOT/supabase/migrations/20260918100000_ai_quota_tiering.sql"
+  "$ROOT/supabase/migrations/20260920120000_ai_quota_batch4_free_limits.sql"
 )
 DB="gutwell_quota_verify_$$"
 PSQL=(psql -v ON_ERROR_STOP=1 -qtA)
@@ -80,9 +81,10 @@ rid() { printf 'aaaaaaaa-0000-4000-8000-%012d' "$1"; }
 res() { "${Q[@]}" -c "set test.uid='$1'; select public.reserve_ai_${2}_quota('$3')::text;"; }
 field() { python3 -c "import json,sys;print(json.loads(sys.stdin.read())['$1'])"; }
 
-echo "=== 1. limits are the approved v1 safety defaults ==="
-# Free (no entitlement row) is unchanged by the tiering migration.
-for pair in photo_analysis:5 text_analysis:5 meal_revision:5; do
+echo "=== 1. limits are the FINAL batch 4 allowances ==="
+# Free (no entitlement row), inside the 14-day window: one text analysis and
+# one revision per UTC day; photo is 0 because it is Premium-only.
+for pair in photo_analysis:0 text_analysis:1 meal_revision:1; do
   k="${pair%%:*}"; v="${pair##*:}"
   check "$k Free limit is $v" "$("${Q[@]}" -c "select public.ai_quota_limit('$k','$A');")" "$v"
 done
@@ -90,21 +92,40 @@ check "unknown kind returns null" "$("${Q[@]}" -c "select coalesce(public.ai_quo
 
 echo
 echo "=== 2. each kind exhausts independently at its own limit ==="
-for kind in photo text revision; do
+for pair in text:1 revision:1 photo:0; do
+  kind="${pair%%:*}"; lim="${pair##*:}"
   n=0
-  for i in $(seq 1 5); do
+  # Three attempts against every kind, so a limit of 1 and a limit of 0 are
+  # both distinguished from "the loop simply ran out of iterations".
+  for i in $(seq 1 3); do
     [ "$(res "$A" "$kind" "$(rid $((1000 + i)))" | field allowed)" = "True" ] && n=$((n+1))
   done
-  check "$kind: 5 reservations allowed" "$n" "5"
-  check "$kind: 6th rejected" "$(res "$A" "$kind" "$(rid 1006)" | field allowed)" "False"
+  check "$kind: exactly $lim of 3 reservations allowed" "$n" "$lim"
+  check "$kind: the next request is still rejected" "$(res "$A" "$kind" "$(rid 1009)" | field allowed)" "False"
 done
-check "three independent counters exist" \
-  "$("${Q[@]}" -c "select count(*) from public.ai_daily_usage where user_id='$A';")" "3"
-check "no counter exceeded its limit" \
-  "$("${Q[@]}" -c "select count(*) from public.ai_daily_usage where used > 5;")" "0"
+# A zero allowance returns on `v_limit < 1` BEFORE either insert, so it must
+# leave no trace at all. This is the property that makes FREE_PHOTO := 0 safe:
+# a blocked user does not accumulate reservation rows.
+check "a zero allowance writes no usage row" \
+  "$("${Q[@]}" -c "select count(*) from public.ai_daily_usage where user_id='$A' and kind='photo_analysis';")" "0"
+check "a zero allowance writes no reservation row" \
+  "$("${Q[@]}" -c "select count(*) from public.ai_quota_reservations where user_id='$A' and kind='photo_analysis';")" "0"
+check "the two non-zero Free counters are independent" \
+  "$("${Q[@]}" -c "select count(*) from public.ai_daily_usage where user_id='$A';")" "2"
+# Stronger than the old `used > 5`: every row is compared against the limit its
+# OWN user and kind resolve to, so this keeps working whatever the constants are.
+check "no counter exceeded its own resolved limit" \
+  "$("${Q[@]}" -c "select count(*) from public.ai_daily_usage u where u.used > public.ai_quota_limit(u.kind, u.user_id);")" "0"
 
 echo
 echo "=== 3. TRUE CONCURRENCY: 30 simultaneous connections, one fresh user ==="
+# B is made Premium for this phase ON PURPOSE. The property under test is that
+# concurrent connections cannot both claim the same slot, and a ceiling of 20
+# exercises the atomic increment 20 times; batch 4 sets the Free photo
+# allowance to 0, and a race against an allowance of 0 would prove only that
+# the pre-insert short-circuit fires. The Free side of the race is covered by
+# phase 3c below, at the tightest possible limit.
+"${Q[@]}" -c "select public.apply_entitlement_event('$B',true,now()+interval '30 days',null,null,null,null);" >/dev/null
 "${Q[@]}" -c "delete from public.ai_daily_usage; delete from public.ai_quota_reservations;" >/dev/null
 OUT=$(mktemp -d)
 for i in $(seq 1 30); do
@@ -133,10 +154,12 @@ for l in sys.stdin:
         except Exception: pass
 print(','.join(map(str,sorted(u))))")
 rm -rf "$OUT"
-check "exactly 5 of 30 concurrent reservations allowed" "$allowed" "5"
-check "each winner got a distinct slot 1..5" "$slots" "1,2,3,4,5"
+check "exactly 20 of 30 concurrent reservations allowed" "$allowed" "20"
+# `seq -s,` leaves a trailing separator on BSD seq, so the expected string is
+# built the same way the actual one is.
+check "each winner got a distinct slot 1..20" "$slots" "$(seq 1 20 | paste -sd, -)"
 check "counter landed exactly on the limit" \
-  "$("${Q[@]}" -c "select used from public.ai_daily_usage where user_id='$B' and kind='photo_analysis';")" "5"
+  "$("${Q[@]}" -c "select used from public.ai_daily_usage where user_id='$B' and kind='photo_analysis';")" "20"
 
 echo
 echo "=== 3b. CONCURRENT DUPLICATE IDs: same request id, 30 connections at once ==="
@@ -178,13 +201,46 @@ check "exactly one reservation row exists" \
   "$("${Q[@]}" -c "select count(*) from public.ai_quota_reservations where user_id='$B';")" "1"
 
 echo
+echo "=== 3c. THE FREE RACE: 30 connections against an allowance of exactly 1 ==="
+# The tightest form of the claim batch 4 depends on: if two taps land in the
+# same millisecond, the Free user must still spend exactly one analysis.
+R=99999999-9999-9999-9999-999999999999
+"${Q[@]}" -c "insert into auth.users (id) values ('$R');" >/dev/null
+OUT=$(mktemp -d)
+for i in $(seq 1 30); do
+  ( "${Q[@]}" -c "set test.uid='$R'; select public.reserve_ai_text_quota('$(rid $((5000 + i)))')::text;" \
+      > "$OUT/$i.json" 2>/dev/null ) &
+done
+wait
+freeAllowed=$(cat "$OUT"/*.json 2>/dev/null | python3 -c "
+import sys,json
+n=0
+for l in sys.stdin:
+    l=l.strip()
+    if l:
+        try: n += 1 if json.loads(l)['allowed'] else 0
+        except Exception: pass
+print(n)")
+rm -rf "$OUT"
+check "exactly 1 of 30 concurrent Free text reservations allowed" "$freeAllowed" "1"
+check "the Free counter landed exactly on 1" \
+  "$("${Q[@]}" -c "select used from public.ai_daily_usage where user_id='$R' and kind='text_analysis';")" "1"
+check "exactly one reservation row survived the race" \
+  "$("${Q[@]}" -c "select count(*) from public.ai_quota_reservations where user_id='$R' and kind='text_analysis';")" "1"
+
+echo
 echo "=== 4. idempotency, cross-kind isolation, day reset ==="
 "${Q[@]}" -c "delete from public.ai_daily_usage; delete from public.ai_quota_reservations;" >/dev/null
 S=$(rid 3000)
 check "first reservation consumes" "$(res "$A" text "$S" | field used)" "1"
 check "same id retried is a duplicate" "$(res "$A" text "$S" | field duplicate)" "True"
 check "same id retried still shows used=1" "$(res "$A" text "$S" | field used)" "1"
-check "same id on ANOTHER kind consumes separately" "$(res "$A" photo "$S" | field duplicate)" "False"
+# meal_revision, not photo: batch 4 puts the Free photo allowance at 0, and a
+# REJECTED call also reports duplicate=false — so asserting that against photo
+# would pass without the cross-kind property holding at all.
+CROSS=$(res "$A" revision "$S")
+check "same id on ANOTHER kind consumes separately" "$(echo "$CROSS" | field duplicate)" "False"
+check "...and that other kind really did consume a slot" "$(echo "$CROSS" | field used)" "1"
 # Ageing every row by a day is equivalent to the clock rolling over.
 "${Q[@]}" -c "update public.ai_daily_usage set usage_date = usage_date - 1;
               update public.ai_quota_reservations set usage_date = usage_date - 1;" >/dev/null
@@ -240,7 +296,7 @@ P=33333333-3333-3333-3333-333333333333
 for k in photo_analysis text_analysis meal_revision; do
   check "Premium $k ceiling is 20" "$("${Q[@]}" -c "select public.ai_quota_limit('$k','$P');")" "20"
 done
-check "Premium actually reserves past the Free ceiling (slot 6 allowed)" \
+check "Premium actually reserves past the Free ceiling of 1 (slot 6 allowed)" \
   "$(for i in $(seq 1 6); do res "$P" text "$(rid $((7100+i)))" >/dev/null; done; \
      "${Q[@]}" -c "select used from public.ai_daily_usage where user_id='$P' and kind='text_analysis';")" "6"
 # An EXPIRED entitlement is not Premium, however the row is flagged.
@@ -248,7 +304,7 @@ E=44444444-4444-4444-4444-444444444444
 "${Q[@]}" -c "insert into auth.users (id) values ('$E');" >/dev/null
 "${Q[@]}" -c "select public.apply_entitlement_event('$E',true,now()-interval '1 day',null,null,null,null);" >/dev/null
 check "lapsed subscription falls back to the Free limit" \
-  "$("${Q[@]}" -c "select public.ai_quota_limit('text_analysis','$E');")" "5"
+  "$("${Q[@]}" -c "select public.ai_quota_limit('text_analysis','$E');")" "1"
 
 echo
 echo "=== 7. POLICY D: the free window is deterministic and account-anchored ==="
@@ -268,20 +324,54 @@ check "a post-launch account is currently inside its window" \
   "$("${Q[@]}" -c "select public.ai_free_window_active('$NEW');")" "t"
 check "the window ends exactly start + ai_free_window_days()" \
   "$("${Q[@]}" -c "select public.ai_free_window_start('$NEW') + (public.ai_free_window_days()||' days')::interval = timestamptz '2026-10-01 12:00:00+00';")" "t"
-# An expired window CANNOT be produced with real time yet: policy D puts every
-# pre-launch account's start at activation, and the earliest post-launch signup
-# was 2026-09-16, so the first possible expiry is 2026-09-30. The expired branch
-# is therefore pinned at the source instead of simulated with a fake date.
-check "BATCH 1 GUARANTEE: in-window and expired free text limits are identical" \
-  "$("${Q[@]}" -c "select (pg_get_functiondef(p.oid) ~ 'FREE_TEXT_IN_WINDOW\s+constant integer := 5;')
-                       and (pg_get_functiondef(p.oid) ~ 'FREE_TEXT_EXPIRED\s+constant integer := 5;')
+# The deployed constants, read back from the live function body rather than
+# from the migration file — this is what the database will actually run.
+check "BATCH 4: the five Free constants are 1 / 0 / 1 / 0 / 0" \
+  "$("${Q[@]}" -c "select (pg_get_functiondef(p.oid) ~ 'FREE_TEXT_IN_WINDOW\s+constant integer := 1;')
+                       and (pg_get_functiondef(p.oid) ~ 'FREE_TEXT_EXPIRED\s+constant integer := 0;')
+                       and (pg_get_functiondef(p.oid) ~ 'FREE_REVISION_IN_WINDOW\s+constant integer := 1;')
+                       and (pg_get_functiondef(p.oid) ~ 'FREE_REVISION_EXPIRED\s+constant integer := 0;')
+                       and (pg_get_functiondef(p.oid) ~ 'FREE_PHOTO\s+constant integer := 0;')
                      from pg_proc p join pg_namespace n on n.oid=p.pronamespace
                     where n.nspname='public' and p.proname='ai_quota_limit';")" "t"
-check "BATCH 1 GUARANTEE: in-window and expired free revision limits are identical" \
-  "$("${Q[@]}" -c "select (pg_get_functiondef(p.oid) ~ 'FREE_REVISION_IN_WINDOW\s+constant integer := 5;')
-                       and (pg_get_functiondef(p.oid) ~ 'FREE_REVISION_EXPIRED\s+constant integer := 5;')
+check "BATCH 4: the Premium ceiling is untouched at 20" \
+  "$("${Q[@]}" -c "select (pg_get_functiondef(p.oid) ~ 'PREMIUM_LIMIT\s+constant integer := 20;')
                      from pg_proc p join pg_namespace n on n.oid=p.pronamespace
                     where n.nspname='public' and p.proname='ai_quota_limit';")" "t"
+
+# THE EXPIRED BRANCH, EXERCISED FOR REAL.
+#
+# With the shipped constants no account can have an expired window before
+# 2026-09-30: policy D anchors every pre-launch account at activation
+# (2026-09-18) and the earliest post-launch signup is 2026-09-16, so
+# start + 14 days is always in the future today. Rather than leave the 0s
+# untested until that date, the WINDOW LENGTH is shortened in this scratch
+# database only, which drives the same arithmetic through ai_free_window_active
+# without touching the allowance constants under test.
+"${Q[@]}" -c "create or replace function public.ai_free_window_days() returns integer language sql immutable as \$\$ select 1 \$\$;" >/dev/null
+check "SIM: with a 1-day window the post-launch account is expired" \
+  "$("${Q[@]}" -c "select public.ai_free_window_active('$NEW');")" "f"
+check "SIM: expired Free text allowance is 0" \
+  "$("${Q[@]}" -c "select public.ai_quota_limit('text_analysis','$NEW');")" "0"
+check "SIM: expired Free revision allowance is 0" \
+  "$("${Q[@]}" -c "select public.ai_quota_limit('meal_revision','$NEW');")" "0"
+check "SIM: expired Free photo allowance is 0" \
+  "$("${Q[@]}" -c "select public.ai_quota_limit('photo_analysis','$NEW');")" "0"
+check "SIM: an expired account's reservation is refused" \
+  "$(res "$NEW" text "$(rid 6001)" | field allowed)" "False"
+check "SIM: ...and the refusal reports limit 0, which is what the edge function turns into FREE_WINDOW_ENDED" \
+  "$(res "$NEW" text "$(rid 6002)" | field limit)" "0"
+check "SIM: an expired account writes no usage row" \
+  "$("${Q[@]}" -c "select count(*) from public.ai_daily_usage where user_id='$NEW';")" "0"
+# Premium is not governed by the window at all, so shortening it must not move
+# the Premium ceiling by a single slot.
+check "SIM: Premium is unaffected by an expired window" \
+  "$("${Q[@]}" -c "select public.ai_quota_limit('text_analysis','$P');")" "20"
+"${Q[@]}" -c "create or replace function public.ai_free_window_days() returns integer language sql immutable as \$\$ select 14 \$\$;" >/dev/null
+check "window length restored to the shipped 14 days" \
+  "$("${Q[@]}" -c "select public.ai_free_window_days();")" "14"
+check "...and the same account is in-window again, allowance 1" \
+  "$("${Q[@]}" -c "select public.ai_quota_limit('text_analysis','$NEW');")" "1"
 check "a pre-launch account is also in-window (policy D protects testers)" \
   "$("${Q[@]}" -c "select public.ai_free_window_active('$OLD');")" "t"
 
@@ -301,6 +391,16 @@ check "ai_photo_daily_limit is gone (it hardcoded the untiered number)" \
   "$("${Q[@]}" -c "select count(*) from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and p.proname='ai_photo_daily_limit';")" "0"
 check "reserve wrappers kept their grant through the dependency rebuild" \
   "$("${Q[@]}" -c "select has_function_privilege('authenticated','public.reserve_ai_revision_quota(uuid)','execute');")" "t"
+# Batch 4 replaces ai_quota_limit. `create or replace` preserves privileges, and
+# the migration re-asserts them anyway; this proves the end state either way.
+check "service_role kept EXECUTE on the replaced ai_quota_limit" \
+  "$("${Q[@]}" -c "select has_function_privilege('service_role','public.ai_quota_limit(text,uuid)','execute');")" "t"
+check "batch 4 did not add a second ai_quota_limit overload" \
+  "$("${Q[@]}" -c "select count(*) from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and p.proname='ai_quota_limit';")" "1"
+check "ai_quota_limit is still SECURITY DEFINER and STABLE" \
+  "$("${Q[@]}" -c "select p.prosecdef and p.provolatile='s' from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and p.proname='ai_quota_limit';")" "t"
+check "ai_quota_limit still pins its search_path" \
+  "$("${Q[@]}" -c "select coalesce(array_to_string(p.proconfig,','),'') from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and p.proname='ai_quota_limit';")" "search_path=public, pg_temp"
 
 
 echo
