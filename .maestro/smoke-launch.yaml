@@ -1,0 +1,18 @@
+# Smoke test: the app launches and renders its first screen.
+# SAFE & DETERMINISTIC — no auth, no network. Requires the app installed on a
+# booted iOS Simulator (`npx expo run:ios`).
+#
+# A session-less launch is redirected to the onboarding funnel
+# (app/index.tsx -> /(onboarding)/welcome), so we assert the app is alive rather
+# than assuming a logged-in state. Adjust the assertion text if onboarding copy
+# changes.
+appId: com.parallellabs.gutwell
+---
+- launchApp:
+    clearState: true
+- assertVisible:
+    # First screen for a fresh install is onboarding/welcome. We match loosely so
+    # this stays robust to copy tweaks: any of these confirms the app rendered.
+    text: ".*(GutWell|Welcome|Get started|Continue|Weiter|Los geht).*"
+    optional: false
+- takeScreenshot: smoke-launch
