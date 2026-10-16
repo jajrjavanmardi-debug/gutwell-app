@@ -40,7 +40,12 @@ Published and live. Five pages, EN + DE:
 
 The English URLs are canonical; each page carries reciprocal `hreflang`
 (`en`, `de`, `x-default` -> English) and a `rel="canonical"` on the www host.
-All five are in `sitemap.xml` and none carries `noindex`.
+All five carry `<meta name="robots" content="noindex">` and are deliberately
+absent from `sitemap.xml`. That is a privacy measure, not a withdrawal from
+publication: the pages stay publicly reachable at their URLs and stay
+crawlable, which is what allows the directive to be read in the first place.
+Do not add them back to the sitemap, and do not block them in `robots.txt` —
+blocking the crawl would stop the `noindex` from ever being seen.
 
 **These pages must not contradict the in-app legal screens.** The app ships its
 own Privacy and Terms screens (`lib/i18n.ts` -> `legalScreens`), and those are
