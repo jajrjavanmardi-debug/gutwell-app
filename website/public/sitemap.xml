@@ -5,8 +5,12 @@
   URLs use the www host because the apex 308-redirects to it; a sitemap should
   list the address that actually serves each page.
 
-  The legal pages carry reciprocal hreflang links in their <head>; the German
-  variants are listed here as their own URLs so both are discoverable.
+  The legal pages — /privacy, /privacy/de, /terms, /terms/de and /impressum —
+  are deliberately absent. Each carries <meta name="robots" content="noindex">,
+  so listing them here would ask search engines to index pages that then ask
+  not to be indexed. They remain publicly reachable and crawlable at their own
+  URLs; only the index entry is withheld, never access. Crawling is what lets
+  the noindex directive be discovered, which is why robots.txt still allows it.
 -->
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
@@ -18,30 +22,5 @@
     <loc>https://www.getgutwell.app/support</loc>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
-  </url>
-  <url>
-    <loc>https://www.getgutwell.app/privacy</loc>
-    <changefreq>yearly</changefreq>
-    <priority>0.5</priority>
-  </url>
-  <url>
-    <loc>https://www.getgutwell.app/privacy/de</loc>
-    <changefreq>yearly</changefreq>
-    <priority>0.5</priority>
-  </url>
-  <url>
-    <loc>https://www.getgutwell.app/terms</loc>
-    <changefreq>yearly</changefreq>
-    <priority>0.5</priority>
-  </url>
-  <url>
-    <loc>https://www.getgutwell.app/terms/de</loc>
-    <changefreq>yearly</changefreq>
-    <priority>0.5</priority>
-  </url>
-  <url>
-    <loc>https://www.getgutwell.app/impressum</loc>
-    <changefreq>yearly</changefreq>
-    <priority>0.4</priority>
   </url>
 </urlset>
