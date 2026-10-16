@@ -15,6 +15,7 @@ import { FireAnimation } from './FireAnimation';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors, FontFamily, FontSize, BorderRadius, Spacing } from '../constants/theme';
 import { useTranslation, type Translations } from '../lib/i18n';
+import { useReducedMotion } from '../lib/useReducedMotion';
 
 // ─── Types & Constants ───────────────────────────────────────────────────────
 
@@ -109,8 +110,11 @@ export function StreakPopup({
   onClose,
 }: StreakPopupProps) {
   const t = useTranslation();
-  const scaleAnim = useRef(new Animated.Value(0.85)).current;
-  const opacityAnim = useRef(new Animated.Value(0)).current;
+  const reduceMotion = useReducedMotion();
+  // Under Reduce Motion both values start settled, so the card is simply
+  // there on the first frame rather than springing into place.
+  const scaleAnim = useRef(new Animated.Value(reduceMotion ? 1 : 0.85)).current;
+  const opacityAnim = useRef(new Animated.Value(reduceMotion ? 1 : 0)).current;
 
   const milestone = getStreakMilestone(currentStreak);
   const nextMilestone = getNextMilestone(currentStreak);
@@ -128,25 +132,39 @@ export function StreakPopup({
   });
 
   useEffect(() => {
-    if (visible) {
-      Animated.parallel([
-        Animated.spring(scaleAnim, {
-          toValue: 1,
-          useNativeDriver: true,
-          tension: 80,
-          friction: 10,
-        }),
-        Animated.timing(opacityAnim, {
-          toValue: 1,
-          duration: 220,
-          useNativeDriver: true,
-        }),
-      ]).start();
-    } else {
-      scaleAnim.setValue(0.85);
-      opacityAnim.setValue(0);
+    if (!visible) {
+      // Reset for the next open. Under Reduce Motion the "closed" state is the
+      // settled one, so reopening cannot flash a scaled-down card.
+      scaleAnim.setValue(reduceMotion ? 1 : 0.85);
+      opacityAnim.setValue(reduceMotion ? 1 : 0);
+      return;
     }
-  }, [visible]);
+    /**
+     * Reduce Motion: the card appears in its final state with nothing
+     * scheduled. The spring and fade are purely decorative — the modal still
+     * opens and closes identically, and every control behaves the same.
+     */
+    if (reduceMotion) {
+      scaleAnim.setValue(1);
+      opacityAnim.setValue(1);
+      return;
+    }
+    const animation = Animated.parallel([
+      Animated.spring(scaleAnim, {
+        toValue: 1,
+        useNativeDriver: true,
+        tension: 80,
+        friction: 10,
+      }),
+      Animated.timing(opacityAnim, {
+        toValue: 1,
+        duration: 220,
+        useNativeDriver: true,
+      }),
+    ]);
+    animation.start();
+    return () => animation.stop();
+  }, [visible, reduceMotion, scaleAnim, opacityAnim]);
 
   const fireMilestone = Math.max(0, Math.min(5, lottieIndex)) as 0 | 1 | 2 | 3 | 4 | 5;
 
@@ -182,7 +200,13 @@ export function StreakPopup({
           style={[styles.card, { width: CARD_WIDTH }]}
         >
           {/* Close Button */}
-          <TouchableOpacity style={styles.closeBtn} onPress={onClose} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
+          <TouchableOpacity
+            style={styles.closeBtn}
+            onPress={onClose}
+            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+            accessibilityRole="button"
+            accessibilityLabel={t.components.streakPopup.close}
+          >
             <Ionicons name="close" size={20} color="rgba(255,255,255,0.5)" />
           </TouchableOpacity>
 
@@ -191,9 +215,19 @@ export function StreakPopup({
             <FireAnimation milestone={fireMilestone} size={96} />
           </View>
 
-          {/* Streak Number */}
-          <Text style={styles.streakNumber}>{currentStreak}</Text>
-          <Text style={styles.streakLabel}>{t.components.streakPopup.dayStreak}</Text>
+          {/* Streak Number — grouped so VoiceOver reads "3 day streak" as one
+              phrase instead of an orphaned numeral followed by a label. */}
+          <View
+            accessible
+            accessibilityRole="text"
+            accessibilityLabel={t.components.streakPopup.streakValueA11y.replace(
+              '{n}',
+              String(currentStreak),
+            )}
+          >
+            <Text style={styles.streakNumber}>{currentStreak}</Text>
+            <Text style={styles.streakLabel}>{t.components.streakPopup.dayStreak}</Text>
+          </View>
 
           {/* Motivational Message */}
           <View style={[

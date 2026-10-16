@@ -1,72 +1,43 @@
-import React, { useEffect, useRef, useState } from 'react';
-import {
-  Animated,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-} from 'react-native';
+import React from 'react';
+import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
 import { StatusBar } from 'expo-status-bar';
 import { useAuth } from '../../contexts/AuthContext';
 import { FontFamily } from '../../constants/theme';
-import StarFieldBackground from '../../components/StarFieldBackground';
 import LanguageSwitcher from '../../components/LanguageSwitcher';
+import StoryCarousel from '../../components/story/StoryCarousel';
 import { track, Events } from '../../lib/analytics';
 import { useTranslation } from '../../lib/i18n';
 import { saveLocalStage } from '../../lib/onboarding-stage';
 
-// Taglines come from i18n (t.welcome.taglines) and cycle in the authored order.
-// Display + both fades land each message at ~2.8s, inside the 2.5–3s target.
-const TAGLINE_DISPLAY_MS = 2500;
-const TAGLINE_FADE_MS = 150;
-
+/**
+ * Welcome — the first screen a signed-out user sees.
+ *
+ * The centre is the Story Experience: four manually-swiped frames answering
+ * "why should I trust this?" before anything is asked of the user. It replaces
+ * the cycling taglines, the three value points, the brand mark and the
+ * headline, all of which competed for the same vertical space and none of
+ * which explained the product.
+ *
+ * Everything around the story is deliberately unchanged: the top bar and its
+ * shared LanguageSwitcher, both calls to action, the legal links, the routes,
+ * and the onboarding_stage write. This screen is the entry point to the whole
+ * funnel, so the story is an inner replacement, not a rewrite of the frame.
+ */
 export default function WelcomeScreen() {
-  // useAuth is called here only to match the existing pattern used in later
-  // onboarding screens. The welcome screen itself is only shown when there is
-  // no active session (app/index.tsx guarantees this), so we never redirect
-  // away from here — the user must explicitly choose Create Account or Sign In.
+  // Called to match the pattern used by the later onboarding screens. Welcome
+  // is only reachable without a session (app/index.tsx guarantees it), so this
+  // never redirects — the user must choose Create Account or Sign In.
   useAuth();
   const t = useTranslation();
-
-  const [taglineIndex, setTaglineIndex] = useState(0);
-  const taglineOpacity = useRef(new Animated.Value(1)).current;
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-
-  useEffect(() => {
-    const cycle = () => {
-      Animated.timing(taglineOpacity, {
-        toValue: 0,
-        duration: TAGLINE_FADE_MS,
-        useNativeDriver: true,
-      }).start(() => {
-        setTaglineIndex((prev) => (prev + 1) % (t.welcome.taglines.length || 1));
-        Animated.timing(taglineOpacity, {
-          toValue: 1,
-          duration: TAGLINE_FADE_MS,
-          useNativeDriver: true,
-        }).start();
-      });
-    };
-
-    const mountDelay = setTimeout(() => {
-      intervalRef.current = setInterval(cycle, TAGLINE_DISPLAY_MS + TAGLINE_FADE_MS * 2);
-    }, 800);
-
-    return () => {
-      clearTimeout(mountDelay);
-      if (intervalRef.current) clearInterval(intervalRef.current);
-    };
-  }, [taglineOpacity]);
+  const insets = useSafeAreaInsets();
 
   const handleCreateAccount = () => {
     track(Events.ONBOARDING_STARTED);
     // Stage is written before navigating so a relaunch resumes at the goal
-    // question rather than starting over. Features/About are no longer on the
-    // route: the value points below replace them.
+    // question rather than starting over.
     void saveLocalStage('goal');
     router.push('/(onboarding)/questions');
   };
@@ -79,61 +50,31 @@ export default function WelcomeScreen() {
     <View style={styles.container}>
       <StatusBar style="light" />
       <LinearGradient colors={['#0B1F14', '#1B4332']} style={StyleSheet.absoluteFill} />
-      <StarFieldBackground count={180} seed={42} />
 
-      {/* Language selector — the screen has no other top inset, so it brings
-          its own safe area. Deliberately compact so it does not compete with
-          the brand mark or the hero message below. */}
+      {/* Compact top bar. The screen has no other top inset, so it brings its
+          own safe area. */}
       <SafeAreaView edges={['top']} style={styles.topSafe}>
         <View style={styles.topBar}>
+          <Text style={styles.wordmark}>{t.welcome.appName}</Text>
           <LanguageSwitcher />
         </View>
       </SafeAreaView>
 
-      {/* Center content */}
-      <View style={styles.centerContent}>
-        <View style={styles.iconCircle}>
-          <Ionicons name="leaf" size={40} color="#FFFFFF" />
-        </View>
-
-        {/* App name */}
-        <Text style={styles.appName}>{t.welcome.appName}</Text>
-
-        {/* Headline — shown only to new / signed-out users */}
-        <Text style={styles.headline}>{t.welcome.headline}</Text>
-
-        {/* Three mechanism lines — what the product does, in order. These
-            replace the Features and About screens that used to sit between
-            Welcome and the first question. */}
-        <View style={styles.valuePoints}>
-          {t.welcome.valuePoints.map((point) => (
-            <View key={point} style={styles.valueRow}>
-              <Ionicons name="checkmark-circle" size={18} color="#52B788" />
-              <Text style={styles.valueText}>{point}</Text>
-            </View>
-          ))}
-        </View>
-
-        {/* Animated tagline */}
-        <View style={styles.taglineContainer}>
-          <Animated.Text
-            style={[styles.tagline, { opacity: taglineOpacity }]}
-            // The container is a fixed height so the hero does not jump between
-            // messages. Shrink-to-fit rather than clip, which also keeps the
-            // line intact at larger Dynamic Type sizes.
-            numberOfLines={1}
-            adjustsFontSizeToFit
-            minimumFontScale={0.85}
-          >
-            {t.welcome.taglines[taglineIndex] ?? ''}
-          </Animated.Text>
-        </View>
+      {/* The story takes the space between the bar and the CTA. It never grows
+          into the buttons: the CTA block below is a fixed sibling, so a long
+          translation or a large Dynamic Type size cannot push Sign In or the
+          legal links off a small screen. */}
+      <View style={styles.storyArea}>
+        <StoryCarousel />
       </View>
 
-      {/* Bottom CTA — two explicit actions so new users never wonder what to do */}
-      <SafeAreaView edges={['bottom']} style={styles.bottomSafe}>
-        <View style={styles.bottomSection}>
-          {/* Primary: Create Account */}
+      {/* Bottom CTA — two explicit actions so new users never wonder what to do.
+          The home-indicator inset is absorbed as the block's bottom padding
+          rather than stacked on top of its own: a SafeAreaView here spent 54pt
+          on a notched phone where 34 is already generous, and every point of
+          that came out of the hero. On a device with no inset (the SE) a 12pt
+          floor keeps the legal line off the physical edge. */}
+      <View style={[styles.bottomSection, { paddingBottom: Math.max(12, insets.bottom) }]}>
           <TouchableOpacity
             style={styles.primaryButton}
             onPress={handleCreateAccount}
@@ -141,7 +82,9 @@ export default function WelcomeScreen() {
             accessibilityLabel={t.welcome.accessCreateAccount}
             activeOpacity={0.88}
           >
-            <Text style={styles.primaryButtonText}>{t.welcome.createAccount}</Text>
+            <Text style={styles.primaryButtonText} maxFontSizeMultiplier={1.4}>
+              {t.welcome.createAccount}
+            </Text>
           </TouchableOpacity>
 
           {/* Secondary: Sign In — visually distinct, not hidden */}
@@ -152,12 +95,14 @@ export default function WelcomeScreen() {
             accessibilityLabel={t.welcome.accessSignIn}
             activeOpacity={0.8}
           >
-            <Text style={styles.secondaryButtonText}>{t.welcome.signIn}</Text>
+            <Text style={styles.secondaryButtonText} maxFontSizeMultiplier={1.4}>
+              {t.welcome.signIn}
+            </Text>
           </TouchableOpacity>
 
           {/* Terms and Privacy are tappable; the surrounding words are not.
               Routes are unchanged — both are existing modal screens. */}
-          <Text style={styles.legalNote}>
+          <Text style={styles.legalNote} maxFontSizeMultiplier={1.6}>
             {t.welcome.legalPrefix}{' '}
             <Text
               style={styles.legalLink}
@@ -181,8 +126,7 @@ export default function WelcomeScreen() {
             {t.welcome.legalSuffix === '.' ? '' : ' '}
             {t.welcome.legalSuffix}
           </Text>
-        </View>
-      </SafeAreaView>
+      </View>
     </View>
   );
 }
@@ -194,81 +138,43 @@ const styles = StyleSheet.create({
   },
   topBar: {
     flexDirection: 'row',
-    justifyContent: 'flex-end',
-    // 24 matches centerContent and bottomSection, so the chip's right edge
-    // lines up with the hero text and the CTA buttons below it.
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    // 24 matches the CTA block, so the wordmark and the language chip line up
+    // with the buttons below them.
     paddingHorizontal: 24,
-    // Sits below the safe-area inset, so this is clearance from the Dynamic
-    // Island / notch rather than from the physical top edge.
-    paddingTop: 14,
+    // Trimmed to 6/4: the row's height is set by the language switcher's own
+    // 44pt target, which is protected, so only the padding around it is
+    // available to give back to the hero.
+    paddingTop: 6,
     paddingBottom: 4,
   },
-  centerContent: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 24,
-  },
-  iconCircle: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: 'rgba(255,255,255,0.1)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.15)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  valuePoints: { marginTop: 22, gap: 10, alignSelf: 'stretch', paddingHorizontal: 8 },
-  valueRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  // flexShrink so long German lines wrap instead of clipping at 375pt.
-  valueText: {
-    fontFamily: FontFamily.sansRegular,
-    fontSize: 15,
-    color: 'rgba(255,255,255,0.85)',
-    flexShrink: 1,
-  },
-  appName: {
+  wordmark: {
     fontFamily: FontFamily.displayBold,
-    fontSize: 44,
+    fontSize: 20,
     color: '#FFFFFF',
-    marginTop: 16,
-    letterSpacing: -0.5,
+    letterSpacing: -0.3,
   },
-  headline: {
-    fontFamily: FontFamily.sansMedium,
-    fontSize: 16,
-    color: 'rgba(255,255,255,0.55)',
-    marginTop: 6,
-    textAlign: 'center',
-  },
-  taglineContainer: {
-    marginTop: 40,
-    height: 28,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  tagline: {
-    fontFamily: FontFamily.sansMedium,
-    fontSize: 18,
-    color: 'rgba(255,255,255,0.7)',
-    textAlign: 'center',
-  },
-  bottomSafe: {
-    backgroundColor: 'transparent',
+  storyArea: {
+    flex: 1,
+    // No horizontal padding: the hero is full-bleed by design, and the story's
+    // own caption carries the 24pt gutter.
   },
   bottomSection: {
-    paddingBottom: 24,
     paddingHorizontal: 24,
-    gap: 12,
+    paddingTop: 10,
+    gap: 8,
   },
+  /* 52 and 48 rather than 60 and 56. Both stay clear of the 44pt minimum
+     target, and paddingVertical lets either grow with Dynamic Type. */
   primaryButton: {
     backgroundColor: '#FFFFFF',
-    height: 60,
+    minHeight: 52,
     borderRadius: 20,
     width: '100%',
     justifyContent: 'center',
     alignItems: 'center',
+    paddingVertical: 12,
   },
   primaryButtonText: {
     fontFamily: FontFamily.sansBold,
@@ -277,11 +183,12 @@ const styles = StyleSheet.create({
     letterSpacing: -0.3,
   },
   secondaryButton: {
-    height: 56,
+    minHeight: 48,
     borderRadius: 20,
     width: '100%',
     justifyContent: 'center',
     alignItems: 'center',
+    paddingVertical: 12,
     borderWidth: 1.5,
     borderColor: 'rgba(255,255,255,0.25)',
     backgroundColor: 'rgba(255,255,255,0.06)',
@@ -292,12 +199,13 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     letterSpacing: -0.2,
   },
+  /* Size and contrast left alone: this is the one block where reclaiming
+     points would cost legibility of the terms a user is agreeing to. */
   legalNote: {
     fontFamily: FontFamily.sansRegular,
     fontSize: 11,
     color: 'rgba(255,255,255,0.3)',
     textAlign: 'center',
-    marginTop: 4,
     lineHeight: 16,
   },
   legalLink: {

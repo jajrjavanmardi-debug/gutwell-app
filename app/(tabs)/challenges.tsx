@@ -30,11 +30,6 @@ import { useLanguage } from '../../lib/LanguageContext';
 
 type ActiveProgress = ActiveChallenge & { ratio: number; progressDays: number };
 
-function formatCount(n: number): string {
-  if (n >= 1000) return `${(n / 1000).toFixed(n >= 10000 ? 0 : 1)}k`;
-  return String(n);
-}
-
 export default function ChallengesScreen() {
   const t = useTranslation();
   // Catalog copy is remote, so the fetch has to know the language. Including it
@@ -249,8 +244,10 @@ function DiscoverCard({
             <Text style={styles.cardTitle} numberOfLines={2}>
               {item.title}
             </Text>
+            {/* Duration only. The participant count that used to lead this
+                line came from a seeded column nothing ever increments, so it
+                was a fabricated "N joined" — removed rather than shown. */}
             <Text style={styles.metaText}>
-              {formatCount(item.participantsCount)} {t.challenges.joinedSuffix} ·{' '}
               {item.durationDays} {t.challenges.daysSuffix}
             </Text>
             <Text style={styles.description} numberOfLines={2}>

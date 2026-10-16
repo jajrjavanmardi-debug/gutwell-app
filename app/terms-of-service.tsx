@@ -4,50 +4,13 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { Colors, Spacing, FontSize, BorderRadius, FontFamily } from '../constants/theme';
+import { useTranslation } from '../lib/i18n';
 
 type SectionData = {
   title: string;
   body: string;
 };
 
-const SECTIONS: SectionData[] = [
-  {
-    title: '1. Usage Terms',
-    body: 'By creating an account and using GutWell AI, you agree to these Terms of Service. GutWell AI is intended for personal wellness tracking only. You must be at least 13 years old to use this app. You are responsible for maintaining the confidentiality of your account credentials.',
-  },
-  {
-    title: '2. Health Disclaimer',
-    body: 'GutWell AI is a wellness tracking application, not a medical device. The information, scores, correlations, and insights provided are for personal tracking purposes only and do not constitute medical advice, diagnosis, or treatment. Always seek the advice of a qualified healthcare professional with any questions regarding a medical condition. Never disregard professional medical advice or delay seeking it because of information provided by GutWell AI.',
-  },
-  {
-    title: '3. Subscription Terms',
-    body: 'GutWell AI offers both free and premium subscription tiers. Premium subscriptions are billed through Apple\'s App Store. Payment is charged to your Apple ID account at confirmation of purchase. Subscriptions automatically renew unless cancelled at least 24 hours before the end of the current billing period. Your account will be charged for renewal within 24 hours prior to the end of the current period at the same rate.',
-  },
-  {
-    title: '4. Cancellation Policy',
-    body: 'You may cancel your subscription at any time through your Apple ID account settings. Cancellation takes effect at the end of the current billing period. No refunds are provided for partial billing periods. Free features remain accessible after cancellation.',
-  },
-  {
-    title: '5. Limitation of Liability',
-    body: 'To the maximum extent permitted by law, GutWell AI shall not be liable for any indirect, incidental, special, consequential, or punitive damages, including but not limited to loss of data, health outcomes, or any reliance on information provided by the app. GutWell AI is provided "as is" without warranties of any kind.',
-  },
-  {
-    title: '6. User Content',
-    body: 'You retain ownership of all data you enter into GutWell AI. By using the service, you grant us a limited license to process your data solely for the purpose of providing the GutWell AI service. We do not sell your personal health data to third parties. You may export or delete your data at any time.',
-  },
-  {
-    title: '7. Acceptable Use',
-    body: 'You agree not to misuse the service, including but not limited to: attempting to access other users\' data, reverse-engineering the app, using automated tools to interact with the service, or using GutWell AI for any unlawful purpose.',
-  },
-  {
-    title: '8. Changes to Terms',
-    body: 'We may update these terms from time to time. Continued use of the app after changes constitutes acceptance of the new terms. We will notify users of material changes through the app or via email.',
-  },
-  {
-    title: '9. Governing Law',
-    body: 'These Terms of Service are governed by the laws of the Republic of Singapore. Any disputes arising from or relating to these terms shall be subject to the exclusive jurisdiction of the courts of Singapore.',
-  },
-];
 
 function CollapsibleSection({ section }: { section: SectionData }) {
   const [expanded, setExpanded] = useState(false);
@@ -72,6 +35,9 @@ function CollapsibleSection({ section }: { section: SectionData }) {
 }
 
 export default function TermsOfServiceScreen() {
+  const t = useTranslation();
+  const legal = t.legalScreens;
+
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       {/* Header */}
@@ -83,7 +49,7 @@ export default function TermsOfServiceScreen() {
         >
           <Ionicons name="arrow-back" size={22} color={Colors.text} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Terms of Service</Text>
+        <Text style={styles.headerTitle}>{legal.termsOfServiceTitle}</Text>
         <View style={styles.headerSpacer} />
       </View>
 
@@ -91,24 +57,22 @@ export default function TermsOfServiceScreen() {
         contentContainerStyle={styles.scroll}
         showsVerticalScrollIndicator={false}
       >
-        <Text style={styles.pageTitle}>Terms of Service</Text>
-        <Text style={styles.updated}>Last updated: March 2026</Text>
-        <Text style={styles.intro}>
-          Please review our terms below. Tap each section for details.
-        </Text>
+        <Text style={styles.pageTitle}>{legal.termsOfServiceTitle}</Text>
+        <Text style={styles.updated}>{legal.lastUpdated}</Text>
+        <Text style={styles.intro}>{legal.termsIntro}</Text>
 
-        {SECTIONS.map((section, i) => (
+        {legal.termsSections.map((section: SectionData, i: number) => (
           <CollapsibleSection key={i} section={section} />
         ))}
 
-        {/* Company Footer */}
+        {/* Operator Footer — the contracting party, matching the Privacy screen. */}
         <View style={styles.companyFooter}>
           <Text style={styles.companyText}>
-            GutWell AI{'\n'}
-            Singapore
+            {legal.operatorName}{'\n'}
+            {legal.operatorAddress}
           </Text>
           <Text style={styles.contactText}>
-            support@getgutwell.app
+            {legal.contactEmail}
           </Text>
         </View>
       </ScrollView>

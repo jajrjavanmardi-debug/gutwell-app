@@ -5,6 +5,27 @@ assets/**/*.png
 assets/**/*.jpg
 assets/**/*.jpeg
 
+# ...except the ones the native build actually consumes.
+#
+# EAS Build prebuilds from a fresh clone and never runs the generator, so an
+# ignored icon is not "regenerated later" — prebuild fails outright with
+# ENOENT on ./assets/images/icon.png before it reaches signing.
+#
+# icon.png is additionally NOT reproducible: it is the only PNG here without an
+# alpha channel, having been flattened by hand because Apple rejects
+# transparent marketing icons (icon-with-alpha.bak.png is the pre-flatten
+# original). Re-running the generator would put the alpha back.
+#
+# Exactly the files referenced by app.json and the expo-splash-screen plugin.
+# Everything else the generator emits — adaptive-icon.png, splash.png, the
+# .bak, assets/demo — is unreferenced and stays ignored.
+!assets/images/icon.png
+!assets/images/android-icon-foreground.png
+!assets/images/android-icon-background.png
+!assets/images/android-icon-monochrome.png
+!assets/images/splash-icon.png
+!assets/images/favicon.png
+
 # dependencies
 node_modules/
 

@@ -35,8 +35,17 @@ export default function ExampleScreen() {
   const handleCreateAccount = () => {
     // Stage advances before navigation so a relaunch resumes at signup rather
     // than replaying the example.
+    //
+    // The stage stays 'signup' even though the next screen is now the Gut
+    // Profile Reveal rather than the signup form. That is deliberate: the
+    // stage names the LEG of the funnel ("past the example, heading to account
+    // creation"), and the reveal is part of that leg — it collects nothing,
+    // writes nothing, and exists only to show the answers back. Giving it a
+    // stage of its own would mean widening the OnboardingStage union and the
+    // routing table for a screen that cannot be resumed into any differently
+    // than the signup form already is.
     void saveLocalStage('signup');
-    router.push('/(auth)/signup');
+    router.push('/(onboarding)/profile-reveal');
   };
 
   const sections = [
@@ -75,6 +84,18 @@ export default function ExampleScreen() {
         {/* Language stays changeable right up until the account is created.
             Sits above the ScrollView so it remains reachable while reading. */}
         <View style={styles.topBar}>
+          {/* Same chevron affordance the earlier onboarding screens use. Without
+              it this screen was the only one with no visible way back, leaving
+              the flow looking like a dead end before signup. */}
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => router.back()}
+            activeOpacity={0.7}
+            accessibilityRole="button"
+            accessibilityLabel={t.example.accessBack}
+          >
+            <Ionicons name="chevron-back" size={24} color="#FFFFFF" />
+          </TouchableOpacity>
           <LanguageSwitcher />
         </View>
 
@@ -160,7 +181,14 @@ export default function ExampleScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#0B1F14' },
   flex: { flex: 1 },
-  topBar: { flexDirection: 'row', justifyContent: 'flex-end', paddingHorizontal: 24, paddingTop: 8 },
+  topBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 24,
+    paddingTop: 8,
+  },
+  backButton: { width: 40, height: 40, justifyContent: 'center', alignItems: 'center', marginLeft: -8 },
   scrollContent: { paddingHorizontal: 24, paddingTop: 16, paddingBottom: 24 },
 
   labelPill: {

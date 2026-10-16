@@ -3,7 +3,10 @@ import type { Session, User } from '@supabase/supabase-js';
 import * as Linking from 'expo-linking';
 import { supabase } from '../lib/supabase';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as Sentry from '@sentry/react-native';
 import { resetAnalytics } from '../lib/analytics';
+import { purgeAllLocalData } from '../lib/local-data';
+import { logOutSubscriptionUser } from '../lib/subscription';
 
 /**
  * Deep link Supabase sends the user back to after they tap the reset link in
@@ -19,6 +22,34 @@ export const PASSWORD_RESET_PATH = 'reset-password';
 export function passwordResetRedirectTo(): string {
   return Linking.createURL(`/${PASSWORD_RESET_PATH}`);
 }
+
+/**
+ * The outcome of a Delete Account attempt.
+ *
+ * THREE outcomes, never two. Collapsing them is what produced the original
+ * defect, and the middle case is the dangerous one:
+ *
+ *   A  serverDeleted: false  — the RPC refused. The account still exists,
+ *                              nothing local was touched, the user is still
+ *                              signed in. This is the ONLY state that may say
+ *                              "your account was not deleted".
+ *   B  serverDeleted: true,  — done. Server row gone, device clean.
+ *      cleanupComplete: true
+ *   C  serverDeleted: true,  — the account IS GONE. Some device cleanup did not
+ *      cleanupComplete:false   finish. The user must still be signed out and
+ *                              routed away, and must never be told the deletion
+ *                              failed, because it did not.
+ *
+ * `cleanupFailures` carries stable store identifiers only — never keys, values
+ * or anything user-derived.
+ */
+export type DeleteAccountResult = {
+  serverDeleted: boolean;
+  cleanupComplete: boolean;
+  cleanupFailures: string[];
+  /** Present only in state A. */
+  error?: string;
+};
 
 type Profile = {
   id: string;
@@ -46,6 +77,9 @@ type AuthContextType = {
   signUp: (email: string, password: string, displayName?: string) => Promise<{ error: any }>;
   signIn: (email: string, password: string) => Promise<{ error: any }>;
   signOut: () => Promise<void>;
+  /** Permanently delete the account. See deleteAccount() and
+   *  DeleteAccountResult for the three outcomes and the ordering guarantee. */
+  deleteAccount: () => Promise<DeleteAccountResult>;
   resetPassword: (email: string) => Promise<{ error: any }>;
   updatePassword: (newPassword: string) => Promise<{ error: any }>;
   refreshProfile: () => Promise<void>;
@@ -70,6 +104,18 @@ const ONBOARDING_STORAGE_KEYS = [
   'scan_tutorial_seen',
 ];
 
+/**
+ * Sign-out cleanup. NOT a deletion purge.
+ *
+ * The account still exists, so this removes only the onboarding/session keys
+ * that would otherwise strand the next session mid-flow. Cached history and
+ * preferences are deliberately kept — a user who signs back in should find
+ * their app as they left it.
+ *
+ * Account deletion uses purgeAllLocalData() instead. Keep the two separate:
+ * quietly widening this into a destructive wipe would make every sign-out
+ * destroy data the user still owns.
+ */
 async function clearLocalSessionState(): Promise<void> {
   try {
     await AsyncStorage.multiRemove(ONBOARDING_STORAGE_KEYS);
@@ -174,6 +220,77 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     resetAnalytics();
   };
 
+  /**
+   * Permanently delete the account, then erase every local trace of it.
+   *
+   * ORDER IS THE WHOLE POINT, and each step is ordered for a reason:
+   *
+   *   1. RPC first. A purge that ran before the server confirmed would destroy
+   *      the local data of an account that still exists — the user would lose
+   *      their history AND keep the account they asked to delete.
+   *   2. Only on success: purge local data, then detach RevenueCat, then drop
+   *      the auth session. Nothing is destroyed on the failure path.
+   *   3. The caller decides what to show. This function never reports success
+   *      it did not achieve: a failed RPC returns { ok: false } and leaves the
+   *      user signed in with their data intact.
+   *
+   * Local cleanup failures do NOT flip the result to false. The account really
+   * is gone at that point, and telling the user deletion failed would be the
+   * bigger lie; the failure is recorded for diagnostics instead.
+   */
+  const deleteAccount = async (): Promise<DeleteAccountResult> => {
+    // ── STATE A gate ────────────────────────────────────────────────────────
+    // Nothing is destroyed until the server confirms. A purge before this point
+    // would wipe the local data of an account that still exists.
+    const { error } = await supabase.rpc('delete_user_account');
+    if (error) {
+      return { serverDeleted: false, cleanupComplete: false, cleanupFailures: [], error: error.message };
+    }
+
+    // ── Past here the account IS GONE. ──────────────────────────────────────
+    // Every step below is best-effort cleanup. NONE of them may turn this into
+    // a reported deletion failure, and none may stop the ones after it.
+    const cleanupFailures: string[] = [];
+
+    const purge = await purgeAllLocalData();
+    cleanupFailures.push(...purge.failures);
+
+    // Detach this device's RevenueCat identity. The Apple purchase is untouched
+    // and remains restorable onto a future account.
+    if (!(await logOutSubscriptionUser())) cleanupFailures.push('revenuecat');
+
+    // The server row is already gone, so this can legitimately fail. It is
+    // recorded, never fatal.
+    try {
+      const { error: signOutError } = await supabase.auth.signOut();
+      if (signOutError) cleanupFailures.push('auth_signout');
+    } catch {
+      cleanupFailures.push('auth_signout');
+    }
+
+    // Force-clear in-memory state REGARDLESS of the sign-out result. Without
+    // this a failed signOut would leave the deleted account's session and
+    // profile live in the app, which is the whole risk of state C.
+    setSession(null);
+    setProfile(null);
+    resetAnalytics();
+
+    if (cleanupFailures.length > 0) {
+      Sentry.captureMessage('Device cleanup incomplete after account deletion', {
+        level: 'warning',
+        tags: { context: 'delete_account' },
+        // Store names only.
+        extra: { stores: cleanupFailures.join(',') },
+      });
+    }
+
+    return {
+      serverDeleted: true,
+      cleanupComplete: cleanupFailures.length === 0,
+      cleanupFailures,
+    };
+  };
+
   const resetPassword = async (email: string) => {
     try {
       // redirectTo is what brings the user back into the app from the email.
@@ -218,6 +335,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         signUp,
         signIn,
         signOut,
+        deleteAccount,
         resetPassword,
         updatePassword,
         refreshProfile,

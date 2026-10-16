@@ -46,14 +46,14 @@ import { useLanguage } from '../lib/LanguageContext';
 import { LANGUAGE_LABELS, SUPPORTED_LANGUAGES, type AppLanguage } from '../lib/language';
 
 /**
- * Caps how far the two-letter code can grow at accessibility text sizes.
+ * Caps how far the label can grow at accessibility text sizes.
  *
  * The chip must stay compact and visually secondary to the screen's content,
  * and its 44pt tap target is preserved independently by minHeight/minWidth, so
  * the target never shrinks. This affects this label only — no other text in the
  * app is capped, and Dynamic Type is not disabled anywhere.
  */
-const CODE_MAX_FONT_SCALE = 1.4;
+const CODE_MAX_FONT_SCALE = 1.3;
 
 export default function LanguageSwitcher() {
   const t = useTranslation();
@@ -80,8 +80,12 @@ export default function LanguageSwitcher() {
         accessibilityHint={t.welcome.accessLanguageHint}
       >
         <Ionicons name="globe-outline" size={15} color="rgba(255,255,255,0.75)" />
-        <Text style={styles.chipText} maxFontSizeMultiplier={CODE_MAX_FONT_SCALE}>
-          {language.toUpperCase()}
+        {/* The full label, not the two-letter code. Device QA looked for a
+            language control and did not recognise "EN" as one — the chip was
+            present on Welcome all along. The switcher, its state and its
+            persistence are unchanged; only what the chip reads changed. */}
+        <Text style={styles.chipText} maxFontSizeMultiplier={CODE_MAX_FONT_SCALE} numberOfLines={1}>
+          {LANGUAGE_LABELS[language]}
         </Text>
       </TouchableOpacity>
 

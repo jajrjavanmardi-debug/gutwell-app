@@ -15,6 +15,26 @@ type TriggerFoodsBoxProps = {
   triggerFoods: TriggerFoodItem[];
 };
 
+/**
+ * Strength of an OBSERVED pattern — never a risk level.
+ *
+ * `riskLevel` is the field name lib/correlations.ts already produces and is
+ * left untouched; only its presentation changes. It used to render as
+ * "HIGH" / "MEDIUM" / "LOW" in a red-to-green badge, which reads as a verdict
+ * about a food: unhedged risk language, hardcoded in English, sitting inside a
+ * card whose own title and empty state are carefully hedged ("Possible Trigger
+ * Foods", "Log 2+ weeks of meals to see possible patterns"). The badge won.
+ *
+ * The new labels describe how much co-occurrence has been logged, which is all
+ * the data supports, and the palette drops red so no food is colour-coded as
+ * dangerous.
+ */
+const PATTERN_LABEL_KEY = {
+  high: 'patternStronger',
+  medium: 'patternPossible',
+  low: 'patternEarly',
+} as const;
+
 export default function TriggerFoodsBox({ triggerFoods }: TriggerFoodsBoxProps) {
   const t = useTranslation();
   return (
@@ -23,20 +43,33 @@ export default function TriggerFoodsBox({ triggerFoods }: TriggerFoodsBoxProps) 
       {triggerFoods.length > 0 ? (
         <>
           {triggerFoods.map((item, i) => {
-            const riskColor = item.riskLevel === 'high' ? '#E07070' : item.riskLevel === 'medium' ? Colors.accent : Colors.secondary;
+            // Neutral accent for the strongest pattern instead of the former
+            // '#E07070' alarm red — a stronger pattern is more worth looking
+            // at, not more dangerous.
+            const patternColor =
+              item.riskLevel === 'high'
+                ? Colors.accent
+                : item.riskLevel === 'medium'
+                  ? Colors.primaryLight
+                  : Colors.textTertiary;
+            const patternLabel = t.progress[PATTERN_LABEL_KEY[item.riskLevel]];
             return (
               <View key={i} style={styles.triggerCard}>
                 <View style={styles.triggerRow}>
                   <Text style={styles.triggerFood}>{item.foodName}</Text>
-                  <View style={[styles.riskBadge, { backgroundColor: `${riskColor}18`, borderWidth: 1, borderColor: `${riskColor}40` }]}>
-                    <Text style={[styles.riskText, { color: riskColor }]}>{item.riskLevel.toUpperCase()}</Text>
+                  <View style={[styles.riskBadge, { backgroundColor: `${patternColor}18`, borderWidth: 1, borderColor: `${patternColor}40` }]}>
+                    <Text style={[styles.riskText, { color: patternColor }]}>{patternLabel}</Text>
                   </View>
                 </View>
                 <View style={styles.correlationBarRow}>
                   <View style={styles.correlationBarTrack}>
-                    <View style={[styles.correlationBarFill, { width: `${item.correlationPct}%`, backgroundColor: riskColor }]} />
+                    <View style={[styles.correlationBarFill, { width: `${item.correlationPct}%`, backgroundColor: patternColor }]} />
                   </View>
-                  <Text style={styles.correlationPctText}>{item.correlationPct}% correlation</Text>
+                  {/* Was a bare "{pct}% correlation" — a statistic with no
+                      stated denominator. This names what was counted. */}
+                  <Text style={styles.correlationPctText}>
+                    {t.progress.patternCoOccurrence.replace('{pct}', String(item.correlationPct))}
+                  </Text>
                 </View>
                 {item.topSymptom ? (
                   <Text style={styles.topSymptomText}>→ {item.topSymptom.replace(/_/g, ' ')}</Text>
